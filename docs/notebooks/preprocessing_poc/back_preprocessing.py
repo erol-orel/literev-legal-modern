@@ -33,32 +33,51 @@ def clean_corpus(
     return corpus_without_stopwords
 
 def clean_corpus_mp(
-    corpus: str
+    corpus: str,
+    index: int
 ) -> str:
 
     if not define_languages(corpus):
         print("discarding, not french: ", index)
         return ""
+    
+    if index == 0:
+        print("------------raw corpus")
+        print(corpus)
+      
+    cleaned_corpus = pre_processing(corpus)
 
-    cleaned_corpus = clean_corpus(corpus)
-
-    cleaned_article_corpus = pre_processing(corpus)
-
+    if index == 0:
+        print("------------cleaned_article_corpus")
+        print(cleaned_corpus)
+              
     corpus_to_tokens = sentences_to_words(
-        cleaned_article_corpus
+        cleaned_corpus
     )
 
+    if index == 0:
+        print("------------corpus_to_tokens")
+        print(" ".join(corpus_to_tokens))
+
     lemmatized = lemmatization(corpus_to_tokens)
+
+    if index == 0:
+        print("------------lemmatized")
+        print(lemmatized)
 
     corpus_without_stopwords = remove_words(
         lemmatized, stopwords_list
     )
+
+    if index == 0:
+        print("------------corpus_without_stopwords")
+        print(corpus_without_stopwords)
     
     if not corpus_without_stopwords:
         print("discarding, emtpy after removing stopwords: ", index)
         return ""
 
-    return corpus_without_stopwords
+    return corpus_without_stopwords, index
     
 def back_preprocessing(corpuses):
 
@@ -89,28 +108,37 @@ def back_preprocessing(corpuses):
     return preprocessed_corpus
 
 def back_preprocessing_mp(corpuses):
+    prepared_for_ngrams_dict = dict()
     prepared_for_ngrams = []
     with concurrent.futures.ProcessPoolExecutor() as executor:
         futures = [
             executor.submit(
-                clean_corpus_mp, corpus
+                clean_corpus_mp, corpus, index
             )
-            for corpus in corpuses
+            for index, corpus in enumerate(corpuses)
         ]
 
         for future in concurrent.futures.as_completed(futures):
-            corpus = future.result()
+            corpus, index = future.result()
             if corpus == "":
                 continue
             try:
-                prepared_for_ngrams.append(corpus)
+                prepared_for_ngrams_dict[index] = corpus
                
             except Exception as e:
                 print(f"Error processing future: {e}")
 
         concurrent.futures.wait(futures)
-
+        
+    sorted_dict = dict(sorted(prepared_for_ngrams_dict.items()))
+    for k, v in sorted_dict.items():
+        prepared_for_ngrams.append(v)
+    print('---------prepared for ngrams')
+    print(prepared_for_ngrams[0])
     list_trigrams = create_ngrams(prepared_for_ngrams)
+    
+    print('-----------list trigrams')
+    print(list_trigrams[0])
     
     #remove common and unique
 
