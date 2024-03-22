@@ -1,6 +1,6 @@
 import json
 import pytest
-from utils import DataNormalizer
+from etl import DataNormalizer
 
 
 @pytest.fixture

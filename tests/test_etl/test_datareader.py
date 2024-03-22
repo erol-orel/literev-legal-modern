@@ -1,7 +1,7 @@
 import io
 import pytest
 from pathlib import Path
-from utils import DataReader
+from etl import DataReader
 
 TEST_DIR = Path(__file__).parent.parent
 SAMPLE_DATA_PATH = TEST_DIR / "data" / "test_sample.jsonl"

@@ -1,6 +1,6 @@
 import json
 import pytest
-from utils import DataTranslator
+from etl import DataTranslator
 
 
 @pytest.fixture

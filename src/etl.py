@@ -1,9 +1,37 @@
-"""
-Contains helper/utility functions used throughout the project
+"""ETL - Extract, Transform, Load
+
+This module contains utility functions for extracting, transforming, and loading data from judiciary JSONL data files.
+
+Classes:
+    - DataReader: A helper class for reading large data from files.
+    - DataNormalizer: A helper class for normalizing data, specifically date and timestamp normalization.
+    - DataTranslator: A class for translating key names from French to standardized English.
+
+Usage:
+    To use this module, import it into your script or application and utilize its classes for handling jsonl data.
+
+Example:
+    ```python
+    from etl import DataReader, DataNormalizer, DataTranslator
+
+    # Example usage of DataReader
+    reader = DataReader("example.jsonl")
+    for doc in reader.read_data():
+        print(doc)
+
+    # Example usage of DataNormalizer
+    normalizer = DataNormalizer()
+    normalized_data = normalizer.normalize_document(doc)
+
+    # Example usage of DataTranslator
+    translator = DataTranslator()
+    translated_data = translator.translate_document_fields(doc)
+    ```
 """
 from __future__ import annotations
 import json
 from datetime import datetime
+from elasticsearch import Elasticsearch
 from pathlib import Path
 from typing import Any, Generator
 
@@ -183,3 +211,35 @@ class DataTranslator:
             del doc[QUERY_KEY]
 
         return doc
+
+
+class DataLoader:
+    """Utility class for loading data into some given storage."""
+
+
+    def __init__(self, reader: DataReader) -> None:
+        self.reader = reader
+
+
+    def load_into_es(self, es_client: Elasticsearch, index_name: str) -> None:
+        """Loads data into a Elasticsearch index."""
+
+        try:
+            for line, document in self.reader.read_data():
+                del document["document"]
+                es_client.index(index=index_name, document=document, id=document["record_key"])
+        except Exception as e:
+            raise type(e)(f"{e}, record is at line number {line}") from e
+    
+
+    def load_into_jsonl_file(self, export_path: str) -> None:
+        """Loads data into a JSONL file."""
+        
+        translator, normalizer = DataTranslator(), DataNormalizer()
+    
+        with open(export_path, "w", encoding="utf-8") as f:
+            for _, doc in self.reader.read_data():
+                doc =  translator.translate_document_fields(doc)
+                doc = normalizer.normalize_document(doc)
+                record = json.dumps(doc, ensure_ascii=False)
+                f.write(record + '\n')
