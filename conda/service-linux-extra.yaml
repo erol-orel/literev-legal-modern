@@ -1,7 +1,6 @@
-name: literev-legal
+name: literev
 channels:
   - nodefaults
   - conda-forge
 dependencies:
-  - python 3.10.*
-  - poetry >=1.5
+  - sysroot_linux-64  2.17

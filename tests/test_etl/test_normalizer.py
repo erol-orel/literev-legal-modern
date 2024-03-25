@@ -1,11 +1,14 @@
 import json
+
 import pytest
-from etl import DataNormalizer
+
+from literev.libs.etl import DataNormalizer
 
 
 @pytest.fixture
 def normalizer() -> DataNormalizer:
     return DataNormalizer()
+
 
 @pytest.fixture
 def translated_doc():
@@ -64,6 +67,7 @@ def translated_doc():
 
 # --------------Test DataNormalizer--------------
 
+
 def test_normalize_document_should_succeed(normalizer, translated_doc):
     DOC_DECISION_DATE = "decision_date"
     APPEAL_START_DATE = "start_date"
@@ -78,19 +82,30 @@ def test_normalize_document_should_succeed(normalizer, translated_doc):
     # document
     assert normalized_doc[DOC_DECISION_DATE] == "2023-05-16"
 
-    # appeal 
+    # appeal
     assert normalized_appeal[APPEAL_START_DATE] == "2022-11-21"
     assert normalized_appeal[APPEAL_END_DATE] == "2023-05-30"
-    assert normalized_appeal[APPEAL_MODIFICATION_DATE] == "2023-06-15" 
-    assert normalized_appeal[APPEAL_CREATION_TIMESTAMP] == "2022-11-25 05:15:32.348287"
-    assert normalized_appeal[APPEAL_MODIFICATION_TIMESTAMP] == "2023-06-15 05:15:20.693054"
+    assert normalized_appeal[APPEAL_MODIFICATION_DATE] == "2023-06-15"
+    assert (
+        normalized_appeal[APPEAL_CREATION_TIMESTAMP]
+        == "2022-11-25 05:15:32.348287"
+    )
+    assert (
+        normalized_appeal[APPEAL_MODIFICATION_TIMESTAMP]
+        == "2023-06-15 05:15:20.693054"
+    )
+
 
 def test_normalize_date_should_succeed(normalizer):
     raw_date = "27.11.2022"
     expected_date = "2022-11-27"
     assert normalizer._normalize_date(raw_date) == expected_date
 
+
 def test_normalize_date_timestamp_should_succeed(normalizer):
     raw_date_timestamp = "27/11/22 05:15:25.055478"
     expected_date_timestamp = "2022-11-27 05:15:25.055478"
-    assert normalizer._normalize_date_timestamp(raw_date_timestamp) == expected_date_timestamp
+    assert (
+        normalizer._normalize_date_timestamp(raw_date_timestamp)
+        == expected_date_timestamp
+    )

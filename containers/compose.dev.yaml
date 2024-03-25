@@ -1,0 +1,17 @@
+version: '3.9'
+
+services:
+  literev:
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+    environment:
+      DEBUG: 1
+    volumes:
+      - ../src/:/opt/services/literev/src/
+      - docker_volume:/opt/services/literev/literev/docker_volume
+
+  literev-celery:
+    environment:
+      DEBUG: 1
+    volumes:
+      - ../src/:/opt/services/literev/src/
+      - docker_volume:/opt/services/literev/literev/docker_volume
