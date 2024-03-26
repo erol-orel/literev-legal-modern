@@ -1,0 +1,128 @@
+version: '3.9'
+
+services:
+  literev-base:
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    env_file:
+      - ../.env
+    build:
+      context: ..
+      dockerfile: containers/literev/Dockerfile
+      args:
+        # note: if you want to use a specific UID and GID, ensure to add it to
+        #       the .env file
+        - UID=${HOST_UID:-1000}
+        - GID=${HOST_GID:-1000}
+        - ENV=${ENV:-prod}
+        - DOCKER_VOLUME_CONTAINER_PATH=${DOCKER_VOLUME_CONTAINER_PATH}
+        - STATIC_ROOT=${STATIC_ROOT:-/tmp/literev/static}
+        - MEDIA_ROOT=${DJANGO_MEDIA_ROOT:-/tmp/literev/media}
+        - HTTP_PROXY=${http_proxy}
+        - HTTPS_PROXY=${https_proxy}
+    user: "literev:literev"
+
+  literev:
+    extends: literev-base
+    hostname: literev
+    environment:
+      DJANGO_PORT: 8000
+    ports:
+      - ${FRONTEND_HOST_PORT}:8000
+    depends_on:
+      - literev-postgres
+      - literev-redis
+    volumes:
+      - docker_volume:${DOCKER_VOLUME_CONTAINER_PATH}
+      - static_root:${STATIC_ROOT:-/tmp/literev/static}
+      - media_root:${DJANGO_MEDIA_ROOT:-/tmp/literev/media}
+    networks:
+      - literev
+    healthcheck:
+      interval: 60s
+      timeout: 10s
+      retries: 5
+      start_period: 40s  # requires docker-compose 3.4
+      test: ["CMD", "curl", "-f", "http://localhost:${DJANGO_PORT:-8000}/status/"]
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 2048M
+        reservations:
+          cpus: '0.25'
+          memory: 1024M
+
+  literev-postgres:
+    hostname: literev-postgres
+    # restart: unless-stopped
+    build:
+      context: ..
+      dockerfile: containers/postgresql/Dockerfile
+    env_file:
+      - ../.env
+    ports:
+      - ${POSTGRES_PORT}:${POSTGRES_PORT}
+    environment:
+      PGDATA: /var/lib/postgresql/data
+    # user: "postgres:postgres"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - literev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -p ${POSTGRES_PORT} -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    command: postgres -p ${POSTGRES_PORT}
+  
+  literev-celery:
+    extends: literev-base
+    hostname: literev-celery
+    build:
+      context: ..
+      dockerfile: containers/literev/Dockerfile
+    command: celery --app=config worker --loglevel=info
+    env_file:
+      - ../.env
+    depends_on:
+      - literev
+      - literev-redis
+      - literev-postgres
+    volumes:
+      - docker_volume:${DOCKER_VOLUME_CONTAINER_PATH}
+      - static_root:${STATIC_ROOT:-/tmp/literev/static}
+      - media_root:${DJANGO_MEDIA_ROOT:-/tmp/literev/media}
+    networks:
+      - literev
+
+  literev-redis:
+    image: redis:7-alpine
+    hostname: literev-redis
+    networks:
+      - literev
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 2048M
+        reservations:
+          cpus: '0.25'
+          memory: 1024M
+
+
+volumes:
+  docker_volume:
+  pgdata:
+  static_root:
+  media_root:
+
+networks:
+  literev:
+
+# NETWORKS
+# networks allows services to resolve composeother services
+# by their hostnames example: literev, literev-postgres, etc.
+# server literev:8000; resolves to server  xxx.x.x.x:8000;

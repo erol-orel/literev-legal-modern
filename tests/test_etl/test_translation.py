@@ -1,6 +1,8 @@
 import json
+
 import pytest
-from utils import DataTranslator
+
+from literev.libs.etl import DataTranslator
 
 
 @pytest.fixture
@@ -58,39 +60,50 @@ def record_sample():
         "id":"1685021361"
     }""")
 
+
 @pytest.fixture
 def root_fields_in_french():
     """List of root level document fields in French."""
     return [
-        key for key, value in DataTranslator.ROOT_FIELD_MAP.items()
-        if key != value # keep only translated words
+        key
+        for key, value in DataTranslator.ROOT_FIELD_MAP.items()
+        if key != value  # keep only translated words
     ]
+
 
 @pytest.fixture
 def appeal_fields_in_french():
     """List of appeal fields in French."""
     return [
-        key for key, value in DataTranslator.APPEAL_FIELD_MAP.items()
-        if key != value # keep only translated words
+        key
+        for key, value in DataTranslator.APPEAL_FIELD_MAP.items()
+        if key != value  # keep only translated words
     ]
+
 
 @pytest.fixture
 def translator() -> DataTranslator:
     return DataTranslator()
 
+
 # --------------Test document translation--------------
-def test_translate_document_fields_root_level_should_succeed(record_sample, root_fields_in_french, appeal_fields_in_french, translator):
+def test_translate_document_fields_root_level_should_succeed(
+    record_sample, root_fields_in_french, appeal_fields_in_french, translator
+):
     translated_doc = translator.translate_document_fields(record_sample)
     for field in root_fields_in_french:
         # assert that french words are not in the document
         # after transalation
         assert field not in translated_doc
-    
+
     appeals = translated_doc["appeals"][0]
     for field in appeal_fields_in_french:
         assert field not in appeals
 
-def test_missing_fields_are_translated_and_set_should_succeed(record_sample, translator):
+
+def test_missing_fields_are_translated_and_set_should_succeed(
+    record_sample, translator
+):
     # remove apppeal/recours key
     del record_sample["recours"]
     translated_doc = translator.translate_document_fields(record_sample)
@@ -98,7 +111,9 @@ def test_missing_fields_are_translated_and_set_should_succeed(record_sample, tra
     assert translated_doc["appeals"] == []
 
 
-def test_noise_fields_are_removed_during_translation_should_succeed(record_sample, translator):
+def test_noise_fields_are_removed_during_translation_should_succeed(
+    record_sample, translator
+):
     # add query key
     record_sample["query"] = "lalalalala"
     translated_doc = translator.translate_document_fields(record_sample)
@@ -111,33 +126,43 @@ def test_null_fields_are_set_to_none_should_succeed(record_sample):
         "rectification",
         "importance",
         "n_ext_proc",
-        "source", 
+        "source",
     ]
 
     for field in null_fields:
         assert record_sample[field] is None
 
 
-def test_missing_fields_are_added_and_set_to_none_should_succeed(record_sample, translator):
+def test_missing_fields_are_added_and_set_to_none_should_succeed(
+    record_sample, translator
+):
     missing_fields = [
         "rectification",
         "importance",
         "n_ext_proc",
-        "source", 
+        "source",
     ]
 
     for field in missing_fields:
         del record_sample[field]
 
     translated_doc = translator.translate_document_fields(record_sample)
-    
+
     for field in missing_fields:
-        assert translated_doc[DataTranslator.ROOT_FIELD_MAP[field]] == translated_doc[DataTranslator.ROOT_FIELD_MAP[field]] is None
+        assert (
+            translated_doc[DataTranslator.ROOT_FIELD_MAP[field]]
+            == translated_doc[DataTranslator.ROOT_FIELD_MAP[field]]
+            is None
+        )
+
 
 def test_appeal_null_fields_are_set_to_none_should_succeed(record_sample):
     assert record_sample["recours"][0]["resultat"] is None
 
-def test_appeal_missing_fields_are_translated_and_set_should_succeed(record_sample, translator):
+
+def test_appeal_missing_fields_are_translated_and_set_should_succeed(
+    record_sample, translator
+):
     del record_sample["recours"][0]["resultat"]
     translated_doc = translator.translate_document_fields(record_sample)
     assert translated_doc["appeals"][0]["result"] is None

@@ -1,0 +1,19 @@
+version: 1.0
+compose-app: docker compose
+env-file: .env
+defaults:
+  group: {{ env.ENV }}
+  project-name: literev-legal{{ env.DOCKER_PROJECT_NAME }}
+groups:
+  dev:
+    compose-path:
+      - containers/compose.base.yaml
+      - containers/compose.dev.yaml
+    env-file: .env
+    services:
+      default: literev,literev-postgres,literev-redis,literev-celery
+      available:
+        - name: literev
+        - name: literev-postgres
+        - name: literev-redis
+        - name: literev-celery

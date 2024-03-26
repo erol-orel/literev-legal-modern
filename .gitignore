@@ -152,3 +152,6 @@ containers/nginx/data/config/prod/prod.nginx.conf
 # literev
 src/core
 db.sqlite
+
+# exported normalized judiciary data
+docs/notebooks/judiciary_data.jsonl

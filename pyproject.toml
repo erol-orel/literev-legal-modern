@@ -8,11 +8,19 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.10"
+elasticsearch = "^8.12.1"
+django = "^5.0.3"
+psycopg2-binary = "^2.9.9"
+celery = "^5.3.6"
+redis = "^5.0.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.2"
 jupyterlab = "^4.1.4"
 pytest-cov = "^4.1.0"
+pytest-django = "^4.8.0"
+containers-sugar = "^1.11.2"
+makim = "^1.14.0"
 
 [build-system]
 requires = ["poetry-core"]
