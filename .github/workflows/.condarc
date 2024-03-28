@@ -1,0 +1,7 @@
+proxy_servers:
+  http_proxy: http://facmed-proxy.unige.ch:3128
+  https_proxy: http://facmed-proxy.unige.ch:3128
+
+channels:
+  - nodefaults
+  - conda-forge

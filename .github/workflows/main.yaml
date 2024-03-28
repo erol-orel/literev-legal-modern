@@ -81,6 +81,10 @@ jobs:
     - name: Install dependencies
       run: poetry install
 
+    # - name: Run linter
+    #   if: ${{ success() || failure() }}
+    #   run: makim tests.lint
+    
     - name: Clean-up
       run: makim clean.all
 
