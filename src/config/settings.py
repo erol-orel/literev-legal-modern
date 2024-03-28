@@ -148,6 +148,6 @@ CELERY_ACCEPT_CONTENT = ['pickle']
 
 
 # ELASTICSEARCH
-ES_HOSTNAME = os.environ.get("ES_HOSTNAME", default="")  # e.g.: "http://localhost:9200"
+ES_HOST_URL = os.environ.get("ES_HOST_URL", default="")  # e.g.: "http://localhost:9200"
 ES_USERNAME = os.environ.get("ES_USERNAME", default="")  # Elastic Search username
 ES_PASSWORD = os.environ.get("ES_PASSWORD", default="")  # Elastic Search password
