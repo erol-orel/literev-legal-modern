@@ -1,0 +1,215 @@
+version: 1.0
+shell: bash
+env-file: .env
+groups:
+  clean:
+    targets:
+      all:
+        help: remove build artifacts, compiled files, and cache
+        shell: bash
+        run: |
+          find . -name '*.egg-info' -exec rm -rf {} +
+          find . -name '*.egg' -exec rm -f {} +
+          find . -name '*.pyc' -exec rm -f {} +
+          find . -name '*.pyo' -exec rm -f {} +
+          find . -name '__pycache__' -exec rm -rf {} +
+          find . -name '*~' -exec rm -f {} +
+          rm -rf build/
+          rm -rf dist/
+          rm -rf .eggs/
+          rm -f .coverage
+          rm -rf htmlcov/
+          rm -rf .pytest_cache
+          rm -rf .mypy_cache
+          rm -rf .ruff_cache
+
+  tests:
+    targets:
+      lint:
+        help: Run linter tools
+        dependencies:
+          - target: clean.all
+        run: |
+          pre-commit install
+          pre-commit run --all-files --verbose
+
+  django:
+    targets:
+      collectstatic:
+        help: Run the collectstatic for the literev service
+        run: |
+          CMD="python manage.py collectstatic --no-input"
+
+          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
+            sugar run --service literev --options --rm --cmd $CMD
+          else
+            cd ./src/
+            export POSTGRES_HOST=localhost
+            $CMD
+          fi
+
+      create-superuser:
+        args:
+          email:
+            help: Specify the username
+            type: string
+            required: True
+          username:
+            help: Specify the username
+            type: string
+            required: True
+          password:
+            help: Specify the password
+            type: string
+            required: True
+        env:
+          POSTGRES_HOST: localhost
+        help: create an admin user
+        run: |
+          export DJANGO_SUPERUSER_PASSWORD=${{ args.password }}
+          export DJANGO_SUPERUSER_USERNAME=${{ args.username }}
+          CMD="python manage.py createsuperuser --noinput --email ${{ args.email }}"
+
+          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
+            sugar run --service literev --cmd $CMD --options --rm --env DJANGO_SUPERUSER_PASSWORD=$DJANGO_SUPERUSER_PASSWORD --env DJANGO_SUPERUSER_USERNAME=$DJANGO_SUPERUSER_USERNAME
+          else
+            cd ./src/
+            export POSTGRES_HOST=localhost
+            $CMD
+          fi
+
+      makemigrations:
+        help: Run django makemigrations command (just for development)
+        args:
+          check:
+            help: |
+              Just check if the latest migration files were already created.
+            type: bool
+            action: store_true
+        run: |
+          sugar ext start \
+            --services literev-postgres --options -d
+
+          CWD=$(pwd)
+          CMD_FLAG="${{ '--check' if args.check else '' }} --no-input"
+
+          for app in 'literev'; do
+            echo -e "\nMaking migration files for: '${app}' ...\n"
+
+            CMD="python manage.py makemigrations ${CMD_FLAG} ${app}"
+
+            if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
+              sugar exec --service literev --cmd $CMD
+            else
+              cd "${CWD}/src/"
+              export POSTGRES_HOST=localhost
+              $CMD
+            fi
+          done
+
+          echo "[II] literev-postgres is running."
+
+      migrate:
+        help: Migrate regarding to the current migration files
+        env-file: .env
+        run: |
+          sugar ext start \
+            --services literev-postgres --options -d
+
+          CMD="python manage.py migrate --no-input"
+
+          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
+            sugar run --service literev --options --rm --cmd $CMD
+          else
+            cd ./src/
+            export POSTGRES_HOST=localhost
+            $CMD
+          fi
+          echo "[II] literev-postgres is running."
+
+      runserver:
+        help: Run the django application
+        env-file: .env
+        args:
+          plus:
+            help: Run runserver command with additionally resources.
+            type: bool
+            action: store-true
+        run: |
+          sugar ext restart --services literev --options -d
+          {% if args.plus %}
+          CMD="python manage.py runserver_plus 0.0.0.0:8000"
+          {% else %}
+          CMD="python manage.py runserver 0.0.0.0:8000"
+          {% endif %}
+
+          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
+            sugar run --service literev --options --rm
+          else
+            cd src
+            export POSTGRES_HOST=localhost
+            $CMD
+          fi
+
+      notebook:
+        help: Run the django environment in a jupyter notebook
+        env-file: .env
+        run: |
+          export POSTGRES_HOST=localhost
+          python src/manage.py shell_plus --lab
+
+  containers:
+    targets:
+      wait:
+        args:
+          timeout:
+            help: Specify the timeout for waiting the services
+            type: integer
+            default: 90
+          service:
+            help: Specify the service to be awaited
+            type: string
+            required: true
+        run: timeout ${{ args.timeout }} ./containers/healthcheck.sh ${{ args.service }}
+
+      wait-all:
+        help: wait for all services
+        run: |
+          makim containers.wait --service literev-postgres
+          makim containers.wait --service literev
+
+  docs:
+    targets:
+      build:
+        help: build documentation
+        run: |
+          mkdocs build --config-file mkdocs.yaml
+
+      preview:
+        help: preview documentation page locally
+        run: mkdocs serve --watch docs --config-file mkdocs.yaml
+
+  release:
+    vars:
+      app: |
+        npx --yes \
+          -p semantic-release \
+          -p conventional-changelog-conventionalcommits \
+          -p "@semantic-release/commit-analyzer" \
+          -p "@semantic-release/release-notes-generator" \
+          -p "@semantic-release/changelog" \
+          -p "@semantic-release/exec" \
+          -p "@semantic-release/github" \
+          -p "@semantic-release/git" \
+          -p "semantic-release-replace-plugin@1.2.7" \
+          semantic-release
+
+    targets:
+      ci:
+        help: run semantic release on CI
+        run: ${{ vars.app }} --ci
+
+      dry:
+        help: run semantic release in dry-run mode
+        run: |
+          ${{ vars.app }} --dry-run
