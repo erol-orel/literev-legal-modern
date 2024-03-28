@@ -25,6 +25,7 @@ pytest-cov = "^4.1.0"
 pytest-django = "^4.8.0"
 containers-sugar = "^1.11.2"
 makim = "^1.14.0"
+django-extensions = ">=3.2.3"
 
 [build-system]
 requires = ["poetry-core"]
