@@ -15,6 +15,9 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+print(ROOT_DIR)
+print("--------------------")
+BASE_DIR = ROOT_DIR / "src"
 
 load_dotenv(dotenv_path=ROOT_DIR / ".env")
 
@@ -30,7 +33,7 @@ SECRET_KEY = 'django-insecure-46tpn@d-iv@)mne!f8$dbp+wkel%ep&v+46pr3mcctica#&h+%
 DEBUG = True
 
 ALLOWED_HOSTS = (
-    os.getenv("ALLOWED_HOSTS").split(",") if os.getenv("ALLOWED_HOSTS") else []
+    os.getenv("ALLOWED_HOSTS").split(",") if os.getenv("ALLOWED_HOSTS") else ['0.0.0.0']
 )
 
 
@@ -82,18 +85,25 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql_psycopg2",
-        "NAME": os.environ.get("POSTGRES_DB_LITEREV", "x_db_name_x"),
-        "USER": os.environ.get("POSTGRES_USER_LITEREV", "x_db_user_name_x"),
-        "PASSWORD": os.environ.get(
-            "POSTGRES_PASSWORD_LITEREV", "x_db_password_x"
-        ),
-        "HOST": os.environ.get("POSTGRES_HOST", "x_db_host_x"),
-        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
-        # 'OPTIONS': {'sslmode': 'require'}
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': ROOT_DIR / 'db.sqlite3',
     }
 }
+
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql_psycopg2",
+#         "NAME": os.environ.get("POSTGRES_DB_LITEREV", "x_db_name_x"),
+#         "USER": os.environ.get("POSTGRES_USER_LITEREV", "x_db_user_name_x"),
+#         "PASSWORD": os.environ.get(
+#             "POSTGRES_PASSWORD_LITEREV", "x_db_password_x"
+#         ),
+#         "HOST": os.environ.get("POSTGRES_HOST", "x_db_host_x"),
+#         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+#         # 'OPTIONS': {'sslmode': 'require'}
+#     }
+# }
 
 
 # Password validation
@@ -131,6 +141,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [APPS_DIR / 'static']
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field

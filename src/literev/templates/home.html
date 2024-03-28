@@ -1,0 +1,102 @@
+{% extends "main.html" %}
+
+{% load static %}
+
+{% block content %}
+  <div class="d-flex justify-content-center align-items-center color-b"
+       style="height: 60vh">
+    <div class="px-4 py-5 container text-center">
+      <span class="text-light logo-literev">
+        Lite<span class="text-primary">Rev</span>
+      </span>
+      <div class="text-center text-light">
+        <span class="mb-4 fs-2">Made for Researchers</span>
+      </div>
+      <a href="{% url "search" %}"
+        class="fs-3 btn btn-primary btn-lg px-4 me-md-2 mt-4"
+        role="button">Get Started</a>
+
+    </div>
+  </div>
+  <div style="background-color: #f8f9fa">
+    <div class="container col-xxl-8 px-4 py-5">
+      <div class="container-fluid py-5 text-center">
+        <h1 class="display-5 fw-bold text-center">
+          About
+        </h1>
+        <p class="col-md-10 text-start fs-4 mx-auto">
+          A tool that reduces searching times,
+          showing the relationships between searching topics. You can easily find the
+          most relevant content from several scientific databases.
+          Whether you are a student, scientist, or professional, LiteRev simplifies the process
+          of finding the articles you need.
+          Give it a try.
+          Science it!
+        </p>
+        <button class="text-center btn btn-primary btn-lg"
+                type="button">
+          Learn more
+        </button>
+      </div>
+      <br />
+    </div>
+  </div>
+  <div style="background-color: #e6f1f0">
+    <div class="container col-xxl-8 px-4 py-5">
+      <div class="container-fluid py-5">
+        <h1 class="display-5 fw-bold text-center">
+          How it works
+        </h1>
+        <div class="col-md-12 justify-content-center">
+          <img src="{% static "./images/about-image.png" %}" width="100%" alt="" />
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="container-fluid px-4 py-5 my-5">
+    <h2 class="pb-2 border-bottom text-center">
+      Partners
+    </h2>
+    <h3 class="text-center mb-5">
+      We are part of a great community
+    </h3>
+    <div class="col-8 mx-auto">
+      <div class="row row-cols-1 row-cols-lg-4 g-5 py-2">
+        <div class="col my-2">
+          <a href="https://unige.ch/"
+             target="_blank">
+            <div class="py-5 d-grid align-items-center  h-100 overflow-hidden rounded-4">
+              <img class="mx-auto" width="50%" src="{% static "./images/ug.png" %}" alt="" />
+            </div>
+          </a>
+        </div>
+        <div class="col my-2">
+          <a href="https://thegraphnetwork.org/"
+             target="_blank">
+            <div class="py-5 d-grid align-items-center h-100 overflow-hidden  rounded-4">
+              <img class="mx-auto" width="50%" src="{% static "./images/tgn.png" %}" alt="" />
+            </div>
+          </a>
+        </div>
+        <div class="col my-2">
+          <a href="https://www.hug.ch/"
+             target="_blank">
+            <div class="py-5 d-grid align-items-center  h-100 overflow-hidden rounded-4">
+              <img class="mx-auto" width="50%" src="{% static "./images/logoHUG.jpg" %}" alt="" />
+            </div>
+          </a>
+        </div>
+
+        <div class="col my-2">
+          <a href="https://www.opensciencelabs.org/"
+             target="_blank">
+            <div class="py-5 d-grid align-items-center  h-100 overflow-hidden rounded-4">
+              <img class="mx-auto" width="50%" src="{% static "./images/partners/osl.png" %}" alt="" />
+            </div>
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+{% endblock content %}
