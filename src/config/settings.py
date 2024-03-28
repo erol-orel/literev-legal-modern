@@ -27,7 +27,8 @@ APPS_DIR = ROOT_DIR / "src"
 SECRET_KEY = 'django-insecure-46tpn@d-iv@)mne!f8$dbp+wkel%ep&v+46pr3mcctica#&h+%'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# https://docs.djangoproject.com/en/dev/ref/settings/#debug
+DEBUG = os.getenv("DEBUG", "").lower() == "true"
 
 ALLOWED_HOSTS = (
     os.getenv("ALLOWED_HOSTS").split(",") if os.getenv("ALLOWED_HOSTS") else []
@@ -43,9 +44,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django_extensions',
     "literev.apps.LiterevConfig",
 ]
+
+if DEBUG:
+    INSTALLED_APPS += ("django_extensions",)
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
