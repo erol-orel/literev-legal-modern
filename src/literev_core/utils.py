@@ -1,18 +1,20 @@
 from __future__ import annotations
+
 import re
+
 import spacy
+
+from gensim.models import phrases
+from gensim.utils import simple_preprocess
+
 # library for lemmatization nlp spacy
 # remove words list of stopwords
 from lingua import Language, LanguageDetectorBuilder
-from gensim.models import phrases
-from gensim.utils import simple_preprocess
 from sklearn.feature_extraction.text import TfidfVectorizer
-import joblib
-
-from gensim.utils import simple_preprocess
 
 SUPPORTED_LANGUAGES = [Language.ENGLISH, Language.FRENCH]
 detector = LanguageDetectorBuilder.from_languages(*SUPPORTED_LANGUAGES).build()
+
 
 def create_stopwords() -> set[str]:
     """Create a new set of stopwords from a file.
@@ -27,7 +29,8 @@ def create_stopwords() -> set[str]:
         reader = f.read()
 
     return set(reader.splitlines())
-    
+
+
 def define_languages(corpus: str) -> bool:
     """Given an article corpus, determine if the article belongs to
     the list of valid languages
@@ -49,6 +52,7 @@ def define_languages(corpus: str) -> bool:
     # Check if the detected language is English
     return detected_language == Language.FRENCH
 
+
 def pre_processing(corpus: str) -> str:
     """Preprocess a string by removing special characters and digits.
 
@@ -66,7 +70,7 @@ def pre_processing(corpus: str) -> str:
         (r"\S*@\S*\s?", ""),  # to remove emails
         (r"\s+", " "),  # remove new line characters
         ("'", ""),  # remove distracting singel quotes
-        ("_", ""), # remove underscores
+        ("_", ""),  # remove underscores
         (r"http[s]?://\S+", ""),  # remove http remants in the text
         (r"www\.*[\r\n]*\S+", ""),  # remove www remnants in the text
         (
@@ -80,6 +84,7 @@ def pre_processing(corpus: str) -> str:
         corpus = re.sub(pattern, replacement, corpus)
 
     return corpus
+
 
 def sentences_to_words(corpus: str) -> list[str]:
     """Receive a corpus to convert it into tokens.
@@ -105,7 +110,7 @@ def lemmatization(
     list_words: list[str],
     allowed_postags: list[str] = ["NOUN", "ADJ", "VERB", "ADV"],
 ) -> str:
-    #TODO: change it for french language
+    # TODO: change it for french language
     """Lemmatize a list of words.
 
     Parameters
@@ -130,6 +135,7 @@ def lemmatization(
     )
     return list_lemmatized
 
+
 def remove_words(list_lemmatized: str, list_stopwords: set[str]) -> str:
     """Remove stopwords from a article corpus
 
@@ -152,6 +158,7 @@ def remove_words(list_lemmatized: str, list_stopwords: set[str]) -> str:
             list_stopped.append(word)
 
     return " ".join(list_stopped)
+
 
 def create_ngrams(
     corpus_list: list[str],
@@ -194,6 +201,7 @@ def create_ngrams(
 
     return list_trigrams
 
+
 def remove_common_and_unique(list_trigrams: list[list[str]]) -> list[str]:
     # TODO: Check if its working correctly
     # present the results
@@ -225,9 +233,8 @@ def remove_common_and_unique(list_trigrams: list[list[str]]) -> list[str]:
 
     return list_final
 
-def remove_empty(
-    list_final: list[str]
-) -> list[str]:
+
+def remove_empty(list_final: list[str]) -> list[str]:
     return_id_list: list[int] = []
     return_final_list: list[str] = []
 

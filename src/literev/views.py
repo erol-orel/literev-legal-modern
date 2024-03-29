@@ -1,15 +1,13 @@
 from __future__ import annotations
-from django.http import JsonResponse
-from tasks.sample_tasks import add_one_task, run_pipeline
-
-from django.shortcuts import render
-from django.views.generic import TemplateView
 
 from typing import Any
 
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.shortcuts import render
+from django.views.generic import TemplateView
 
 from literev.forms import SearchForm
+from tasks.sample_tasks import add_one_task, run_pipeline
 
 
 def run_task(request, number):
@@ -24,10 +22,11 @@ def run_pipeline_sample(request):
 
 
 class HomePageView(TemplateView):
-    template_name = 'home.html'
+    template_name = "home.html"
 
 
-def search_search(request: HttpRequest, context: dict[str, Any]
+def search_search(
+    request: HttpRequest, context: dict[str, Any]
 ) -> dict[str, Any]:
     search_form = SearchForm(request.POST)
     print("getting the search form")
@@ -40,7 +39,9 @@ def search_search(request: HttpRequest, context: dict[str, Any]
         range_begin_date = search_form.cleaned_data["range_begin_date"]
         range_end_date = search_form.cleaned_data["range_end_date"]
 
-        number_documents = 100 # TODO: refactor to get the right number of documents
+        number_documents = (
+            100  # TODO: refactor to get the right number of documents
+        )
 
         # enable continue message box
         context["continue_message_box"] = True
@@ -60,7 +61,8 @@ def search_search(request: HttpRequest, context: dict[str, Any]
 
     return context
 
-def search(request :HttpRequest) -> HttpResponse:
+
+def search(request: HttpRequest) -> HttpResponse:
     print("executing the search function")
     context: dict[str, Any] = dict()
     context["continue_message_box"] = False
@@ -69,39 +71,39 @@ def search(request :HttpRequest) -> HttpResponse:
         context["search_form"] = SearchForm()
         print("no post")
         return render(request, "search.html", context)
-    
+
     submit = request.POST["submit"]
 
     if submit == "search":
         context = search_search(request, context)
-    
+
     elif submit == "evaluate":
-        # TODO: Implement this 
-        # return to the saved variables from 
+        # TODO: Implement this
+        # return to the saved variables from
         # request session
         context["search_form"] = SearchForm()
         return render(request, "search.html", context)
-    
+
     elif submit == "continue":
         # TODO: Implement this create
         # create a Project object
         # send it to the back process
         context["search_form"] = SearchForm()
         return render(request, "search.html", context)
-    
+
     elif submit == "cancel":
-        # TODO: Implement this 
-        # return to the saved variables from 
+        # TODO: Implement this
+        # return to the saved variables from
         # request session
         context["search_form"] = SearchForm()
         return render(request, "search.html", context)
 
-
-    
     return render(request, "search.html", context)
 
+
 class SearchPageView(TemplateView):
-    template_name = 'search.html'
+    template_name = "search.html"
+
 
 class RunningPageView(TemplateView):
-    template_name = 'running.html'
+    template_name = "running.html"
