@@ -23,8 +23,24 @@ pytest = "^8.0.2"
 jupyterlab = "^4.1.4"
 pytest-cov = "^4.1.0"
 pytest-django = "^4.8.0"
-containers-sugar = "^1.11.2"
-makim = "^1.14.0"
+pre-commit = ">=3.0.0"
+bandit = ">=1.7.5"
+compose-go = ">=2.23.0"
+containers-sugar = "1.11.1"
+django-stubs = "<4.2.5"
+django-stubs-ext = "<4.2.5"
+django-extensions = ">=3.2.3"
+djlint = ">=1.32.1"
+ipython = ">=8.14.0"
+jupyter = ">=1"
+makim = "1.14.0"
+mccabe = ">=0.7.0"
+mypy = ">=1.8" # issue: https://github.com/typeddjango/django-stubs/issues/1802
+notebook = ">=6.5.4"
+pdbpp = ">=0.10.3"
+ruff = ">=0.1.5"
+vulture = ">=2.7"
+
 
 [build-system]
 requires = ["poetry-core"]
@@ -36,3 +52,108 @@ pythonpath = "src"
 testpaths = [
     "tests",
 ]
+
+[tool.bandit]
+exclude_dirs = ["tests", "migrations"]
+targets = "src/"
+
+
+[tool.vulture]
+exclude = ["tests", "migrations"]
+ignore_decorators = []
+ignore_names = []
+make_whitelist = true
+min_confidence = 80
+paths = ["src/"]
+# sort_by_size = true
+verbose = false
+
+
+[tool.ruff]
+line-length = 79
+force-exclude = true
+src = ["./src"]
+exclude = [
+  "docs",
+  "migrations",
+  "urls.py",
+]
+fix = true
+
+[tool.ruff.lint]
+ignore = ["RUF012"]
+select = [
+  # "E",   # pycodestyle
+  "F",   # pyflakes
+  # "D",   # pydocstyle
+  "YTT", # flake8-2020
+  # "PL",  # PL
+  "RUF", # Ruff-specific rules
+  "I001", # isort
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.isort]
+# Use a single line between direct and from import
+lines-between-types = 1
+
+[tool.ruff.format]
+quote-style = "double"
+
+
+[tool.mypy]
+plugins = ["mypy_django_plugin.main"]
+python_version = "3.9"
+check_untyped_defs = true
+strict = true
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
+strict_settings = false
+ignore_missing_model_attributes = true
+
+[[tool.mypy.overrides]]
+module = [
+  "requests",
+]
+ignore_missing_imports = true
+
+
+[tool.djlint]
+blank_line_after_tag="load,extends,include"
+blank_line_before_tag="load,extends,include,block"
+close_void_tags=true
+# custom_blocks="toc,example"
+# custom_html="mjml,simple-greeting,mj-\w+"
+format_attribute_template_tags=true
+format_css=true
+indent=2
+line_break_after_multiline_tag=true
+max_attribute_length=3
+max_blank_lines=1
+max_line_length=80
+profile="django"
+# it is necessary to exclude src/literev/templates/tags because of the
+# following issue:
+#   - https://github.com/Riverside-Healthcare/djLint/issues/703
+exclude="src/workflow/tests,.git,docs,.eggs,src/literev/templates/tags"
+# TODO: remove from the ignore list:
+#       H013,H021,H023,D018
+ignore="H029,H005,H030,H031,H006,H013,H021,H023,D018"
+preserve_blank_lines=false
+
+[tool.djlint.html]
+indent_size=2
+
+[tool.djlint.css]
+indent_size=2
+
+[tool.djlint.js]
+indent_size=2

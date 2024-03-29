@@ -27,7 +27,8 @@ APPS_DIR = ROOT_DIR / "src"
 SECRET_KEY = 'django-insecure-46tpn@d-iv@)mne!f8$dbp+wkel%ep&v+46pr3mcctica#&h+%'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# https://docs.djangoproject.com/en/dev/ref/settings/#debug
+DEBUG = os.getenv("DEBUG", "").lower() == "true"
 
 ALLOWED_HOSTS = (
     os.getenv("ALLOWED_HOSTS").split(",") if os.getenv("ALLOWED_HOSTS") else []
@@ -43,9 +44,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
     "literev.apps.LiterevConfig",
 ]
+
+if DEBUG:
+    INSTALLED_APPS += ("django_extensions",)
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -148,6 +151,6 @@ CELERY_ACCEPT_CONTENT = ['pickle']
 
 
 # ELASTICSEARCH
-ES_HOSTNAME = os.environ.get("ES_HOSTNAME", default="")  # e.g.: "http://localhost:9200"
+ES_HOST_URL = os.environ.get("ES_HOST_URL", default="")  # e.g.: "http://localhost:9200"
 ES_USERNAME = os.environ.get("ES_USERNAME", default="")  # Elastic Search username
 ES_PASSWORD = os.environ.get("ES_PASSWORD", default="")  # Elastic Search password
