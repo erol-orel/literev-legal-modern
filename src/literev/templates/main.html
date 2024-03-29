@@ -1,0 +1,97 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible"
+          content="IE=edge" />
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0" />
+    <title>LiteRev</title>
+    <link rel="stylesheet" href="{% static "./css/bootstrap.min.css" %}" />
+    <link href="{% static "./css/main.css" %}" rel="stylesheet" />
+    <link href="{% static "./css/fontawesome.min.css" %}" rel="stylesheet" />
+    <link href="{% static "./css/brands.min.css" %}" rel="stylesheet" />
+    <link href="{% static "./css/solid.min.css" %}" rel="stylesheet" />
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static "/images/apple-touch-icon.png" %}" />
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static "/images/favicon-32x32.png" %}" />
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static "/images/favicon-16x16.png" %}" />
+  </head>
+  <body>
+    <header class="bg-dark fixed-top">
+      <nav class="container navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+          <a class="navbar-brand fs-4"
+             href="#">
+            Lite<span class="text-primary">Rev</span>
+          </a>
+          <button class="navbar-toggler"
+                  type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#navbarNav"
+                  aria-controls="navbarNav"
+                  aria-expanded="false"
+                  aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <div class="collapse navbar-collapse"
+               id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+              <!-- link for future how it works or manual page -->
+              <!-- <li class="nav-item">
+                    <a class="nav-link fs-5 me-3" aria-current="page" href="#">Learn it</a>
+                  </li> -->
+              
+                <li class="nav-item">
+                  <span class="fs-5 nav-link fs-5 active">
+                    <i class="fa-regular fa-user me-2"></i>
+                    User: user.email 
+                  </span>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link fs-5"
+                     href="">
+                    <i class="fa-solid fa-right-from-bracket me-2"></i>
+                    Logout
+                  </a>
+                </li>
+
+            </ul>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    {% block content %}
+    {% endblock content %}
+
+    <div class="container">
+      <footer class="d-flex flex-wrap justify-content-between align-items-center py-3 my-4 border-top">
+        <div class="col-md-4 d-flex align-items-center">
+          <span class="fs-5 mb-3 mb-md-0 text-muted">© 2023 LiteRev</span>
+        </div>
+        <ul class="nav col-md-4 justify-content-end list-unstyled d-flex">
+          <!-- links for social media -->
+          <!-- <li class="ms-3">
+            <span class="fs-5 text-muted">literev@gn.com</span>
+            <a href="#" class="fs-4 text-muted ms-3">
+              <i class="fa-solid fa-envelope"></i>
+            </a>
+          </li>
+          <li class="ms-3">
+            <a href="#" class="fs-4 text-muted">
+              <i class="fa-solid fa-phone"></i>
+            </a>
+          </li>
+          <li class="ms-3">
+            <a href="#" class="fs-4 text-muted">
+              <i class="fa-brands fa-facebook"></i>
+            </a>
+          </li> -->
+        </ul>
+      </footer>
+    </div>
+    <script src="{% static "./js/bootstrap.bundle.min.js" %}"></script>
+  </body>
+</html>

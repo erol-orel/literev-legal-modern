@@ -1,0 +1,132 @@
+
+
+div.bloc { 
+  min-height:75vh;
+  border: solid 1px black; 
+  margin-bottom: 20px; 
+}
+
+div.first_block {
+  position: fixed; 
+  /* left:0px; 
+  top:0px;   */
+  width : 100vw;  
+  height : 100vh; 
+  background-color: rgba(68, 67, 67, 0.486);
+}
+  
+
+div.first_block > .message {
+  position: relative; 
+  border: black 2px solid;
+  background-color: white;
+  padding: 10px;
+}
+
+.main-container {
+  background-color: var(--color-secondary);
+}
+/* :root {
+  --font-default: "Open Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-primary: "Inter", sans-serif;
+  --font-secondary: "Poppins", sans-serif;
+} */
+
+/* Colors */
+:root {
+  --color-default: #0a0d13;
+  --color-primary: #0d42ff;
+  --color-secondary: #1F3F45;
+}
+
+/* Smooth scroll behavior */
+:root {
+  scroll-behavior: smooth;
+}
+
+/*--------------------------------------------------------------
+# General
+--------------------------------------------------------------*/
+/* body {
+  font-family: var(--font-default);
+  color: var(--color-default);
+  
+} */
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  color: #406aff;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-primary);
+}
+
+/*--------------------------------------------------------------
+# Sections & Section Header
+--------------------------------------------------------------*/
+.color-b{
+  background-color: var(--color-secondary);
+  background-image: url("./bg.png");
+}
+.search-block {
+  margin-top: 6%;
+}
+.running-box {
+  margin-top: 5%;
+}
+.logo-literev {
+  font-size: 4rem;
+}
+
+#side_nav {
+  min-width: 320px;
+  max-width: 320px;
+  transition: all 0.3s;
+}
+
+
+.content{
+  min-height: 100vh;
+  width: 100%;
+}
+
+@media(max-width: 767px){
+  #side_nav{
+      margin-left: -320px;
+      position:fixed;
+      min-height: 100vh;
+      z-index: 1;
+  }
+  #side_nav.active{
+      margin-left: 0;
+  }
+}
+.dropup .hide-toggle.dropdown-toggle::after {
+  display: none !important;
+}
+
+a[aria-expanded='false'] > .expand_caret {
+  transform: scale(1) rotate(-90deg);
+}
+
+/*--------------------------------------------------------------
+# Auto Closing Accordion Transition in Running Search Page
+--------------------------------------------------------------*/
+.research-search-metadata i.fa-chevron-right {
+  transition: transform 0.3s;
+}
+
+.research-search-metadata div[aria-expanded='true'] > div > i.fa-chevron-right {
+  transform: rotate(90deg);
+}
