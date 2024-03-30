@@ -2,22 +2,13 @@ from __future__ import annotations
 
 import datetime
 
-from dataclasses import dataclass
 from typing import cast
 
 from django.conf import settings
 from elasticsearch import Elasticsearch
 
 from literev.libs.parsing import process_search_query_elasticsearch
-
-
-@dataclass
-class MetaData:
-    doc_id: str
-    summary: str
-    document_text: str
-    decision_date: datetime.date
-    result: str
+from literev.libs.utils import MetaData
 
 
 class ElasticSearchCollector:
@@ -55,7 +46,7 @@ class ElasticSearchCollector:
             if metadata:
                 result.append(metadata)
             else:
-                self.log(
+                print(
                     f"This document does not have document_text field: {doc}"
                 )
 
@@ -107,7 +98,7 @@ class ElasticSearchCollector:
     ) -> MetaData | None:
         """Create Metadata from source article."""
 
-        doc_id = document.get("id")
+        doc_id = document.get("id", "")
         summary = document.get("summary", "")
         document_text = document.get("document_text")
         date_decision = document.get("date_decision")
@@ -126,7 +117,7 @@ class ElasticSearchCollector:
 
         return None
 
-    def get_max_articles(
+    def get_max_documents(
         self, search: str, begin: datetime.date, end: datetime.date
     ) -> int:
         """Counts total number of articles for a given query."""

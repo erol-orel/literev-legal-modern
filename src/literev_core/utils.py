@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import re
 
+from typing import cast
+
 import spacy
 
 from gensim.models import phrases
@@ -50,7 +52,8 @@ def define_languages(corpus: str) -> bool:
     detected_language = detector.detect_language_of(corpus)
 
     # Check if the detected language is English
-    return detected_language == Language.FRENCH
+    valid = cast(bool, detected_language == Language.FRENCH)
+    return valid
 
 
 def pre_processing(corpus: str) -> str:
@@ -69,7 +72,7 @@ def pre_processing(corpus: str) -> str:
     pattern_replacement = [
         (r"\S*@\S*\s?", ""),  # to remove emails
         (r"\s+", " "),  # remove new line characters
-        ("'", ""),  # remove distracting singel quotes
+        # ("'", " "),  # remove distracting single quotes
         ("_", ""),  # remove underscores
         (r"http[s]?://\S+", ""),  # remove http remants in the text
         (r"www\.*[\r\n]*\S+", ""),  # remove www remnants in the text
@@ -102,7 +105,9 @@ def sentences_to_words(corpus: str) -> list[str]:
                     too long (remove accents as well).
 
     """
-    tokens_list: list[str] = simple_preprocess(corpus, deacc=True)
+    tokens_list: list[str] = simple_preprocess(
+        corpus, deacc=False
+    )  # by default min_len=2, max_len=15
     return tokens_list
 
 
@@ -110,8 +115,8 @@ def lemmatization(
     list_words: list[str],
     allowed_postags: list[str] = ["NOUN", "ADJ", "VERB", "ADV"],
 ) -> str:
-    # TODO: change it for french language
-    """Lemmatize a list of words.
+    """
+    Lemmatize a list of words.
 
     Parameters
     ----------
@@ -137,7 +142,8 @@ def lemmatization(
 
 
 def remove_words(list_lemmatized: str, list_stopwords: set[str]) -> str:
-    """Remove stopwords from a article corpus
+    """
+    Remove stopwords from a article corpus
 
     Parameters
     ----------
@@ -162,7 +168,7 @@ def remove_words(list_lemmatized: str, list_stopwords: set[str]) -> str:
 
 def create_ngrams(
     corpus_list: list[str],
-) -> Tuple[phrases.FrozenPhrases, phrases.FrozenPhrases, list[list[str]]]:
+) -> list[list[str]]:
     """Trains models to to identify bigrams and trigrams using
     the whole corpus of articles. And use those models to include into
     the article corpus bigram and trigrams
@@ -183,13 +189,14 @@ def create_ngrams(
     """
 
     sentence_stream = [doc.split(" ") for doc in corpus_list]
-
+    # threshold to 0.85
+    # threshold to 0.85
     bigram = phrases.Phrases(
-        sentence_stream, min_count=2, threshold=0.8, scoring="npmi"
+        sentence_stream, min_count=2, threshold=0.85, scoring="npmi"
     )
 
     trigram = phrases.Phrases(
-        bigram[sentence_stream], min_count=2, threshold=0.8, scoring="npmi"
+        bigram[sentence_stream], min_count=2, threshold=0.85, scoring="npmi"
     )
 
     bigram_frozen = phrases.FrozenPhrases(bigram)
@@ -203,7 +210,6 @@ def create_ngrams(
 
 
 def remove_common_and_unique(list_trigrams: list[list[str]]) -> list[str]:
-    # TODO: Check if its working correctly
     # present the results
     # WORKAROUND
     # common_words = TfidfVectorizer(min_df=1, max_df=0.50)
@@ -211,16 +217,13 @@ def remove_common_and_unique(list_trigrams: list[list[str]]) -> list[str]:
     # unique_words = TfidfVectorizer(min_df=2, max_df=1.00)
     # .fit(" ".join(doc) for doc in list_trigrams)
     joined_corpus = [" ".join(corpus) for corpus in list_trigrams]
-    # TODO: get the list of words in more of 60% of the total corpuses use max_df=0.6
-    # common_words = TfidfVectorizer(max_df=0.6)
-    # common_words.fit(joined_corpus)
-    # joblib.dump(common_words.stop_words_, 'common_words')
-    common_and_unique_words = TfidfVectorizer(min_df=2, max_df=0.6)
+    # threshold max_df to 0.70
+    common_and_unique_words = TfidfVectorizer(min_df=2, max_df=0.7)
     common_and_unique_words.fit(joined_corpus)
     # common_and_unique_words = TfidfVectorizer(min_df=2, max_df=0.60).fit(
     #    " ".join(list(set(doc))) for doc in list_trigrams
     # )
-    # print(common_and_unique_words.stop_words_)
+
     list_temporary = [
         [
             word
@@ -235,7 +238,6 @@ def remove_common_and_unique(list_trigrams: list[list[str]]) -> list[str]:
 
 
 def remove_empty(list_final: list[str]) -> list[str]:
-    return_id_list: list[int] = []
     return_final_list: list[str] = []
 
     for corpus in list_final:

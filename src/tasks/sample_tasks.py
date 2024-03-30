@@ -1,3 +1,5 @@
+# type: ignore
+# TODO: stop ignoring then use tasks
 """
 This module shows some samples of how to compose a pipeline with celery tasks
 """
@@ -12,7 +14,7 @@ from literev.libs.collectors import ElasticSearchCollector, MetaData
 
 
 @app.task
-def add_one_task(number):
+def add_one_task(number: int) -> bool:
     """Simple example where number is added by 1.
 
     Usage: curl http://localhost:8000/task-sample/2/
@@ -26,7 +28,7 @@ def add_one_task(number):
 @app.task
 def fetch_data(
     search: str, date_begin: datetime.date, date_end: datetime.date
-):
+) -> list[MetaData]:
     """Sample task to fetch data with collector returning a list of metadata"""
     print("Start fetching...")
     metadata = ElasticSearchCollector().collect_documents(

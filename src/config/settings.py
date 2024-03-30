@@ -1,3 +1,5 @@
+# type: ignore
+# TODO: stop ignoring after doing a review
 """
 Django settings for config project.
 
@@ -92,24 +94,17 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": ROOT_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql_psycopg2",
+        "NAME": os.environ.get("POSTGRES_DB_LITEREV", "x_db_name_x"),
+        "USER": os.environ.get("POSTGRES_USER_LITEREV", "x_db_user_name_x"),
+        "PASSWORD": os.environ.get(
+            "POSTGRES_PASSWORD_LITEREV", "x_db_password_x"
+        ),
+        "HOST": os.environ.get("POSTGRES_HOST", "x_db_host_x"),  # 127.0.0.1
+        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+        # 'OPTIONS': {'sslmode': 'require'}
     }
 }
-
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.postgresql_psycopg2",
-#         "NAME": os.environ.get("POSTGRES_DB_LITEREV", "x_db_name_x"),
-#         "USER": os.environ.get("POSTGRES_USER_LITEREV", "x_db_user_name_x"),
-#         "PASSWORD": os.environ.get(
-#             "POSTGRES_PASSWORD_LITEREV", "x_db_password_x"
-#         ),
-#         "HOST": os.environ.get("POSTGRES_HOST", "x_db_host_x"),
-#         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
-#         # 'OPTIONS': {'sslmode': 'require'}
-#     }
-# }
 
 
 # Password validation
@@ -167,6 +162,18 @@ CELERY_ACCEPT_CONTENT = ["pickle"]
 # ELASTICSEARCH
 ES_HOST_URL = os.environ.get(
     "ES_HOST_URL", default=""
+)  # e.g.: "http://localhost:9200"
+ES_USERNAME = os.environ.get(
+    "ES_USERNAME", default=""
+)  # Elastic Search username
+ES_PASSWORD = os.environ.get(
+    "ES_PASSWORD", default=""
+)  # Elastic Search password
+
+# TODO Use these or the others
+# ELASTICSEARCH
+ES_HOSTNAME = os.environ.get(
+    "ES_HOSTNAME", default=""
 )  # e.g.: "http://localhost:9200"
 ES_USERNAME = os.environ.get(
     "ES_USERNAME", default=""
