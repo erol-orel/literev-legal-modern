@@ -2,13 +2,22 @@ from __future__ import annotations
 
 import datetime
 
+from dataclasses import dataclass
 from typing import cast
 
 from django.conf import settings
 from elasticsearch import Elasticsearch
 
 from literev.libs.parsing import process_search_query_elasticsearch
-from literev.libs.utils import MetaData
+
+
+@dataclass
+class MetaData:
+    doc_id: str
+    summary: str
+    document_text: str
+    decision_date: datetime.date
+    result: str
 
 
 class ElasticSearchCollector:

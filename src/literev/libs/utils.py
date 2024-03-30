@@ -1,7 +1,5 @@
 import datetime
 
-from dataclasses import dataclass
-
 from literev.libs.collectors import ElasticSearchCollector
 
 
@@ -19,12 +17,3 @@ def get_number_documents(
         result = 0
 
     return result
-
-
-@dataclass
-class MetaData:
-    doc_id: str
-    summary: str
-    document_text: str
-    decision_date: datetime.date
-    result: str

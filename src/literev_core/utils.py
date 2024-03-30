@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from typing import cast
+from pathlib import Path
 
 import spacy
 
@@ -16,6 +16,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 SUPPORTED_LANGUAGES = [Language.ENGLISH, Language.FRENCH]
 detector = LanguageDetectorBuilder.from_languages(*SUPPORTED_LANGUAGES).build()
+DATA_PATH = Path(__file__).parent / "data"
 
 
 def create_stopwords() -> set[str]:
@@ -27,7 +28,7 @@ def create_stopwords() -> set[str]:
               A set of stopwords.
     Ref: https://github.com/stopwords-iso/stopwords-fr
     """
-    with open("stopwords.txt", "r") as f:
+    with open(DATA_PATH / "stopwords.txt", "r") as f:
         reader = f.read()
 
     return set(reader.splitlines())
@@ -52,8 +53,7 @@ def define_languages(corpus: str) -> bool:
     detected_language = detector.detect_language_of(corpus)
 
     # Check if the detected language is English
-    valid = cast(bool, detected_language == Language.FRENCH)
-    return valid
+    return detected_language == Language.FRENCH
 
 
 def pre_processing(corpus: str) -> str:

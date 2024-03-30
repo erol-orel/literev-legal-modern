@@ -1,7 +1,6 @@
 from threading import Thread
 
-from literev.libs.collectors import ElasticSearchCollector
-from literev.libs.utils import MetaData
+from literev.libs.collectors import ElasticSearchCollector, MetaData
 from literev.models import Document, Project
 from literev_core.preprocessing import preprocessing_mp
 
