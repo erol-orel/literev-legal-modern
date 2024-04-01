@@ -1,8 +1,8 @@
 from __future__ import annotations
+
 import datetime
 
-
-from typing import Any, cast
+from typing import Any
 
 from django import forms
 from django.core.exceptions import ValidationError
@@ -26,7 +26,7 @@ class SearchForm(forms.Form):
 
     # creation date is automatically given when the Research Object is created
     # and corresponds to the current date
-    search = forms.CharField(
+    query = forms.CharField(
         max_length=4096,  # 2**12
         widget=forms.TextInput(
             attrs={
@@ -56,7 +56,6 @@ class SearchForm(forms.Form):
         label="",
     )
 
-   
     def clean(self) -> dict[str, Any]:
         data = super().clean() or {}
         if not data:
@@ -65,9 +64,9 @@ class SearchForm(forms.Form):
         if not data.get("project_name"):
             self.add_error("project_name", "Please provide a project name.")
 
-        if "search" not in data:
+        if "query" not in data:
             self.add_error(
-                "search",
+                "query",
                 "Please provide the search query.",
             )
 
@@ -82,10 +81,6 @@ class SearchForm(forms.Form):
                 "range_end_date",
                 "Please provide the ending date in the format YYYY-MM-DD.",
             )
-
-        # The search query field is allowed to be empty as long as a file is uploaded.
-        # If a source database is selected, it will be required to have a query
-        # This is validated in the UI_front views code
 
         date_begin = data.get("range_begin_date")
         date_end = data.get("range_end_date")
@@ -107,23 +102,22 @@ class SearchForm(forms.Form):
     #     if not search:
     #         return ""
 
-        # The search query field is allowed to be empty as long
-        #  as a file is uploaded.
-        # If a source database is selected, it will be required to have a query
-        # This is validated in the UI_front views code
+    # The search query field is allowed to be empty as long
+    #  as a file is uploaded.
+    # If a source database is selected, it will be required to have a query
+    # This is validated in the UI_front views code
 
-        # (
-        #     validated_search,
-        #     (
-        #         is_valid_query,
-        #         error_in_query,
-        #     ),
-        # ) = process_search_query(search)
+    # (
+    #     validated_search,
+    #     (
+    #         is_valid_query,
+    #         error_in_query,
+    #     ),
+    # ) = process_search_query(search)
 
-        # if not is_valid_query:
-        #     raise ValidationError(str(error_in_query))
+    # if not is_valid_query:
+    #     raise ValidationError(str(error_in_query))
 
-        # Replace "+" with spaces to show the query properly in the screen.
-        # return validated_search.replace("+", " ").strip()
-        # return search
-   
+    # Replace "+" with spaces to show the query properly in the screen.
+    # return validated_search.replace("+", " ").strip()
+    # return search

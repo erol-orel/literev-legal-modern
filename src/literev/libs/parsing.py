@@ -18,7 +18,7 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from pprint import pformat
-from typing import Any, Literal, Optional, cast
+from typing import Any, Optional
 
 
 class ExpressionValidationError(Exception):

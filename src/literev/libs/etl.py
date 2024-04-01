@@ -50,7 +50,9 @@ class DataReader:
             raise FileNotFoundError(f"File {file_path} does not exist")
         self.file_path = Path(file_path)
 
-    def _read_jsonl_lines(self) -> Generator[tuple[int, dict[str, Any]], None, None]:
+    def _read_jsonl_lines(
+        self,
+    ) -> Generator[tuple[int, dict[str, Any]], None, None]:
         with open(self.file_path, "r", encoding="utf-8") as f:
             for line_number, line in enumerate(f):
                 try:

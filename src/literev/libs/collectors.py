@@ -1,10 +1,14 @@
 from __future__ import annotations
+
 import datetime
-from elasticsearch import Elasticsearch
-from django.conf import settings
-from literev.libs.parsing import process_search_query_elasticsearch
+
 from dataclasses import dataclass
 from typing import cast
+
+from django.conf import settings
+from elasticsearch import Elasticsearch
+
+from literev.libs.parsing import process_search_query_elasticsearch
 
 
 @dataclass
@@ -15,7 +19,8 @@ class MetaData:
     decision_date: datetime.date
     result: str
 
-class ElasticSearchCollector():
+
+class ElasticSearchCollector:
     """Implements all essential methods for collecting data from elasticsearch sources."""
 
     es: Elasticsearch
@@ -28,8 +33,9 @@ class ElasticSearchCollector():
             basic_auth=(settings.ES_USERNAME, settings.ES_PASSWORD),
         )
 
-
-    def collect_documents(self, search: str, date_begin: datetime.date, date_end: datetime.date) -> list[MetaData]:
+    def collect_documents(
+        self, search: str, date_begin: datetime.date, date_end: datetime.date
+    ) -> list[MetaData]:
         """Retrieve articles based on the provided search parameters."""
 
         es_query = process_search_query_elasticsearch(
@@ -49,7 +55,7 @@ class ElasticSearchCollector():
             if metadata:
                 result.append(metadata)
             else:
-                self.log(
+                print(
                     f"This document does not have document_text field: {doc}"
                 )
 
@@ -101,12 +107,12 @@ class ElasticSearchCollector():
     ) -> MetaData | None:
         """Create Metadata from source article."""
 
-        doc_id = document.get("id")
+        doc_id = document.get("id", "")
         summary = document.get("summary", "")
         document_text = document.get("document_text")
         date_decision = document.get("date_decision")
         result = document.get("result", "")
-       
+
         if document_text:
             metadata = MetaData(
                 doc_id=doc_id,
@@ -120,7 +126,7 @@ class ElasticSearchCollector():
 
         return None
 
-    def get_max_articles(
+    def get_max_documents(
         self, search: str, begin: datetime.date, end: datetime.date
     ) -> int:
         """Counts total number of articles for a given query."""
@@ -130,14 +136,10 @@ class ElasticSearchCollector():
             end_date=end,
         )
 
-        response = self.es.count(
-            index=self.ES_INDEX_NAME,
-            body=es_query
-            )
-        
+        response = self.es.count(index=self.ES_INDEX_NAME, body=es_query)
+
         return int(response["count"])
 
     def create_document_from_metadata(self, metadata: MetaData) -> None:
         """Create document from metadata."""
         pass
-    
