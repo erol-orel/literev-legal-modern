@@ -28,18 +28,18 @@
             </div>
             <div class="modal-body">
               <ul class="list-group">
-                {% if number_documents == 0 %}
+                {% if total_documents == 0 %}
                   <!-- Red alert for no articles -->
                   <li class="list-group-item mx-4 ps-4"
                       style="background-color: #FF8989">
                     There are no estimated articles for this query.
                     Please specify a different one.
                   </li>
-                {% elif number_documents < 20 %}
+                {% elif total_documents < 20 %}
                   <!-- Orange alert for less than 20 articles -->
                   <li class="list-group-item mx-4 ps-4"
                       style="background-color: #FFBE98">
-                    The number of estimated articles is {{ number_documents }}.
+                    The number of estimated documents is {{ total_documents }}.
                     This number is less than the minimum required (20) to proceed.
                     Please specify a different query.
                   </li>
@@ -47,7 +47,7 @@
                   <!-- Green alert for acceptable number of articles -->
                   <li class="list-group-item mx-4 ps-4"
                       style="background-color: #D5F0C1">
-                    The number of estimated articles is {{ number_documents }}.
+                    The number of estimated articles is {{ total_documents }}.
                     Would you like to continue with this query?
                   </li>
                 {% endif %}
@@ -55,7 +55,7 @@
                   Project name : {{ project_name }}
                 </li>
                 <li class="list-group-item mx-4 ps-4">
-                  Search : {{ search }}
+                  Search : {{ query }}
                 </li>
                 <li class="list-group-item mx-4 ps-4">
                   From : {{ range_begin_date }}
@@ -179,7 +179,7 @@
                     <span class="input-group-text d-none d-lg-block">
                       Query
                     </span>
-                    {{ search_form.search }}
+                    {{ search_form.query }}
                   </div>
                   <div class="col-12 col-sm-6 col-md-12 col-lg-6 mb-2">
                     <div class="input-group">
@@ -198,6 +198,28 @@
             </div>
           </div>
         </div>
+
+        {% if total_documents == 0 %}
+          <div class="row text-center">
+            <div class="alert alert-primary">
+              <span> Zero documents.</span>
+            </div>
+          </div>
+        {% elif total_documents > 0 %}
+          <div class="row text-center">
+            <div class="alert alert-primary">
+              <span> {{ total_documents }} documents.</span>
+            </div>
+          </div>
+        {% endif %}
+
+        {% if project_created_message %}
+          <div class="row text-center">
+            <div class="alert alert-primary">
+              <span> {{ project_created_message }} </span>
+            </div>
+          </div>
+        {% endif %}
 
         <div class="row text-center">
           {% for error in errors %}

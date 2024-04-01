@@ -48,8 +48,8 @@ def search_search(
         range_begin_date = search_form.cleaned_data["range_begin_date"]
         range_end_date = search_form.cleaned_data["range_end_date"]
 
-        number_documents = (
-            100  # TODO: refactor to get the right number of documents
+        total_documents = get_number_documents(
+            query, range_begin_date, range_end_date
         )
 
         # enable continue message box
@@ -60,9 +60,9 @@ def search_search(
             "query": query,
             "range_begin_date": range_begin_date.strftime("%Y/%m/%d"),
             "range_end_date": range_end_date.strftime("%Y/%m/%d"),
-            "number_documents": number_documents,
+            "total_documents": total_documents,
         }
-        print("update")
+        print("updatin request session")
         # update context variables
         context.update(new_data)
         # save in request session the data
@@ -76,13 +76,10 @@ def search_continue(
 ) -> dict[str, Any]:
     # user = cast(User, request.user)
     project_name = request.session["project_name"]
-
     query = request.session["query"]
-
     range_begin_date = datetime.datetime.strptime(
         request.session["range_begin_date"], "%Y/%m/%d"
     ).date()
-
     range_end_date = datetime.datetime.strptime(
         request.session["range_end_date"], "%Y/%m/%d"
     ).date()
@@ -103,11 +100,33 @@ def search_continue(
     result = launch_process(project)
 
     if result:
-        context["research_created"] = (
+        context["message_project_created"] = (
             "You project has been created and is running"
         )
     else:
-        context["research_created"] = "error in launching project"
+        context["message_project_created"] = "error in launching project"
+
+    return context
+
+
+def search_evaluate(
+    request: HttpRequest, context: dict[str, Any]
+) -> dict[str, Any]:
+    search_form = SearchForm(request.POST)
+    context["search_form"] = search_form
+
+    if search_form.is_valid():
+        print("evaluate valid form")
+        # project_name = search_form.cleaned_data["project_name"]
+        query = search_form.cleaned_data["query"]
+        range_begin_date = search_form.cleaned_data["range_begin_date"]
+        range_end_date = search_form.cleaned_data["range_end_date"]
+
+        total_documents = get_number_documents(
+            query, range_begin_date, range_end_date
+        )
+
+        context["total_documents"] = total_documents
 
     return context
 
@@ -115,7 +134,18 @@ def search_continue(
 def search(request: HttpRequest) -> HttpResponse:
     print("executing the search function")
     context: dict[str, Any] = dict()
+
+    # Actual form
+    search_form = SearchForm()
+    context["search_form"] = search_form
+
+    # Aditional variables
     context["continue_message_box"] = False
+    context["project_created_message"] = ""
+
+    # if there no click in evaluate or create project
+    # total documents = -1
+    context["total_documents"] = -1
 
     if request.method != "POST":
         context["search_form"] = SearchForm()
@@ -124,25 +154,25 @@ def search(request: HttpRequest) -> HttpResponse:
     submit = request.POST["submit"]
 
     if submit == "search":
+        print("search search")
         context = search_search(request, context)
 
     elif submit == "evaluate":
         # TODO: Implement this
         # return to the saved variables from
         # request session
-        context["search_form"] = SearchForm()
-        return render(request, "search.html", context)
+        print("search evaluate")
+        context = search_evaluate(request, context)
 
     elif submit == "continue":
         context = search_continue(request, context)
-        context["search_form"] = SearchForm()
+
         return render(request, "search.html", context)
 
     elif submit == "cancel":
         # TODO: Implement this
         # return to the saved variables from
         # request session
-        context["search_form"] = SearchForm()
         return render(request, "search.html", context)
 
     return render(request, "search.html", context)
