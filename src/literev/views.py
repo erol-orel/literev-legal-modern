@@ -148,5 +148,16 @@ def search(request: HttpRequest) -> HttpResponse:
     return render(request, "search.html", context)
 
 
-class RunningPageView(TemplateView):
-    template_name = "running.html"
+def running(request: HttpRequest) -> HttpResponse:
+    context: dict[str, Any] = dict()
+    context["continue_message_box"] = False
+
+    if request.method == "POST":
+        submit = request.POST["submit"]
+        if submit == "reload":
+            pass
+
+    projects = Project.objects.all().order_by("-id")
+    context["projects"] = projects
+
+    return render(request, "running.html", context)

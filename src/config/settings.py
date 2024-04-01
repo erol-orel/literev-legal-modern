@@ -92,17 +92,24 @@ WSGI_APPLICATION = "config.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql_psycopg2",
+#         "NAME": os.environ.get("POSTGRES_DB_LITEREV", "x_db_name_x"),
+#         "USER": os.environ.get("POSTGRES_USER_LITEREV", "x_db_user_name_x"),
+#         "PASSWORD": os.environ.get(
+#             "POSTGRES_PASSWORD_LITEREV", "x_db_password_x"
+#         ),
+#         "HOST": os.environ.get("POSTGRES_HOST", "127.0.0.1"),  # 127.0.0.1
+#         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+#         # 'OPTIONS': {'sslmode': 'require'}
+#     }
+# }
+
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql_psycopg2",
-        "NAME": os.environ.get("POSTGRES_DB_LITEREV", "x_db_name_x"),
-        "USER": os.environ.get("POSTGRES_USER_LITEREV", "x_db_user_name_x"),
-        "PASSWORD": os.environ.get(
-            "POSTGRES_PASSWORD_LITEREV", "x_db_password_x"
-        ),
-        "HOST": os.environ.get("POSTGRES_HOST", "x_db_host_x"),  # 127.0.0.1
-        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
-        # 'OPTIONS': {'sslmode': 'require'}
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": ROOT_DIR / "db.sqlite3",
     }
 }
 
