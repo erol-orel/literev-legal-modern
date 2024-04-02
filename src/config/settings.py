@@ -140,8 +140,19 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = "static/"
-STATICFILES_DIRS = [APPS_DIR / "static"]
+# Static files settings
+STATIC_URL = "/static/"
+
+STATICFILES_DIRS = [
+    os.path.join(APPS_DIR, "static/"),
+]
+
+STATIC_ROOT = os.environ.get("STATIC_ROOT") or str(APPS_DIR / "staticfiles")
+
+STATICFILES_FINDERS = [
+    "django.contrib.staticfiles.finders.FileSystemFinder",
+    "django.contrib.staticfiles.finders.AppDirectoriesFinder",
+]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
@@ -161,18 +172,6 @@ CELERY_ACCEPT_CONTENT = ["pickle"]
 # ELASTICSEARCH
 ES_HOST_URL = os.environ.get(
     "ES_HOST_URL", default=""
-)  # e.g.: "http://localhost:9200"
-ES_USERNAME = os.environ.get(
-    "ES_USERNAME", default=""
-)  # Elastic Search username
-ES_PASSWORD = os.environ.get(
-    "ES_PASSWORD", default=""
-)  # Elastic Search password
-
-# TODO Use these or the others
-# ELASTICSEARCH
-ES_HOSTNAME = os.environ.get(
-    "ES_HOSTNAME", default=""
 )  # e.g.: "http://localhost:9200"
 ES_USERNAME = os.environ.get(
     "ES_USERNAME", default=""

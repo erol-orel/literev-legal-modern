@@ -29,7 +29,7 @@ class ElasticSearchCollector:
 
     def __init__(self) -> None:
         self.es = Elasticsearch(
-            [settings.ES_HOSTNAME],
+            [settings.ES_HOST_URL],
             basic_auth=(settings.ES_USERNAME, settings.ES_PASSWORD),
         )
 
