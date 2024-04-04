@@ -1,0 +1,7 @@
+version: '3.9'
+
+services:
+  literev:
+    command: /opt/start.sh
+    environment:
+      DEBUG: 0

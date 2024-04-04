@@ -32,7 +32,6 @@ services:
       - ${FRONTEND_HOST_PORT}:8000
     depends_on:
       - literev-postgres
-      - literev-redis
     volumes:
       - docker_volume:${DOCKER_VOLUME_CONTAINER_PATH}
       - static_root:${STATIC_ROOT:-/tmp/literev/static}

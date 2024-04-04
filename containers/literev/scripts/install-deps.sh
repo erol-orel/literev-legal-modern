@@ -3,6 +3,7 @@ set -ex
 poetry config virtualenvs.create false
 
 if [[ "$ENV" == "prod" ]]; then
+  poetry update
   poetry install --no-root --only main
 else
   poetry install --no-root
