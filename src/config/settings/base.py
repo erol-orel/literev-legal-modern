@@ -30,7 +30,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 os.environ["PYTHONWARNINGS"] = "default"
 
 env = environ.Env()
-env.read_env(str(ROOT_DIR / ".env"))
+# env.read_env(str(ROOT_DIR / ".env"))
 
 SERVICE_NAME = "literev"
 
@@ -211,7 +211,7 @@ STATICFILES_FINDERS = [
 
 MEDIA_ROOT = env("DJANGO_MEDIA_ROOT", default="/tmp/literev/media")
 
-MEDIA_URL='/media/'
+MEDIA_URL = "/media/"
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000000
 
@@ -329,3 +329,17 @@ DEACTIVATE_ALL_COLLECTORS = env.bool(
 ES_HOST_URL = os.environ.get("ES_HOST_URL")
 ES_USERNAME = os.environ.get("ES_USERNAME")
 ES_PASSWORD = os.environ.get("ES_PASSWORD")
+
+# TODO: Solve this duplicated name
+# ELASTICSEARCH
+ES_HOST_URL = os.environ.get(
+    "ES_HOST_URL", default=""
+)  # e.g.: "http://localhost:9200"
+ES_USERNAME = os.environ.get(
+    "ES_USERNAME", default=""
+)  # Elastic Search username
+ES_PASSWORD = os.environ.get(
+    "ES_PASSWORD", default=""
+)  # Elastic Search password
+
+TEMP_DATA = ROOT_DIR / "tmp"

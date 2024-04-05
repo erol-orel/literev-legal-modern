@@ -1,6 +1,6 @@
 from django.urls import include, path
 from django.http import HttpResponse
-from literev.views import run_task, run_pipeline_sample, HomePageView, search, running
+from literev.views import run_task, run_pipeline_sample, HomePageView, search, running, previousgraph
 
 urlpatterns = [
     # enable these for celery
@@ -11,4 +11,5 @@ urlpatterns = [
     path('', HomePageView.as_view(), name='home'),
     path('search/', search, name='search'),
     path('running/', running, name='running'),
+    path('previousgraph/', previousgraph, name='previousgraph'),
 ]

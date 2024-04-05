@@ -1,10 +1,91 @@
+import datetime
+
+from pathlib import Path
 from threading import Thread
+from typing import Optional, Sequence, Union, cast
+
+import bokeh.plotting
+import hdbscan
+import numpy as np
+import numpy.typing as npt
+import pandas as pd
+
+from bokeh.embed import components
+from bokeh.io import save
+from bokeh.models import CategoricalColorMapper, HoverTool
+from bokeh.plotting import ColumnDataSource, figure
+from django.conf import settings
 
 from literev.libs.collectors import ElasticSearchCollector, MetaData
-from literev.models import Document, Project
+from literev.models import Cluster, ClusterElement, Document, Project
+from literev_core.clustering import cluster
 from literev_core.preprocessing import preprocessing_mp
 
 thread_dict = dict()
+UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
+UNCLASSIFIED_PAPERS_COLOR = "#9494b8"
+
+
+COLOR_PALETTE_30 = (
+    "#1F77B4",
+    "#FF861C",
+    "#2CA02C",
+    "#F20001",
+    "#472BEF",
+    "#8C564B",
+    "#17BECF",
+    "#FFD92F",
+    "#98DF8A",
+    "#FF00B1",
+    "#B168F4",
+    "#C49C94",
+    "#9EDAE5",
+    "#E4A169",
+    "#38ED15",
+    "#EC1557",
+    "#8D0FFF",
+    "#E4AE21",
+    "#1448FF",
+    "#F1D96D",
+    "#054F22",
+    "#E377C2",
+    "#551955",
+    "#4C1B00",
+    "#46C3AD",
+    "#BB1819",
+    "#92FF92",
+    "#A79C3A",
+    "#892889",
+    "#B23D19",
+)
+
+
+def running_restart(project_id: str) -> None:
+    try:
+        project = Project.objects.get(is_running=True, id=project_id)
+    except Project.DoesNotExist:
+        print("the project does no exist, id:", project_id)
+        return
+
+    # check if the research has his own entry
+    if project.id not in thread_dict:
+        thread_dict[project.id] = Thread(
+            target=back_process, args=[project], daemon=True
+        )
+        thread_dict[project.id].start()
+        print("Restoring project, id:", project_id)
+
+        return
+
+    t = thread_dict[project.id]
+    if not t.is_alive():
+        # if the thread is not alive, recreate thread
+        thread_dict[project.id] = Thread(
+            target=back_process, args=[project], daemon=True
+        )
+        thread_dict[project.id].start()
+
+    return
 
 
 def create_document_db(project: Project, document: MetaData) -> None:
@@ -12,8 +93,8 @@ def create_document_db(project: Project, document: MetaData) -> None:
         project=project,
         raw_document_id=document.doc_id,
         raw_document_text=document.document_text,
-        # TODO: add procedure year, procedure year exists?
         decision_date=document.decision_date,
+        result=document.result,
     )
 
 
@@ -36,6 +117,7 @@ def back_get_documents(project: Project) -> bool:
 
         except Exception as e:
             print("Document creation failed", document.doc_id)
+            print("decision date", document.decision_date)
             print(e)
 
     return True
@@ -49,10 +131,19 @@ def update_pp_document(pk: int, pp_corpus: str) -> None:
 
 def back_preprocess_documents(project: Project) -> None:
     documents = Document.objects.filter(project=project)
-    document_pk_list = [document.pk for document in documents]
-    document_corpus_list = [
-        document.raw_document_text for document in documents
-    ]
+    document_pk_list = []
+    document_corpus_list = []
+    for document in documents:
+        if document.preprocessed_document != "":
+            document.project = project
+            document.save()
+        else:
+            document_pk_list.append(document.pk)
+            document_corpus_list.append(document.raw_document_text)
+    # document_pk_list = [document.pk for document in documents]
+    # document_corpus_list = [
+    #     document.raw_document_text for document in documents
+    # ]
 
     try:
         # using preprocessing_mpo from literev_core
@@ -67,25 +158,421 @@ def back_preprocess_documents(project: Project) -> None:
         try:
             update_pp_document(pk, pp_corpus)
         except Exception as e:
-            print(e)
             print("Adding preprocessed document failed. Doc id:", id)
+            print(e)
+
+
+def get_color_map(topics: list[str]) -> tuple[Sequence[str], Sequence[str]]:
+    """
+    Generate a color palette based on the number of topics/clusters.
+
+    Parameters
+    ----------
+    topics : List[str]
+        A list of topics or factors.
+
+    Returns
+    -------
+    Tuple[List[str], List[str]]
+        (topics, palette)
+        A tuple containing the sorted topics and corresponding color palette.
+
+    Notes
+    -----
+    This function is useful for obtaining the cluster's color in different
+    parts of the system, such as the summary table. The generated values can
+    be used to create a bokeh.models.CategoricalColorMapper object.
+
+    The color palette is determined based on the number of topics:
+        - 3: COLOR_PALETTE[:3] get 3 colors
+        - 10: COLOR_PALETTE[:10] get 10 colors
+        - 20: COLOR_PALETTE[:20] get 20 colors
+
+    Topics must be sorted to ensure consistent palettes, preventing
+    color changes based on the order of the topics in the list.
+    """
+
+    # check if we have unclassified papers cluster
+    unclassified_cluster_exists = UNCLASSIFIED_PAPERS_TOPIC in topics
+
+    if unclassified_cluster_exists:
+        topics.remove(UNCLASSIFIED_PAPERS_TOPIC)
+
+    # topics must be sorted so that the palettes are always consistent
+    # otherwise the colors may change depending on the topic's list order
+    topics = sorted(topics)
+
+    if len(topics) <= len(COLOR_PALETTE_30):
+        palette = COLOR_PALETTE_30[: len(topics)]
+    else:
+        palette = COLOR_PALETTE_30
+
+    # insert unclassified papers cluster with color
+    if unclassified_cluster_exists:
+        topics.append(UNCLASSIFIED_PAPERS_TOPIC)
+        palette = (*palette, UNCLASSIFIED_PAPERS_COLOR)
+
+    return topics, palette
+
+
+def scatter_with_hover(
+    project: Project,
+    path: Path,
+    div_path: Path,
+    script_path: Path,
+    fig: Optional[bokeh.plotting.figure] = None,
+    name: Optional[str] = None,
+    marker: str = "circle",
+    fig_width: int = 1500,
+    fig_height: int = 900,
+) -> None:
+    """Creates a html Plot file an interactive scatter plot of `x` vs `y`
+    using bokeh, with automatic tooltips showing columns from ClusterElement
+    and Cluter objects model database related with research model database.
+
+    Parameters
+    ----------
+    research : Research object Model database
+               The research object model where is used to store
+               search query, status and related data.
+    path : str, Path
+           Full path to where the html plot file will be stored
+           after being generated
+    div_path : str, Path
+                Full path to where the div component from the plot will be
+                stored after being generated
+    script_path : str, Path
+                Full path to where the script component from the plot will
+                be stored after being generated
+    fig : bokeh.plotting.Figure, optional, default None
+        Figure on which to plot (if not given then a new figure will be
+        created)
+    name : str, optional, default None
+        Bokeh series name to give to the scattered data
+    marker : str, default circle
+        Name of marker to use for scatter plot
+    fig_width : int,  default 1800
+                with of the resulting plot.
+    fig_height : int,  default 900
+                 height of the resulting plot.
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    Creates a html Plot file from Clusters objects and store in the path
+
+    Acknowledgment
+    --------------
+    Original code from Robin Wilson <robin@rtwilson.com>
+    with thanks to Max Albert for original code example
+    """
+    # If haven't been given a figure obj then create it with default
+    # size etc.
+    if fig is None:
+        fig = figure(
+            width=fig_width,
+            height=fig_height,
+            tools=["box_zoom", "reset", "tap"],
+        )
+
+    config: dict[str, list[Optional[Union[float, str, datetime.date]]]] = (
+        dict()
+    )
+    config["x"] = []
+    config["y"] = []
+    # config["decision_type"] = []
+    config["decision_date"] = []
+    # config["result"] = []
+    # config["descriptors"] = []
+    # config["standards"] = []
+    config["topic"] = []
+    config["result"] = []
+    # config["url_link"] = []
+
+    clusters_point = ClusterElement.objects.filter(cluster__project=project)
+
+    for point in clusters_point:
+        config["x"].append(point.pos_x)
+        config["y"].append(point.pos_y)
+        config["topic"].append(point.cluster.topic)
+        # TODO: Solve getting date
+        decision_date = (
+            point.document.decision_date
+            if point.document.decision_date
+            else None
+        )
+
+        config["decision_date"].append(decision_date)
+        config["result"].append(point.document.result)
+        # config["title"].append(points.article.title)
+        # config["abstract"].append(points.article.abstract)
+        # note: remove that after the refactoring in the migration files
+
+    # the unique topic should be always sorted
+    # so it can be predictable and replicable in the color pallette
+    unique_topic = cast(list[str], list(set(config["topic"])))
+
+    factors, palette = get_color_map(unique_topic)
+
+    color_map = CategoricalColorMapper(factors=factors, palette=palette)
+    # We're getting data from the given dataframe
+    source = ColumnDataSource(data=config)
+
+    # We need a name so that can restrict hover tools to just this
+    # particular 'series' on the plot. You can specify it (in case it
+    # needs to be something specific for other reasons), otherwise
+    # just use 'main'
+
+    if name is None:
+        name = "main"
+
+    # make bigger points with less articles
+    if clusters_point.count() < 100:
+        size = 16
+    else:
+        size = 4
+
+    fig.scatter(
+        "x",
+        "y",
+        size=size,
+        source=source,
+        name=name,
+        marker=marker,
+        color={"field": "topic", "transform": color_map},
+    )
+
+    # Now create the hover tool, and make sure it is only active with
+    # the series plotted in the previous line
+
+    tooltips = """
+    <div style="width: 400px;">
+
+    <div>
+    <span style="font-size: 12px; color: blue;">
+    Decision Date: </span>
+    <span style="font-size: 12px; font-weight: bold; ">
+    @decision_date</span>
+    </div>
+
+    <div>
+    <span style="font-size: 12px; color: blue;">
+    Result: </span>
+    <span style="font-size: 12px; font-weight: bold; ">
+    @result</span>
+    </div>
+
+    <div>
+    <span style="font-size: 12px; color: blue;">
+    Topic:</span>
+    <span style="font-size: 12px; font-weight: bold;">
+    @topic</span>
+    </div>
+
+    </div>
+    """
+    hover = HoverTool(name=name, tooltips=tooltips)
+
+    fig.add_tools(hover)
+    fig.axis.visible = False
+
+    # removes grid lines from both axis (x, y)
+    fig.xgrid.grid_line_color = None
+    fig.ygrid.grid_line_color = None
+
+    # removes logo
+    fig.toolbar.logo = None  # type: ignore
+
+    # taptool = fig.select(type=TapTool)  # type: ignore
+
+    save(fig, path)
+
+    # separate in components to embed in the previous graph
+    # and save it
+    script, div = components(fig)
+
+    with open(div_path, "w") as f:
+        f.write(div)
+
+    with open(script_path, "w") as f:
+        f.write(script)
+
+
+def hover_with_keywords(
+    project: Project,
+    list_id: list[int],
+    embedding_2d_array: npt.NDArray[np.float_],
+    best_study_clusterer: hdbscan.HDBSCAN,
+    tf_idf_sorted: pd.DataFrame,
+) -> None:
+    """
+    Create a cluster from research articles.
+
+    Create an object database model for every
+    article according to list_id, extract the x,y coordinates from
+    embedding_2d and make the clusters given by best_study_clusterer,
+    every cluster has label extracted from tf_idf_sorted.
+
+    Parameters
+    ----------
+    research : Research object Model database
+        The research object model where is used to store
+        search query, status and related data.
+    list_id_final : list of str
+        list of id_articles related with the research
+    embedding_2d_array : numpy array from pacmap.PaCMAP object
+        An object wich reduces dimensionality to visualize
+    best_study_clusterer : optuna.study.Study
+        An object used to optimize parameters
+        and create clusters with embedding_2d.
+    tf_idf_sorted : pandas DataFrame
+        Storage the tf-idf index for each word in
+        articles. A dataframe with keywords
+        as row index in the columns the
+        article related.
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    Create a cluster object database model for every
+    article according to list_id, with research, article_id,
+    pos_x, pos_y and labels
+    """
+
+    num_clusters = set(best_study_clusterer.labels_)
+
+    for cluster_num in num_clusters:
+        w = np.where(best_study_clusterer.labels_ == cluster_num)[0]
+        kws = (
+            tf_idf_sorted.iloc[:, w]
+            .mean(axis=1)
+            .sort_values(ascending=False)
+            .head(10)
+            .index.values
+        )
+
+        labels = (
+            ", ".join(kws) if cluster_num != -1 else UNCLASSIFIED_PAPERS_TOPIC
+        )
+
+        cluster = Cluster.objects.create(
+            project=project,
+            topic=labels,
+        )
+
+        position_article = []
+
+        for i in range(len(best_study_clusterer.labels_)):
+            if best_study_clusterer.labels_[i] == cluster_num:
+                position_article.append(i)
+
+        embedding_df = pd.DataFrame(embedding_2d_array)
+        for i in position_article:
+            pos_x = embedding_df[0][i]
+            pos_y = embedding_df[1][i]
+
+            document = Document.objects.filter(pk=list_id[i])[0]
+            cluster_element, created = ClusterElement.objects.get_or_create(
+                document=document,
+                cluster=cluster,
+                pos_x=pos_x,
+                pos_y=pos_y,
+            )
+            cluster_element.save()
+
+        # After the clustering is done, we generate the topic description
+        # TODO: Implement summary text use open AI functions
+        # topic_summary_text = (
+        #     nlp_topic_description(cluster) if cluster_num != -1 else ""
+        # )
+
+        # cluster.summary = topic_summary_text
+        # cluster.save()
+
+
+def back_clustering_documents(project: Project) -> None:
+    documents = Document.objects.filter(project=project)
+
+    try:
+        pp_documents = [
+            document.preprocessed_document
+            for document in documents
+            if document.preprocessed_document != ""
+        ]
+        list_id_docs = [
+            document.pk
+            for document in documents
+            if document.preprocessed_document != ""
+        ]
+    except Exception as e:
+        print("error getting preprocessed document from db")
+        print("project id: ", project.pk)
+        print(e)
+        return
+
+    try:
+        embedding_2d_array, best_study_clusterer, tf_idf_sorted = cluster(
+            project, pp_documents
+        )
+    except Exception as e:
+        print("error in clustering, project id:", project.pk)
+        print(e)
+        return
+
+    try:
+        hover_with_keywords(
+            project,
+            list_id_docs,
+            embedding_2d_array,
+            best_study_clusterer,
+            tf_idf_sorted,
+        )
+    except Exception as e:
+        print("error creating Cluster, ClusterElement in db")
+        print("project id: ", project.pk)
+        print(e)
+        return
+
+    try:
+        path = settings.TEMP_DATA / "html" / f"{project.pk}_plot.html"
+        div_path = settings.TEMP_DATA / "plot" / f"{project.pk}_div.html"
+        script_path = (
+            settings.TEMP_DATA / "script" / f"{project.pk}_script.html"
+        )
+
+        scatter_with_hover(project, path, div_path, script_path)
+
+    except Exception as e:
+        print("error creating plot")
+        print(e)
+        return
+
+    print("success in clustering")
 
 
 def back_process(project: Project) -> None:
-    if project.step == "get_documents":
+    if project.step == "getting_documents":
         project.is_running = True
         project.save()
 
         if back_get_documents(project):
-            project.step = "preprocess"
+            project.step = "preprocessing"
             project.save()
+            print("Success getting documents")
 
-    if project.step == "preprocess":
-        back_preprocess_documents(project)
-        project.step = "clustering"
-        project.save()
+    # TODO: Fix bugs in the preprocessing step
+    # if project.step == "preprocessing":
+    #     back_preprocess_documents(project)
+    #     project.step = "clustering"
+    #     project.save()
 
-    # TODO: implement clustering
+    # # TODO: implement clustering
     # if project.step == "clustering":
     #     back_clustering_documents(project)
     #     project.step = ""

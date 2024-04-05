@@ -90,6 +90,7 @@ def preprocessing_mp(corpuses: list[str]) -> list[str]:
                 continue
             try:
                 prepared_for_ngrams_dict[index] = corpus
+                print("processed index: ", index)
 
             except Exception as e:
                 print(f"Error processing future: {e}")
@@ -105,6 +106,6 @@ def preprocessing_mp(corpuses: list[str]) -> list[str]:
 
     corpuses_wo_common_and_unique = remove_common_and_unique(list_trigrams)
 
-    preprocessed_corpuses = remove_empty(corpuses_wo_common_and_unique)
+    # preprocessed_corpuses = remove_empty(corpuses_wo_common_and_unique)
 
-    return preprocessed_corpuses
+    return corpuses_wo_common_and_unique  # preprocessed_corpuses

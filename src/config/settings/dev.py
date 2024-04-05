@@ -11,8 +11,6 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 
 from config.settings.base import *  # noqa: F403
-from config.settings.base import ALLOWED_HOSTS
-
 
 DEBUG = True
 SECURE_SSL_REDIRECT = False

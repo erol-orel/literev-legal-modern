@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% load filtering_functions %}
+
+{% block modal %}
+  <!-- modal -->
+
+  <!-- ---- -->
+{% endblock modal %}
+
+{% block content %}
+  <div class="d-flex  flex-grow-1 overflow-scroll">
+    <div class="flex-grow-1 justify-content-center">
+      <h2 class="text-center my-4 py-4">
+        <i class="fa-solid fa-filter me-2"></i>
+        Refine Project
+      </h2>
+      <div class="d-flex justify-content-center mt-3 mb-5">
+        <div class="d-flex container">
+          {% if div_plot %}
+            {{ div_plot | safe }}
+          {% endif %}
+        </div>
+      </div>
+
+      {% with project|clusters_summary as summaries %}
+
+        {% if summaries %}
+          <div class="container mb-5">
+            <h3 class="text-center mb-3">
+              Cluster Summary Table
+            </h3>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th scope="col">
+                  </th>
+                  <th scope="col">
+                    Topic
+                  </th>
+                  <th scope="col">
+                    Summary
+                  </th>
+                  <th scope="col">
+                    Total Documents
+                  </th>
+                  <th scope="col">
+                    Representative Document
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for summary in summaries %}
+                  <tr style="background-color: {{ topic_colors|get_dict_value:summary.topic }}15">
+                    <td class="align-middle px-4">
+                      <span class="d-inline-block rounded-circle"
+                            style="background-color: {{ topic_colors|get_dict_value:summary.topic }};
+                                   width: 30px;
+                                   height: 30px"></span>
+                    </td>
+                    <td class="align-middle py-4">
+                      {{ summary.topic }}
+                    </td>
+                    <td class="py-4">
+                      {% if not summary.summary_text %}
+                        <div>
+                          <div class="alert alert-light shadow-sm"
+                               role="alert">
+                            We couldn't generate a summary at the moment. Please try again by clicking the generate button below.
+                          </div>
+
+                        </div>
+                      </div>
+                    {% else %}
+                      {{ summary.summary_text }}
+                    {% endif %}
+                  </td>
+                  <td class="py-4">
+                    <p class="px-2">
+                      {{ summary.total_documents }}
+                    </p>
+                  </td>
+                  <td class="fs-6 py-4">
+                    Representative document
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    {% endwith %}
+  </div>
+
+</div>
+</div>
+{% endblock content %}
+
+{% block jscode %}
+
+  <script src="{% static "js/bokeh.min.js" %}"></script>
+  {% if script_plot %}
+    {{ script_plot | safe }}
+  {% endif %}
+
+{% endblock jscode %}

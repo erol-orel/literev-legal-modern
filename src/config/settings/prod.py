@@ -12,18 +12,11 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 
 import os
 
-from config.settings.base import *  # noqa: F403
-from config.settings.base import ALLOWED_HOSTS, env
-
-import logging
-
 # import sentry_sdk
-
 # from sentry_sdk.integrations.django import DjangoIntegration
 # from sentry_sdk.integrations.logging import LoggingIntegration
-
-from config.settings.base import *  # noqa: F403
-from config.settings.base import env
+from config.settings.base import *  # noqa: F403  # noqa: F403
+from config.settings.base import ALLOWED_HOSTS, env
 
 DEBUG = False
 
