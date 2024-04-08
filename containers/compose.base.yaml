@@ -26,6 +26,8 @@ services:
   literev:
     extends: literev-base
     hostname: literev
+    env_file:
+      - ../.env
     environment:
       DJANGO_PORT: 8000
     ports:
