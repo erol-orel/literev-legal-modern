@@ -1,0 +1,14 @@
+name: literev
+channels:
+  - nodefaults
+  - conda-forge
+dependencies:
+  - nodejs >=18
+  - python 3.10.*
+  - poetry >=1.5
+  - pip:
+    - makim==1.10.0
+    # fix issues with distlib
+    - paginate
+    # fix issues with distlib
+    - jsbeautifier

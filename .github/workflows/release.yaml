@@ -1,0 +1,75 @@
+name: Release
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  release:
+    if: ${{ !github.event.pull_request.draft }}
+    name: Release
+    timeout-minutes: 50
+
+    defaults:
+      run:
+        shell: bash -el {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - uses: mamba-org/setup-micromamba@v1
+        with:
+          environment-file: conda/release.yaml
+          condarc-file: .github/workflows/.condarc
+          micromamba-binary-path: ${{ runner.temp }}/bin/micromamba
+          micromamba-root-path: ${{ runner.temp }}/micromamba
+          environment-name: literev-release
+          generate-run-shell: false
+          create-args: -v
+          init-shell: >-
+            bash
+          # cache-environment: true
+          post-cleanup: 'all'
+
+      - name: Create file with environment variables
+        run: touch .env
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Set npm proxy configuration
+        run: |
+          npm config set proxy $HTTP_PROXY
+          npm config set https-proxy $HTTPS_PROXY
+
+      - name: Update npm
+        run: npm -g update npm
+
+      - name: Run semantic release (for tests)
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: makim release.dry
+
+      - name: Release command
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          makim release.ci
+
+      - name: Generate documentation with changes from semantic-release
+        run: makim docs.build
+
+      - name: GitHub Pages action
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: peaceiris/actions-gh-pages@v3.5.9
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build

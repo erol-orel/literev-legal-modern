@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "literev-legal"
-version = "0.1.0"
+name = "literev"
+version = "0.1.0"  # semantic-release
 description = ""
-authors = ["Your Name <you@example.com>"]
+authors = ["Aziza", "Erol"]
 readme = "README.md"
 #package-mode = false
 packages = [
