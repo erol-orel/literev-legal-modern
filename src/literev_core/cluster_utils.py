@@ -10,6 +10,7 @@ import pacmap
 import pandas as pd
 import scipy
 
+from django.conf import settings
 from scipy.sparse import csr_matrix
 from sklearn import metrics  # Unused cluster
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -224,18 +225,15 @@ def optimization(
     name: str,
     n_trials: int = 100,
 ) -> optuna.study.Study:
-    # db = settings.DATABASES["default"]
+    db = settings.DATABASES["default"]
 
-    # if "postgres" in db["ENGINE"]:
-    #     storage = (
-    #         f"postgresql://{db['USER']}:{db['PASSWORD']}@"
-    #         f"{db['HOST']}:{db['PORT']}/{db['NAME']}"
-    #     )
-    # elif "sqlite" in db["ENGINE"]:
-    #     storage = db["NAME"]
-    # else:
-    #     raise Exception(f"Database source {db['ENGINE']} not recognized.")
-
+    if "postgres" in db["ENGINE"]:
+        storage = (
+            f"postgresql://{db['USER']}:{db['PASSWORD']}@"
+            f"{db['HOST']}:{db['PORT']}/{db['NAME']}"
+        )
+    else:
+        raise Exception(f"Unsupported database engine: {db['ENGINE']}")
     try:
         objective = Objective(tf_idf, project)
     except Exception as e:
@@ -246,7 +244,7 @@ def optimization(
     try:
         study = optuna.create_study(
             study_name=name,
-            # storage=storage,
+            storage=storage,
             direction="maximize",
             load_if_exists=True,
         )
