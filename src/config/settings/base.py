@@ -30,7 +30,6 @@ ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 os.environ["PYTHONWARNINGS"] = "default"
 
 env = environ.Env()
-# env.read_env(str(ROOT_DIR / ".env"))
 
 SERVICE_NAME = "literev"
 
@@ -44,11 +43,15 @@ DOCKER_VOLUME_CONTAINER_PATH = Path(
     env("DOCKER_VOLUME_CONTAINER_PATH", default="/tmp/literev/files")
 )
 
+# TEMP_DATA = ROOT_DIR / "tmp"
+
 # define the repertory where there is aul temporary data
 TEMPORARY_DATA = DOCKER_VOLUME_CONTAINER_PATH / "data"
 ARTICLE_DATA = DOCKER_VOLUME_CONTAINER_PATH / "articles"
-os.makedirs(ARTICLE_DATA, exist_ok=True)
 PLOT_DATA = DOCKER_VOLUME_CONTAINER_PATH / "plot"
+
+for dir in [TEMPORARY_DATA, ARTICLE_DATA, PLOT_DATA]:
+    os.makedirs(dir, exist_ok=True)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.0/howto/deployment/checklist/
@@ -341,5 +344,3 @@ ES_USERNAME = os.environ.get(
 ES_PASSWORD = os.environ.get(
     "ES_PASSWORD", default=""
 )  # Elastic Search password
-
-TEMP_DATA = ROOT_DIR / "tmp"

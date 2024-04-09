@@ -20,19 +20,15 @@ UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
 @register.filter
 def preprocessed_percentage(project: Project) -> int:
     total_documents = project.total_documents
-    documents = Document.objects.filter(
-        project=project, project__step="preprocess"
-    ).count()
+    documents = project.step_number
 
-    return (documents // total_documents) * 100
+    return int(documents / total_documents * 100)
 
 
 @register.filter
 def preprocessed_progress(project: Project) -> str:
     total_documents = project.total_documents
-    documents = Document.objects.filter(
-        project=project, project__step="preprocess"
-    ).count()
+    documents = project.step_number
 
     return f"{documents}/{total_documents}"
 
@@ -42,7 +38,7 @@ def created_percentage(project: Project) -> int:
     total_documents = project.total_documents
     documents = Document.objects.filter(project=project).count()
 
-    return (documents // total_documents) * 100
+    return int(documents / total_documents * 100)
 
 
 @register.filter

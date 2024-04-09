@@ -32,7 +32,7 @@
                   <!-- Red alert for no articles -->
                   <li class="list-group-item mx-4 ps-4"
                       style="background-color: #FF8989">
-                    There are no estimated articles for this query.
+                    There are no estimated documents for this query.
                     Please specify a different one.
                   </li>
                 {% elif total_documents < 20 %}
@@ -47,7 +47,7 @@
                   <!-- Green alert for acceptable number of articles -->
                   <li class="list-group-item mx-4 ps-4"
                       style="background-color: #D5F0C1">
-                    The number of estimated articles is {{ total_documents }}.
+                    The number of estimated documents are {{ total_documents }}.
                     Would you like to continue with this query?
                   </li>
                 {% endif %}

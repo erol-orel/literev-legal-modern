@@ -61,7 +61,7 @@
                 {{ project|created_documents }}
               </div>
               {% with percentage=project|created_percentage %}
-                <div class="pe-5 col-2 pt-2">
+                <div class="pe-5 col-2">
                   <div class="progress"
                        role="progressbar"
                        aria-label=""
@@ -81,20 +81,26 @@
                 {{ project|preprocessed_progress }}
               </div>
               {% with percentage=project|preprocessed_percentage %}
-                <div class="pe-5 col-2 pt-2">
-                  <div class="progress"
-                       role="progressbar"
-                       aria-label=""
-                       aria-valuenow="{{ percentage }}"
-                       aria-valuemin="0"
-                       aria-valuemax="100"
-                       style="height: 30px">
-                    <div class="progress-bar bg-warning fs-6"
-                         style="width: {{ percentage }}%">
-                      {{ percentage }}%
+                {% if percentage > 99 %}
+                  <div class="pe-5 col-2">
+                    Creating n grams
+                  </div>
+                {% else %}
+                  <div class="pe-5 col-2">
+                    <div class="progress"
+                         role="progressbar"
+                         aria-label=""
+                         aria-valuenow="{{ percentage }}"
+                         aria-valuemin="0"
+                         aria-valuemax="100"
+                         style="height: 30px">
+                      <div class="progress-bar bg-warning fs-6"
+                           style="width: {{ percentage }}%">
+                        {{ percentage }}%
+                      </div>
                     </div>
                   </div>
-                </div>
+                {% endif %}
               {% endwith %}
             {% elif project.step == "clustering" %}
               <div class="col-1">
@@ -132,6 +138,9 @@
             <div class="text-center col-2">
               <div class="row gap-2 gap-lg-1 justify-content-xl-center">
                 <div class="col-sm-12 col-xxl-4">
+                  <input type="hidden"
+                         name="project_id"
+                         value="{{ project.id }}" />
                   <button type="submit"
                           name="submit"
                           value="restart"
@@ -141,17 +150,12 @@
                 </div>
 
                 <!-- Button trigger modal -->
-                <div class="ms-2 col-sm-12 col-xxl-4">
-                  <input type="hidden"
-                         name="project_id"
-                         value="{{ project.id }}" />
-                  <button type="submit"
-                          name="submit"
-                          value="delete"
-                          class="btn btn-danger text-white">
+                <!-- <div class="ms-2 col-sm-12 col-xxl-4">
+                  <input type="hidden" name="project_id" value="{{ project.id }}" />
+                  <button type="submit" name="submit" value="delete" class="btn btn-danger text-white">
                     <i class="fa-regular fa-trash-can"></i>
                   </button>
-                </div>
+</div> -->
 
               </div>
             </div>

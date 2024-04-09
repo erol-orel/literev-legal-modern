@@ -19,7 +19,7 @@ from django.conf import settings
 from literev.libs.collectors import ElasticSearchCollector, MetaData
 from literev.models import Cluster, ClusterElement, Document, Project
 from literev_core.clustering import cluster
-from literev_core.preprocessing import preprocessing_mp
+from literev_core.preprocessing import preprocessing
 
 thread_dict = dict()
 UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
@@ -133,32 +133,44 @@ def back_preprocess_documents(project: Project) -> None:
     documents = Document.objects.filter(project=project)
     document_pk_list = []
     document_corpus_list = []
-    for document in documents:
-        if document.preprocessed_document != "":
-            document.project = project
-            document.save()
-        else:
-            document_pk_list.append(document.pk)
-            document_corpus_list.append(document.raw_document_text)
-    # document_pk_list = [document.pk for document in documents]
-    # document_corpus_list = [
-    #     document.raw_document_text for document in documents
-    # ]
+    print("getting documents from database")
+
+    # Getting all documents with no emtpy document_text field
+    document_pk_list = [
+        document.pk for document in documents if document.raw_document_text
+    ]
+    document_corpus_list = [
+        document.raw_document_text
+        for document in documents
+        if document.raw_document_text
+    ]
+
+    print("got documents")
+    # TODO use cache articles
 
     try:
         # using preprocessing_mpo from literev_core
-        preprocessed_corpus_list = preprocessing_mp(document_corpus_list)
-
+        rejected_pk_documents, preprocessed_corpus_list = preprocessing(
+            project, document_pk_list, document_corpus_list
+        )
+        print("rejected articles number ", len(rejected_pk_documents))
     except Exception as e:
         print("literev_core failed in preprocessing_mp")
         print(e)
         return
 
-    for pk, pp_corpus in zip(document_pk_list, preprocessed_corpus_list):
+    new_document_pk_list = []
+
+    for pk in document_pk_list:
+        if pk not in rejected_pk_documents:
+            new_document_pk_list.append(pk)
+
+    for pk, pp_corpus in zip(new_document_pk_list, preprocessed_corpus_list):
         try:
             update_pp_document(pk, pp_corpus)
+
         except Exception as e:
-            print("Adding preprocessed document failed. Doc id:", id)
+            print("Adding preprocessed document failed. Doc id:", pk)
             print(e)
 
 
@@ -478,13 +490,20 @@ def hover_with_keywords(
             pos_y = embedding_df[1][i]
 
             document = Document.objects.filter(pk=list_id[i])[0]
-            cluster_element, created = ClusterElement.objects.get_or_create(
+            ClusterElement.objects.get_or_create(
                 document=document,
                 cluster=cluster,
                 pos_x=pos_x,
                 pos_y=pos_y,
             )
-            cluster_element.save()
+            # TODO: Review the code and uses of the returned variables
+            # cluster_element, created = ClusterElement.objects.get_or_create(
+            #     document=document,
+            #     cluster=cluster,
+            #     pos_x=pos_x,
+            #     pos_y=pos_y,
+            # )
+            # cluster_element.save()
 
         # After the clustering is done, we generate the topic description
         # TODO: Implement summary text use open AI functions
@@ -539,12 +558,14 @@ def back_clustering_documents(project: Project) -> None:
         print(e)
         return
 
+    print("success in clustering")
+
+
+def back_plotting_documents(project: Project) -> None:
     try:
-        path = settings.TEMP_DATA / "html" / f"{project.pk}_plot.html"
-        div_path = settings.TEMP_DATA / "plot" / f"{project.pk}_div.html"
-        script_path = (
-            settings.TEMP_DATA / "script" / f"{project.pk}_script.html"
-        )
+        path = settings.TEMPORARY_DATA / f"{project.pk}_plot.html"
+        div_path = settings.PLOT_DATA / f"{project.pk}_div.html"
+        script_path = settings.PLOT_DATA / f"{project.pk}_script.html"
 
         scatter_with_hover(project, path, div_path, script_path)
 
@@ -553,7 +574,7 @@ def back_clustering_documents(project: Project) -> None:
         print(e)
         return
 
-    print("success in clustering")
+    print("Success creating plot")
 
 
 def back_process(project: Project) -> None:
@@ -563,22 +584,29 @@ def back_process(project: Project) -> None:
 
         if back_get_documents(project):
             project.step = "preprocessing"
+            project.step_number = 0
             project.save()
             print("Success getting documents")
 
-    # TODO: Fix bugs in the preprocessing step
-    # if project.step == "preprocessing":
-    #     back_preprocess_documents(project)
-    #     project.step = "clustering"
-    #     project.save()
+    if project.step == "preprocessing":
+        back_preprocess_documents(project)
+        project.step = "clustering"
+        project.step_number = 0
+        project.save()
 
-    # # TODO: implement clustering
-    # if project.step == "clustering":
-    #     back_clustering_documents(project)
-    #     project.step = ""
-    #     project.is_finish = True
-    #     project.is_running = False
-    #     project.save()
+    # TODO: implement clustering
+    if project.step == "clustering":
+        back_clustering_documents(project)
+        project.step_number = 0
+        project.step = "plotting"
+        project.save()
+
+    if project.step == "plotting":
+        back_plotting_documents(project)
+        project.step = ""
+        project.is_finish = True
+        project.is_running = False
+        project.save()
 
 
 def launch_process(project: Project) -> bool:

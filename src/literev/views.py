@@ -246,11 +246,9 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
     context["project_id"] = project_id
     # path = settings.TEMP_DATA / "html" / f"{project.pk}_plot.html"
 
-    FNAME_PROJECT_DIV_PLOT = (
-        settings.TEMP_DATA / "plot" / f"{project.pk}_div.html"
-    )
+    FNAME_PROJECT_DIV_PLOT = settings.PLOT_DATA / f"{project.pk}_div.html"
     FNAME_RESEARCH_SCRIPT_PLOT = (
-        settings.TEMP_DATA / "script" / f"{project.pk}_script.html"
+        settings.PLOT_DATA / f"{project.pk}_script.html"
     )
     # get the div plot
     with open(FNAME_PROJECT_DIV_PLOT, "r") as f:

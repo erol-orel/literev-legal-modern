@@ -260,7 +260,7 @@ def optimization(
             objective,
             n_trials=n_trials,
             gc_after_trial=True,
-            n_jobs=4,  # note: disabled? for now,
+            n_jobs=2,  # TODO: note: 2 cpus for user just 1
             catch=(AttributeError, ValueError),
             # callbacks=[close_connections_on_done], TODO: add later
         )

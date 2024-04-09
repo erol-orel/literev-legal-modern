@@ -1,4 +1,6 @@
-import concurrent
+import concurrent.futures
+
+from literev.models import Project
 
 from .utils import (
     create_ngrams,
@@ -7,7 +9,6 @@ from .utils import (
     lemmatization,
     pre_processing,
     remove_common_and_unique,
-    remove_empty,
     remove_words,
     sentences_to_words,
 )
@@ -27,10 +28,11 @@ def clean_corpus(corpus: str) -> str:
     return corpus_without_stopwords
 
 
-def clean_corpus_mp(corpus: str, index: int) -> tuple[str, int]:
+def clean_corpus_mp(corpus: str, pk: int) -> tuple[str, int]:
+    print("preprocessing: ", pk)
     if not define_languages(corpus):
-        print("discarding, not french: ", index)
-        return "", -1
+        print("discarding, not french: ", pk)
+        return "", pk
 
     cleaned_corpus = pre_processing(corpus)
 
@@ -41,56 +43,75 @@ def clean_corpus_mp(corpus: str, index: int) -> tuple[str, int]:
     corpus_without_stopwords = remove_words(lemmatized, stopwords_list)
 
     if not corpus_without_stopwords:
-        print("discarding, emtpy after removing stopwords: ", index)
-        return "", -1
+        print("discarding, emtpy after removing stopwords: ", pk)
+        return "", pk
 
-    return corpus_without_stopwords, index
+    return corpus_without_stopwords, pk
 
 
-def preprocessing(corpuses: list[str]) -> list[str]:
+def preprocessing(
+    project: Project, pk_list: list[int], corpuses: list[str]
+) -> tuple[set[int], list[str]]:
     prepared_for_ngrams = []
-    for index, corpus in enumerate(corpuses):
-        print(f"Preprocessing corpus: {index}")
+    rejected_pk = set()
+
+    print("starting preprocessing")
+    print("documents: ", len(corpuses))
+    for index, corpus in zip(pk_list, corpuses):
+        print("Processing document:", index)
         if not define_languages(corpus):
             print("discarting, not french: ", index)
+            rejected_pk.add(index)
             continue
 
         cleaned_corpus = clean_corpus(corpus)
 
         if not cleaned_corpus:
             print("discarting, emtpy after removing stopwords: ", index)
+            rejected_pk.add(index)
             continue
 
         prepared_for_ngrams.append(cleaned_corpus)
 
+        project.step_number += 1
+        project.save()
+        print("preprocessed document index: ", index)
+
+    print("starting trigrams")
+
     list_trigrams = create_ngrams(prepared_for_ngrams)
 
+    print("trigrams have been generated")
     # remove common and unique
 
+    print("removing common an unique")
     corpuses_wo_common_and_unique = remove_common_and_unique(list_trigrams)
 
-    # clean empty corpus
-    preprocessed_corpus = remove_empty(corpuses_wo_common_and_unique)
+    # The web app is removing empty corpuses before clustering
+    # preprocessed_corpus = remove_empty(corpuses_wo_common_and_unique)
 
-    return preprocessed_corpus
+    return rejected_pk, corpuses_wo_common_and_unique  # preprocessed_corpus
 
 
-def preprocessing_mp(corpuses: list[str]) -> list[str]:
+def preprocessing_mp(pk_list: list[int], corpuses: list[str]) -> list[str]:
     prepared_for_ngrams_dict = dict()
     prepared_for_ngrams = []
+    rejected = set()
+    print("mp started")
     with concurrent.futures.ProcessPoolExecutor() as executor:
         futures = [
             executor.submit(clean_corpus_mp, corpus, index)
-            for index, corpus in enumerate(corpuses)
+            for index, corpus in zip(pk_list, corpuses)
         ]
 
         for future in concurrent.futures.as_completed(futures):
-            corpus, index = future.result()
+            corpus, pk = future.result()
             if corpus == "":
+                rejected.add(pk)
                 continue
             try:
-                prepared_for_ngrams_dict[index] = corpus
-                print("processed index: ", index)
+                prepared_for_ngrams_dict[pk] = corpus
+                print("processed index: ", pk)
 
             except Exception as e:
                 print(f"Error processing future: {e}")
@@ -106,6 +127,7 @@ def preprocessing_mp(corpuses: list[str]) -> list[str]:
 
     corpuses_wo_common_and_unique = remove_common_and_unique(list_trigrams)
 
+    # The web app is removing empty corpuses before clustering
     # preprocessed_corpuses = remove_empty(corpuses_wo_common_and_unique)
 
-    return corpuses_wo_common_and_unique  # preprocessed_corpuses
+    return rejected, corpuses_wo_common_and_unique  # preprocessed_corpuses
