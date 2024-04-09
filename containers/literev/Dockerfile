@@ -60,7 +60,7 @@ COPY --chown=literev:literev ./conda/ /tmp/conda
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
 
-RUN mamba env create -n $ENV_NAME --file /tmp/conda/environment.yaml \
+RUN mamba env create -n $ENV_NAME --file /tmp/conda/base.yaml \
   && mamba env update -n $ENV_NAME --file /tmp/conda/service-linux-extra.yaml \
   && conda clean --all \
   && find /opt/conda/ -type f,l -name '*.pyc' -delete \

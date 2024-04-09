@@ -178,6 +178,14 @@ groups:
           makim containers.wait --service literev-postgres
           makim containers.wait --service literev
 
+      host-setup:
+        help: Prepare the host for running the containers
+        env-file: .env
+        run: |
+          mkdir -p ${LITEREV_CACHE_DIR}
+          mkdir -p ${DOCKER_VOLUME_CONTAINER_PATH}
+          mkdir -p ${STATIC_ROOT}
+
   docs:
     targets:
       build:

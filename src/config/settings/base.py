@@ -263,23 +263,6 @@ ACCOUNT_USERNAME_REQUIRED = False
 # To sent emails from the webapp in the terminal
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
-SOCIALACCOUNT_PROVIDERS = {
-    "orcid": {
-        # Key and secret for sandbox ORCID for testing
-        "APP": {
-            "client_id": os.environ.get("ORCID_APP_ID"),
-            "secret": os.environ.get("ORCID_APP_SECRET"),
-        },
-        # Base domain of the API. Default value: 'orcid.org', for the
-        # production API
-        "BASE_DOMAIN": os.environ.get(
-            "ORCID_BASE_DOMAIN"
-        ),  # for the sandbox API
-        # Member API or Public API? Default: False (for the public API)
-        "MEMBER_API": False,  # for the member API
-    }
-}
-
 SITE_ID = 1
 
 LOGIN_REDIRECT_URL = "/search/"

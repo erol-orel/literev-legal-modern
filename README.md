@@ -2,26 +2,8 @@
 A legar flavour of Literev
 
 
-## Set Up
+**NOTE:**
 
-1. Create conda environment
-```bash
-mamba env create --file conda/environment.yaml
-```
-
-2. Activate conda environment
-```bash
-conda activate literev-legal
-```
-
-3. Install dependencies
-```bash
-poetry install
-```
-
-## Test
-
-1. Run pytest
-```bash
-pytest
+For more information about `.env`, conda, containers, git, how to
+contribute, etc, check the [CONTRIBUTING file](./docs/contributing.md).
 ```
