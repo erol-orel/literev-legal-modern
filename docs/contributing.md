@@ -195,7 +195,7 @@ If you don't want to use containers, please use: `USE_CONTAINER=False`.
 And you probably should set `POSTGRES_HOST=localhost`. But, in general,
 it would be better to use container as much as possible.
 
-`./.env`:
+`./containers/literev/.env`:
 
 ```.env
 ALLOWED_HOSTS=localhost
@@ -213,16 +213,12 @@ NUMBER_ARTICLE_BY_PAGE=30
 NUMBER_THREADS_ALLOWED=4
 NUMBER_TRIALS=2
 OPENAI_API_KEY=<YOUR OPEN AI KEY HERE>
-ORCID_APP_ID=APP-31MN9C4D9DA27N9X
-ORCID_APP_SECRET=d14daed7-aed2-4e5a-b4c2-6533195a6cb1
-ORCID_BASE_DOMAIN=sandbox.orcid.org
-
 ```
 
 If you have a domain for your service, set to `ALLOWED_HOSTS` the domain name
 you need.
 
-`./.env`:
+`./containers/postgresql/.env`:
 
 ```.env
 POSTGRES_PORT=25432
