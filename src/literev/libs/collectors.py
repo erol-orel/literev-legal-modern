@@ -4,7 +4,6 @@ import datetime
 import logging
 
 from dataclasses import dataclass
-from typing import cast
 
 from django.conf import settings
 from elasticsearch import Elasticsearch
@@ -14,11 +13,43 @@ from literev.libs.parsing import process_search_query_elasticsearch
 
 @dataclass
 class MetaData:
-    doc_id: str
-    summary: str
-    document_text: str
-    decision_date: datetime.date
-    result: str
+    """
+    A data class for storing metadata of a document, with attributes adjusted to French terms.
+
+    This class encapsulates all relevant information needed to process and display documents,
+    matching the provided French terms to their corresponding metadata aspects.
+
+    Attributes
+    ----------
+    doc_id : str
+        Unique identifier for the document. Corresponds to "id".
+    document_text : str
+        The full text of the document. Corresponds to "document_text".
+    procedure_type : str
+        The type of procedure that the document relates to. Corresponds to "procedure".
+    decision_type : str
+        The type of decision made in the document. Corresponds to "decision".
+    decision_date : str
+        The date the decision was made, in ISO format (YYYY-MM-DD). Corresponds to "datedecision" and "dt_decision".
+    descriptors : str
+        Descriptors or keywords associated with the document. Corresponds to "descripteurs".
+    summary : str
+        A summary of the document's content. Corresponds to "resume".
+    standards : str
+        Standards mentioned or applied within the document. Corresponds to "normes".
+    result : str
+        The outcome or result described in the document. Corresponds to "resultat".
+    """
+
+    doc_id: str  # id
+    document_text: str  # document_text
+    procedure_type: str  # procedure
+    decision_type: str  # decision
+    decision_date: str  # datedecision, dt_decision
+    descriptors: str  # descripteurs
+    summary: str  # resume
+    standards: str  # normes
+    result: str  # resultat
 
 
 class ElasticSearchCollector:
@@ -106,20 +137,48 @@ class ElasticSearchCollector:
     def extract_document_metadata(
         self, document: dict[str, str]
     ) -> MetaData | None:
-        """Create Metadata from source article."""
+        """
+        Extract metadata from a source document and creates a `MetaData` instance.
 
-        doc_id = document.get("id", "")
+        This function parses a dictionary representing a document and extracts various
+        pieces of metadata. If the document contains text, it creates a `MetaData`
+        object with the extracted information. Otherwise, it returns `None`.
+
+        Parameters
+        ----------
+        document : dict[str, str]
+            A dictionary containing key-value pairs of document attributes. Keys include
+            'id', 'document_text', 'procedure_type', 'decision_type', 'decision_date',
+            'descriptors', 'summary', 'standards', and 'result'.
+
+        Returns
+        -------
+        MetaData | None
+            A `MetaData` instance populated with the document's metadata if the document
+            contains text; otherwise, `None`.
+
+        """
+
+        doc_id = document.get("id")
+        document_text = document.get("document_text", "")
+        procedure_type = document.get("procedure_type", "")
+        decision_type = document.get("decision_type", "")
+        decision_date = document.get("decision_date", "")
+        descriptors = document.get("descriptors", "")
         summary = document.get("summary", "")
-        document_text = document.get("document_text")
-        date_decision = document.get("date_decision")
+        standards = document.get("standards", "")
         result = document.get("result", "")
 
         if document_text:
             metadata = MetaData(
                 doc_id=doc_id,
-                summary=summary,
                 document_text=document_text,
-                decision_date=cast(datetime.date, date_decision),
+                procedure_type=procedure_type,
+                decision_type=decision_type,
+                decision_date=decision_date,
+                descriptors=descriptors,
+                summary=summary,
+                standards=standards,
                 result=result,
             )
 

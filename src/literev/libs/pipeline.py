@@ -1,6 +1,7 @@
-import datetime
+import datetime as dt
 import logging
 
+from datetime import datetime
 from pathlib import Path
 from threading import Thread
 from typing import Optional, Sequence, Union, cast
@@ -89,13 +90,77 @@ def running_restart(project_id: str) -> None:
     return
 
 
+def convert_to_target_type(
+    value: str, target_type: type = str
+) -> str | int | datetime:
+    """
+    Convert the given value to the specified target type, handling `None` values appropriately.
+
+    This function ensures data conforms to the expected type in Django model fields,
+    especially when dealing with potentially nullable fields in database operations.
+
+    Parameters
+    ----------
+    value : str
+        The value to be converted. Can be a string representation of any type including `None`.
+    target_type : type, optional
+        The target data type to which the value should be converted. Supports `str`, `int`,
+        and `datetime`. Default is `str`.
+
+    Returns
+    -------
+    str | int | datetime
+        The value converted to the target type. If the original value is `None`,
+        returns a default value appropriate for the specified `target_type`: an
+        empty string for `str`, `0` for `int`, and the current datetime for `datetime`.
+    """
+
+    if value is None or value == "":
+        if target_type == str:
+            return ""
+        elif target_type == int:
+            return 0
+        elif target_type == datetime:
+            return datetime.now()
+    else:
+        if target_type == datetime:
+            return datetime.strptime(value, "%Y-%m-%d")
+        else:
+            return target_type(value)
+
+
 def create_document_db(project: Project, document: MetaData) -> None:
+    """
+    Create and save a document object in the database.
+
+    This function takes a project instance and a MetaData instance containing document
+    metadata. It transforms the metadata values to ensure they are stored correctly in the
+    database, particularly converting None values to empty strings where necessary, and then
+    creates a new Document object in the database.
+
+    Parameters
+    ----------
+    project : Project
+        The project instance to which the document belongs.
+    document : MetaData
+        The MetaData instance containing the document's metadata.
+
+    Returns
+    -------
+    None
+
+    """
+
     Document.objects.create(
         project=project,
-        raw_document_id=document.doc_id,
-        raw_document_text=document.document_text,
+        raw_document_id=convert_to_target_type(document.doc_id),
+        raw_document_text=convert_to_target_type(document.document_text),
         decision_date=document.decision_date,
-        result=document.result,
+        decision_type=convert_to_target_type(document.decision_type),
+        procedure_type=convert_to_target_type(document.procedure_type),
+        descriptors=convert_to_target_type(document.descriptors),
+        standards=convert_to_target_type(document.standards),
+        result=convert_to_target_type(document.result),
     )
 
 
@@ -296,19 +361,16 @@ def scatter_with_hover(
             tools=["box_zoom", "reset", "tap"],
         )
 
-    config: dict[str, list[Optional[Union[float, str, datetime.date]]]] = (
-        dict()
-    )
+    config: dict[str, list[Optional[Union[float, str, dt.date]]]] = dict()
     config["x"] = []
     config["y"] = []
-    # config["decision_type"] = []
+    config["procedure_type"] = []
+    config["decision_type"] = []
     config["decision_date"] = []
-    # config["result"] = []
-    # config["descriptors"] = []
-    # config["standards"] = []
+    config["descriptors"] = []
     config["topic"] = []
+    config["standards"] = []
     config["result"] = []
-    # config["url_link"] = []
 
     clusters_point = ClusterElement.objects.filter(cluster__project=project)
     # TODO: Initial code to plot cluster numbering
@@ -318,16 +380,22 @@ def scatter_with_hover(
     for point in clusters_point:
         config["x"].append(point.pos_x)
         config["y"].append(point.pos_y)
-        config["topic"].append(point.cluster.topic)
-        # TODO: Solve getting date
+
         decision_date = (
             point.document.decision_date
             if point.document.decision_date
             else None
         )
 
+        config["decision_type"].append(point.document.decision_type)
+        config["procedure_type"].append(point.document.procedure_type)
         config["decision_date"].append(decision_date)
+        config["descriptors"].append(point.document.descriptors)
+        config["topic"].append(point.cluster.topic)
+        # config["summary"].append(point.document.summary)
+        config["standards"].append(point.document.standards)
         config["result"].append(point.document.result)
+
         # config["title"].append(points.article.title)
         # config["abstract"].append(points.article.abstract)
         # note: remove that after the refactoring in the migration files
@@ -374,9 +442,30 @@ def scatter_with_hover(
 
     <div>
     <span style="font-size: 12px; color: blue;">
+    Decision type:</span>
+    <span style="font-size: 12px; font-weight: bold;">
+    @decision_type</span>
+    </div>
+
+    <div>
+    <span style="font-size: 12px; color: blue;">
     Decision Date: </span>
     <span style="font-size: 12px; font-weight: bold; ">
     @decision_date</span>
+    </div>
+
+    <div>
+    <span style="font-size: 12px; color: blue;">
+    Descriptors:</span>
+    <span style="font-size: 12px; font-weight: bold;">
+    @descriptors</span>
+    </div>
+
+    <div>
+    <span style="font-size: 12px; color: blue;">
+    Standards:</span>
+    <span style="font-size: 12px; font-weight: bold;">
+    @standards</span>
     </div>
 
     <div>
@@ -394,6 +483,7 @@ def scatter_with_hover(
     </div>
 
     </div>
+
     """
     hover = HoverTool(name=name, tooltips=tooltips)
 
