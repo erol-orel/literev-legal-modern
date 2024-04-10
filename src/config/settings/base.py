@@ -288,7 +288,7 @@ LOGGING = {
     },
     "handlers": {
         "console": {
-            "level": "WARNING",
+            "level": "INFO",
             "class": "logging.StreamHandler",
             "formatter": "verbose",
         },
@@ -296,7 +296,7 @@ LOGGING = {
     "loggers": {
         "django": {
             "handlers": ["console"],
-            "level": "WARNING",
+            "level": "INFO",
             "propagate": False,
         },
     },

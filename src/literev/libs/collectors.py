@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import logging
 
 from dataclasses import dataclass
 from typing import cast
@@ -55,7 +56,7 @@ class ElasticSearchCollector:
             if metadata:
                 result.append(metadata)
             else:
-                print(
+                logging.warning(
                     f"This document does not have document_text field: {doc}"
                 )
 
@@ -143,3 +144,33 @@ class ElasticSearchCollector:
     def create_document_from_metadata(self, metadata: MetaData) -> None:
         """Create document from metadata."""
         pass
+
+    def count_all_corpus(self):
+        """Counts total number of articles for a given query."""
+        es_query = {"query": {"match_all": {}}}
+
+        response = self.es.count(index=self.ES_INDEX_NAME, body=es_query)
+
+        return int(response["count"])
+
+    def collect_all_documents(self) -> list[MetaData]:
+        """Retrieve articles based on the provided search parameters."""
+
+        es_query = {"query": {"match_all": {}}}
+
+        # get all documents from every page response from elasticsearch
+        documents = self.get_all_documents_from_es_response(es_query)
+
+        result = []
+
+        for doc in documents:
+            metadata = self.extract_document_metadata(doc)
+
+            if metadata:
+                result.append(metadata)
+            else:
+                logging.warning(
+                    f"This document does not have document_text field: {doc}"
+                )
+
+        return result

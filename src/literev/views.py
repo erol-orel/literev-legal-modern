@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import datetime
+import logging
 
+logging.basicConfig(level=logging.INFO)
+
+from http import HTTPStatus
 from typing import Any, Optional
 
 from django.conf import settings
@@ -10,12 +14,18 @@ from django.shortcuts import redirect, render
 from django.views.generic import TemplateView
 
 from literev.forms import SearchForm
+
+# from literev.libs.nlp import nlp_topic_description
 from literev.libs.pipeline import (
     get_color_map,
     launch_process,
     running_restart,
 )
-from literev.libs.utils import get_number_documents
+from literev.libs.utils import (
+    count_all_corpus,
+    get_number_documents,
+    process_all_documents,
+)
 from literev.models import (
     Cluster,
     ClusterElement,
@@ -50,7 +60,6 @@ def search_search(
     context["search_form"] = search_form
 
     if search_form.is_valid():
-        print("valid form")
         project_name = search_form.cleaned_data["project_name"]
         query = search_form.cleaned_data["query"]
         range_begin_date = search_form.cleaned_data["range_begin_date"]
@@ -70,7 +79,7 @@ def search_search(
             "range_end_date": range_end_date.strftime("%Y/%m/%d"),
             "total_documents": total_documents,
         }
-        print("updatin request session")
+        logging.info("updating request session")
         # update context variables
         context.update(new_data)
         # save in request session the data
@@ -124,7 +133,6 @@ def search_evaluate(
     context["search_form"] = search_form
 
     if search_form.is_valid():
-        print("evaluate valid form")
         # project_name = search_form.cleaned_data["project_name"]
         query = search_form.cleaned_data["query"]
         range_begin_date = search_form.cleaned_data["range_begin_date"]
@@ -140,7 +148,7 @@ def search_evaluate(
 
 
 def search(request: HttpRequest) -> HttpResponse:
-    print("executing the search function")
+    logging.info("executing the search function")
     context: dict[str, Any] = dict()
 
     # Actual form
@@ -162,14 +170,26 @@ def search(request: HttpRequest) -> HttpResponse:
     submit = request.POST["submit"]
 
     if submit == "search":
-        print("search search")
-        context = search_search(request, context)
+        logging.info("search search")
+        query_text = SearchForm(request.POST)["query"].value()
+        logging.info(query_text)
+        if query_text == "#COUNT-ALL-CORPUS-LITEREV-00":
+            result_all = count_all_corpus()
+            logging.info("counting all corpus")
+            logging.info(result_all)
+
+        elif query_text == "#PROCESS-ALL-CORPUS-LITEREV-00":
+            process_all_documents()
+            logging.info("processing all corpus")
+
+        else:
+            context = search_search(request, context)
 
     elif submit == "evaluate":
         # TODO: Implement this
         # return to the saved variables from
         # request session
-        print("search evaluate")
+        logging.info("search evaluate")
         context = search_evaluate(request, context)
 
     elif submit == "continue":
@@ -195,7 +215,8 @@ def running(request: HttpRequest) -> HttpResponse:
             pass
 
         if submit == "restart":
-            print(request.POST)
+            logging.info("Restarting project")
+            logging.info(request.POST)
             project_id = request.POST["project_id"]
             running_restart(project_id)
 
@@ -307,3 +328,60 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
     #         context["filters"] = ""
 
     return render(request, "previousgraph.html", context)
+
+
+def generate_summary(request: HttpRequest, cluster_id: int) -> HttpResponse:
+    """Generate a cluster topic summary text by calling openAI API"""
+
+    # check if the request is ajax
+    is_ajax = request.headers.get("X-Requested-With", None) == "XMLHttpRequest"
+
+    # fails if request is not ajax
+    if not is_ajax:
+        return JsonResponse(
+            {
+                "message": (
+                    "Invalid Request. X-Requested-With header "
+                    "not found or not equal to XMLHttpRequest"
+                )
+            },
+            status=HTTPStatus.BAD_REQUEST,
+        )
+
+    # resolves POST requests only
+    if request.method == "POST":
+        # try to get cluster object
+        try:
+            cluster = Cluster.objects.get(pk=cluster_id)
+        except Cluster.DoesNotExist:
+            return JsonResponse(
+                {"message": f"Cluster with id={cluster_id} does not exist"},
+                status=HTTPStatus.NOT_FOUND,
+            )
+
+        summary_text = ""  # nlp_topic_description(cluster)
+
+        if not summary_text:
+            # in case the openai service is still not
+            # working and returning an empty string
+            return JsonResponse(
+                {
+                    "message": "Service Unavailable",
+                    "content": "It seems the service is still not available. Please, try again later.",
+                },
+                status=HTTPStatus.SERVICE_UNAVAILABLE,
+            )
+        else:
+            # update cluster summary text
+            cluster.summary = summary_text
+            cluster.save()
+            return JsonResponse(
+                {"message": "Success. Created.", "content": summary_text},
+                status=HTTPStatus.CREATED,
+            )
+    else:
+        # fails if request http method is not POST
+        return JsonResponse(
+            {"message": "Invalid Request. Http method should be POST"},
+            status=HTTPStatus.BAD_REQUEST,
+        )

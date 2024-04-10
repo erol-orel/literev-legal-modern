@@ -1,4 +1,5 @@
 import datetime
+import logging
 
 from pathlib import Path
 from threading import Thread
@@ -64,7 +65,7 @@ def running_restart(project_id: str) -> None:
     try:
         project = Project.objects.get(is_running=True, id=project_id)
     except Project.DoesNotExist:
-        print("the project does no exist, id:", project_id)
+        logging.warning(f"the project does no exist, id: {project_id}")
         return
 
     # check if the research has his own entry
@@ -73,7 +74,7 @@ def running_restart(project_id: str) -> None:
             target=back_process, args=[project], daemon=True
         )
         thread_dict[project.id].start()
-        print("Restoring project, id:", project_id)
+        logging.info(f"Restoring project, id: {project_id}")
 
         return
 
@@ -102,13 +103,18 @@ def back_get_documents(project: Project) -> bool:
     es_collector = ElasticSearchCollector()
 
     try:
-        documents_list = es_collector.collect_documents(
-            project.query, project.range_begin_date, project.range_end_date
-        )
+        # Just to get all documents
+        logging.info(f"Project query: {project.query}")
+        if project.query == "#PROCESS-ALL-CORPUS-LITEREV-00":
+            documents_list = es_collector.collect_all_documents()
+        else:
+            documents_list = es_collector.collect_documents(
+                project.query, project.range_begin_date, project.range_end_date
+            )
 
     except Exception as e:
-        print("ElasticSearchCollector Failed")
-        print(e)
+        logging.warning("ElasticSearchCollector Failed")
+        logging.warning(e)
         return False
 
     for document in documents_list:
@@ -116,9 +122,8 @@ def back_get_documents(project: Project) -> bool:
             create_document_db(project, document)
 
         except Exception as e:
-            print("Document creation failed", document.doc_id)
-            print("decision date", document.decision_date)
-            print(e)
+            logging.warning(f"Document creation failed, id: {document.doc_id}")
+            logging.warning(e)
 
     return True
 
@@ -133,7 +138,7 @@ def back_preprocess_documents(project: Project) -> None:
     documents = Document.objects.filter(project=project)
     document_pk_list = []
     document_corpus_list = []
-    print("getting documents from database")
+    logging.info("getting documents from database")
 
     # Getting all documents with no emtpy document_text field
     document_pk_list = [
@@ -145,18 +150,17 @@ def back_preprocess_documents(project: Project) -> None:
         if document.raw_document_text
     ]
 
-    print("got documents")
-    # TODO use cache articles
+    # TODO use cache documents
 
     try:
-        # using preprocessing_mpo from literev_core
+        # using preprocessing_m from literev_core
         rejected_pk_documents, preprocessed_corpus_list = preprocessing(
             project, document_pk_list, document_corpus_list
         )
-        print("rejected articles number ", len(rejected_pk_documents))
+        logging.info(f"rejected articles number {len(rejected_pk_documents)}")
     except Exception as e:
-        print("literev_core failed in preprocessing_mp")
-        print(e)
+        logging.warning("literev_core failed in preprocessing")
+        logging.warning(e)
         return
 
     new_document_pk_list = []
@@ -170,8 +174,10 @@ def back_preprocess_documents(project: Project) -> None:
             update_pp_document(pk, pp_corpus)
 
         except Exception as e:
-            print("Adding preprocessed document failed. Doc id:", pk)
-            print(e)
+            logging.warning(
+                f"Adding preprocessed document failed. Doc id: {pk}"
+            )
+            logging.warning(e)
 
 
 def get_color_map(topics: list[str]) -> tuple[Sequence[str], Sequence[str]]:
@@ -305,6 +311,9 @@ def scatter_with_hover(
     # config["url_link"] = []
 
     clusters_point = ClusterElement.objects.filter(cluster__project=project)
+    # TODO: Initial code to plot cluster numbering
+    # n_cluster = Cluster.objects.filter(project=project).count()
+    # cluster_number = list(range(1, n_cluster + 1))
 
     for point in clusters_point:
         config["x"].append(point.pos_x)
@@ -530,9 +539,9 @@ def back_clustering_documents(project: Project) -> None:
             if document.preprocessed_document != ""
         ]
     except Exception as e:
-        print("error getting preprocessed document from db")
-        print("project id: ", project.pk)
-        print(e)
+        logging.warning("error getting preprocessed document from db")
+        logging.warning("project id: {project.pk}")
+        logging.warning(e)
         return
 
     try:
@@ -540,8 +549,8 @@ def back_clustering_documents(project: Project) -> None:
             project, pp_documents
         )
     except Exception as e:
-        print("error in clustering, project id:", project.pk)
-        print(e)
+        logging.warning("error in clustering, project id: {project.pk}")
+        logging.warning(e)
         return
 
     try:
@@ -553,12 +562,12 @@ def back_clustering_documents(project: Project) -> None:
             tf_idf_sorted,
         )
     except Exception as e:
-        print("error creating Cluster, ClusterElement in db")
-        print("project id: ", project.pk)
-        print(e)
+        logging.warning("error creating Cluster, ClusterElement in db")
+        logging.warning("project id: {project.pk}")
+        logging.warning(e)
         return
 
-    print("success in clustering")
+    logging.info("success in clustering")
 
 
 def back_plotting_documents(project: Project) -> None:
@@ -570,11 +579,11 @@ def back_plotting_documents(project: Project) -> None:
         scatter_with_hover(project, path, div_path, script_path)
 
     except Exception as e:
-        print("error creating plot")
-        print(e)
+        logging.warning("error creating plot")
+        logging.warning(e)
         return
 
-    print("Success creating plot")
+    logging.info("Success creating plot")
 
 
 def back_process(project: Project) -> None:
@@ -586,7 +595,7 @@ def back_process(project: Project) -> None:
             project.step = "preprocessing"
             project.step_number = 0
             project.save()
-            print("Success getting documents")
+            logging.info("Success getting documents")
 
     if project.step == "preprocessing":
         back_preprocess_documents(project)

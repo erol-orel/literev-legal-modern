@@ -70,6 +70,15 @@
                                role="alert">
                             We couldn't generate a summary at the moment. Please try again by clicking the generate button below.
                           </div>
+                          <div class="text-end">
+                            <button type="button"
+                                    class="btn btn-secondary generate-summary-button"
+                                    data-generate-summary-url="{% url "generate-summary" summary.cluster_id %}"
+                                    data-cluster-id="{{ summary.cluster_id }}"
+                                    data-csrf-token="{{ csrf_token }}">
+                              Generate <i class="fa-regular fa-pen-to-square"></i>
+                            </button>
+                          </div>
 
                         </div>
                       </div>
@@ -99,7 +108,7 @@
 {% endblock content %}
 
 {% block jscode %}
-
+  <script src="{% static "js/generate_summary.js" %}"></script>
   <script src="{% static "js/bokeh.min.js" %}"></script>
   {% if script_plot %}
     {{ script_plot | safe }}
