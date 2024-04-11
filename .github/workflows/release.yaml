@@ -64,10 +64,3 @@ jobs:
           PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
         run: |
           makim release.ci
-
-      - name: GitHub Pages action
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: peaceiris/actions-gh-pages@v3.5.9
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./build
