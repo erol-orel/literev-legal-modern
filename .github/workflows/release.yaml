@@ -10,7 +10,8 @@ jobs:
   release:
     if: ${{ !github.event.pull_request.draft }}
     name: Release
-    timeout-minutes: 50
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     defaults:
       run:
@@ -63,9 +64,6 @@ jobs:
           PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
         run: |
           makim release.ci
-
-      - name: Generate documentation with changes from semantic-release
-        run: makim docs.build
 
       - name: GitHub Pages action
         if: ${{ github.event_name == 'workflow_dispatch' }}
