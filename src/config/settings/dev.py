@@ -15,21 +15,21 @@ from config.settings.base import *  # noqa: F403
 DEBUG = True
 SECURE_SSL_REDIRECT = False
 
-# INSTALLED_APPS += [
-#     # https://django-debug-toolbar.readthedocs.io/en/latest/configuration.html#debug-toolbar-config
-#     "debug_toolbar",
-#     # https://django-extensions.readthedocs.io/en/latest/installation_instructions.html#configuration
-#     "django_extensions",
-# ]  # F405
+INSTALLED_APPS += [  # NOQA F405
+    # https://django-debug-toolbar.readthedocs.io/en/latest/configuration.html#debug-toolbar-config
+    "debug_toolbar",
+    # https://django-extensions.readthedocs.io/en/latest/installation_instructions.html#configuration
+    "django_extensions",
+]
 
-# MIDDLEWARE += ["debug_toolbar.middleware.DebugToolbarMiddleware"]
+MIDDLEWARE += ["debug_toolbar.middleware.DebugToolbarMiddleware"]
 
-# # DEBUG TOOLBAR
-# # ----------------------------------------------------------------------------
-# DEBUG_TOOLBAR_CONFIG = {
-#     "DISABLE_PANELS": ["debug_toolbar.panels.redirects.RedirectsPanel"],
-#     "SHOW_TEMPLATE_CONTEXT": True,
-# }
+# DEBUG TOOLBAR
+# ----------------------------------------------------------------------------
+DEBUG_TOOLBAR_CONFIG = {
+    "DISABLE_PANELS": ["debug_toolbar.panels.redirects.RedirectsPanel"],
+    "SHOW_TEMPLATE_CONTEXT": True,
+}
 # https://django-debug-toolbar.readthedocs.io/en/latest/installation.html#internal-ips
 INTERNAL_IPS = ["127.0.0.1", "10.0.2.2"]
 
