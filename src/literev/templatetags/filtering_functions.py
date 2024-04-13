@@ -115,6 +115,7 @@ def clusters_summary(project: Project) -> list[dict[str, Union[str, int]]]:
     # outlier or noise papers cluster
     unclassified_papers_cluster: dict[str, Any] = {}
 
+    index = 0
     for cluster in grouped_clusters:
         topic = cluster["topic"]
         center_x = cluster["center_x"]
@@ -130,8 +131,6 @@ def clusters_summary(project: Project) -> list[dict[str, Union[str, int]]]:
                 "cluster_id": cluster_id,
                 "topic": topic,
                 "total_documents": total_documents,
-                # "article_title": "",
-                # "article_url": "",
                 "summary_text": (
                     "Unclassified papers are the outliers or noise points that could "
                     "not fit into any of the identified groups during the clustering process."
@@ -158,8 +157,10 @@ def clusters_summary(project: Project) -> list[dict[str, Union[str, int]]]:
         )
 
         if most_centered_element:
+            index += 1
             clusters_summary.append(
                 {
+                    "cluster_number": index,
                     "cluster_id": cluster_id,
                     "topic": topic,
                     "total_documents": total_documents,

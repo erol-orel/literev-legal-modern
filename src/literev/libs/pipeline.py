@@ -14,9 +14,10 @@ import pandas as pd
 
 from bokeh.embed import components
 from bokeh.io import save
-from bokeh.models import CategoricalColorMapper, HoverTool
+from bokeh.models import CategoricalColorMapper, HoverTool, LabelSet
 from bokeh.plotting import ColumnDataSource, figure
 from django.conf import settings
+from django.db.models import Avg, Count, FloatField
 
 from literev.libs.collectors import ElasticSearchCollector, MetaData
 from literev.models import Cluster, ClusterElement, Document, Project
@@ -373,9 +374,45 @@ def scatter_with_hover(
     config["result"] = []
 
     clusters_point = ClusterElement.objects.filter(cluster__project=project)
-    # TODO: Initial code to plot cluster numbering
-    # n_cluster = Cluster.objects.filter(project=project).count()
-    # cluster_number = list(range(1, n_cluster + 1))
+
+    # Get the grouped cluster
+    clusters = Cluster.objects.filter(project=project)
+
+    grouped_clusters = (
+        clusters.values("topic", "summary", "id")
+        .annotate(
+            center_x=Avg("clusterelement__pos_x", output_field=FloatField()),
+            center_y=Avg("clusterelement__pos_y", output_field=FloatField()),
+            total_documents=Count("clusterelement__document"),
+        )
+        .order_by("-total_documents")
+    )
+
+    cluster_number_data = dict()
+
+    cluster_number_data["x"] = []
+    cluster_number_data["y"] = []
+    cluster_number_data["number"] = []
+
+    index = 0
+    for e_cluster in grouped_clusters:
+        if e_cluster["topic"] == UNCLASSIFIED_PAPERS_TOPIC:
+            continue
+        index += 1
+        cluster_number_data["x"].append(e_cluster["center_x"])
+        cluster_number_data["y"].append(e_cluster["center_y"])
+        cluster_number_data["number"].append(index)
+
+    cluster_number_source = ColumnDataSource(data=cluster_number_data)
+
+    number_label = LabelSet(
+        x="x",
+        y="y",
+        text="number",
+        source=cluster_number_source,
+        text_font_size="36px",
+        text_color="#807876",
+    )
 
     for point in clusters_point:
         config["x"].append(point.pos_x)
@@ -433,6 +470,8 @@ def scatter_with_hover(
         marker=marker,
         color={"field": "topic", "transform": color_map},
     )
+
+    fig.add_layout(number_label)
 
     # Now create the hover tool, and make sure it is only active with
     # the series plotted in the previous line

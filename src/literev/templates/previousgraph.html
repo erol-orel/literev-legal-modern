@@ -36,6 +36,9 @@
               <thead>
                 <tr>
                   <th scope="col">
+                    Cluster Number
+                  </th>
+                  <th scope="col">
                   </th>
                   <th scope="col">
                     Topic
@@ -54,6 +57,13 @@
               <tbody>
                 {% for summary in summaries %}
                   <tr style="background-color: {{ topic_colors|get_dict_value:summary.topic }}15">
+                    <td class="align-middle py-4 fs-2">
+                      <h2 class="text-center">
+                        {% if summary.cluster_number %}
+                          {{ summary.cluster_number }}
+                        {% endif %}
+                      </h2>
+                    </td>
                     <td class="align-middle px-4">
                       <span class="d-inline-block rounded-circle"
                             style="background-color: {{ topic_colors|get_dict_value:summary.topic }};
@@ -92,7 +102,9 @@
                     </p>
                   </td>
                   <td class="fs-6 py-4">
+
                     Representative document
+
                   </td>
                 </tr>
               {% endfor %}
