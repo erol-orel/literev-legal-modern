@@ -76,53 +76,66 @@
                   </div>
                 </div>
               {% endwith %}
-            {% elif project.step == "preprocessing" %}
+            {% elif project.step == "preparing" %}
               <div class="col-1">
-                {{ project|preprocessed_progress }}
+                {{ project|prepared_progress }}
               </div>
-              {% with percentage=project|preprocessed_percentage %}
-                {% if percentage > 99 %}
-                  <div class="pe-5 col-2">
-                    Creating n grams
-                  </div>
-                {% else %}
-                  <div class="pe-5 col-2">
-                    <div class="progress"
-                         role="progressbar"
-                         aria-label=""
-                         aria-valuenow="{{ percentage }}"
-                         aria-valuemin="0"
-                         aria-valuemax="100"
-                         style="height: 30px">
-                      <div class="progress-bar bg-warning fs-6"
-                           style="width: {{ percentage }}%">
-                        {{ percentage }}%
-                      </div>
+              {% with percentage=project|prepared_percentage %}
+                <div class="pe-5 col-2">
+                  <div class="progress"
+                       role="progressbar"
+                       aria-label=""
+                       aria-valuenow="{{ percentage }}"
+                       aria-valuemin="0"
+                       aria-valuemax="100"
+                       style="height: 30px">
+                    <div class="progress-bar bg-warning fs-6"
+                         style="width: {{ percentage }}%">
+                      {{ percentage }}%
                     </div>
                   </div>
-                {% endif %}
-              {% endwith %}
-            {% elif project.step == "clustering" %}
-              <div class="col-1">
-                N/A
-              </div>
-              <div class="pe-5 col-2 pt-2">
-                <div class="progress"
-                     role="progressbar"
-                     aria-label=""
-                     aria-valuenow="{{ percentage }}"
-                     aria-valuemin="0"
-                     aria-valuemax="100"
-                     style="height: 30px">
-                  <div class="progress-bar bg-dark fs-6"
-                       style="width: 50%">
-                    {{ percentage }}%
-                  </div>
                 </div>
-              </div>
-            {% elif project.is_finish %}
+              {% endwith %}
+
+            {% elif project.step == "preprocessing" %}
               <div class="col-1">
 
+              </div>
+              <div class="pe-5 col-2">
+                Creating n grams
+              </div>
+            {% elif project.step == "clustering" %}
+              <div class="col-1">
+                Trial: {{ project|clustering_progress }}
+
+              </div>
+              {% with percentage=project|clustering_percentage %}
+                <div class="pe-5 col-2">
+                  <div class="progress"
+                       role="progressbar"
+                       aria-label=""
+                       aria-valuenow="{{ percentage }}"
+                       aria-valuemin="0"
+                       aria-valuemax="100"
+                       style="height: 30px">
+                    <div class="progress-bar bg-warning fs-6"
+                         style="width: {{ percentage }}%">
+                      {{ percentage }}%
+                    </div>
+                  </div>
+                </div>
+              {% endwith %}
+            {% elif project.step == "plotting" %}
+              <div class="col-1">
+                Plotting
+              </div>
+              <div class="pe-5 col-2">
+                Creating a plot results
+              </div>
+
+            {% elif project.is_finish %}
+              <div class="col-1">
+                To see results
               </div>
               <div class="pe-5 col-2 pt-2">
                 <div class="col-1 text-center">

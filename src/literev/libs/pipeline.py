@@ -22,7 +22,12 @@ from django.db.models import Avg, Count, FloatField
 from literev.libs.collectors import ElasticSearchCollector, MetaData
 from literev.models import Cluster, ClusterElement, Document, Project
 from literev_core.clustering import cluster
-from literev_core.preprocessing import preprocessing
+from literev_core.preprocessing import (
+    create_ngrams,
+    prepare_document,
+    preprocess_documents,
+    update_prepared_document,
+)
 
 thread_dict = dict()
 UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
@@ -206,36 +211,38 @@ def back_preprocess_documents(project: Project) -> None:
     document_corpus_list = []
     logging.info("getting documents from database")
 
-    # Getting all documents with no emtpy document_text field
-    document_pk_list = [
-        document.pk for document in documents if document.raw_document_text
-    ]
     document_corpus_list = [
-        document.raw_document_text
+        document.prepared_for_ngrams
         for document in documents
-        if document.raw_document_text
+        if document.prepared_for_ngrams
     ]
+    document_pk_list = [
+        document.pk for document in documents if document.prepared_for_ngrams
+    ]
+    # Getting all documents with no emtpy document_text field
+    logging.info(f"documents for ngrams {len(document_pk_list)}")
+    try:
+        list_trigrams = create_ngrams(document_corpus_list)
 
-    # TODO use cache documents
+    except Exception as e:
+        logging.info(f"Failed in creating ngrams {e}")
+        return
 
     try:
         # using preprocessing_m from literev_core
-        rejected_pk_documents, preprocessed_corpus_list = preprocessing(
-            project, document_pk_list, document_corpus_list
-        )
-        logging.info(f"rejected articles number {len(rejected_pk_documents)}")
+        preprocessed_corpus_list = preprocess_documents(list_trigrams)
+        logging.info("getting preprocessed documents")
+
     except Exception as e:
         logging.warning("literev_core failed in preprocessing")
         logging.warning(e)
         return
 
-    new_document_pk_list = []
+    logging.info(
+        f"equal number of documents {len(document_pk_list)==len(preprocessed_corpus_list)}"
+    )
 
-    for pk in document_pk_list:
-        if pk not in rejected_pk_documents:
-            new_document_pk_list.append(pk)
-
-    for pk, pp_corpus in zip(new_document_pk_list, preprocessed_corpus_list):
+    for pk, pp_corpus in zip(document_pk_list, preprocessed_corpus_list):
         try:
             update_pp_document(pk, pp_corpus)
 
@@ -244,6 +251,34 @@ def back_preprocess_documents(project: Project) -> None:
                 f"Adding preprocessed document failed. Doc id: {pk}"
             )
             logging.warning(e)
+            continue
+
+
+def back_preparing_documents(project: Project) -> None:
+    documents = Document.objects.filter(project=project)
+    logging.info(f"getting documents from database: {documents.count()}")
+
+    # Getting all documents with no emtpy document_text field
+
+    document_list = [
+        document
+        for document in documents
+        if document.raw_document_text and not document.prepared_for_ngrams
+    ]
+
+    for document in document_list:
+        try:
+            result = prepare_document(document)
+            if result:
+                update_prepared_document(document, result)
+            else:
+                logging.info(
+                    f"rejected document id: {document.raw_document_id}, pk: {document.pk}"
+                )
+        except:
+            logging.info(
+                f"failed preparing document id: {document.raw_document_id}, pk: {document.pk}"
+            )
 
 
 def get_color_map(topics: list[str]) -> tuple[Sequence[str], Sequence[str]]:
@@ -611,10 +646,20 @@ def hover_with_keywords(
             ", ".join(kws) if cluster_num != -1 else UNCLASSIFIED_PAPERS_TOPIC
         )
 
-        cluster = Cluster.objects.create(
+        cluster_created = Cluster.objects.filter(
             project=project,
             topic=labels,
-        )
+        ).first()
+
+        if not cluster_created:
+            cluster_created = Cluster.objects.create(
+                project=project,
+                topic=labels,
+            )
+        else:
+            cluster_created.project = project
+            cluster_created.topic = labels
+            cluster_created.save()
 
         position_article = []
 
@@ -630,7 +675,7 @@ def hover_with_keywords(
             document = Document.objects.filter(pk=list_id[i])[0]
             ClusterElement.objects.get_or_create(
                 document=document,
-                cluster=cluster,
+                cluster=cluster_created,
                 pos_x=pos_x,
                 pos_y=pos_y,
             )
@@ -669,7 +714,7 @@ def back_clustering_documents(project: Project) -> None:
         ]
     except Exception as e:
         logging.warning("error getting preprocessed document from db")
-        logging.warning("project id: {project.pk}")
+        logging.warning(f"project id: {project.pk}")
         logging.warning(e)
         return
 
@@ -678,7 +723,7 @@ def back_clustering_documents(project: Project) -> None:
             project, pp_documents
         )
     except Exception as e:
-        logging.warning("error in clustering, project id: {project.pk}")
+        logging.warning(f"error in clustering, project id: {project.pk}")
         logging.warning(e)
         return
 
@@ -692,7 +737,7 @@ def back_clustering_documents(project: Project) -> None:
         )
     except Exception as e:
         logging.warning("error creating Cluster, ClusterElement in db")
-        logging.warning("project id: {project.pk}")
+        logging.warning(f"project id: {project.pk}")
         logging.warning(e)
         return
 
@@ -721,16 +766,24 @@ def back_process(project: Project) -> None:
         project.save()
 
         if back_get_documents(project):
-            project.step = "preprocessing"
+            project.step = "preparing"
             project.step_number = 0
             project.save()
             logging.info("Success getting documents")
+
+    if project.step == "preparing":
+        back_preparing_documents(project)
+        project.step = "preprocessing"
+        project.step_number = 0
+        project.save()
+        logging.info("Success preparing documents")
 
     if project.step == "preprocessing":
         back_preprocess_documents(project)
         project.step = "clustering"
         project.step_number = 0
         project.save()
+        logging.info("Success preprocessing documents")
 
     # TODO: implement clustering
     if project.step == "clustering":

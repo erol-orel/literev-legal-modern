@@ -22,7 +22,7 @@ INSTALLED_APPS += [  # NOQA F405
     "django_extensions",
 ]
 
-MIDDLEWARE += ["debug_toolbar.middleware.DebugToolbarMiddleware"]
+MIDDLEWARE += ["debug_toolbar.middleware.DebugToolbarMiddleware"]  # noqa: F405
 
 # DEBUG TOOLBAR
 # ----------------------------------------------------------------------------

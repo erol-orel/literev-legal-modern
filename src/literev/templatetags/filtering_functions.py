@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Union
 
 from django import template
+from django.conf import settings
 from django.db.models import Avg, Count, ExpressionWrapper, F, FloatField, Func
 
 from literev.models import (
@@ -18,17 +19,41 @@ UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
 
 
 @register.filter
-def preprocessed_percentage(project: Project) -> int:
+def clustering_percentage(project: Project) -> int:
+    n_total_trials = int(settings.NUMBER_TRIALS)
+    step_number = project.step_number
+
+    return int(step_number / n_total_trials * 100)
+
+
+@register.filter
+def clustering_progress(project: Project) -> str:
+    n_total_trials = settings.NUMBER_TRIALS
+    step_number = project.step_number
+
+    return f"{step_number}/{n_total_trials}"
+
+
+@register.filter
+def prepared_percentage(project: Project) -> int:
     total_documents = project.total_documents
-    documents = project.step_number
+    documents = (
+        Document.objects.filter(project=project)
+        .exclude(prepared_for_ngrams="")
+        .count()
+    )
 
     return int(documents / total_documents * 100)
 
 
 @register.filter
-def preprocessed_progress(project: Project) -> str:
+def prepared_progress(project: Project) -> str:
     total_documents = project.total_documents
-    documents = project.step_number
+    documents = (
+        Document.objects.filter(project=project)
+        .exclude(prepared_for_ngrams="")
+        .count()
+    )
 
     return f"{documents}/{total_documents}"
 

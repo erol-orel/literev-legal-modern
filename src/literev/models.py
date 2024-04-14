@@ -42,6 +42,7 @@ class Document(models.Model):
     raw_document_text = models.TextField(
         default="", null=True, blank=True
     )  # added for debugging
+    prepared_for_ngrams = models.TextField(default="", null=True, blank=True)
     preprocessed_document = models.TextField(default="", null=True, blank=True)
     procedure_year = models.DateField(
         default=datetime.date(1900, 1, 1), null=True, blank=True

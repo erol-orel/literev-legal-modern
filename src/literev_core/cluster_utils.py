@@ -164,14 +164,9 @@ class Objective:
 
         return_data = study.evaluate()
 
-        # TODO: Check number of trials
-        # increment the number of finish trial
-        # with transaction.atomic():
-        #     number_of_trials, _ = NumberTrial.objects.get_or_create(
-        #         research=self.research
-        #     )
-        #     number_of_trials.counter = F("counter") + 1
-        #     number_of_trials.save()
+        # using step_number to store number of trials
+        self.project.step_number += 1
+        self.project.save()
 
         # write the score if it is greater
 
