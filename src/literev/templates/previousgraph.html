@@ -6,7 +6,60 @@
 
 {% block modal %}
   <!-- modal -->
-
+  {% if AreYouSure %}
+    <div class="div modal-backdrop fade show">
+    </div>
+    <div class="modal fade show"
+         style="display: block"
+         data-bs-keyboard="false"
+         tabindex="-1"
+         aria-labelledby="staticBackdropLabel"
+         aria-modal="true">
+      <form action=""
+            method="POST">
+        {% csrf_token %}
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h1 class="modal-title fs-5">
+                Would you like to continue with these parameters?
+              </h1>
+              <button class="btn-close"
+                      type="submit"
+                      name="submit"
+                      value="cancel"
+                      aria-label="Close">
+              </button>
+            </div>
+            <div class="modal-body">
+              <ul class="list-group">
+                <li class="list-group-item mx-4 ps-4 mb-4">
+                  number of documents : {{ number_article }}
+                </li>
+              </ul>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-secondary"
+                      type="submit"
+                      name="submit"
+                      value="cancel">
+                Cancel
+              </button>
+              <button type="submit"
+                      name="submit"
+                      value="continue"
+                      class="btn btn-primary"
+                      {% if number_article == 0 %}
+                        disabled
+                      {% endif %}>
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  {% endif %}
   <!-- ---- -->
 {% endblock modal %}
 
@@ -101,10 +154,25 @@
                       {{ summary.total_documents }}
                     </p>
                   </td>
-                  <td class="fs-6 py-4">
-
-                    Representative document
-
+                  <td class="py-4">
+                    {% if summary.document_id %}
+                      <div class="px-2">
+                        <i>Document ID: </i> <b>{{ summary.document_id }}</b>
+                      </div>
+                      <div class="px-2">
+                        <i>Procedure Type: </i> <b>{{ summary.procedure_type }}</b>
+                      </div>
+                      <div class="px-2">
+                        <i>Decision Type: </i> <b>{{ summary.decision_type }}</b>
+                      </div>
+                      <div class="px-2">
+                        <i>Result: </i> <b>{{ summary.result }}</b>
+                      </div>
+                    {% else %}
+                      <p class="px-2">
+                        N/A
+                      </p>
+                    {% endif %}
                   </td>
                 </tr>
               {% endfor %}
@@ -113,17 +181,165 @@
         </div>
       {% endif %}
     {% endwith %}
-  </div>
 
+    <div class="container">
+      <div class="row">
+        <div class="col-12">
+          <div class="row">
+            <h3 id="refine-title"
+                class="text-center">
+              Refine search
+            </h3>
+          </div>
+          <div class="row my-2">
+            <div id="key-selector-container"
+                 class="col-2">
+              <div class="dropdown">
+                <select class="form-select form-select-lg"
+                        name="type-filter"
+                        id="type-filter"
+                        value="Topic">
+                  <option value="Topic">
+                    Topic
+                  </option>
+                  <option value="Norm">
+                    Norms
+                  </option>
+                  <option value="Keyword">
+                    Keyword search
+                  </option>
+                  <option value="No_decis">
+                    No_decis
+                  </option>
+                </select>
+              </div>
+            </div>
+            <div id="value-selector-container"
+                 class="col-7">
+              <div class="input-group input-group-lg">
+                <input id="text-filter"
+                       type="text"
+                       class="form-control"
+                       placeholder="filter words" />
+              </div>
+            </div>
+            <div id="norm-selector-container"
+                 class="col-7">
+              <div class="input-group input-group-lg">
+                <input id="norm-filter"
+                       class="form-control"
+                       list="datalistNorms"
+                       placeholder="Norms to search" />
+                <datalist id="datalistNorms">
+                  <option value="Norms ...">
+                  </option>
+                </datalist>
+              </div>
+            </div>
+            <div id="topic-selector-container"
+                 class="col-7">
+              <div class="dropdown">
+                <select class="form-select form-select-lg"
+                        name="topic-value"
+                        id="topic-value"
+                        value="Topic">
+                  {% for topic in list_topics %}
+                    <option value="{{ topic }}">
+                      {{ topic }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="col-3 d-flex justify-content-around">
+              <div>
+                <button id="add-button"
+                        class="btn-lg btn btn-success">
+                  Add (And)
+                </button>
+              </div>
+
+              <div>
+                <button id="exclude-button"
+                        class="btn-lg btn btn-secondary">
+                  Exclude (Not)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="filter-union-container">
+
+          </div>
+          <div class="row">
+            <div class="mx-auto col-11">
+              <p class="d-flex justify-content-center">
+                <button id="create-filter"
+                        class="btn btn-outline-success btn-lg my-2">
+                  Create Filter (Union)
+                </button>
+              </p>
+            </div>
+          </div>
+
+          <div id="filter-exclude-container">
+            <div class="fs-3 d-flex">
+              <span class="badge text-bg-danger rounded-pill align-self-center text-white">
+                AND NOT
+              </span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <div class="container">
+
+      <form action=""
+            method="POST">
+        {% csrf_token %}
+        <input type="number"
+               name="project_id"
+               value="{{ project_id }}"
+               hidden />
+        <div id="input-json">
+
+        </div>
+        <div class="row">
+          <div class="mx-auto col-11">
+            <p class="d-flex justify-content-end">
+              <button type="submit"
+                      name="submit"
+                      value="filters"
+                      class="btn btn-primary btn-lg mt-2 mb-5">
+                Generate
+              </button>
+            </p>
+          </div>
+        </div>
+      </form>
+    </div>
+
+  </div>
 </div>
 </div>
 {% endblock content %}
 
 {% block jscode %}
   <script src="{% static "js/generate_summary.js" %}"></script>
+  <script src="{% static "js/utils.js" %}"></script>
+  <script src="{% static "js/select_functions.js" %}" defer> </script>
+
+  <script src="{% static "js/filter_functions.js" %}"> </script>
+
   <script src="{% static "js/bokeh.min.js" %}"></script>
   {% if script_plot %}
     {{ script_plot | safe }}
   {% endif %}
-
+  <script>
+    // Start with a filter
+  buttonCreate.dispatchEvent(new Event("click"));
+  </script>
 {% endblock jscode %}

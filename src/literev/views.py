@@ -21,6 +21,7 @@ from literev.libs.pipeline import (
     launch_process,
     running_restart,
 )
+from literev.libs.select_functions import get_filtered_document, get_filters
 from literev.libs.utils import (
     count_all_corpus,
     get_number_documents,
@@ -91,6 +92,7 @@ def search_search(
 def search_continue(
     request: HttpRequest, context: dict[str, Any]
 ) -> dict[str, Any]:
+    # use when implement login
     # user = cast(User, request.user)
     project_name = request.session["project_name"]
     query = request.session["query"]
@@ -233,10 +235,13 @@ def running(request: HttpRequest) -> HttpResponse:
 
 def previousgraph(request: HttpRequest) -> HttpResponse:
     context: dict[str, Any] = dict()
+    context["AreYouSure"] = False
     # when receive all data for filters
+
     project_id = request.GET.get("project_id", None)
     if not project_id:
         return redirect("/search")
+    # TODO: Add this piece of code after adding user
     # check if there is the id of the research and this id is available
     # Check if the research project belongs to the actual user
     # actual_user = cast(User, request.user)
@@ -254,6 +259,50 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
 
     if not project.is_finish:
         return redirect("/search")
+
+    # when receive all data for filters
+    if request.method == "POST":
+        submit = request.POST["submit"]
+
+        if submit == "filters":
+            # Used for debbuging
+            # for key, value in request.POST.items():
+            #     print(key, value)
+            # transform the POST data
+            filters = get_filters(project, request.POST)
+
+            # get a list of id article who match all the filters
+            document_pk_list = get_filtered_document(
+                project=project, filters=filters
+            )
+            # save this list in session user
+            request.session["document_pk_list"] = document_pk_list
+            request.session["id_research"] = project_id
+            context["number_article"] = len(document_pk_list)
+            context["project"] = project
+            context["AreYouSure"] = True
+            # save data filters if the user cancel and return to select page
+            # request.session["filter_data"] =
+            #   filter_recover_data(request.POST)
+
+            # return render(request, "previousgraph.html", context)
+
+        elif submit == "continue":
+            # update the new table choice with
+            # the article selected without their neighbour
+            logging.info(request.session["document_pk_list"])
+
+            # TODO:Implement a tableselect page
+            # update_new_table_choice(
+            #     user=user,
+            #     research=project,
+            #     article_id_list=request.session["id_article_list"],
+            # )
+
+            # return redirect("/tableselect?research_id=" + str(project_id))
+
+        elif submit == "cancel":
+            pass
 
     context["project"] = project
     context["cluster_list"] = ClusterElement.objects.filter(
@@ -280,6 +329,7 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
         script_plot = f.read()
     context["script_plot"] = script_plot
 
+    # Use in case we  want to export html file
     # Get the html plot
     # data = ""
 
@@ -307,19 +357,7 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
         topic: color for topic, color in zip(topics, palette)
     }
 
-    # authors_list_query = Author.objects.filter(
-    #     article__researcharticle__research=research
-    # ).distinct()
-
-    # authors_list = []
-    # if authors_list_query.exists():
-    #     for author in authors_list_query:
-    #         last_name = author.last_name if author.last_name else ""
-    #         first_name = author.first_name if author.first_name else ""
-    #         authors_list.append(last_name + ", " + first_name)
-
-    # context["authors_list"] = authors_list
-
+    # Use in case of we want to restart filters
     # if request.session.get("id_research", False) == research_id:
     #     filters = request.session.get("filters", False)
     #     if filters:

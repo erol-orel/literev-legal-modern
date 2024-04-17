@@ -77,19 +77,19 @@ def created_documents(project: Project) -> str:
 @register.filter
 def clusters_summary(project: Project) -> list[dict[str, Union[str, int]]]:
     """
-    Generate summaries for each cluster related to a research.
+    Generate summaries for each cluster related to a project.
 
     This function calculates the center of each cluster by grouping them
     based on topic and summary text. It finds the element closest to the
     center for each cluster. Then, it generates a summary for each cluster
-    ordered by the total number of articles in the cluster. If the research
+    ordered by the total number of articles in the cluster. If the project
     contains an unclassified/noise papers cluster, it is appended to the end
     of the returned list of clusters.
 
     Parameters
     ----------
-    research : Research
-        The research object to retrieve summaries for.
+    project : Project
+        The project object to retrieve summaries for.
 
     Returns
     -------
@@ -97,24 +97,24 @@ def clusters_summary(project: Project) -> list[dict[str, Union[str, int]]]:
         A list of dictionaries representing cluster summaries. Each dictionary
         includes the following keys:
         - 'topic' (str): The cluster's topic.
-        - 'total_articles' (int): The total number of articles in the cluster.
+        - 'total_documents' (int): The total number of articles in the cluster.
         - 'article_title' (str): The article's title in the closest element.
         - 'article_url' (str): The article's URL of the closest element.
         - 'summary_text' (str): ChatGPT generated summary text based on topic.
 
     Example
     -------
-    clusters_summary(my_research)
+    clusters_summary(my_project)
         Returns a list of cluster summaries.
 
     Usage in Template
     -----------------
-    {% with research|clusters_summary as summaries %}
+    {% with project|clusters_summary as summaries %}
     {% if summaries %}
         {% for summary in summaries %}
             {{ summary.topic }}
             {{ summary.summary_text }}
-            {{ summary.total_articles }}
+            {{ summary.total_documents }}
             {{ summary.article_title }}
         {% endfor %}
     {% endif %}
@@ -122,7 +122,7 @@ def clusters_summary(project: Project) -> list[dict[str, Union[str, int]]]:
     """
     clusters_summary = []
 
-    # Get all clusters associated with the research
+    # Get all clusters associated with the project
     clusters = Cluster.objects.filter(project=project)
 
     # Group clusters by 'topic' and 'summary' to calculate
@@ -190,6 +190,10 @@ def clusters_summary(project: Project) -> list[dict[str, Union[str, int]]]:
                     "topic": topic,
                     "total_documents": total_documents,
                     "summary_text": summary,
+                    "document_id": most_centered_element.document.raw_document_id,
+                    "procedure_type": most_centered_element.document.procedure_type,
+                    "decision_type": most_centered_element.document.decision_type,
+                    "result": most_centered_element.document.result,
                 }
             )
 
