@@ -94,13 +94,13 @@ def build_prompt(cluster: Cluster) -> str:
 
     Generates a prompt for ChatGPT to describe a scientific topic.
     The prompt follows a specific template, including topic keywords
-    extracted from the cluster and relevant related articles for context.
+    extracted from the cluster and relevant related documents for context.
 
     Parameters
     ----------
     cluster : Cluster
         A Cluster object which contains the topic field with the keywords
-        and can also be used for querying related articles.
+        and can also be used for querying related documents.
 
     Returns
     -------
@@ -110,7 +110,7 @@ def build_prompt(cluster: Cluster) -> str:
     Notes
     -----
     The generated prompt is based on a predefined template. It also includes
-    constraints for response quality and templates for articles to provide
+    constraints for response quality and templates for documents to provide
     context to ChatGPT.
 
     See Also
@@ -119,8 +119,8 @@ def build_prompt(cluster: Cluster) -> str:
         Base prompt template.
     prompt_constraints : str
         Constraints for response quality.
-    article_prompt_template : str
-        Template for each article.
+    document_prompt_template : str
+        Template for each document.
 
     Examples
     --------
@@ -130,31 +130,28 @@ def build_prompt(cluster: Cluster) -> str:
 
     # base prompt used for generating the topic description
     prompt_template = (
-        "Provide a concise and succinct general scientific topic description"
-        "based on the following keywords: {keywords}, obtained from a term "
-        "frequency inverse document frequency analysis. "
-        "These keywords were selected based on a search of relevant articles. "
-        "The following articles, from which these keywords were extracted via "
-        "tf-idf, provide additional context:\n\n"
+        "Provide a succint general description"
+        "based on the following most important keywords: {keywords} selected"
+        "from a cluster containing case law from the canton of Geneva in Switzerland."
+        "The following descriptors for each case law provide additional context:\n\n"
     )
 
     # constraints can be fine-tuned to prevent unwanted words or sentences
     # this is to prevent unwanted words or sentences
     prompt_constraints = (
         "Ensure the response maintains a narrative voice suitable for general "
-        "scientific discussions while minimizing the use of pronouns. Focus "
-        "on broader scientific concepts and applications. Avoid unnecessary "
+        "description while minimizing the use of pronouns. Avoid unnecessary "
         "introductions and redundancies. Avoid using quotes and backticks "
         "Avoid the use of the following keywords and expressions: keyword, "
-        "keywords, This topic, This research, we propose, research, "
-        "proposing, we, this report. Summarize it in two sentences."
+        "keywords, topic, case, we propose, "
+        "proposing, we, this report. Summarize it in two sentences in french language."
     )
 
-    # this template is used for each article
-    article_prompt_template = (
-        "Article {article_number}\n"
-        "Title: {article_title}\n"
-        "Abstract Sample: {article_abstract}.\n\n"
+    # this template is used for each document
+    document_prompt_template = (
+        "Document number: {document_number}\n"
+        "Descriptor: {document_descriptor}\n"
+        "Keywords Sample: {document_abstract}.\n\n"
     )
 
     # inject topic keyword into prompt
@@ -163,49 +160,49 @@ def build_prompt(cluster: Cluster) -> str:
     # generate encoder based on specific gpt model
     enc = tiktoken.encoding_for_model(GPT_MODEL)
 
-    # get all articles related to cluster(topic)
-    articles = Document.objects.filter(clusterelement__cluster=cluster)
+    # get all documents related to cluster(topic)
+    documents = Document.objects.filter(clusterelement__cluster=cluster)
 
     # calculate initial number of tokens
     tokens_count = len(enc.encode(prompt)) + len(
         enc.encode(prompt_constraints)
     )
 
-    # loop through all articles
-    for article_number, article in enumerate(articles, start=1):
-        # get article title
-        article_title = article.title
+    # loop through all documents
+    for document_number, document in enumerate(documents, start=1):
+        # get document title
+        document_descriptor = document.descriptors
 
-        # get article abstract sentences by splitting it on "."
-        abstract_sentences = article.abstract.split(".")
+        # get document abstract sentences by splitting it on "."
+        abstract_words = document.preprocessed_document.split()
 
-        article_abstract = (
-            # get first 2 sentences if abstract is at least 2 sentences long
-            ".".join(abstract_sentences[:2])
-            if len(abstract_sentences) >= 2
-            else article.abstract
+        document_abstract = (
+            # get first 30 words from preprocessed text
+            " ".join(abstract_words[:30])
+            if len(abstract_words) >= 10
+            else document.preprocessed_document
         )
 
-        # fill the article prompt template with current loop's article data
-        article_prompt = article_prompt_template.format(
-            article_number=article_number,
-            article_title=article_title,
-            article_abstract=article_abstract,
+        # fill the document prompt template with current loop's document data
+        document_prompt = document_prompt_template.format(
+            document_number=document_number,
+            document_descriptor=document_descriptor,
+            document_abstract=document_abstract,
         )
 
-        # count number of tokens in the article prompt
-        article_tokens = len(enc.encode(article_prompt))
+        # count number of tokens in the document prompt
+        document_tokens = len(enc.encode(document_prompt))
 
         # update tokens count for the next loop
-        tokens_count = tokens_count + article_tokens
+        tokens_count = tokens_count + document_tokens
 
         # check if the token limit was reached
         if tokens_count > TOKEN_LIMIT:
-            # break the loop without appending the article to the prompt
+            # break the loop without appending the document to the prompt
             break
 
-        # limit not reached, append the article prompt to the 'main' prompt
-        prompt = prompt + article_prompt
+        # limit not reached, append the document prompt to the 'main' prompt
+        prompt = prompt + document_prompt
 
     # add constraints at the end of the prompt after the loop
     # gpt performs better if we pass the constraints at the end

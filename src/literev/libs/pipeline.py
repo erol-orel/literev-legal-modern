@@ -405,6 +405,7 @@ def scatter_with_hover(
     config["decision_date"] = []
     config["descriptors"] = []
     config["topic"] = []
+    config["topic_10"] = []
     config["standards"] = []
     config["result"] = []
 
@@ -464,6 +465,8 @@ def scatter_with_hover(
         config["decision_date"].append(decision_date)
         config["descriptors"].append(point.document.descriptors)
         config["topic"].append(point.cluster.topic)
+        topic_10 = ", ".join(point.cluster.topic.split(", ")[:10])
+        config["topic_10"].append(topic_10)
         # config["summary"].append(point.document.summary)
         config["standards"].append(point.document.standards)
         config["result"].append(point.document.result)
@@ -553,7 +556,7 @@ def scatter_with_hover(
     <span style="font-size: 12px; color: blue;">
     Topic:</span>
     <span style="font-size: 12px; font-weight: bold;">
-    @topic</span>
+    @topic_10</span>
     </div>
 
     </div>
@@ -638,7 +641,7 @@ def hover_with_keywords(
             tf_idf_sorted.iloc[:, w]
             .mean(axis=1)
             .sort_values(ascending=False)
-            .head(10)
+            .head(30)
             .index.values
         )
 

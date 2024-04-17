@@ -180,6 +180,7 @@ def clusters_summary(project: Project) -> list[dict[str, Union[str, int]]]:
             .order_by("distance")
             .first()
         )
+        topic_10 = ", ".join(topic.split(", ")[:10])
 
         if most_centered_element:
             index += 1
@@ -188,6 +189,7 @@ def clusters_summary(project: Project) -> list[dict[str, Union[str, int]]]:
                     "cluster_number": index,
                     "cluster_id": cluster_id,
                     "topic": topic,
+                    "topic_10": topic_10,
                     "total_documents": total_documents,
                     "summary_text": summary,
                     "document_id": most_centered_element.document.raw_document_id,

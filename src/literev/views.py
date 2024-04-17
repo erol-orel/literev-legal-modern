@@ -14,8 +14,7 @@ from django.shortcuts import redirect, render
 from django.views.generic import TemplateView
 
 from literev.forms import SearchForm
-
-# from literev.libs.nlp import nlp_topic_description
+from literev.libs.nlp import nlp_topic_description
 from literev.libs.pipeline import (
     get_color_map,
     launch_process,
@@ -397,7 +396,7 @@ def generate_summary(request: HttpRequest, cluster_id: int) -> HttpResponse:
                 status=HTTPStatus.NOT_FOUND,
             )
 
-        summary_text = ""  # nlp_topic_description(cluster)
+        summary_text = nlp_topic_description(cluster)
 
         if not summary_text:
             # in case the openai service is still not
