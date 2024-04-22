@@ -62,10 +62,10 @@ class ClusterElement(models.Model):
     cluster = models.ForeignKey(Cluster, on_delete=models.CASCADE)
 
 
-# class TableChoice(models.Model):
-#     #user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
-#     project = models.ForeignKey(Project, on_delete=models.CASCADE)
-#     document = models.ForeignKey(Document, on_delete=models.CASCADE)
-#     to_display = models.BooleanField(default=True)
-#     is_initial = models.BooleanField(default=True)
-#     is_check = models.BooleanField(default=False)
+class TableChoice(models.Model):
+    # user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    document = models.ForeignKey(Document, on_delete=models.CASCADE)
+    to_display = models.BooleanField(default=True)
+    is_initial = models.BooleanField(default=True)
+    is_check = models.BooleanField(default=False)

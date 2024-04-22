@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import logging
+
 import hdbscan
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
+
+from django.conf import settings
 
 from literev.models import Project
 
@@ -19,11 +23,12 @@ def cluster(
     project: Project, corpuses: list[str]
 ) -> tuple[npt.NDArray[np.float_], hdbscan.HDBSCAN, pd.DataFrame]:
     tf_idf, tf_idf_sorted = create_tfidf_matrix(corpuses)
-    print("tf idf created")
+    logging.info("tf idf created")
     embedding_2d_array = pacmap_default(tf_idf)
-    print("embedding done")
+    logging.info("embedding done")
     # run optimization
-    n_trials = 20
+
+    n_trials = settings.NUMBER_TRIALS
     study = optimization(
         project,
         tf_idf,
@@ -31,7 +36,7 @@ def cluster(
         n_trials,  # default 100
     )
 
-    print("Optimization end", project.id)
+    logging.info("Optimization end", project.id)
     # extract best study
     best_study_clusterer = retrieve_best_study(project, tf_idf, study)
 

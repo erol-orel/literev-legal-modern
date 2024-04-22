@@ -1,4 +1,5 @@
 import logging
+import random
 
 from typing import cast
 
@@ -178,8 +179,10 @@ def build_prompt(cluster: Cluster) -> str:
 
         document_abstract = (
             # get first 30 words from preprocessed text
-            " ".join(abstract_words[:30])
-            if len(abstract_words) >= 10
+            " ".join(
+                random.choices(population=abstract_words, k=10)
+            )  # random selection 30 words
+            if len(abstract_words) > 10
             else document.preprocessed_document
         )
 

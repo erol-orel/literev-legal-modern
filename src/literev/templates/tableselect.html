@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% load filtering_functions %}
+
+{% block content %}
+  <div class="d-flex flex-column flex-grow-1">
+    <div class="container mt-4">
+      <h2 class="text-center mb-4">
+        <i class="fa-solid fa-table me-2"></i>Results Table
+      </h2>
+      <form class="row"
+            action=""
+            method='POST'>
+        {% csrf_token %}
+        <div class="row col-12 mb-4">
+          <div class="fs-5 col-10 mx-auto">
+            <div class="p-4 bg-light">
+              <div class="row text-center mb-4 mt-3">
+                <div class="col-12">
+                  Initial documents number : <span class="fw-bold">{{ number_Article_initial }}</span>
+                </div>
+              </div>
+              <div class="row ps-3 mb-4">
+                <div class="col">
+                  k neighbour :
+                  <span class="fw-bold"> number_k_neighbour </span>
+                </div>
+                <div class="col">
+                  New documents :
+                  <span class="fw-bold">{{ number_Article_neighbour }}</span>
+                </div>
+              </div>
+              <div class="ps-3 row mb-4">
+                <div class="col">
+                  Document checked :
+                  <span class="article-counter fw-bold">{{ number_Article_chosen }}</span>
+                </div>
+                <div class="col">
+                  Check/Uncheck all
+                  <input class="form-check-input ms-3"
+                         type="checkbox"
+                         onClick="toggle(this)" />
+                </div>
+              </div>
+            </div>
+            <div class="col-10 mx-auto">
+              <div class="row justify-content-center mt-3 gap-md-3 gap-sm-2 gap-lg-5">
+
+                <button type="submit"
+                        name="submit"
+                        value="iterate"
+                        class="col-md-2 col-sm-12 btn btn-secondary mb-2">
+                  Iterate
+                </button>
+                <button type="submit"
+                        name="submit"
+                        value="reset"
+                        class="col-md-2 col-sm-12 btn btn-secondary mb-2">
+                  Reset
+                </button>
+                <button type="submit"
+                        name="submit"
+                        value="finish"
+                        class="col-md-2 col-sm-12 btn btn-primary mb-2"
+                        disabled>
+                  Export Selected
+                </button>
+              </div>
+            </div>
+            <hr class="mb-5" />
+          </div>
+          <div class="col-12 mb-3 mx-auto mt-2">
+            <div class="d-flex justify-content-between">
+              {% if not first_page %}
+                <div class="col-4 text-start">
+                  <input class="btn btn-outline-dark"
+                         type="submit"
+                         name="submit"
+                         value="previous" />
+                </div>
+              {% endif %}
+              <div class="col-4 text-center">
+                page:
+                <span class="fw-bold">{{ current_page }}/{{ total_page }}</span>
+              </div>
+              {% if not last_page %}
+                <div class="col-4 mb-2 text-end">
+                  <input class="btn btn-outline-dark"
+                         type="submit"
+                         name="submit"
+                         value="next" />
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="container">
+          <!-- <div class="col">
+          <h2 class="text-center mb-4">List of articles</h2>
+        </div> -->
+          <hr />
+          <div class="row">
+            {% for tablechoice in tablechoice_list %}
+              <div class="col-1 mb-2 d-grid  justify-content-center">
+                {% if tablechoice.is_check %}
+                  <input style="width: 30px;
+                                height: 30px"
+                         type='checkbox'
+                         id="{{ tablechoice.id }}"
+                         name='check_row'
+                         value="{{ tablechoice.id }}"
+                         checked />
+                {% else %}
+                  <input style="width: 30px;
+                                height: 30px"
+                         type='checkbox'
+                         id="{{ tablechoice.id }}"
+                         name='check_row'
+                         value="{{ tablechoice.id }}" />
+                {% endif %}
+              </div>
+              <div class="col-11">
+                <h3 class="text-end">
+                  <span class="badge text-bg-dark">{{ tablechoice.document.procedure_type }}</span>
+                </h3>
+                <div class="ms-auto mt-3 text-start mb-3">
+                  <div>
+                    <b> {{ tablechoice.document.decision_type }} </b>
+                    , du {{ tablechoice.document.decision_date }}
+                    <b>Result: </b>
+                    {{ tablechoice.document.result }}
+                  </div>
+                </div>
+                <div class="mb-3 ms-auto">
+                  <div>
+                    <b>Normes: </b>
+                    {{ tablechoice.document.standards }}
+                  </div>
+                </div>
+                <div class="mb-3 ms-auto">
+                  <div>
+                    <b>Extraits: </b>
+                    {{ tablechoice.document | get_sample_document }} ...
+                  </div>
+                </div>
+              </div>
+              <br />
+              <hr />
+            {% endfor %}
+          </div>
+        </div>
+        <div class="col-12 mb-3 mx-auto">
+          <div class="d-flex justify-content-between">
+            {% if not first_page %}
+              <div class="col-4 text-start">
+                <input class="btn btn-outline-dark"
+                       type="submit"
+                       name="submit"
+                       value="previous" />
+              </div>
+            {% endif %}
+            <div class="col-4 text-center">
+              page:
+              <span class="fw-bold">{{ current_page }}/{{ total_page }}</span>
+            </div>
+            {% if not last_page %}
+              <div class="col-4 mb-2 text-end">
+                <input class="btn btn-outline-dark"
+                       type="submit"
+                       name="submit"
+                       value="next" />
+              </div>
+            {% endif %}
+          </div>
+        </div>
+        <div class="col-10 mx-auto">
+          <div class="p-4 bg-light">
+            <div class="row text-center">
+              <div class="col">
+                Article checked :
+                <span class="article-counter-bottom fw-bold">{{ number_Article_chosen }}</span>
+              </div>
+              <div class="col">
+                Check/Uncheck all
+                <input class="form-check-input ms-3"
+                       type="checkbox"
+                       onClick="toggle(this)" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-8 mx-auto mb-5">
+          <div class="row justify-content-center mt-3 gap-md-3 gap-sm-2 gap-lg-5">
+            <button type="submit"
+                    name="submit"
+                    value="iterate"
+                    class="col-md-3 col-sm-12 btn btn-secondary mb-2 btn-lg">
+              Iterate
+            </button>
+            <button type="submit"
+                    name="submit"
+                    value="reset"
+                    class="col-md-3 col-sm-12 btn btn-secondary mb-2 btn-lg">
+              Reset
+            </button>
+            <button type="submit"
+                    name="submit"
+                    value="finish"
+                    class="col-md-3 col-sm-12 btn btn-primary mb-2 btn-lg">
+              Export Selected
+            </button>
+          </div>
+        </div>
+        <hr class="mb-5" />
+      </form>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block jscode %}
+  <script src="{% static "js/select_functions.js" %}"></script>
+  <script src="{% static "js/checkbox_counter.js" %}"></script>
+{% endblock jscode %}

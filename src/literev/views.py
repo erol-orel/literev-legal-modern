@@ -21,6 +21,13 @@ from literev.libs.pipeline import (
     running_restart,
 )
 from literev.libs.select_functions import get_filtered_document, get_filters
+from literev.libs.table_choice import (
+    reset_table_choice,
+    update_article_is_check_table_choice,
+    update_article_to_display_table_choice,
+    update_neighbour_table_choice,
+    update_new_table_choice,
+)
 from literev.libs.utils import (
     count_all_corpus,
     get_number_documents,
@@ -31,6 +38,7 @@ from literev.models import (
     ClusterElement,
     Document,
     Project,
+    TableChoice,
 )
 from tasks.sample_tasks import add_one_task, run_pipeline  # type: ignore
 
@@ -102,9 +110,7 @@ def search_continue(
         request.session["range_end_date"], "%Y/%m/%d"
     ).date()
 
-    total_documents = get_number_documents(
-        query, range_begin_date, range_end_date
-    )
+    total_documents = request.session["total_documents"]
 
     project = Project.objects.create(
         name=project_name,
@@ -241,10 +247,10 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
     if not project_id:
         return redirect("/search")
     # TODO: Add this piece of code after adding user
-    # check if there is the id of the research and this id is available
-    # Check if the research project belongs to the actual user
+    # check if there is the id of the project and this id is available
+    # Check if the project project belongs to the actual user
     # actual_user = cast(User, request.user)
-    # research_exist = Research.objects.filter(
+    # research_exist = Project.objects.filter(
     #     user=actual_user, id=research_id
     # ).exists()
     # if not research_exist:
@@ -276,7 +282,7 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
             )
             # save this list in session user
             request.session["document_pk_list"] = document_pk_list
-            request.session["id_research"] = project_id
+            request.session["id_project"] = project_id
             context["number_article"] = len(document_pk_list)
             context["project"] = project
             context["AreYouSure"] = True
@@ -291,14 +297,13 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
             # the article selected without their neighbour
             logging.info(request.session["document_pk_list"])
 
-            # TODO:Implement a tableselect page
-            # update_new_table_choice(
-            #     user=user,
-            #     research=project,
-            #     article_id_list=request.session["id_article_list"],
-            # )
+            update_new_table_choice(
+                # user=user,
+                project=project,
+                document_id_list=request.session["document_pk_list"],
+            )
 
-            # return redirect("/tableselect?research_id=" + str(project_id))
+            return redirect("/tableselect?project_id=" + str(project_id))
 
         elif submit == "cancel":
             pass
@@ -311,12 +316,12 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
     # list of documents, check for valid and invalids documents
     context["documents_list"] = Document.objects.filter(project=project)
 
-    # id of the research
+    # id of the project
     context["project_id"] = project_id
     # path = settings.TEMP_DATA / "html" / f"{project.pk}_plot.html"
 
     FNAME_PROJECT_DIV_PLOT = settings.PLOT_DATA / f"{project.pk}_div.html"
-    FNAME_RESEARCH_SCRIPT_PLOT = (
+    FNAME_PROJECT_SCRIPT_PLOT = (
         settings.PLOT_DATA / f"{project.pk}_script.html"
     )
     # get the div plot
@@ -324,7 +329,7 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
         div_plot = f.read()
     context["div_plot"] = div_plot
 
-    with open(FNAME_RESEARCH_SCRIPT_PLOT, "r") as f:
+    with open(FNAME_PROJECT_SCRIPT_PLOT, "r") as f:
         script_plot = f.read()
     context["script_plot"] = script_plot
 
@@ -356,7 +361,7 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
         topic: color for topic, color in zip(topics, palette)
     }
 
-    # Use in case of we want to restart filters
+    # Refactor: Use in case of we want to restart filters
     # if request.session.get("id_research", False) == research_id:
     #     filters = request.session.get("filters", False)
     #     if filters:
@@ -422,3 +427,155 @@ def generate_summary(request: HttpRequest, cluster_id: int) -> HttpResponse:
             {"message": "Invalid Request. Http method should be POST"},
             status=HTTPStatus.BAD_REQUEST,
         )
+
+
+def tableselect(request: HttpRequest) -> HttpResponse:
+    context: dict[str, Any] = dict()
+    current_page = 1
+
+    project_id = request.GET.get("project_id", None)
+
+    if not project_id:
+        return redirect("/search")
+
+    project = Project.objects.filter(id=project_id).first()
+
+    if not project:
+        return redirect("/search")
+
+    if "page" in request.GET:
+        current_page = int(request.GET["page"])
+        # check if the page is good.
+        # if too low, redirect to first page
+        if current_page < 1:
+            current_page = 1
+        # if too high, redirect to last page
+
+        number_document = TableChoice.objects.filter(project=project).count()
+        if (
+            int(request.GET["page"])
+            > int(number_document / settings.NUMBER_ARTICLE_BY_PAGE) + 1
+        ):
+            current_page = (
+                int(number_document / settings.NUMBER_ARTICLE_BY_PAGE) + 1
+            )
+
+    # if receive a POST request
+    if request.method == "POST":
+        check_list = []
+        if "check_row" in request.POST:
+            check_list = [
+                int(table_id) for table_id in request.POST.getlist("check_row")
+            ]
+        submit = request.POST.get("submit")
+
+        number_document = TableChoice.objects.filter(project=project).count()
+
+        if submit == "iterate":
+            update_article_is_check_table_choice(
+                project=project,
+                list_id=check_list,
+            )
+            update_article_to_display_table_choice(
+                project=project,
+                list_id=check_list,
+            )
+            update_neighbour_table_choice(project=project)
+            return redirect(f"/tableselect?project_id={project.id}")
+
+        elif submit == "reset":
+            reset_table_choice(project=project)
+            return redirect(f"/tableselect?project_id={project.id}")
+
+        elif submit == "finish":
+            # TODO: work on this after csv defined
+            # update_article_is_check_table_choice(
+            #     project=project,
+            #     list_id=check_list,
+            # )
+            # update_article_to_display_table_choice(
+            #     project=project,
+            #     list_id=check_list,
+            # )
+            # # note: removed redirect
+            # return download_finalcsv(project=project)
+            pass
+
+        elif submit == "previous":
+            if current_page == 1:
+                pass
+            else:
+                update_article_is_check_table_choice(
+                    project=project,
+                    list_id=check_list,
+                )
+                return redirect(
+                    f"/tableselect?project_id={project.id}&page={current_page-1}"
+                )
+        elif submit == "next":
+            if (
+                current_page
+                == int(number_document / settings.NUMBER_ARTICLE_BY_PAGE) + 1
+            ):
+                pass
+            else:
+                update_article_is_check_table_choice(
+                    project=project,
+                    list_id=check_list,
+                )
+                return redirect(
+                    f"/tableselect?project_id={project.id}&page={current_page+1}"
+                )
+
+    tablechoice_list = TableChoice.objects.filter(
+        project=project,
+        to_display=True,
+    ).order_by("id")
+
+    # define variable about number of articles
+    context["number_Article_initial"] = TableChoice.objects.filter(
+        project=project, is_initial=True
+    ).count()
+    context["number_Article_neighbour"] = TableChoice.objects.filter(
+        project=project,
+        is_initial=False,
+        to_display=True,
+        is_check=False,
+    ).count()
+    context["number_Article_chosen"] = TableChoice.objects.filter(
+        project=project, is_check=True
+    ).count()
+
+    # give the number of neigbour
+    # context["number_k_neighbour"] = project.number_neighbour
+
+    # define the interval of article for the current page
+    first_article = (current_page - 1) * settings.NUMBER_ARTICLE_BY_PAGE
+    last_article = current_page * settings.NUMBER_ARTICLE_BY_PAGE
+
+    # check if last_article is not greater than the size of the list
+    if last_article < tablechoice_list.count():
+        context["tablechoice_list"] = tablechoice_list[
+            first_article:last_article
+        ]
+        context["last_page"] = False
+    else:
+        context["tablechoice_list"] = tablechoice_list[first_article:]
+        context["last_page"] = True
+    if current_page == 1:
+        context["first_page"] = True
+    else:
+        context["first_page"] = False
+
+    context["current_page"] = current_page
+
+    if tablechoice_list.count() % settings.NUMBER_ARTICLE_BY_PAGE == 0:
+        context["total_page"] = int(
+            tablechoice_list.count() // settings.NUMBER_ARTICLE_BY_PAGE
+        )
+    else:
+        context["total_page"] = (
+            tablechoice_list.count() // settings.NUMBER_ARTICLE_BY_PAGE + 1
+        )
+
+    return render(request, "tableselect.html", context)

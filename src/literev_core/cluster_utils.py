@@ -115,7 +115,7 @@ class PacMapHDBScan:
                 metric="cosine",
             )
         except ValueError as e:
-            print(e)
+            logging.warning(e)
             self.coherence = -1
 
         self.score = self.clusterer.relative_validity_
@@ -232,8 +232,8 @@ def optimization(
     try:
         objective = Objective(tf_idf, project)
     except Exception as e:
-        print(e)
-        print("objective error")
+        logging.warning(e)
+        logging.warning("objective error")
         raise (Exception)
 
     try:
@@ -244,8 +244,8 @@ def optimization(
             load_if_exists=True,
         )
     except Exception as e:
-        print("error in create study")
-        print(e)
+        logging.warning("error in create study")
+        logging.warning(e)
         raise (Exception)
 
     try:
@@ -253,12 +253,12 @@ def optimization(
             objective,
             n_trials=n_trials,
             gc_after_trial=True,
-            n_jobs=2,  # TODO: note: 2 cpus for user just 1
+            # n_jobs=2,  # TODO: check why no more than one
             catch=(AttributeError, ValueError),
             # callbacks=[close_connections_on_done], TODO: add later
         )
     except:
-        print("error in optimize study")
+        logging.warning("error in optimize study")
         raise (Exception)
 
     return study
@@ -312,13 +312,16 @@ def create_tfidf_matrix(
     try:
         tfidfVectorizer = TfidfVectorizer()
     except Exception as e:
-        print("error tfidfvectorizer")
-        print(e)
+        logging.warning("error tfidfvectorizer")
+        logging.warning(e)
     try:
         tf_idf = tfidfVectorizer.fit_transform(corpuses)
+        logging.info("----------------------")
+        logging.info(tf_idf.shape)
+
     except Exception as e:
-        print("error tfidfvectorizer fitting")
-        print(e)
+        logging.warning("error tfidfvectorizer fitting")
+        logging.warning(e)
 
     tf_idf_sorted = (
         pd.DataFrame(
