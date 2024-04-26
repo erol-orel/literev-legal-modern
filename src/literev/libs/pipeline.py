@@ -751,7 +751,7 @@ def back_clustering_documents(project: Project) -> None:
 
 def back_plotting_documents(project: Project) -> None:
     try:
-        path = settings.TEMPORARY_DATA / f"{project.pk}_plot.html"
+        path = settings.PLOT_DATA / f"{project.pk}_plot.html"
         div_path = settings.PLOT_DATA / f"{project.pk}_div.html"
         script_path = settings.PLOT_DATA / f"{project.pk}_script.html"
 

@@ -152,6 +152,24 @@ groups:
             $CMD
           fi
 
+      optimize-documents:
+        help: Run the optimization of the documents
+        env-file: .env
+        run: |
+          sugar ext start \
+            --services literev-postgres --options -d
+
+          CMD="python manage.py optimize_documents"
+
+          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
+            sugar run --service literev --options --rm --cmd $CMD
+          else
+            cd ./src/
+            export POSTGRES_HOST=localhost
+            $CMD
+          fi
+          echo "[II] The optimization of the documents is done."
+
       notebook:
         help: Run the django environment in a jupyter notebook
         env-file: .env

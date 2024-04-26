@@ -43,10 +43,10 @@ RUN apt-get update -y \
 
 RUN addgroup --gid ${GID} literev \
   && useradd --uid ${UID} --gid ${GID} -ms /bin/bash literev \
-  && mkdir -p /opt/services/literev \
+  && mkdir -p /opt/services/literev /opt/data/literev \
   && chmod -R a+rwx /opt/conda /opt/services \
   && export ENV_NAME="$ENV_NAME" \
-  && chown literev:literev /opt/services \
+  && chown -R literev:literev /opt/services /opt/data \
   && echo "literev ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/literev \
   && chmod 0440 /etc/sudoers.d/literev
 
@@ -96,8 +96,7 @@ ENV STATIC_ROOT ${STATIC_ROOT}
 ENV MEDIA_ROOT ${MEDIA_ROOT}
 ENV DOCKER_VOLUME_CONTAINER_PATH ${DOCKER_VOLUME_CONTAINER_PATH}
 
-RUN mkdir -p ${DOCKER_VOLUME_CONTAINER_PATH}/data \
-  && mkdir -p ${DOCKER_VOLUME_CONTAINER_PATH}/articles \
+RUN mkdir -p ${DOCKER_VOLUME_CONTAINER_PATH}/articles \
   && mkdir -p ${DOCKER_VOLUME_CONTAINER_PATH}/plot \
   && mkdir -p ${DOCKER_VOLUME_CONTAINER_PATH}/pkl \
   && mkdir -p ${STATIC_ROOT}/.well-known/acme-challenge \

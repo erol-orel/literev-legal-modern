@@ -1,8 +1,8 @@
 import logging
-import os
 
 import psycopg2
 
+from django.conf import settings
 from psycopg2 import OperationalError
 
 # Set up logging
@@ -10,17 +10,7 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-# Retrieve database connection info from environment variables
-POSTGRES_DB = os.getenv("POSTGRES_DB", "literev")
-POSTGRES_HOST = os.getenv("POSTGRES_HOST", "192.168.16.2")
-POSTGRES_USER = os.getenv("POSTGRES_USER", "literev")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "literevqsx3409po")
-POSTGRES_PORT = os.getenv("POSTGRES_PORT", "35432")
-
-
-def generate_database_uri():
-    """Generates a database storage URL for Optuna."""
-    return f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+DATABASE_URI = settings.DATABASE_URI
 
 
 def get_data(project_id: int) -> list:
@@ -30,7 +20,7 @@ def get_data(project_id: int) -> list:
     Parameters
     ----------
     project_id : int
-        The project ID to query documents for.
+        The project ID for which to query documents.
 
     Returns
     -------
@@ -39,24 +29,18 @@ def get_data(project_id: int) -> list:
 
     Raises
     ------
+    OperationalError
+        If a database connection error occurs.
     Exception
-        Raises an exception if database connection or queries fail.
+        For other issues that may arise when executing the query.
     """
     try:
-        conn = psycopg2.connect(
-            database=POSTGRES_DB,
-            host=POSTGRES_HOST,
-            user=POSTGRES_USER,
-            password=POSTGRES_PASSWORD,
-            port=POSTGRES_PORT,
-        )
+        conn = psycopg2.connect(DATABASE_URI)
         cursor = conn.cursor()
         cursor.execute(
             f"SELECT id, raw_document_id, preprocessed_document FROM public.literev_document WHERE project_id={project_id};"
         )
         data = cursor.fetchall()
-        # Use only for testing
-        # data = cursor.fetchmany(size=2000)
         conn.close()
         logging.info(f"Retrieved {len(data)} records for project {project_id}")
         return data
@@ -68,10 +52,11 @@ def get_data(project_id: int) -> list:
         raise
 
 
-# Example usage:
 if __name__ == "__main__":
     try:
-        project_data = get_data(1)  # Adjust the project_id as needed
+        # The variable project_id will replace with the actual project ID
+        project_id = 1
+        project_data = get_data(project_id)
         logging.info(project_data[:1])  # Log first record for verification
     except Exception as e:
         logging.error(f"Error retrieving data: {e}")

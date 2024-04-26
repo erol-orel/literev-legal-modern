@@ -1,11 +1,10 @@
 import logging
 import os
 
-from pathlib import Path
-
 import joblib
 import optuna
 
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from joblib import Parallel, delayed
 
@@ -14,9 +13,10 @@ from .document_cluster_optimization import (
     _Objective,
     _retrieve_best_study,
 )
-from .fetch_documents import generate_database_uri, get_data
+from .fetch_documents import get_data
 
-PKL_DATA = Path("/tmp/literev/pkl")
+DATABASE_URI = settings.DATABASE_URI
+PKL_DATA = settings.PKL_DATA
 
 
 class Command(BaseCommand):
@@ -34,7 +34,7 @@ class Command(BaseCommand):
 
             os.makedirs(PKL_DATA, exist_ok=True)
 
-            storage = generate_database_uri()
+            storage = DATABASE_URI
 
             data = get_data(number)
 

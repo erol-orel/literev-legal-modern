@@ -17,7 +17,7 @@ import multiprocessing as mp
 import os
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 import environ
 
@@ -38,20 +38,6 @@ APPEND_SLASH = True
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-
-DOCKER_VOLUME_CONTAINER_PATH = Path(
-    env("DOCKER_VOLUME_CONTAINER_PATH", default="/tmp/literev")
-)
-# TEMP_DATA = ROOT_DIR / "tmp"
-
-# define the repertory where there is aul temporary data
-TEMPORARY_DATA = DOCKER_VOLUME_CONTAINER_PATH / "data"
-ARTICLE_DATA = DOCKER_VOLUME_CONTAINER_PATH / "articles"
-PLOT_DATA = DOCKER_VOLUME_CONTAINER_PATH / "plot"
-PKL_DATA = DOCKER_VOLUME_CONTAINER_PATH / "pkl"
-
-for dir in [TEMPORARY_DATA, ARTICLE_DATA, PLOT_DATA, PKL_DATA]:
-    os.makedirs(dir, exist_ok=True)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.0/howto/deployment/checklist/
@@ -120,7 +106,9 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [str(PLOT_DATA) + "/"],
+        "DIRS": [
+            str(BASE_DIR / "templates")
+        ],  # TODO: Check if refer to /src/literev/templates/
         "APP_DIRS": True,
         "OPTIONS": {
             "debug": True,
@@ -141,7 +129,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
-DATABASES: dict[str, dict[str, Any]] = {
+DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql_psycopg2",
         "NAME": os.environ.get("POSTGRES_DB_LITEREV", "x_db_name_x"),
@@ -151,9 +139,24 @@ DATABASES: dict[str, dict[str, Any]] = {
         ),
         "HOST": os.environ.get("POSTGRES_HOST", "x_db_host_x"),
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
-        # 'OPTIONS': {'sslmode': 'require'}
     }
 }
+
+
+def get_database_uri():
+    """
+    Constructs the database URI from environment variables.
+
+    Returns
+    -------
+    str
+        A string representing the PostgreSQL database URI.
+    """
+    db = DATABASES["default"]
+    return f"postgresql://{db['USER']}:{db['PASSWORD']}@{db['HOST']}:{db['PORT']}/{db['NAME']}"
+
+
+DATABASE_URI = get_database_uri()
 
 
 # Password validation
@@ -196,8 +199,8 @@ CELERY_TASK_SERIALIZER = "pickle"
 CELERY_RESULT_SERIALIZER = "pickle"
 CELERY_ACCEPT_CONTENT = ["pickle"]
 
-# AUTH_USER_MODEL = "literev.CustomUser"
-
+# STATIC / MEDIA
+# ------------------------------------------------------------------------------
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static/"),
     ("css", os.path.join(BASE_DIR, "static/css")),
@@ -212,12 +215,34 @@ STATICFILES_FINDERS = [
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
 ]
 
-MEDIA_ROOT = env("DJANGO_MEDIA_ROOT", default="/tmp/literev/media")
 
 MEDIA_URL = "/media/"
 
-DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000000
+# CONTAINER VOLUMES
+# ------------------------------------------------------------------------------
+MEDIA_ROOT = env("MEDIA_ROOT", default="/opt/data/literev/static/media")
 
+DOCKER_VOLUME_CONTAINER_PATH = Path(
+    env("DOCKER_VOLUME_CONTAINER_PATH", default="/opt/data/literev")
+)
+
+ARTICLE_DATA = DOCKER_VOLUME_CONTAINER_PATH / "articles"
+PLOT_DATA = DOCKER_VOLUME_CONTAINER_PATH / "plot"
+PKL_DATA = DOCKER_VOLUME_CONTAINER_PATH / "pkl"
+
+for dir in [
+    MEDIA_ROOT,
+    DOCKER_VOLUME_CONTAINER_PATH,
+    ARTICLE_DATA,
+    PLOT_DATA,
+    PKL_DATA,
+]:
+    os.makedirs(dir, exist_ok=True)
+
+
+# DOCUMENTS COLLECTORS
+# ------------------------------------------------------------------------------
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000000
 NUMBER_THREADS_ALLOWED = env.int(
     "NUMBER_THREADS_ALLOWED", default=mp.cpu_count()
 )
@@ -271,7 +296,7 @@ LOGOUT_REDIRECT_URL = "/"
 DOWNLOAD_PDF_ARTICLE = False
 
 # CACHE CONFIGURATION
-CACHE_DIR = Path(env("LITEREV_CACHE_DIR", default="/tmp/literev/cache"))
+CACHE_DIR = Path(env("LITEREV_CACHE_DIR", default="/opt/data/literev/cache"))
 CACHE_ACTIVE = env.bool("LITEREV_CACHE_ACTIVE", False)
 CACHE_EXPIRATION = 3600  # seconds
 
