@@ -99,6 +99,7 @@ ENV DOCKER_VOLUME_CONTAINER_PATH ${DOCKER_VOLUME_CONTAINER_PATH}
 RUN mkdir -p ${DOCKER_VOLUME_CONTAINER_PATH}/data \
   && mkdir -p ${DOCKER_VOLUME_CONTAINER_PATH}/articles \
   && mkdir -p ${DOCKER_VOLUME_CONTAINER_PATH}/plot \
+  && mkdir -p ${DOCKER_VOLUME_CONTAINER_PATH}/pkl \
   && mkdir -p ${STATIC_ROOT}/.well-known/acme-challenge \
   && mkdir -p ${MEDIA_ROOT}
 

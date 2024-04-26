@@ -40,17 +40,17 @@ APPEND_SLASH = True
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 DOCKER_VOLUME_CONTAINER_PATH = Path(
-    env("DOCKER_VOLUME_CONTAINER_PATH", default="/tmp/literev/files")
+    env("DOCKER_VOLUME_CONTAINER_PATH", default="/tmp/literev")
 )
-
 # TEMP_DATA = ROOT_DIR / "tmp"
 
 # define the repertory where there is aul temporary data
 TEMPORARY_DATA = DOCKER_VOLUME_CONTAINER_PATH / "data"
 ARTICLE_DATA = DOCKER_VOLUME_CONTAINER_PATH / "articles"
 PLOT_DATA = DOCKER_VOLUME_CONTAINER_PATH / "plot"
+PKL_DATA = DOCKER_VOLUME_CONTAINER_PATH / "pkl"
 
-for dir in [TEMPORARY_DATA, ARTICLE_DATA, PLOT_DATA]:
+for dir in [TEMPORARY_DATA, ARTICLE_DATA, PLOT_DATA, PKL_DATA]:
     os.makedirs(dir, exist_ok=True)
 
 # Quick-start development settings - unsuitable for production

@@ -132,7 +132,7 @@ dmypy.json
 src/db.sqlite3
 src/env_test/*
 src/research/mock_data/df_sample.csv
-src/docker_volume/*
+*docker_volume/*
 src/workflow/libs/download/*
 .env
 

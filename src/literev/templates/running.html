@@ -202,21 +202,23 @@
           <div class="col-3">
             <div>
               <p>
-                Sources
+                Initial total documents:
               </p>
               <p>
-                No specified
+                {{ project.total_documents }}
               </p>
             </div>
           </div>
           <div class="col-3">
             <div>
-              <p>
-                File Sources
-              </p>
-              <p>
-                No file sources
-              </p>
+              {% if project.is_finish %}
+                <p>
+                  Best DBCV:
+                </p>
+                <p>
+                  {{ project.best_dbcv }}
+                </p>
+              {% endif %}
             </div>
           </div>
           <div class="col-2">

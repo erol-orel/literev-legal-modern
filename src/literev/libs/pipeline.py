@@ -632,6 +632,8 @@ def hover_with_keywords(
     article according to list_id, with research, article_id,
     pos_x, pos_y and labels
     """
+    # Removing old clusters
+    Cluster.objects.filter(project=project).delete()
 
     num_clusters = set(best_study_clusterer.labels_)
 

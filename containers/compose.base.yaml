@@ -35,7 +35,7 @@ services:
     depends_on:
       - literev-postgres
     volumes:
-      - docker_volume:${DOCKER_VOLUME_CONTAINER_PATH}
+      - ${DOCKER_VOLUME_CONTAINER_PATH}:${DOCKER_VOLUME_CONTAINER_PATH}
       - static_root:${STATIC_ROOT:-/tmp/literev/static}
       - media_root:${DJANGO_MEDIA_ROOT:-/tmp/literev/media}
     networks:
@@ -93,7 +93,6 @@ services:
       - literev-redis
       - literev-postgres
     volumes:
-      - docker_volume:${DOCKER_VOLUME_CONTAINER_PATH}
       - static_root:${STATIC_ROOT:-/tmp/literev/static}
       - media_root:${DJANGO_MEDIA_ROOT:-/tmp/literev/media}
     networks:
@@ -115,7 +114,6 @@ services:
 
 
 volumes:
-  docker_volume:
   pgdata:
   static_root:
   media_root:

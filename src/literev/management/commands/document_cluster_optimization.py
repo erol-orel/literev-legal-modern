@@ -10,18 +10,108 @@ import pacmap
 import pandas as pd
 import scipy
 
-from django.conf import settings
-from django.db import transaction
 from scipy.sparse import csr_matrix
 from sklearn import metrics  # Unused cluster
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-from literev.models import Project
-
 set_seed = 5
 
 
-class PacMapHDBScan:
+def _retrieve_best_study(
+    tf_idf: csr_matrix, study: optuna.study.Study
+) -> hdbscan.HDBSCAN:
+    best_study = _PacMapHDBScan(
+        tf_idf,
+        pacmap_n_components=study.best_trials[0].params["pacmap_n_components"],
+        pacmap_FP_ratio=study.best_trials[0].params["pacmap_FP_ratio"],
+        hdbscan_min_cluster_size=study.best_trials[0].params[
+            "hdbscan_min_cluster_size"
+        ],
+        hdbscan_min_samples=study.best_trials[0].params["hdbscan_min_samples"],
+    )
+
+    best_study.evaluate()
+
+    # note: type is None and I am afraid that it will be a problem. Hence the
+    #       exact formulation with the log10
+    #       research.number_neighbour = best_study.pacmap_n_neighbors
+
+    # TODO: Check the purpose of project.number_neighbour
+    # if tf_idf.shape[0] <= 10000:
+    #     project.number_neighbour = 10
+    # else:
+    #     project.number_neighbour = int(
+    #         round(10 + 15 * (np.log10(tf_idf.shape[0]) - 4))
+    #     )
+
+    best_study_clusterer = best_study.clusterer
+
+    return best_study_clusterer
+
+
+def _pacmap_default(tf_idf: csr_matrix) -> npt.NDArray[np.float_]:
+    np.random.seed(set_seed)
+
+    # For random seed check if is needed to set for numpy as well
+    # documentation https://pypi.org/project/pacmap/
+    # Setting the random_state will affect the numpy random seed
+    # in your local environment. However, you may still get
+    # different results even if the random_state parameter
+    # is set to be the same. This is because numba
+    # parallelization makes some of the functions
+    # undeterministic. That being said, fixing the
+    # random state will always give you the same set
+    # of pairs and initialization, which ensure the difference is minimal.
+
+    # https://github.com/YingfanWang/PaCMAP/issues/7#issuecomment-838863998
+    # if not tf_idf.shape[0] > 10:
+    #     # note: not enough data, using PCA instead
+    #     embedding_2d_pca = PCA(
+    #         n_components=2, copy="FALSE", random_state=set_seed
+    #     )
+    #     return cast(
+    #         npt.NDArray[np.float_],
+    #         embedding_2d_pca.fit_transform(tf_idf.toarray()),
+    #     )
+
+    embedding_2d_pacmap = pacmap.PaCMAP(
+        n_components=2,
+        n_neighbors=None,
+        MN_ratio=0.5,
+        FP_ratio=2.0,
+        random_state=set_seed,
+        distance="angular",
+        apply_pca=False,
+        verbose=False,
+    )
+
+    return cast(
+        npt.NDArray[np.float_],
+        embedding_2d_pacmap.fit_transform(tf_idf.toarray(), init="random"),
+    )
+
+
+def _create_tfidf_matrix(
+    corpuses: list[str],
+) -> tuple[scipy.sparse.csr_matrix, pd.DataFrame]:
+    try:
+        tfidfVectorizer = TfidfVectorizer()
+    except Exception as e:
+        logging.warning("error tfidfvectorizer")
+        logging.warning(e)
+    try:
+        tf_idf = tfidfVectorizer.fit_transform(corpuses)
+        logging.info("----------------------")
+        logging.info(tf_idf.shape)
+
+    except Exception as e:
+        logging.warning("error tfidfvectorizer fitting")
+        logging.warning(e)
+
+    return tf_idf
+
+
+class _PacMapHDBScan:
     matrix: csr_matrix
     pacmap_n_components: int
     pacmap_n_neighbors: Optional[int]
@@ -129,13 +219,11 @@ class PacMapHDBScan:
         logging.info("DBCV Score: %0.3f" % self.score)
 
 
-class Objective:
+class _Objective:
     tf_idf: csr_matrix
-    project: Project
 
-    def __init__(self, tf_idf: csr_matrix, project: Project) -> None:
+    def __init__(self, tf_idf: csr_matrix) -> None:
         self.tf_idf = tf_idf
-        self.project = project
 
     def __call__(self, trial: optuna.trial.Trial) -> float:
         tf_idf = self.tf_idf
@@ -155,7 +243,7 @@ class Objective:
             "hdbscan_min_samples", 2, round(tf_idf.shape[0] / 2) - 1
         )
 
-        study = PacMapHDBScan(
+        study = _PacMapHDBScan(
             tf_idf,
             pacmap_n_components=pacmap_n_components,
             pacmap_FP_ratio=pacmap_FP_ratio,
@@ -166,14 +254,10 @@ class Objective:
         return_data = study.evaluate()
 
         # using step_number to store number of trials
-        with transaction.atomic():
-            self.project.step_number += 1
-            self.project.save()
 
         # write the score if it is greater
 
         # TODO: Check this part of db to store best_dbcv
-        # This part is done in retrive best study function
         # current_score = self.project.best_dbcv
         # new_score = study.score
         # if new_score > current_score:
@@ -181,160 +265,3 @@ class Objective:
         #     self.project.save()
 
         return return_data
-
-
-def retrieve_best_study(
-    project: Project, tf_idf: csr_matrix, study: optuna.study.Study
-) -> hdbscan.HDBSCAN:
-    best_study = PacMapHDBScan(
-        tf_idf,
-        pacmap_n_components=study.best_trials[0].params["pacmap_n_components"],
-        pacmap_FP_ratio=study.best_trials[0].params["pacmap_FP_ratio"],
-        hdbscan_min_cluster_size=study.best_trials[0].params[
-            "hdbscan_min_cluster_size"
-        ],
-        hdbscan_min_samples=study.best_trials[0].params["hdbscan_min_samples"],
-    )
-
-    best_study.evaluate()
-
-    # note: type is None and I am afraid that it will be a problem. Hence the
-    #       exact formulation with the log10
-    #       research.number_neighbour = best_study.pacmap_n_neighbors
-
-    # TODO: Check the purpose of project.number_neighbour
-    # if tf_idf.shape[0] <= 10000:
-    #     project.number_neighbour = 10
-    # else:
-    #     project.number_neighbour = int(
-    #         round(10 + 15 * (np.log10(tf_idf.shape[0]) - 4))
-    #     )
-
-    project.best_dbcv = best_study.score
-    project.save()
-    best_study_clusterer = best_study.clusterer
-
-    return best_study_clusterer
-
-
-def optimization(
-    project: Project,
-    tf_idf: csr_matrix,
-    name: str,
-    n_trials: int = 100,
-) -> optuna.study.Study:
-    db = settings.DATABASES["default"]
-
-    if "postgres" in db["ENGINE"]:
-        storage = (
-            f"postgresql://{db['USER']}:{db['PASSWORD']}@"
-            f"{db['HOST']}:{db['PORT']}/{db['NAME']}"
-        )
-    else:
-        raise Exception(f"Unsupported database engine: {db['ENGINE']}")
-    try:
-        objective = Objective(tf_idf, project)
-    except Exception as e:
-        logging.warning(e)
-        logging.warning("objective error")
-        raise (Exception)
-
-    try:
-        study = optuna.create_study(
-            study_name=name,
-            storage=storage,
-            direction="maximize",
-            load_if_exists=True,
-        )
-    except Exception as e:
-        logging.warning("error in create study")
-        logging.warning(e)
-        raise (Exception)
-
-    try:
-        study.optimize(
-            objective,
-            n_trials=n_trials,
-            gc_after_trial=True,
-            n_jobs=1,  # TODO: just 1 for normal query
-            catch=(AttributeError, ValueError),
-            # callbacks=[close_connections_on_done], TODO: add later
-        )
-    except:
-        logging.warning("error in optimize study")
-        raise (Exception)
-
-    return study
-
-
-def pacmap_default(tf_idf: csr_matrix) -> npt.NDArray[np.float_]:
-    np.random.seed(set_seed)
-
-    # For random seed check if is needed to set for numpy as well
-    # documentation https://pypi.org/project/pacmap/
-    # Setting the random_state will affect the numpy random seed
-    # in your local environment. However, you may still get
-    # different results even if the random_state parameter
-    # is set to be the same. This is because numba
-    # parallelization makes some of the functions
-    # undeterministic. That being said, fixing the
-    # random state will always give you the same set
-    # of pairs and initialization, which ensure the difference is minimal.
-
-    # https://github.com/YingfanWang/PaCMAP/issues/7#issuecomment-838863998
-    # if not tf_idf.shape[0] > 10:
-    #     # note: not enough data, using PCA instead
-    #     embedding_2d_pca = PCA(
-    #         n_components=2, copy="FALSE", random_state=set_seed
-    #     )
-    #     return cast(
-    #         npt.NDArray[np.float_],
-    #         embedding_2d_pca.fit_transform(tf_idf.toarray()),
-    #     )
-
-    embedding_2d_pacmap = pacmap.PaCMAP(
-        n_components=2,
-        n_neighbors=None,
-        MN_ratio=0.5,
-        FP_ratio=2.0,
-        random_state=set_seed,
-        distance="angular",
-        apply_pca=False,
-        verbose=False,
-    )
-
-    return cast(
-        npt.NDArray[np.float_],
-        embedding_2d_pacmap.fit_transform(tf_idf.toarray(), init="random"),
-    )
-
-
-def create_tfidf_matrix(
-    corpuses: list[str],
-) -> tuple[scipy.sparse.csr_matrix, pd.DataFrame]:
-    try:
-        tfidfVectorizer = TfidfVectorizer()
-    except Exception as e:
-        logging.warning("error tfidfvectorizer")
-        logging.warning(e)
-    try:
-        tf_idf = tfidfVectorizer.fit_transform(corpuses)
-    except Exception as e:
-        logging.warning("error tfidfvectorizer fitting")
-        logging.warning(e)
-
-    tf_idf_sorted = (
-        pd.DataFrame(
-            tf_idf.toarray(), columns=tfidfVectorizer.get_feature_names_out()
-        )
-        .transpose()
-        .iloc[
-            list(
-                np.argsort(
-                    np.array(tf_idf.transpose().sum(axis=1)).reshape(-1)
-                )
-            )
-        ]
-    )
-
-    return tf_idf, tf_idf_sorted
