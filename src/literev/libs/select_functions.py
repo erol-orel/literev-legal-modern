@@ -1,16 +1,150 @@
 from __future__ import annotations
 
 import json
+import os
 
 from typing import Any
 
-from django.db.models import Q
+import pandas as pd
+
+from django.conf import settings
+from django.db.models import Count, Q
+from django.http import HttpResponse
 
 from literev.models import (
+    Cluster,
     ClusterElement,
     Document,
     Project,
+    TableChoice,
 )
+
+UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
+
+
+def create_final_file(project: Project) -> str:
+    """Creates a csv file with all metadata for every document
+    from the list selected documents related with the project an user.
+
+    Parameters
+    ----------
+    project : project object Model database
+               The project object model where is used to store
+               search query, status and related data.
+    user : User
+        A User object related with the data of the user.
+
+    Returns
+    -------
+    path_to_file : str
+        path to the csv file.
+
+    """
+    # get the documents
+    list_tablechoice = TableChoice.objects.filter(
+        project=project, is_check=True
+    )
+
+    # create the csv file from a dictionary
+    metadata: dict[str, list[int | str]] = dict()
+
+    metadata["number_cluster"] = []
+    metadata["topic"] = []
+    metadata["decision_type"] = []
+    metadata["procedure_type"] = []
+    metadata["decision_date"] = []
+    metadata["standards"] = []
+    metadata["result"] = []
+    metadata["summary"] = []
+    # metadata["raw_document"] = []
+
+    clusters = Cluster.objects.filter(project=project)
+
+    sorted_clusters = (
+        clusters.values("topic")
+        .annotate(total_documents=Count("clusterelement__document"))
+        .order_by("-total_documents")
+    )
+
+    number_topic: dict[str, str] = dict()
+
+    index = 0
+    for cluster in sorted_clusters:
+        if cluster["topic"] == UNCLASSIFIED_PAPERS_TOPIC:
+            continue
+        index += 1
+        number_topic[cluster["topic"]] = index
+
+    for tablechoice in list_tablechoice:
+        document = tablechoice.document
+        # get the cluster object of this project and document
+        try:
+            cluster_element = ClusterElement.objects.get(
+                cluster__project=project, document=document
+            )
+        except ClusterElement.DoesNotExist:
+            continue
+
+        # metadata["number_cluster"].append(cluster_element.cluster.topic)
+        topic = cluster_element.cluster.topic
+        metadata["number_cluster"].append(number_topic[topic])
+        metadata["topic"].append(", ".join(topic.split(", ")[:10]))
+        metadata["decision_type"].append(document.decision_type)
+        metadata["procedure_type"].append(document.procedure_type)
+        metadata["decision_date"].append(document.decision_date)
+        metadata["standards"].append(document.standards)
+        metadata["result"].append(document.result)
+        metadata["summary"].append(document.descriptors)
+        # metadata["raw_document"].append(document.raw_document_text)
+
+    path_to_file = f"{settings.ARTICLE_DATA}/export_project_{project.id}_"
+
+    # Create csv file from pandas
+    metadata_df = pd.DataFrame(metadata)
+
+    metadata_df.to_csv(path_to_file)
+
+    return path_to_file
+
+
+def download_finalcsv(project: Project) -> HttpResponse:
+    """Return a csv file as attachment.
+
+    Parameters
+    ----------
+    project : project object Model database
+               The project object model where is used to store
+               search query, status and related data.
+    user : User
+        A User object related with the data of the user.
+
+    Returns
+    -------
+    response : HttpResponse
+        A csv file as attachment.
+
+    """
+    # Create a csv file
+    filepath = create_final_file(project)
+    # Open the file for reading content
+
+    with open(filepath, "rb") as f:
+        reader = f.read()
+
+    # Remove the csv file because we do not needed anymore
+    os.remove(filepath)
+
+    # Set the return value of the HttpResponse
+    response = HttpResponse(reader, content_type="text/csv")
+    # Set the HTTP header for sending to browser
+    response["Content-Disposition"] = (
+        "attachment; filename={name_file}".format(
+            name_file="selected_documents_literev.csv"
+        )
+    )
+
+    # Return the response value
+    return response
 
 
 def get_filters(
@@ -106,7 +240,7 @@ def get_filtered_document(
         )
 
         for norm in norm_list:
-            regex_key = r".*" + norm + r".*"
+            regex_key = r".*" + norm.strip() + r".*"
             document_list = Document.objects.filter(
                 project=project,
             ).filter(
@@ -123,7 +257,7 @@ def get_filtered_document(
         for keyword in keyword_list:
             regex_key = r".*" + keyword + r".*"
             document_list = Document.objects.filter(project=project).filter(
-                Q(preprocessed_document__iregex=regex_key)
+                Q(prepared_for_ngrams__iregex=regex_key)
             )
 
             for document in document_list:
@@ -193,7 +327,7 @@ def get_filtered_document(
         for keyword in keyword_list:
             regex_key = r".*" + keyword + r".*"
             document_list = Document.objects.filter(project=project).filter(
-                Q(preprocessed_document__iregex=regex_key)
+                Q(prepared_for_ngrams__iregex=regex_key)
             )
 
             for document in document_list:
@@ -248,9 +382,9 @@ def neighbour_document(document: Document, project: Project) -> list[Document]:
     by iteration, search around the document +-100 and if doesn't
     have enough, the same but with +-200 around. We make max +-1000.
     """
-    number_neighbor = project.number_neighbour
+    number_neighbor = 10
     neighbour_documents: list[Document] = []
-    distant = 100
+    distant = 10
     cluster_center_document_list = ClusterElement.objects.filter(
         document=document, cluster__project=project
     )
@@ -300,7 +434,7 @@ def neighbour_document(document: Document, project: Project) -> list[Document]:
                         nearest_cluster[i] = cluster
                         break
 
-        distant += 100
+        distant += 10
 
     # recuperate all document from cluster list
     for cluster in nearest_cluster:

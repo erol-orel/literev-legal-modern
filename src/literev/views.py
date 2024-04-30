@@ -20,7 +20,11 @@ from literev.libs.pipeline import (
     launch_process,
     running_restart,
 )
-from literev.libs.select_functions import get_filtered_document, get_filters
+from literev.libs.select_functions import (
+    download_finalcsv,
+    get_filtered_document,
+    get_filters,
+)
 from literev.libs.table_choice import (
     reset_table_choice,
     update_article_is_check_table_choice,
@@ -361,13 +365,21 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
         topic: color for topic, color in zip(topics, palette)
     }
 
-    # Refactor: Use in case of we want to restart filters
-    # if request.session.get("id_research", False) == research_id:
-    #     filters = request.session.get("filters", False)
-    #     if filters:
-    #         context["filters"] = filters
-    #     else:
-    #         context["filters"] = ""
+    # Get normes list
+    standards_list_raw = Document.objects.filter(
+        project=project,
+    ).values_list("standards", flat=True)
+
+    # CEDH.6 ; CEDH.8 ; LPA.59.letb
+    # LEtr.69.al4;LEtr.74.al3;LEtr.74.al1.leta;LaLEtr.6.al3;LaLEtr.10;LaLEtr.12.al2;Cst.36.al3;CEDH.5
+
+    standard_list = set()
+
+    for standards in standards_list_raw:
+        for standard in standards.split(";"):
+            standard_list.add(standard.strip())
+
+    context["standard_list"] = list(standard_list)
 
     return render(request, "previousgraph.html", context)
 
@@ -488,18 +500,16 @@ def tableselect(request: HttpRequest) -> HttpResponse:
             return redirect(f"/tableselect?project_id={project.id}")
 
         elif submit == "finish":
-            # TODO: work on this after csv defined
-            # update_article_is_check_table_choice(
-            #     project=project,
-            #     list_id=check_list,
-            # )
-            # update_article_to_display_table_choice(
-            #     project=project,
-            #     list_id=check_list,
-            # )
-            # # note: removed redirect
-            # return download_finalcsv(project=project)
-            pass
+            update_article_is_check_table_choice(
+                project=project,
+                list_id=check_list,
+            )
+            update_article_to_display_table_choice(
+                project=project,
+                list_id=check_list,
+            )
+            # note: removed redirect
+            return download_finalcsv(project=project)
 
         elif submit == "previous":
             if current_page == 1:

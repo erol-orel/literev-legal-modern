@@ -223,6 +223,7 @@
                        placeholder="filter words" />
               </div>
             </div>
+
             <div id="norm-selector-container"
                  class="col-7">
               <div class="input-group input-group-lg">
@@ -231,11 +232,14 @@
                        list="datalistNorms"
                        placeholder="Norms to search" />
                 <datalist id="datalistNorms">
-                  <option value="Norms ...">
-                  </option>
+                  {% for norm in standard_list %}
+                    <option value="{{ norm }}">
+                    </option>
+                  {% endfor %}
                 </datalist>
               </div>
             </div>
+
             <div id="topic-selector-container"
                  class="col-7">
               <div class="dropdown">
