@@ -169,6 +169,14 @@ groups:
             $CMD
           fi
           echo "[II] The optimization of the documents is done."
+      optimize-documents-local:
+        help: Run the optimization of the documents (temporary)
+        env-file: .env
+        run: |
+          export POSTGRES_HOST=localhost
+          cd ./src/
+          python manage.py optimize_documents
+          echo "[II] The optimization of the documents is done."
 
       notebook:
         help: Run the django environment in a jupyter notebook
