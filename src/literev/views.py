@@ -589,3 +589,16 @@ def tableselect(request: HttpRequest) -> HttpResponse:
         )
 
     return render(request, "tableselect.html", context)
+
+
+def contentdocument(request: HttpRequest, document_id: int) -> HttpResponse:
+    context: dict[str, Any] = dict()
+
+    if not document_id:
+        return redirect("/search")
+
+    document = Document.objects.get(pk=document_id)
+
+    context["document"] = document
+
+    return render(request, "contentdocument.html", context)

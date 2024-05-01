@@ -1,6 +1,6 @@
 from django.urls import include, path
 from django.http import HttpResponse
-from literev.views import run_task, run_pipeline_sample, HomePageView, search, running, previousgraph, generate_summary, tableselect
+from literev.views import run_task, run_pipeline_sample, HomePageView, search, running, previousgraph, generate_summary, tableselect, contentdocument
 
 urlpatterns = [
     # enable these for celery
@@ -13,5 +13,6 @@ urlpatterns = [
     path('running/', running, name='running'),
     path('previousgraph/', previousgraph, name='previousgraph'),
     path('tableselect/', tableselect, name='tableselect'),
+    path('contentdocument/<int:document_id>', contentdocument, name='contentdocument'),
     path("generatesummary/<int:cluster_id>/", generate_summary, name="generate-summary"),
 ]
