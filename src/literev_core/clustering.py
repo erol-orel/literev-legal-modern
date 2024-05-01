@@ -50,6 +50,12 @@ def cluster(
             PKL_PATH / f"best_study_{project.pk}.pkl"
         )
 
+        best_score = joblib.load(PKL_PATH / f"best_score_{project.pk}.pkl")
+        project.best_dbcv = best_score
+        project.save()
+
+        logging.info("pkl files opened")
+
         tf_idf, tf_idf_sorted = create_tfidf_matrix(corpuses)
         # To use when best_study is not saved extract directly from DB
         # name = f"study_{project.id}"
@@ -82,9 +88,9 @@ def cluster(
         )
 
         # in this way we send chunk of 10s to the optimize function
-        n_trials = settings.NUMBER_TRIALS // 30  # 300/30 = 10
+        n_trials = settings.NUMBER_TRIALS // 10  # 100/10 = 10
 
-        with joblib.parallel_backend("threading", n_jobs=5):
+        with joblib.parallel_backend("threading", n_jobs=4):
             Parallel()(
                 [
                     delayed(optimize)(
@@ -93,7 +99,7 @@ def cluster(
                         storage=storage,
                         name=f"study_{project.id}",
                     )
-                    for _ in range(30)
+                    for _ in range(10)
                 ]
             )
         # uncomment this code if you want to run with one core

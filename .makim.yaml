@@ -169,6 +169,23 @@ groups:
             $CMD
           fi
           echo "[II] The optimization of the documents is done."
+      fetch-documents:
+        help: Run the optimization of the documents
+        env-file: .env
+        run: |
+          sugar ext start \
+            --services literev-postgres --options -d
+
+          CMD="python manage.py fetch_documents"
+
+          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
+            sugar run --service literev --options --rm --cmd $CMD
+          else
+            cd ./src/
+            export POSTGRES_HOST=localhost
+            $CMD
+          fi
+          echo "[II] Access to DB granted."
       optimize-documents-local:
         help: Run the optimization of the documents (temporary)
         env-file: .env

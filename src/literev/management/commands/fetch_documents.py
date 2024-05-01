@@ -1,8 +1,11 @@
 import logging
 
+import joblib
+import optuna
 import psycopg2
 
 from django.conf import settings
+from django.core.management.base import BaseCommand
 from psycopg2 import OperationalError
 
 # Set up logging
@@ -11,6 +14,7 @@ logging.basicConfig(
 )
 
 DATABASE_URI = settings.DATABASE_URI
+PKL_DATA = settings.PKL_DATA
 
 
 def get_data(project_id: int) -> list:
@@ -52,11 +56,48 @@ def get_data(project_id: int) -> list:
         raise
 
 
-if __name__ == "__main__":
-    try:
-        # The variable project_id will replace with the actual project ID
-        project_id = 1
-        project_data = get_data(project_id)
-        logging.info(project_data[:1])  # Log first record for verification
-    except Exception as e:
-        logging.error(f"Error retrieving data: {e}")
+class Command(BaseCommand):
+    help = "Check access to DB and check permissions for writing in volume"
+
+    def handle(self, *args, **options):
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s - %(levelname)s - %(message)s",
+        )
+        logging.info("Checking access to db ...")
+
+        try:
+            # The variable project_id will replace with the actual project ID
+            project_id = 1
+            project_data = get_data(project_id)
+            logging.info(project_data[:1])  # Log first record for verification
+
+            name = (
+                "study_" + "project_new" + str(project_id)
+            )  # f"literev_study_{number}"
+
+            study_names = optuna.study.get_all_study_names(
+                storage=DATABASE_URI
+            )
+            logging.info(study_names)
+            logging.info(f"actual study: {name}")
+            if name in study_names:
+                logging.info("Access to db granted")
+            else:
+                logging.info(f"There is no study with name: {name}")
+
+            try:
+                value_test = 634.00023
+
+                joblib.dump(
+                    value_test,
+                    PKL_DATA / f"value_test_{project_id}.pkl",
+                )
+                logging.info(f"Writting permissions granted in {PKL_DATA}")
+
+            except Exception as e:
+                logging.info(f"Error writing in {PKL_DATA}")
+                logging.info(e)
+
+        except Exception as e:
+            logging.error(f"An error occurred: {e}")

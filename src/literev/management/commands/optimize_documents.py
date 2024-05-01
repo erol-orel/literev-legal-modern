@@ -42,7 +42,17 @@ class Command(BaseCommand):
 
             tf_idf = _create_tfidf_matrix(corpuses)
 
-            name = "study_" + str(number)  # f"literev_study_{number}"
+            name = (
+                "study_" + "project_new" + str(number)
+            )  # f"literev_study_{number}"
+
+            study_names = optuna.study.get_all_study_names(
+                storage=DATABASE_URI
+            )
+            logging.info(study_names)
+
+            if name not in study_names:
+                raise CommandError(f"Error, there is no study name: {name}")
 
             objective = _Objective(tf_idf)
 
@@ -54,19 +64,22 @@ class Command(BaseCommand):
             )
 
             # It's important to manage threading if objects cannot be easily serialized
-            with joblib.parallel_backend("threading", n_jobs=5):
+            with joblib.parallel_backend("threading", n_jobs=3):
                 Parallel()(
                     [
                         delayed(self.optimize_study)(
-                            objective, n_trials=30, storage=storage, name=name
+                            objective,
+                            n_trials=3,
+                            storage=storage,
+                            name=name,
                         )
-                        for _ in range(10)
+                        for _ in range(22)
                     ]
                 )
 
             study = optuna.load_study(study_name=name, storage=storage)
 
-            best_study_clusterer = _retrieve_best_study(
+            best_study_clusterer, best_score = _retrieve_best_study(
                 tf_idf, study
             )  # Ensure both tf_idf and study are passed
 
@@ -75,9 +88,15 @@ class Command(BaseCommand):
                 PKL_DATA / f"best_study_{number}.pkl",
             )
 
+            joblib.dump(
+                best_score,
+                PKL_DATA / f"best_score_{number}.pkl",
+            )
+
             logging.info(
                 "Document optimization process completed successfully."
             )
+
         except Exception as e:
             logging.error(f"An error occurred: {e}")
             raise CommandError(f"Error during document optimization: {e}")

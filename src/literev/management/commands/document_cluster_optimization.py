@@ -46,7 +46,7 @@ def _retrieve_best_study(
 
     best_study_clusterer = best_study.clusterer
 
-    return best_study_clusterer
+    return best_study_clusterer, best_study.score
 
 
 def _pacmap_default(tf_idf: csr_matrix) -> npt.NDArray[np.float_]:
