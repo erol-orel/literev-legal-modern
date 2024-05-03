@@ -230,9 +230,10 @@ def get_filtered_document(
             [v for k, v in filter_dict.items() if k == "Topic"], start=[]
         )
         for topic in topic_list:
+            prepared_topic = topic.split(": ")[1]
             cluster_elements = ClusterElement.objects.filter(
                 cluster__project=project,
-                cluster__topic=topic,
+                cluster__topic__startswith=prepared_topic,
             )
             for cluster in cluster_elements:
                 topic_set.add(cluster.document.pk)
@@ -337,8 +338,10 @@ def get_filtered_document(
 
         for topic in topic_list:
             # get all cluster element object with the topic
+            prepared_topic = topic.split(": ")[1]
             cluster_elements = ClusterElement.objects.filter(
-                cluster__topic=topic, cluster__project=project
+                cluster__project=project,
+                cluster__topic__startswith=prepared_topic,
             )
             for cluster in cluster_elements:
                 excluded_documents.add(cluster.document.pk)

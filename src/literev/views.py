@@ -9,6 +9,7 @@ from http import HTTPStatus
 from typing import Any, Optional
 
 from django.conf import settings
+from django.db.models import Count
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.views.generic import TemplateView
@@ -45,6 +46,8 @@ from literev.models import (
     TableChoice,
 )
 from tasks.sample_tasks import add_one_task, run_pipeline  # type: ignore
+
+UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
 
 
 # TODO: check tht typing maybe is wrong
@@ -356,6 +359,31 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
     cluster_list = Cluster.objects.filter(project=project).values_list(
         "topic", flat=True
     )
+
+    # Get the grouped cluster
+    clusters = Cluster.objects.filter(project=project)
+
+    grouped_clusters = (
+        clusters.values("topic")
+        .annotate(
+            total_documents=Count("clusterelement__document"),
+        )
+        .order_by("-total_documents")
+    )
+
+    index = 0
+    list_topic_10 = []
+    for e_cluster in grouped_clusters:
+        if e_cluster["topic"] == UNCLASSIFIED_PAPERS_TOPIC:
+            continue
+        index += 1
+        number__topic10_cluster = f"{index}: " + ", ".join(
+            e_cluster["topic"].split(", ")[:10]
+        )
+        list_topic_10.append(number__topic10_cluster)
+
+    context["list_number_topic10"] = list_topic_10
+
     list_topics = list(set(cluster_list))
     context["list_topics"] = list_topics
 
