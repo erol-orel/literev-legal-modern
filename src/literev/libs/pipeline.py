@@ -1,5 +1,6 @@
 import datetime as dt
 import logging
+import os
 
 from datetime import datetime
 from pathlib import Path
@@ -66,6 +67,21 @@ COLOR_PALETTE_30 = (
     "#892889",
     "#B23D19",
 )
+
+
+def running_delete(project_id: str) -> None:
+    project = Project.objects.filter(pk=project_id).first()
+    project.delete()
+
+    plot_path = settings.PLOT_DATA / f"{project_id}_plot.html"
+    div_path = settings.PLOT_DATA / f"{project_id}_div.html"
+    script_path = settings.PLOT_DATA / f"{project_id}_script.html"
+
+    paths = [plot_path, div_path, script_path]
+
+    for path in paths:
+        if os.path.isfile(path):
+            os.remove(path)
 
 
 def running_restart(project_id: str) -> None:

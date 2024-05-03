@@ -5,7 +5,82 @@
 {% load filtering_functions %}
 
 {% block modal %}
+  {% if delete_message %}
+    <div class="div modal-backdrop fade show">
+    </div>
+    <form action=""
+          method="POST">
+      {% csrf_token %}
+      <div class="modal fade show"
+           style="display: block"
+           id="deleteModal"
+           tabindex="-1"
+           aria-labelledby="deleteModal"
+           aria-hidden="false">
 
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h1 class="modal-title fs-5"
+                  id="deleteModalLabel">
+                Delete Project
+              </h1>
+              <button class="btn-close"
+                      data-bs-dismiss="modal"
+                      type='submit'
+                      name='submit'
+                      value='cancel'
+                      aria-label="Close">
+              </button>
+            </div>
+            <div class="modal-body">
+              <p>
+                Are you sure you want to delete following project?
+              </p>
+              <div class="ms-5">
+                Project: {{ project.name }}
+              </div>
+              <div class="ms-5">
+                Total documents: {{ project.total_documents }}
+              </div>
+              <div class="ms-5">
+                Creation date: {{ project.creation_date }}
+              </div>
+              <div class="ms-5 mb-3">
+                Status:
+                {% if project.is_finish %}
+                  Finished
+                {% else %}
+                  Running
+                {% endif %}
+              </div>
+              <p>
+                This action cannot be undone. Delete this project will permanently remove it.
+              </p>
+            </div>
+            <div class="modal-footer">
+              <input type="hidden"
+                     name="project_id"
+                     value="{{ project.id }}" />
+              <button class="btn btn-secondary"
+                      type='submit'
+                      name='submit'
+                      value='cancel'
+                      data-bs-dismiss="modal">
+                Close
+              </button>
+              <button type="submit"
+                      name="submit"
+                      value="confirm_delete"
+                      class="btn btn-danger">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  {% endif %}
 {% endblock modal %}
 
 {% block content %}
@@ -161,15 +236,17 @@
                     Restart
                   </button>
                 </div>
-
                 <!-- Button trigger modal -->
-                <!-- <div class="ms-2 col-sm-12 col-xxl-4">
-                  <input type="hidden" name="project_id" value="{{ project.id }}" />
-                  <button type="submit" name="submit" value="delete" class="btn btn-danger text-white">
-                    <i class="fa-regular fa-trash-can"></i>
-                  </button>
-</div> -->
-
+                {% if project.is_finish and project.id != 1 %}
+                  <div class="ms-2 col-sm-12 col-xxl-4">
+                    <button type="submit"
+                            name="submit"
+                            value="delete"
+                            class="btn btn-danger text-white">
+                      <i class="fa-regular fa-trash-can"></i>
+                    </button>
+                  </div>
+                {% endif %}
               </div>
             </div>
           </div>

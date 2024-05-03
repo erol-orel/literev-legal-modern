@@ -19,6 +19,7 @@ from literev.libs.nlp import nlp_topic_description
 from literev.libs.pipeline import (
     get_color_map,
     launch_process,
+    running_delete,
     running_restart,
 )
 from literev.libs.select_functions import (
@@ -220,12 +221,12 @@ def search(request: HttpRequest) -> HttpResponse:
 
 def running(request: HttpRequest) -> HttpResponse:
     context: dict[str, Any] = dict()
-    context["continue_message_box"] = False
+    context["delete_message"] = False
 
     if request.method == "POST":
         submit = request.POST["submit"]
 
-        if submit == "reload":
+        if submit in ["reload", "cancel"]:
             pass
 
         if submit == "restart":
@@ -235,9 +236,15 @@ def running(request: HttpRequest) -> HttpResponse:
             running_restart(project_id)
 
         if submit == "delete":
-            ...
-            # project_id = request.POST["project_id"]
-            # running_delete(project_id)
+            project_id = request.POST["project_id"]
+            project = Project.objects.filter(pk=project_id).first()
+            context["project"] = project
+            context["delete_message"] = True
+
+        if submit == "confirm_delete":
+            project_id = request.POST["project_id"]
+            logging.info(f"Removing project: {project_id}")
+            running_delete(project_id)
 
     projects = Project.objects.all().order_by("-id")
     context["projects"] = projects
