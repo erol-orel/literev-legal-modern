@@ -381,6 +381,21 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
 
     context["standard_list"] = list(standard_list)
 
+    # add values for autocompletion in result
+    result_list = [
+        "REJETE",
+        "ADMIS",
+        "PARTIELMNT ADMIS",
+        "IRRECEVABLE",
+        "REFUSE",
+        "ACCORDE",
+        "RETIRE",
+        "SANS OBJECT",
+        "NO RESULT",
+    ]
+
+    context["result_list"] = result_list
+
     return render(request, "previousgraph.html", context)
 
 

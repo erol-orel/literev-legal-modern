@@ -178,7 +178,6 @@ def get_filters(
         if "filter" in key:
             if value != "{}":
                 filters[key] = json.loads(value)
-
     return filters
 
 
@@ -218,6 +217,8 @@ def get_filtered_document(
         norm_set = set()
         keyword_set = set()
         no_decis_set = set()
+        result_set = set()
+        year_set = set()
 
         intersection_set = set()
 
@@ -276,11 +277,46 @@ def get_filtered_document(
             for document in documents:
                 no_decis_set.add(document.pk)
 
+        result_list = sum(  # noqa: RUF017
+            [v for k, v in filter_dict.items() if k == "Result"], start=[]
+        )
+
+        for result in result_list:
+            if result == "NO RESULT":
+                documents = Document.objects.filter(
+                    project=project,
+                    result="",
+                )
+            else:
+                documents = Document.objects.filter(
+                    project=project,
+                    result=result,
+                )
+
+            for document in documents:
+                result_set.add(document.pk)
+
+        year_list = sum(  # noqa: RUF017
+            [v for k, v in filter_dict.items() if k == "Year"], start=[]
+        )
+
+        for year in year_list:
+            start = f"{year}-01-01"
+            end = f"{year}-12-31"
+            documents = Document.objects.filter(
+                project=project, decision_date__range=(start, end)
+            )
+
+            for document in documents:
+                year_set.add(document.pk)
+
         set_list = [
             norm_set,
             no_decis_set,
             keyword_set,
             topic_set,
+            result_set,
+            year_set,
         ]
 
         non_empty_set = [elem for elem in set_list if elem]

@@ -2,6 +2,7 @@
 const topicSelectorContainer = document.querySelector("#topic-selector-container");
 const valueSelectorContainer = document.querySelector("#value-selector-container");
 const normSelectorContainer = document.querySelector("#norm-selector-container");
+const resultSelectorContainer = document.querySelector("#result-selector-container");
 const typeFilter = document.querySelector("#type-filter");
 console.log("functions filtering...")
 function checkKeySelector() {
@@ -10,18 +11,28 @@ function checkKeySelector() {
         topicSelectorContainer.hidden = false;
         valueSelectorContainer.hidden = true;
         normSelectorContainer.hidden = true;
+        resultSelectorContainer.hidden = true;
     }
 
     else if (typeFilter.value == "Norm") {
         topicSelectorContainer.hidden = true;
         valueSelectorContainer.hidden = true;
         normSelectorContainer.hidden = false;
+        resultSelectorContainer.hidden = true;
+    }
+
+    else if (typeFilter.value == "Result") {
+        topicSelectorContainer.hidden = true;
+        valueSelectorContainer.hidden = true;
+        normSelectorContainer.hidden = true;
+        resultSelectorContainer.hidden = false;
     }
 
     else {
         topicSelectorContainer.hidden = true;
         valueSelectorContainer.hidden = false;
         normSelectorContainer.hidden = true;
+        resultSelectorContainer.hidden = true;
     }
 }
 
@@ -264,6 +275,7 @@ buttonExclude.addEventListener("click", () => {
     const filterType = document.querySelector("#type-filter");
     const topicValue = document.querySelector("#topic-value");
     const normValue = document.querySelector("#norm-filter");
+    const resultValue = document.querySelector("#result-filter");
 
     let contentType = filterType.value;
 
@@ -273,6 +285,9 @@ buttonExclude.addEventListener("click", () => {
     }
     else if (contentType == "Norm") {
         content = normValue.value;
+    }
+    else if (contentType == "Result") {
+        content = resultValue.value;
     }
     else {
         content = newFilter.value;
@@ -319,6 +334,7 @@ buttonAdd.addEventListener("click", () => {
     const topicValue = document.querySelector("#topic-value");
     const normValue = document.querySelector("#norm-filter");
     const container = document.querySelector(`#filter-container-${activeFilter}`);
+    const resultValue = document.querySelector("#result-filter");
 
     let contentType = filterType.value;
 
@@ -330,6 +346,10 @@ buttonAdd.addEventListener("click", () => {
 
     else if (contentType == "Norm"){
         content = normValue.value;
+    }
+
+    else if (contentType == "Result") {
+        content = resultValue.value;
     }
 
     else {

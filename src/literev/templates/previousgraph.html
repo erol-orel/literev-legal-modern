@@ -211,6 +211,12 @@
                   <option value="No_decis">
                     No_decis
                   </option>
+                  <option value="Result">
+                    Result
+                  </option>
+                  <option value="Year">
+                    Year
+                  </option>
                 </select>
               </div>
             </div>
@@ -220,7 +226,7 @@
                 <input id="text-filter"
                        type="text"
                        class="form-control"
-                       placeholder="filter words" />
+                       placeholder="Criteria" />
               </div>
             </div>
 
@@ -234,6 +240,22 @@
                 <datalist id="datalistNorms">
                   {% for norm in standard_list %}
                     <option value="{{ norm }}">
+                    </option>
+                  {% endfor %}
+                </datalist>
+              </div>
+            </div>
+
+            <div id="result-selector-container"
+                 class="col-7">
+              <div class="input-group input-group-lg">
+                <input id="result-filter"
+                       class="form-control"
+                       list="datalistResult"
+                       placeholder="Result to search" />
+                <datalist id="datalistResult">
+                  {% for result in result_list %}
+                    <option value="{{ result }}">
                     </option>
                   {% endfor %}
                 </datalist>
