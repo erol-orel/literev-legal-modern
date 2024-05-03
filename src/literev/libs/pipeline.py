@@ -405,6 +405,7 @@ def scatter_with_hover(
     config["decision_date"] = []
     config["descriptors"] = []
     config["topic"] = []
+    config["number_topic"] = []
     config["topic_10"] = []
     config["standards"] = []
     config["result"] = []
@@ -424,6 +425,8 @@ def scatter_with_hover(
         .order_by("-total_documents")
     )
 
+    number_topic_dict: dict[str, str] = dict()
+
     cluster_number_data = dict()
 
     cluster_number_data["x"] = []
@@ -433,11 +436,13 @@ def scatter_with_hover(
     index = 0
     for e_cluster in grouped_clusters:
         if e_cluster["topic"] == UNCLASSIFIED_PAPERS_TOPIC:
+            number_topic_dict[e_cluster["topic"]] = -1
             continue
         index += 1
         cluster_number_data["x"].append(e_cluster["center_x"])
         cluster_number_data["y"].append(e_cluster["center_y"])
         cluster_number_data["number"].append(index)
+        number_topic_dict[e_cluster["topic"]] = index
 
     cluster_number_source = ColumnDataSource(data=cluster_number_data)
 
@@ -459,7 +464,7 @@ def scatter_with_hover(
             if point.document.decision_date
             else None
         )
-
+        config["number_topic"].append(number_topic_dict[point.cluster.topic])
         config["decision_type"].append(point.document.decision_type)
         config["procedure_type"].append(point.document.procedure_type)
         config["decision_date"].append(decision_date)
@@ -559,6 +564,14 @@ def scatter_with_hover(
     @topic_10</span>
     </div>
 
+
+    
+    <div>
+    <span style="font-size: 12px; color: blue;">
+    Topic number:</span>
+    <span style="font-size: 12px; font-weight: bold;">
+    @number_topic</span>
+    </div>
     </div>
 
     """

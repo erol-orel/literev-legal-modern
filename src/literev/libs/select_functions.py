@@ -71,6 +71,7 @@ def create_final_file(project: Project) -> str:
     index = 0
     for cluster in sorted_clusters:
         if cluster["topic"] == UNCLASSIFIED_PAPERS_TOPIC:
+            number_topic[cluster["topic"]] = "No cluster"
             continue
         index += 1
         number_topic[cluster["topic"]] = index
