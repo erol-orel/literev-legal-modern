@@ -32,12 +32,15 @@ Example:
 from __future__ import annotations
 
 import json
+import logging
 
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Generator
 
 from elasticsearch import Elasticsearch
+
+logger = logging.getLogger(__name__)
 
 
 class DataReader:
@@ -236,18 +239,50 @@ class DataLoader:
         self.reader = reader
 
     def load_into_es(self, es_client: Elasticsearch, index_name: str) -> None:
-        """Loads data into a Elasticsearch index."""
+        """
+        Load data into an Elasticsearch index.
 
-        try:
-            for line, document in self.reader.read_data():
-                del document["document"]
+        Parameters
+        ----------
+        es_client : Elasticsearch
+            An instance of Elasticsearch client.
+        index_name : str
+            Name of the Elasticsearch index where data will be loaded.
+
+        Raises
+        ------
+        RuntimeError
+            If an error occurs during data loading, with detailed error message including line number.
+        """
+
+        count = 0
+        missing_documents = []
+
+        for line, document in self.reader.read_data():
+            try:
+                if "document" not in document:
+                    missing_documents.append((line, document))
+                    logger.error(f"No 'document' key in record at line {line}")
+                    continue
+
+                count += 1
                 es_client.index(
-                    index=index_name,
-                    document=document,
-                    id=document["id"],
+                    index=index_name, document=document, id=document.get("id")
                 )
-        except Exception as e:
-            raise type(e)(f"{e}, record is at line number {line}") from e
+                logger.info(f"Indexed document {count} at line {line}")
+
+            except Exception as e:
+                logger.exception(
+                    f"Error indexing document at line {line}: {e}"
+                )
+                raise RuntimeError(
+                    f"Error processing record at line {line}: {e}"
+                ) from e
+
+        if missing_documents:
+            logger.warning(
+                f"Missing document data in {len(missing_documents)} records."
+            )
 
     def load_into_jsonl_file(self, export_path: str) -> None:
         """Loads data into a JSONL file."""
