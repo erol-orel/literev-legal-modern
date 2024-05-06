@@ -3,15 +3,14 @@
 {% load static %}
 
 {% block content %}
-  <h2 class="pb-2 border-bottom text-center"
-      style="height: 10vh">
+  <h2 class="pb-2 text-center"
+      style="height: 8vh">
     Document Content
   </h2>
 
-  <div class="container d-flex justify-content-center align-items-center">
-
+  <div class="container">
     <hr />
-    <div class="col-10">
+    <div class="px-3">
       <h3 class="text-end">
         <span class="badge text-bg-dark"> {{ document.procedure_type }} </span>
       </h3>
@@ -31,10 +30,13 @@
       </div>
 
     </div>
-
+    <hr />
   </div>
-  <div class="container">
-    <div style="background-color: #f8f9fa">
+
+  <div class="container p-3"
+       style="background-color: #f8f9fa">
+    <div class="m-3"
+         style="white-space: pre-line">
       {{ document.raw_document_text }}
     </div>
     <div style="background-color: #e6f1f0">
