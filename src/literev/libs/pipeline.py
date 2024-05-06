@@ -21,6 +21,7 @@ from django.conf import settings
 from django.db.models import Avg, Count, FloatField
 
 from literev.libs.collectors import ElasticSearchCollector, MetaData
+from literev.libs.nlp import nlp_topic_description
 from literev.models import Cluster, ClusterElement, Document, Project
 from literev_core.clustering import cluster
 from literev_core.preprocessing import (
@@ -724,12 +725,12 @@ def hover_with_keywords(
 
         # After the clustering is done, we generate the topic description
         # TODO: Implement summary text use open AI functions
-        # topic_summary_text = (
-        #     nlp_topic_description(cluster) if cluster_num != -1 else ""
-        # )
+        topic_summary_text = (
+            nlp_topic_description(cluster_created) if cluster_num != -1 else ""
+        )
 
-        # cluster.summary = topic_summary_text
-        # cluster.save()
+        cluster_created.summary = topic_summary_text
+        cluster_created.save()
 
 
 def back_clustering_documents(project: Project) -> None:
