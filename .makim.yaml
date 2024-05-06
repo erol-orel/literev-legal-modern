@@ -238,6 +238,112 @@ groups:
           mkdir -p ${DOCKER_VOLUME_CONTAINER_PATH}
           mkdir -p ${STATIC_ROOT}
 
+      postgres-database-backup:
+        shell: bash
+        args:
+          container-name:
+            help: Specify the name of the container
+            type: string
+            required: True
+          path:
+            help: Specify the path for the backup
+            type: string
+            required: false
+            default: "/opt/data/backup-literev"
+          dump-name:
+            help: Specify the name for the dump file
+            type: string
+            required: false
+            default: "literev-legal-$(date +%d-%m-%y_%H-%M).sql.gz"
+        run: |
+          # Function to validate IP address
+          validate_ip() {
+              local IP=$1
+              if [[ $IP =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                  echo "Valid IP address: $IP"
+                  return 0
+              else
+                  return 1
+              fi
+          }
+
+          # Get IP address
+          POSTGRES_HOST=$(python scripts/get_ip_address.py "${{ args.container_name }}")
+
+          # Check if IP address is valid
+          if ! validate_ip "$POSTGRES_HOST"; then
+              echo "Failed to retrieve valid IP address. Check container status."
+              exit 1
+          else
+              echo "Backup name: '${{ args.path }}/${{ args.dump_name }}'"
+              PGPASSWORD="${{ env.POSTGRES_PASSWORD }}" \
+              pg_dump -h "$POSTGRES_HOST" -p 35432 -U "${{ env.POSTGRES_USER }}" -d "${{ env.POSTGRES_DB_LITEREV }}" | \
+              gzip > "${{ args.path }}/${{ args.dump_name }}"
+          fi
+
+      postgres-database-restore:
+        shell: bash
+        args:
+          container-name:
+            help: Specify the name of the container
+            type: string
+            required: True
+          dump-file:
+            help: Specify the path of the database dump file to restore
+            type: string
+            required: true
+        run: |
+          # Function to validate IP address
+          validate_ip() {
+              local IP=$1
+              if [[ $IP =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                  echo "Valid IP address: $IP"
+                  return 0
+              else
+                  return 1
+              fi
+          }
+
+          # Get IP address from the specified container
+          POSTGRES_HOST=$(python scripts/get_ip_address.py "${{ args.container_name }}")
+
+          # Check if IP address is valid
+          if ! validate_ip "$POSTGRES_HOST"; then
+              echo "Failed to retrieve valid IP address. Check container status."
+              exit 1
+          fi
+
+          echo "[II] Preparing to restore database..."
+
+          # Set environment variable for PostgreSQL password
+          export PGPASSWORD="${{ env.POSTGRES_PASSWORD }}"
+
+          # Prepare command to drop the existing database if it exists
+          DROP_CMD="psql -v ON_ERROR_STOP=1 --host=$POSTGRES_HOST -U "${{ env.POSTGRES_USER }}" \
+          -p "${{ env.POSTGRES_PORT }}" -c 'DROP DATABASE IF EXISTS literev;'"
+
+          # Execute the drop database command
+          echo "Attempting to drop the existing 'literev' database..."
+          eval $DROP_CMD
+
+          # Command to create the database if it does not exist
+          CREATE_CMD="psql -v ON_ERROR_STOP=1 --host=$POSTGRES_HOST -U "${{ env.POSTGRES_USER }}" \
+          -p "${{ env.POSTGRES_PORT }}" -c 'CREATE DATABASE literev WITH OWNER literev;'"
+
+          # Execute the create database command
+          echo "Creating the 'literev' database with owner 'literev'..."
+          eval $CREATE_CMD
+
+          # Construct the psql command for restoring the database
+          PSQL_CMD="psql -v ON_ERROR_STOP=1 --host=$POSTGRES_HOST -U "${{ env.POSTGRES_USER }}" \
+          -p "${{ env.POSTGRES_PORT }}" -d literev"
+
+          # Gunzip the database dump and restore it
+          echo "Restoring database from dump file..."
+          gunzip -c "${{ args.dump_file }}" | $PSQL_CMD
+          echo "Database restored successfully."
+
+
   elasticsearch:
     targets:
       index-json:
@@ -248,97 +354,28 @@ groups:
             help: Specify the index name
             type: string
             required: false
-            default: "judiciary"
-          prepare-jsonl:
-            help: Prepare the JSONL file if not present
-            type: bool
-            default: true
-          json-path:
-            help: Specify the JSON file path if the default file is not found
+            default: "test_judiciary"
+          raw-jsonl:
+            help: Specify the original JSON file path
             type: string
             required: false
             default: "/opt/data/json_raw/output.jsonl"
-        shell: python
+          final-jsonl:
+            help: Specify the final JSON file path
+            type: string
+            required: false
+            default: "/opt/data/json_raw/judiciary_data.jsonl"
+        shell: bash
         run: |
-          import logging
-          import os
-          import time
-          from pathlib import Path
+          CMD=$(python scripts/index_to_elasticsearch.py "${{ args.index_name }}" "${{ args.raw_jsonl }}" "${{ args.final_jsonl }}")
+      
+          echo "Indexing to Elasticsearch..."
+          if [[ "${{ CMD }}" == "true" ]]; then
+            echo "Indexing to Elasticsearch is done."
+          else
+            echo "Indexing to Elasticsearch failed."
+          fi
 
-          from elasticsearch import Elasticsearch
-          from literev.libs.etl import DataLoader, DataReader
-
-          # Setup logging
-          logging.basicConfig(level=logging.INFO)
-          logger = logging.getLogger(__name__)
-
-          # Paths and directory
-          DATA_DIR = Path("/opt/data/json_raw")
-          DATA_DIR.mkdir(parents=True, exist_ok=True)
-          RAW_JSONL_PATH = DATA_DIR / "output.jsonl"
-          FINAL_JSONL_PATH = DATA_DIR / "judiciary_data.jsonl"
-
-          # Elasticsearch configuration
-          ES_JUDICIARY_INDEX_NAME = "${{ args.index_name }}"
-          ES_HOST = "${{ env.ES_HOST_URL }}"
-          ES_USER = "${{ env.ES_USER }}"
-          ES_PASSWORD = "${{ env.ES_PASSWORD }}"
-
-          # Initialize Elasticsearch client
-          ES = Elasticsearch(
-              [ES_HOST],
-              basic_auth=(ES_USER, ES_PASSWORD),
-          )
-
-          # Check cluster health
-          def is_cluster_ready(es_client):
-              try:
-                  health = es_client.cluster.health()
-                  logger.info(f"Cluster Health: {health}")
-                  return health['status'] in ['green', 'yellow']
-              except Exception as e:
-                  logger.error(f"Failed to retrieve cluster health due to: {e}")
-                  return False
-
-          # Wait for cluster to be ready
-          max_retries = 10
-          attempts = 0
-          while not is_cluster_ready(ES) and attempts < max_retries:
-              logger.info("Waiting for the cluster to become ready...")
-              time.sleep(30)
-              attempts += 1
-
-          if attempts == max_retries:
-              logger.error("Max retries reached. Cluster is not ready. Exiting.")
-              exit(1)
-
-          # Verify the existence of the raw JSONL file
-          if not RAW_JSONL_PATH.exists():
-              logger.warning(f"Default JSONL file not found at {RAW_JSONL_PATH}. Using specified file path.")
-              RAW_JSONL_PATH = Path("${{ args.json_path }}")
-
-              if not RAW_JSONL_PATH.exists():
-                  logger.error(f"Specified JSONL file also not found at {RAW_JSONL_PATH}. Please provide a valid file path.")
-                  exit(1)
-
-          # Prepare JSONL file if necessary
-          if not FINAL_JSONL_PATH.exists() or ${{ args.prepare_jsonl }}:
-              logger.info("Starting JSONL parsing and export...")
-              reader = DataReader(file_path=RAW_JSONL_PATH)
-              data_loader = DataLoader(reader)
-              data_loader.load_into_jsonl_file(export_path=FINAL_JSONL_PATH)
-              logger.info("JSONL file prepared.")
-
-          # Load data into Elasticsearch
-          if FINAL_JSONL_PATH.exists():
-              reader = DataReader(file_path=FINAL_JSONL_PATH)
-              data_loader = DataLoader(reader)
-              data_loader.load_into_es(
-                  es_client=ES,
-                  index_name=ES_JUDICIARY_INDEX_NAME
-              )
-
-              logger.info("Data loaded into Elasticsearch successfully!")
 
   release:
     vars:
