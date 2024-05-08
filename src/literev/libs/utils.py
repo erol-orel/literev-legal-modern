@@ -2,8 +2,8 @@ import datetime
 import logging
 
 from literev.libs.collectors import ElasticSearchCollector
-from literev.libs.pipeline import launch_process
 from literev.models import Project
+from literev.tasks import launch_process
 
 
 def get_number_documents(

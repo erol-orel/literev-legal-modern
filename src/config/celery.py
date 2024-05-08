@@ -3,7 +3,12 @@ import os
 from celery import Celery
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.prod")
-app = Celery("literev-celery")
+app = Celery(
+    "literev-celery",
+    include=[
+        "literev.tasks",
+    ],
+)
 
 # namespace means all celery settings will be prepended by CELERY_
 # example: CELERY_BROKER

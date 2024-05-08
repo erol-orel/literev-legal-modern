@@ -20,16 +20,9 @@ from bokeh.plotting import ColumnDataSource, figure
 from django.conf import settings
 from django.db.models import Avg, Count, FloatField
 
-from literev.libs.collectors import ElasticSearchCollector, MetaData
+from literev.libs.collectors import MetaData
 from literev.libs.nlp import nlp_topic_description
 from literev.models import Cluster, ClusterElement, Document, Project
-from literev_core.clustering import cluster
-from literev_core.preprocessing import (
-    create_ngrams,
-    prepare_document,
-    preprocess_documents,
-    update_prepared_document,
-)
 
 thread_dict = dict()
 UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
@@ -187,115 +180,10 @@ def create_document_db(project: Project, document: MetaData) -> None:
     )
 
 
-def back_get_documents(project: Project) -> bool:
-    es_collector = ElasticSearchCollector()
-
-    try:
-        # Just to get all documents
-        logging.info(f"Project query: {project.query}")
-        if project.query == "#PROCESS-ALL-CORPUS-LITEREV-00":
-            documents_list = es_collector.collect_all_documents()
-        else:
-            documents_list = es_collector.collect_documents(
-                project.query, project.range_begin_date, project.range_end_date
-            )
-
-    except Exception as e:
-        logging.warning("ElasticSearchCollector Failed")
-        logging.warning(e)
-        return False
-
-    for document in documents_list:
-        try:
-            create_document_db(project, document)
-
-        except Exception as e:
-            logging.warning(f"Document creation failed, id: {document.doc_id}")
-            logging.warning(e)
-
-    return True
-
-
 def update_pp_document(pk: int, pp_corpus: str) -> None:
     document = Document.objects.get(pk=pk)
     document.preprocessed_document = pp_corpus
     document.save()
-
-
-def back_preprocess_documents(project: Project) -> None:
-    documents = Document.objects.filter(project=project)
-    document_pk_list = []
-    document_corpus_list = []
-    logging.info("getting documents from database")
-
-    document_corpus_list = [
-        document.prepared_for_ngrams
-        for document in documents
-        if document.prepared_for_ngrams
-    ]
-    document_pk_list = [
-        document.pk for document in documents if document.prepared_for_ngrams
-    ]
-    # Getting all documents with no emtpy document_text field
-    logging.info(f"documents for ngrams {len(document_pk_list)}")
-    try:
-        list_trigrams = create_ngrams(document_corpus_list)
-
-    except Exception as e:
-        logging.info(f"Failed in creating ngrams {e}")
-        return
-
-    try:
-        # using preprocessing_m from literev_core
-        preprocessed_corpus_list = preprocess_documents(list_trigrams)
-        logging.info("getting preprocessed documents")
-
-    except Exception as e:
-        logging.warning("literev_core failed in preprocessing")
-        logging.warning(e)
-        return
-
-    logging.info(
-        f"equal number of documents {len(document_pk_list)==len(preprocessed_corpus_list)}"
-    )
-
-    for pk, pp_corpus in zip(document_pk_list, preprocessed_corpus_list):
-        try:
-            update_pp_document(pk, pp_corpus)
-
-        except Exception as e:
-            logging.warning(
-                f"Adding preprocessed document failed. Doc id: {pk}"
-            )
-            logging.warning(e)
-            continue
-
-
-def back_preparing_documents(project: Project) -> None:
-    documents = Document.objects.filter(project=project)
-    logging.info(f"getting documents from database: {documents.count()}")
-
-    # Getting all documents with no emtpy document_text field
-
-    document_list = [
-        document
-        for document in documents
-        if document.raw_document_text and not document.prepared_for_ngrams
-    ]
-
-    for document in document_list:
-        try:
-            result = prepare_document(document)
-            if result:
-                update_prepared_document(document, result)
-            else:
-                logging.info(
-                    f"rejected document id: {document.raw_document_id}, pk: {document.pk}"
-                )
-        except:
-            logging.info(
-                f"failed preparing document id: {document.raw_document_id}, pk: {document.pk}"
-            )
 
 
 def get_color_map(topics: list[str]) -> tuple[Sequence[str], Sequence[str]]:
@@ -409,6 +297,7 @@ def scatter_with_hover(
     # size etc.
     if fig is None:
         fig = figure(
+            title=f"Project {project.id}",
             width=fig_width,
             height=fig_height,
             tools=["box_zoom", "reset", "tap"],
@@ -733,122 +622,5 @@ def hover_with_keywords(
         cluster_created.save()
 
 
-def back_clustering_documents(project: Project) -> None:
-    documents = Document.objects.filter(project=project)
-
-    try:
-        pp_documents = [
-            document.preprocessed_document
-            for document in documents
-            if document.preprocessed_document != ""
-        ]
-        list_id_docs = [
-            document.pk
-            for document in documents
-            if document.preprocessed_document != ""
-        ]
-    except Exception as e:
-        logging.warning("error getting preprocessed document from db")
-        logging.warning(f"project id: {project.pk}")
-        logging.warning(e)
-        return
-
-    try:
-        embedding_2d_array, best_study_clusterer, tf_idf_sorted = cluster(
-            project, pp_documents
-        )
-    except Exception as e:
-        logging.warning(f"error in clustering, project id: {project.pk}")
-        logging.warning(e)
-        return
-
-    try:
-        hover_with_keywords(
-            project,
-            list_id_docs,
-            embedding_2d_array,
-            best_study_clusterer,
-            tf_idf_sorted,
-        )
-    except Exception as e:
-        logging.warning("error creating Cluster, ClusterElement in db")
-        logging.warning(f"project id: {project.pk}")
-        logging.warning(e)
-        return
-
-    logging.info("success in clustering")
-
-
-def back_plotting_documents(project: Project) -> None:
-    try:
-        path = settings.PLOT_DATA / f"{project.pk}_plot.html"
-        div_path = settings.PLOT_DATA / f"{project.pk}_div.html"
-        script_path = settings.PLOT_DATA / f"{project.pk}_script.html"
-
-        scatter_with_hover(project, path, div_path, script_path)
-
-    except Exception as e:
-        logging.warning("error creating plot")
-        logging.warning(e)
-        return
-
-    logging.info("Success creating plot")
-
-
 def back_process(project: Project) -> None:
-    if project.step == "getting_documents":
-        project.is_running = True
-        project.save()
-
-        if back_get_documents(project):
-            project.step = "preparing"
-            project.step_number = 0
-            project.save()
-            logging.info("Success getting documents")
-
-    if project.step == "preparing":
-        back_preparing_documents(project)
-        project.step = "preprocessing"
-        project.step_number = 0
-        project.save()
-        logging.info("Success preparing documents")
-
-    if project.step == "preprocessing":
-        back_preprocess_documents(project)
-        project.step = "clustering"
-        project.step_number = 0
-        project.save()
-        logging.info("Success preprocessing documents")
-
-    # TODO: implement clustering
-    if project.step == "clustering":
-        back_clustering_documents(project)
-        project.step_number = 0
-        project.step = "plotting"
-        project.save()
-
-    if project.step == "plotting":
-        back_plotting_documents(project)
-        project.step = ""
-        project.is_finish = True
-        project.is_running = False
-        project.save()
-
-
-def launch_process(project: Project) -> bool:
-    if project.is_finish:
-        return False
-
-    # check if the research is currently running
-    if project.is_running:
-        return False
-
-    project_id = project.id
-
-    thread_dict[project_id] = Thread(
-        target=back_process, args=[project], daemon=True
-    )
-
-    thread_dict[project_id].start()
-
-    return True
+    pass

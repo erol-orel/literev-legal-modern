@@ -198,6 +198,10 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_TASK_SERIALIZER = "pickle"
 CELERY_RESULT_SERIALIZER = "pickle"
 CELERY_ACCEPT_CONTENT = ["pickle"]
+CELERY_WORKER_CONCURRENCY = os.environ.get(
+    "CELERY_WORKER_CONCURRENCY", default=4
+)
+CELERY_WORKER_POOL_RESTARTS = True
 
 # STATIC / MEDIA
 # ------------------------------------------------------------------------------
@@ -243,14 +247,17 @@ for dir in [
 # DOCUMENTS COLLECTORS
 # ------------------------------------------------------------------------------
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000000
+mp.set_start_method("spawn", True)  # This needs to be set at the program start
 NUMBER_THREADS_ALLOWED = env.int(
     "NUMBER_THREADS_ALLOWED", default=mp.cpu_count()
 )
 NUMBER_TRIALS = env.int("NUMBER_TRIALS", default=10)
+NUMBER_OPTUNA_JOBS = env.int("NUMBER_OPTUNA_JOBS", default=5)
 NUMBER_ARTICLE_BY_PAGE = env.int("NUMBER_ARTICLE_BY_PAGE", default=30)
 
-# SECURITY
 
+# SECURITY
+# ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#session-cookie-httponly
 SESSION_COOKIE_HTTPONLY = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#csrf-cookie-httponly
@@ -340,15 +347,3 @@ DEACTIVATE_ALL_COLLECTORS = env.bool(
 ES_HOST_URL = os.environ.get("ES_HOST_URL")
 ES_USERNAME = os.environ.get("ES_USERNAME")
 ES_PASSWORD = os.environ.get("ES_PASSWORD")
-
-# TODO: Solve this duplicated name
-# ELASTICSEARCH
-ES_HOST_URL = os.environ.get(
-    "ES_HOST_URL", default=""
-)  # e.g.: "http://localhost:9200"
-ES_USERNAME = os.environ.get(
-    "ES_USERNAME", default=""
-)  # Elastic Search username
-ES_PASSWORD = os.environ.get(
-    "ES_PASSWORD", default=""
-)  # Elastic Search password

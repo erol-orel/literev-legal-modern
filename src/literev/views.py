@@ -6,7 +6,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 from http import HTTPStatus
-from typing import Any, Optional
+from typing import Any
 
 from django.conf import settings
 from django.db.models import Count
@@ -18,7 +18,6 @@ from literev.forms import SearchForm
 from literev.libs.nlp import nlp_topic_description
 from literev.libs.pipeline import (
     get_color_map,
-    launch_process,
     running_delete,
     running_restart,
 )
@@ -46,23 +45,9 @@ from literev.models import (
     Project,
     TableChoice,
 )
-from tasks.sample_tasks import add_one_task, run_pipeline  # type: ignore
+from literev.tasks import launch_process
 
 UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
-
-
-# TODO: check tht typing maybe is wrong
-def run_task(request: HttpRequest, number: int) -> Optional[JsonResponse]:
-    if number:
-        task = add_one_task.delay(number)
-        return JsonResponse({"task_id": task.id}, status=202)
-    # Check this part this should return something?
-    return None
-
-
-def run_pipeline_sample(request: HttpRequest) -> JsonResponse:
-    task = run_pipeline()
-    return JsonResponse({"task_id": task.id}, status=202)
 
 
 class HomePageView(TemplateView):

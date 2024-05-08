@@ -49,12 +49,6 @@ services:
       retries: 5
       start_period: 40s  # requires docker-compose 3.4
       test: ["CMD", "curl", "-f", "http://localhost:${DJANGO_PORT:-8000}/status/"]
-    deploy:
-      resources:
-        limits:
-          cpus: ${DOCKER_CPU_LIMIT}
-        reservations:
-          cpus: ${DOCKER_CPU_RESERVATION}
 
   literev-postgres:
     hostname: literev-postgres
@@ -88,7 +82,7 @@ services:
     build:
       context: ..
       dockerfile: containers/literev/Dockerfile
-    command: celery --app=config worker --loglevel=info
+    command: celery --app=config worker --loglevel=INFO  --concurrency=${CELERY_WORKER_CONCURRENCY}
     env_file:
       - ../.env
     depends_on:
@@ -100,6 +94,12 @@ services:
       - media_root:${MEDIA_ROOT:-/opt/data/literev/static/media}
     networks:
       - literev
+    deploy:
+      resources:
+        limits:
+          cpus: ${DOCKER_CPU_LIMIT}
+        reservations:
+          cpus: ${DOCKER_CPU_RESERVATION}
 
   literev-redis:
     image: redis:7-alpine
