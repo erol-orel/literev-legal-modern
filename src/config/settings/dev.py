@@ -12,7 +12,6 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 
 from config.settings.base import *  # noqa: F403
 
-DEBUG = True
 SECURE_SSL_REDIRECT = False
 
 INSTALLED_APPS += [  # NOQA F405

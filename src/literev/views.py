@@ -3,13 +3,15 @@ from __future__ import annotations
 import datetime
 import logging
 
+from django.db.models import Count, Q
+
 logging.basicConfig(level=logging.INFO)
 
 from http import HTTPStatus
 from typing import Any
 
 from django.conf import settings
-from django.db.models import Count
+from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.views.generic import TemplateView
@@ -93,7 +95,7 @@ def search_continue(
     request: HttpRequest, context: dict[str, Any]
 ) -> dict[str, Any]:
     # use when implement login
-    # user = cast(User, request.user)
+    user = request.user
     project_name = request.session["project_name"]
     query = request.session["query"]
     range_begin_date = datetime.datetime.strptime(
@@ -106,6 +108,7 @@ def search_continue(
     total_documents = request.session["total_documents"]
 
     project = Project.objects.create(
+        user=user,
         name=project_name,
         creation_date=datetime.datetime.now(),
         query=query,
@@ -147,6 +150,7 @@ def search_evaluate(
     return context
 
 
+@login_required(login_url="/accounts/login/")
 def search(request: HttpRequest) -> HttpResponse:
     logging.info("executing the search function")
     context: dict[str, Any] = dict()
@@ -204,9 +208,11 @@ def search(request: HttpRequest) -> HttpResponse:
     return render(request, "search.html", context)
 
 
+@login_required(login_url="/accounts/login/")
 def running(request: HttpRequest) -> HttpResponse:
     context: dict[str, Any] = dict()
     context["delete_message"] = False
+    user = request.user
 
     if request.method == "POST":
         submit = request.POST["submit"]
@@ -231,12 +237,15 @@ def running(request: HttpRequest) -> HttpResponse:
             logging.info(f"Removing project: {project_id}")
             running_delete(project_id)
 
-    projects = Project.objects.all().order_by("-id")
+    # Include always the first project
+    projects = Project.objects.filter(Q(user=user) | Q(id=1)).order_by("-id")
+
     context["projects"] = projects
 
     return render(request, "running.html", context)
 
 
+@login_required(login_url="/accounts/login/")
 def previousgraph(request: HttpRequest) -> HttpResponse:
     context: dict[str, Any] = dict()
     context["AreYouSure"] = False
@@ -248,12 +257,18 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
     # TODO: Add this piece of code after adding user
     # check if there is the id of the project and this id is available
     # Check if the project project belongs to the actual user
-    # actual_user = cast(User, request.user)
-    # research_exist = Project.objects.filter(
-    #     user=actual_user, id=research_id
-    # ).exists()
-    # if not research_exist:
-    #     return redirect("/search")
+    actual_user = request.user
+
+    # Include always the first project
+    if project_id == "1":
+        project_exist = Project.objects.filter(id=project_id).exists()
+    else:
+        project_exist = Project.objects.filter(
+            user=actual_user, id=project_id
+        ).exists()
+
+    if not project_exist:
+        return redirect("/search")
     # give all the variable
     # list of cluster
     project = Project.objects.filter(id=project_id).first()
@@ -476,6 +491,7 @@ def generate_summary(request: HttpRequest, cluster_id: int) -> HttpResponse:
         )
 
 
+@login_required(login_url="/accounts/login/")
 def tableselect(request: HttpRequest) -> HttpResponse:
     context: dict[str, Any] = dict()
     current_page = 1
@@ -485,7 +501,15 @@ def tableselect(request: HttpRequest) -> HttpResponse:
     if not project_id:
         return redirect("/search")
 
-    project = Project.objects.filter(id=project_id).first()
+    actual_user = request.user
+
+    # Include always the first project
+    if project_id == "1":
+        project = Project.objects.filter(id=project_id).first()
+    else:
+        project = Project.objects.filter(
+            user=actual_user, id=project_id
+        ).first()
 
     if not project:
         return redirect("/search")
@@ -626,6 +650,7 @@ def tableselect(request: HttpRequest) -> HttpResponse:
     return render(request, "tableselect.html", context)
 
 
+@login_required(login_url="/accounts/login/")
 def contentdocument(request: HttpRequest, document_id: int) -> HttpResponse:
     context: dict[str, Any] = dict()
 

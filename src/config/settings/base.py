@@ -17,7 +17,6 @@ import multiprocessing as mp
 import os
 
 from pathlib import Path
-from typing import Optional
 
 import environ
 
@@ -73,14 +72,7 @@ DJANGO_APPS = [
     "django.contrib.sites",
 ]
 
-THIRD_PARTY_APPS = [
-    # "oauth2_provider",
-    "allauth",
-    "allauth.account",
-    "allauth.socialaccount",
-    "allauth.socialaccount.providers.orcid",
-    # "rest_framework",
-]
+THIRD_PARTY_APPS = []
 
 LOCAL_CONFIG_APP = ["literev.apps.LiterevConfig"]
 
@@ -98,7 +90,6 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
-    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -270,27 +261,7 @@ X_FRAME_OPTIONS = "DENY"
 AUTHENTICATION_BACKENDS = [
     # Needed to login by username in Django admin, regardless of `allauth`
     "django.contrib.auth.backends.ModelBackend",
-    # `allauth` specific authentication methods, such as login by e-mail
-    "allauth.account.auth_backends.AuthenticationBackend",
 ]
-
-# django-allauth
-# ----------------------------------------------------------------------------
-# https://django-allauth.readthedocs.io/en/latest/configuration.html
-
-ACCOUNT_ALLOW_REGISTRATION = env.bool(
-    "DJANGO_ACCOUNT_ALLOW_REGISTRATION", True
-)
-ACCOUNT_AUTHENTICATION_METHOD = "email"
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_EMAIL_VERIFICATION = "mandatory"
-# ACCOUNT_LOGOUT_ON_GET = True
-
-ACCOUNT_USER_MODEL_USERNAME_FIELD: Optional[str] = None
-ACCOUNT_USERNAME_REQUIRED = False
-
-# WORKAROUND TO USE THE CUSTOM LOGINFORM
-# ACCOUNT_FORMS = {'login': 'literev.forms.LoginForm'}
 
 # To sent emails from the webapp in the terminal
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

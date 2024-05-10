@@ -1,0 +1,52 @@
+<!-- templates/registration/login.html -->
+
+{% extends "registration/base.html" %}
+
+{% block head_title %}
+  Login
+{% endblock head_title %}
+
+{% block content %}
+  <div id="login">
+    <form method='POST'>
+      {% csrf_token %}
+      <h2 class="fw-bold mb-2 text-center">
+        <span class="text-dark">Lite</span><span class="text-primary">Rev</span>
+      </h2>
+      <div class="mb-4">
+        {{ form.as_p }}
+      </div>
+      <div class="d-flex justify-content-center">
+        <div class="d-grid col-5">
+          <button class="mb-2 me-3 btn btn-outline-dark"
+                  type='submit'
+                  name='submit'
+                  value='login'>
+            Login
+          </button>
+        </div>
+        <div class="d-grid col-5">
+          <a class="mb-2 ms-3 btn btn-outline-primary"
+             href="{% url "home" %}">
+            Go back
+          </a>
+        </div>
+      </div>
+    </form>
+  </div>
+
+{% endblock content %}
+
+{% block js_code %}
+  <script>
+  // Extra code to add classes to input fields
+  const elementsInputs = document.querySelectorAll('input[id^="id_"]');
+  elementsInputs.forEach(element => {
+    element.classList.add("form-control");
+  });
+  const labels = document.querySelectorAll("label");
+  labels.forEach(e => {
+    e.classList.add("mb-2");
+  })
+  </script>
+{% endblock js_code %}

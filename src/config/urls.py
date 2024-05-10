@@ -27,6 +27,7 @@ static_url = static(
 urlpatterns = [
     # path("", include(("literev.urls", "literev"), namespace="literev")),
     path('', include('literev.urls')),
+    path("accounts/", include("django.contrib.auth.urls")),
     path('admin/', admin.site.urls),
 ]
 

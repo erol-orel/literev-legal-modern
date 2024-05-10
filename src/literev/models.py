@@ -1,12 +1,15 @@
 import datetime
 
+from django.contrib.auth.models import User
 from django.db import models
 
 # from literev.models import CustomUser
 
 
 class Project(models.Model):
-    # user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True)
+    user = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, default=None
+    )
     name = models.CharField(max_length=256, default="No name")
     creation_date = models.DateField(default=datetime.date(1900, 1, 1))
     query = models.CharField(max_length=4096)
