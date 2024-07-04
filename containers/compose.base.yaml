@@ -25,7 +25,6 @@ services:
     volumes:
       - ${DOCKER_VOLUME_CONTAINER_PATH}:${DOCKER_VOLUME_CONTAINER_PATH}
 
-
   literev:
     extends: literev-base
     hostname: literev
@@ -57,15 +56,16 @@ services:
     build:
       context: ..
       dockerfile: containers/postgresql/Dockerfile
+      args:
+        HOST_UID: ${HOST_UID}
+        HOST_GID: ${HOST_GID}
     env_file:
       - ../.env
     ports:
       - ${POSTGRES_PORT}:${POSTGRES_PORT}
-    environment:
-      PGDATA: /var/lib/postgresql/data
-    # user: "postgres:postgres"
+    user: "postgres:postgres"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ${POSTGRES_DATA}:/var/lib/postgresql/data
     networks:
       - literev
     healthcheck:
@@ -118,7 +118,6 @@ services:
 
 
 volumes:
-  pgdata:
   static_root:
   media_root:
 

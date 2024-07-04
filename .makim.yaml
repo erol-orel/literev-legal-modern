@@ -3,7 +3,7 @@ shell: bash
 env-file: .env
 groups:
   clean:
-    targets:
+    tasks:
       all:
         help: remove build artifacts, compiled files, and cache
         shell: bash
@@ -24,7 +24,7 @@ groups:
           rm -rf .ruff_cache
 
   tests:
-    targets:
+    tasks:
       lint:
         help: Run linter tools
         dependencies:
@@ -34,7 +34,7 @@ groups:
           pre-commit run --all-files --verbose
 
   django:
-    targets:
+    tasks:
       collectstatic:
         help: Run the collectstatic for the literev service
         run: |
@@ -211,7 +211,7 @@ groups:
           python src/manage.py shell
 
   containers:
-    targets:
+    tasks:
       wait:
         args:
           timeout:
@@ -236,7 +236,9 @@ groups:
         run: |
           mkdir -p ${LITEREV_CACHE_DIR}
           mkdir -p ${DOCKER_VOLUME_CONTAINER_PATH}
+          mkdir -p ${POSTGRES_DATA}
           mkdir -p ${STATIC_ROOT}
+          sudo chown -R ${HOST_UID}:${HOST_GID} ${STATIC_ROOT}
 
       postgres-database-backup:
         shell: bash
@@ -343,9 +345,24 @@ groups:
           gunzip -c "${{ args.dump_file }}" | $PSQL_CMD
           echo "Database restored successfully."
 
+  nginx:
+    tasks:
+      proxydomain:
+        help: Create SSL proxy configuration with CertBot for a domain
+        env-file: .env
+        run: |
+          python ./containers/nginx/scripts/generate_proxy_ui.py
+      generate-certificate:
+        help: Generate certificate
+        run: |
+          ./scripts/generate-certificates.sh
+      setup:
+        dependencies:
+          - task: nginx.proxydomain
+          - task: nginx.generate-certificate
 
   elasticsearch:
-    targets:
+    tasks:
       index-json:
         help: Load normalized sample data to Elasticsearch
         env-file: .env
@@ -376,7 +393,6 @@ groups:
             echo "Indexing to Elasticsearch failed."
           fi
 
-
   release:
     vars:
       app: |
@@ -392,7 +408,7 @@ groups:
           -p "semantic-release-replace-plugin@1.2.7" \
           semantic-release
 
-    targets:
+    tasks:
       ci:
         help: run semantic release on CI
         run: ${{ vars.app }} --ci

@@ -21,8 +21,8 @@ SHELL ["/bin/bash", "-c"]
 ENV ENV_NAME=literev
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
-ARG UID=1000
-ARG GID=1000
+ARG UID
+ARG GID
 
 RUN apt-get update -y \
   && apt-get install -y \
@@ -99,6 +99,7 @@ ENV DOCKER_VOLUME_CONTAINER_PATH ${DOCKER_VOLUME_CONTAINER_PATH}
 RUN mkdir -p ${DOCKER_VOLUME_CONTAINER_PATH}/articles \
   && mkdir -p ${DOCKER_VOLUME_CONTAINER_PATH}/plot \
   && mkdir -p ${DOCKER_VOLUME_CONTAINER_PATH}/pkl \
+  && mkdir -p ${DOCKER_VOLUME_CONTAINER_PATH}/static \
   && mkdir -p ${STATIC_ROOT}/.well-known/acme-challenge \
   && mkdir -p ${MEDIA_ROOT}
 
@@ -108,3 +109,4 @@ ENV PYTHONPATH='/opt/services/literev/src'
 
 ENTRYPOINT ["tini", "--", "/opt/entrypoint.sh"]
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+

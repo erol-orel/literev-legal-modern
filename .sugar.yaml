@@ -11,12 +11,14 @@ groups:
       - containers/compose.prod.yaml
     env-file: .env
     services:
-      default: literev,literev-postgres,literev-redis,literev-celery
+      default: literev,literev-postgres,literev-redis,literev-celery,literev-nginx,certbot
       available:
         - name: literev
         - name: literev-postgres
         - name: literev-redis
         - name: literev-celery
+        - name: literev-nginx
+        - name: certbot
 
   dev:
     compose-path:

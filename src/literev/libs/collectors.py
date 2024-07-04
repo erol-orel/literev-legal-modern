@@ -63,7 +63,8 @@ class ElasticSearchCollector:
         self.es = Elasticsearch(
             [settings.ES_HOST_URL],
             basic_auth=(settings.ES_USERNAME, settings.ES_PASSWORD),
-        )
+            verify_certs=settings.ES_SSL_CERTS,
+            )
 
     def collect_documents(
         self, search: str, date_begin: datetime.date, date_end: datetime.date

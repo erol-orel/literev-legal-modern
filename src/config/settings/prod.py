@@ -89,6 +89,25 @@ CSRF_TRUSTED_ORIGINS = [
     for prot in ["http", "https"]
     for domain in os.getenv("CERTBOT_DOMAIN", "").split(",")
 ]
+CSRF_TRUSTED_ORIGINS = [
+    f"{prot}://{domain}"
+    for prot in ["http", "https"]
+    for domain in os.getenv("CERTBOT_DOMAIN", "").split(",")
+]
+
+CSRF_ALLOWED_ORIGINS = [
+    f"{prot}://{domain}"
+    for prot in ["http", "https"]
+    for domain in os.getenv("CERTBOT_DOMAIN", "").split(",")
+]
+
+CORS_ORIGINS_WHITELIST = [
+    f"{prot}://{domain}"
+    for prot in ["http", "https"]
+    for domain in os.getenv("CERTBOT_DOMAIN", "").split(",")
+]
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # LOGGING
 

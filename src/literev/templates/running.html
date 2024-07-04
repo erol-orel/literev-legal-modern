@@ -17,7 +17,6 @@
            tabindex="-1"
            aria-labelledby="deleteModal"
            aria-hidden="false">
-
         <div class="modal-dialog modal-dialog-centered">
           <div class="modal-content">
             <div class="modal-header">
@@ -35,7 +34,7 @@
             </div>
             <div class="modal-body">
               <p>
-                Are you sure you want to delete following project?
+                Are you sure you want to delete the following project?
               </p>
               <div class="ms-5">
                 Project: {{ project.name }}
@@ -55,7 +54,7 @@
                 {% endif %}
               </div>
               <p>
-                This action cannot be undone. Delete this project will permanently remove it.
+                This action cannot be undone. Deleting this project will permanently remove it.
               </p>
             </div>
             <div class="modal-footer">
@@ -171,18 +170,15 @@
                   </div>
                 </div>
               {% endwith %}
-
             {% elif project.step == "preprocessing" %}
               <div class="col-1">
-
               </div>
               <div class="pe-5 col-2">
-                Creating n grams
+                Creating n-grams
               </div>
             {% elif project.step == "clustering" %}
               <div class="col-1">
                 Trial: {{ project|clustering_progress }}
-
               </div>
               {% with percentage=project|clustering_percentage %}
                 <div class="pe-5 col-2">
@@ -205,24 +201,18 @@
                 Plotting
               </div>
               <div class="pe-5 col-2">
-                Creating a plot results
+                Creating plot results
               </div>
-
             {% elif project.is_finish %}
               <div class="col-1">
-                To see results
+                See results
               </div>
               <div class="pe-5 col-2 pt-2">
                 <div class="col-1 text-center">
                   <a href="/previousgraph?project_id={{ project.pk }}">link</a>
                 </div>
               </div>
-
             {% endif %}
-            <!-- For future adding status -->
-            <!-- <div class="text-center col-2">
-                <i class="text-primary fs-3 fa-solid fa-gear"></i>
-              </div> -->
             <div class="text-center col-2">
               <div class="row gap-2 gap-lg-1 justify-content-xl-center">
                 <div class="col-sm-12 col-xxl-4">
@@ -232,11 +222,11 @@
                   <button type="submit"
                           name="submit"
                           value="restart"
-                          class="btn btn-secondary">
+                          class="btn btn-secondary"
+                          style="display: none">
                     Restart
                   </button>
                 </div>
-                <!-- Button trigger modal -->
                 {% if project.is_finish and project.id != 1 %}
                   <div class="ms-2 col-sm-12 col-xxl-4">
                     <button type="submit"
@@ -299,7 +289,6 @@
             </div>
           </div>
           <div class="col-2">
-            <!-- slot -->
           </div>
         </div>
         <div class="row">
@@ -315,6 +304,7 @@
                     method="POST">
                 {% csrf_token %}
                 <button type="submit"
+                        id="check-status"
                         name="submit"
                         value="reload"
                         class="btn btn-md btn-primary">
@@ -330,21 +320,23 @@
 {% endblock content %}
 
 {% block jscode %}
-
   <script>
-    // To modify scrolling through javascript
-    // scrolling instantly
     const root = document.querySelector(':root');
     root.setAttribute("style", "scroll-behavior: auto;");
-    // to store the scroll position
     document.addEventListener("DOMContentLoaded", function(event) {
-            var scrollpos = localStorage.getItem('scrollpos');
-            if (scrollpos) window.scrollTo(0, scrollpos);
-        });
+      var scrollpos = localStorage.getItem('scrollpos');
+      if (scrollpos) window.scrollTo(0, scrollpos);
+    });
+    window.onbeforeunload = function(e) {
+      localStorage.setItem('scrollpos', window.scrollY);
+    };
 
-        window.onbeforeunload = function(e) {
-            localStorage.setItem('scrollpos', window.scrollY);
-
-        };
+    const updateButton = document.querySelector("#check-status");
+    if (updateButton) {
+      window.setInterval(() => {
+        updateButton.click();
+      }, 10000);
+    }
   </script>
 {% endblock jscode %}
+

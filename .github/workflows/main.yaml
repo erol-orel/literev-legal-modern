@@ -6,6 +6,10 @@ on:
     branches: [ main ]
 
 env:
+  HOST_UID: 1001
+  HOST_GID: 1001
+  DOCKER_CPU_LIMIT: 1.0
+  DOCKER_CPU_RESERVATION: 0.5
   LITEREV_USE_MULTIPROCESSING: false
   NUMBER_ARTICLE_BY_PAGE: 30
   NUMBER_THREADS_ALLOWED: 4
@@ -17,6 +21,8 @@ env:
   DJANGO_SECRET_KEY: "django-insecure-96*q09uh20(^i4sdxqh3n_v#d-o:**7zrri&k-j3@f10hm88)"
   DJANGO_ENV: dev
   MEDIA_ROOT: /opt/data/literev/static/media
+  FRONTEND_HOST_PORT: 8000
+  POSTGRES_PORT: 35432
   POSTGRES_HOST: localhost  # literev-postgres
   POSTGRES_DB: postgres
   POSTGRES_USER: postgres
@@ -24,6 +30,7 @@ env:
   POSTGRES_DB_LITEREV: literev
   POSTGRES_USER_LITEREV: literev
   POSTGRES_PASSWORD_LITEREV: literevqsx3409po
+  POSTGRES_DATA: /opt/data/literev/postgres
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   CERTBOT_EMAIL: ci@literev.unige.ch
   CERTBOT_DOMAIN: literev.unige.ch
@@ -33,6 +40,7 @@ env:
   PUBMED_REQUEST_TIME_INTERVAL: 0.5
   PUBMEDCENTRAL_REQUEST_TIME_INTERVAL: 0.5
   DOCKER_VOLUME_CONTAINER_PATH: /opt/data/literev
+  USE_CONTAINER: True
 
 jobs:
   deploy:
@@ -64,16 +72,14 @@ jobs:
           
     - name: Create environment variables files
       run: |
-        export FRONTEND_HOST_PORT=$RANDOM
-        export POSTGRES_PORT=$RANDOM
+        export FRONTEND_HOST_PORT=${FRONTEND_HOST_PORT}
+        export POSTGRES_PORT=${POSTGRES_PORT}
         export DOCKER_PROJECT_NAME=$RANDOM
-        export HOST_UID=$(id -u)
-        export HOST_GID=$(id -g)
+        export HOST_UID=${HOST_UID}
+        export HOST_GID=${HOST_GID}
+        export USE_CONTAINER=True
+        cd /home/runner/work/literev-legal/literev-legal/
         envsubst < .env.tpl > .env
-
-    - name: Create folder in the host side
-      run: |
-        mkdir -p ${MEDIA_ROOT}
 
     - name: Check if poetry.lock is updated
       run: poetry check
@@ -97,7 +103,7 @@ jobs:
       run: sugar build --services literev-postgres
 
     - name: Start literev-postgres container
-      run: sugar ext start --services literev-postgres,literev --options -d
+      run: sugar ext start --services literev-postgres --options -d
 
     - name: Migrate containers
       run: makim django.migrate

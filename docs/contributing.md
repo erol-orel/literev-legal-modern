@@ -142,6 +142,7 @@ HOST_UID=1001
 HOST_GID=1001
 ENV=dev
 DEBUG=True
+
 POSTGRES_HOST=literev-postgres
 POSTGRES_PORT=35432
 POSTGRES_DB=postgres
@@ -150,8 +151,10 @@ POSTGRES_PASSWORD=postgres
 POSTGRES_DB_LITEREV=literev
 POSTGRES_USER_LITEREV=literev
 POSTGRES_PASSWORD_LITEREV=literevqsx3409po
+POSTGRES_DATA=/opt/data/literev/postgres
 
 FRONTEND_HOST_PORT=8000
+DJANGO_SECRET_KEY='django-testeforq09uh20(^i4sdxqh3n_v#d-$o=**7zrri&k-j3@f10hm88)django-insecure-96*'
 
 DOCKER_VOLUME_CONTAINER_PATH=/opt/data/literev
 STATIC_ROOT=/opt/data/literev/static
@@ -167,12 +170,19 @@ USE_CONTAINER=True
 
 GUNICORN_WORKERS=1
 
+DOCKER_CPU_LIMIT=1.0
+DOCKER_CPU_RESERVATION=0.5
+
 CERTBOT_DOMAIN=myapp.domain.com
 CERTBOT_EMAIL=myapp@gmail.com
+CERTBOT_CONF=./containers/nginx/data/certbot/conf
+CERTBOT_WWW=./containers/nginx/data/certbot/www
+NGNIX_CONF=./containers/nginx/data/config/prod
 
-ES_HOST_URL=https://es.literev.com:9200
 ES_USERNAME=elastic
 ES_PASSWORD=I39hAE_bvikcbRHNhyvf
+ES_HOST_URL=http://95.216.201.202:9200/
+ES_SSL_CERTS=False
 
 CELERY_BROKER=redis://literev-redis:6379/0
 CELERY_BACKEND=redis://literev-redis:6379/0
@@ -181,8 +191,6 @@ NUMBER_ARTICLE_BY_PAGE=30
 NUMBER_THREADS_ALLOWED=4
 NUMBER_TRIALS=20
 UPDATE_INTERVAL=2700000
-FRONTEND_HOST_PORT=8000
-DJANGO_SECRET_KEY='django-testeforq09uh20(^i4sdxqh3n_v#d-$o=**7zrri&k-j3@f10hm88)django-insecure-96*'
 ```
 
 If you don't want to use containers, please use: `USE_CONTAINER=False`.
@@ -364,3 +372,4 @@ the commit message format to the PR's title.
 
   If it doesn't fix your problem, please check this github issue:
   https://github.com/python-poetry/poetry/issues/4523
+

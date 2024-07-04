@@ -2,5 +2,12 @@
 # Reference: https://github.com/thegraphnetwork/epigraphhub_py/blob/main/docker/postgresql/Dockerfile
 FROM postgres:14-bullseye
 
+ARG HOST_UID
+ARG HOST_GID
+
+RUN usermod -u ${HOST_UID} postgres \
+    && groupmod -g ${HOST_GID} postgres \
+    && echo "postgres:x:${HOST_UID}:${HOST_GID}:PostgreSQL,,,:/var/lib/postgresql:/bin/bash" >> /etc/passwd
+
 USER postgres
 COPY ./containers/postgresql/scripts/init-database.sql /docker-entrypoint-initdb.d/init-database.sql
