@@ -58,25 +58,26 @@ class SearchForm(forms.Form):
 
     def clean(self) -> dict[str, Any]:
         data = super().clean() or {}
+
         if not data:
             raise ValidationError("Form is empty.")
 
         if not data.get("project_name"):
             self.add_error("project_name", "Please provide a project name.")
 
-        if "query" not in data:
+        if not data.get("query"):
             self.add_error(
                 "query",
                 "Please provide the search query.",
             )
 
-        if "range_begin_date" not in data:
+        if not data.get("range_begin_date"):
             self.add_error(
                 "range_begin_date",
                 "Please provide the beginning date in the format YYYY-MM-DD.",
             )
 
-        if "range_end_date" not in data:
+        if not data.get("range_end_date"):
             self.add_error(
                 "range_end_date",
                 "Please provide the ending date in the format YYYY-MM-DD.",

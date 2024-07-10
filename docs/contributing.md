@@ -372,4 +372,3 @@ the commit message format to the PR's title.
 
   If it doesn't fix your problem, please check this github issue:
   https://github.com/python-poetry/poetry/issues/4523
-

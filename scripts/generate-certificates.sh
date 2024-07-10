@@ -100,4 +100,3 @@ echo
 
 echo "----> Reloading nginx ..."
 sugar exec --service literev-nginx --cmd nginx -s reload
-

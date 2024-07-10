@@ -107,7 +107,7 @@ CORS_ORIGINS_WHITELIST = [
     for domain in os.getenv("CERTBOT_DOMAIN", "").split(",")
 ]
 
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # LOGGING
 

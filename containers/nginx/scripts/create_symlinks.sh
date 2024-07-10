@@ -7,4 +7,3 @@ for file in "$SOURCE_DIR"/*; do
     filename=$(basename "$file")
     ln -s "$file" "$DEST_DIR/$filename"
 done
-

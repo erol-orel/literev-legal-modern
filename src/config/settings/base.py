@@ -319,4 +319,3 @@ ES_HOST_URL = os.environ.get("ES_HOST_URL")
 ES_USERNAME = os.environ.get("ES_USERNAME")
 ES_PASSWORD = os.environ.get("ES_PASSWORD")
 ES_SSL_CERTS = os.environ.get("ES_SSL_CERTS", default=False)
-
