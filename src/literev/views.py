@@ -20,7 +20,6 @@ from literev.forms import SearchForm
 from literev.libs.nlp import nlp_topic_description
 from literev.libs.pipeline import (
     get_color_map,
-    running_delete,
     running_restart,
 )
 from literev.libs.select_functions import (
@@ -47,7 +46,7 @@ from literev.models import (
     Project,
     TableChoice,
 )
-from literev.tasks import launch_process
+from literev.tasks import launch_process, running_delete
 
 UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
 

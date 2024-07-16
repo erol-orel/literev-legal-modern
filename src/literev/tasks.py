@@ -1,6 +1,8 @@
 import logging
+import os
 
 from celery import chain
+from celery.result import AsyncResult
 from django.conf import settings
 from django.db import transaction
 
@@ -23,6 +25,39 @@ from literev_core.preprocessing import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def update_task_code(project: Project, task_code) -> None:
+    project.actual_task_code = task_code
+    project.save()
+
+
+def running_delete(project_id: str) -> None:
+    project = Project.objects.filter(pk=project_id).first()
+    # Using try and except in case the project is finish
+    try:
+        task_id = project.actual_task_code
+        task = AsyncResult(task_id)
+        task.revoke(terminate=True, signal="SIGKILL")
+
+    except:
+        logging.info(
+            f"There is no celery task code for project id: {project.id}"
+        )
+
+    project = Project.objects.filter(pk=project_id).first()
+
+    project.delete()
+
+    plot_path = settings.PLOT_DATA / f"{project_id}_plot.html"
+    div_path = settings.PLOT_DATA / f"{project_id}_div.html"
+    script_path = settings.PLOT_DATA / f"{project_id}_script.html"
+
+    paths = [plot_path, div_path, script_path]
+
+    for path in paths:
+        if os.path.isfile(path):
+            os.remove(path)
 
 
 def launch_process(project: Project) -> bool:
@@ -61,8 +96,8 @@ def launch_process(project: Project) -> bool:
         # you don't need any specific configurations for how the chain should execute.
         # Use apply_async() when you need to configure particular execution parameters for the chain,
         # like scheduling, prioritizing, or assigning to specific queues.
-        task_chain.delay()
 
+        task_chain.apply_async()
         # Update the project's state to reflect that it is now running
         project.is_running = True
         project.save()
@@ -71,8 +106,8 @@ def launch_process(project: Project) -> bool:
     return True
 
 
-@app.task
-def back_get_documents(project_id: int):
+@app.task(bind=True)
+def back_get_documents(self, project_id: int):
     """
     Fetches documents based on the project's criteria and saves them into the database.
 
@@ -82,6 +117,9 @@ def back_get_documents(project_id: int):
         The ID of the project for which documents are fetched.
     """
     project = Project.objects.get(id=project_id)
+
+    update_task_code(project, self.request.id)
+
     es_collector = ElasticSearchCollector()
 
     try:
@@ -114,8 +152,8 @@ def back_get_documents(project_id: int):
     return True
 
 
-@app.task
-def back_preparing_documents(project_id: int):
+@app.task(bind=True)
+def back_preparing_documents(self, project_id: int):
     """
     Prepares documents for n-gram extraction by processing raw document text.
 
@@ -124,7 +162,11 @@ def back_preparing_documents(project_id: int):
     project_id : int
         The ID of the project for which documents are prepared.
     """
+
     project = Project.objects.get(id=project_id)
+
+    update_task_code(project, self.request.id)
+
     documents = Document.objects.filter(project=project)
     logger.info(f"Documents from Database: {documents.count()}")
 
@@ -155,8 +197,8 @@ def back_preparing_documents(project_id: int):
     project.save()
 
 
-@app.task
-def back_preprocess_documents(project_id: int):
+@app.task(bind=True)
+def back_preprocess_documents(self, project_id: int):
     """
     Processes documents to extract n-grams and other preprocess steps.
 
@@ -165,7 +207,11 @@ def back_preprocess_documents(project_id: int):
     project_id : int
         The ID of the project for which documents are preprocessed.
     """
+
     project = Project.objects.get(id=project_id)
+
+    update_task_code(project, self.request.id)
+
     documents = Document.objects.filter(project=project)
     document_pk_list = []
     document_corpus_list = []
@@ -215,8 +261,8 @@ def back_preprocess_documents(project_id: int):
     logger.info("Success preprocessing Documents")
 
 
-@app.task
-def back_clustering_documents(project_id: int):
+@app.task(bind=True)
+def back_clustering_documents(self, project_id: int):
     """
     Clusters preprocessed documents using the configured clustering algorithm.
 
@@ -225,7 +271,11 @@ def back_clustering_documents(project_id: int):
     project_id : int
         The ID of the project for which documents are clustered.
     """
+
     project = Project.objects.get(id=project_id)
+
+    update_task_code(project, self.request.id)
+
     documents = Document.objects.filter(project=project)
 
     try:
@@ -275,8 +325,8 @@ def back_clustering_documents(project_id: int):
     project.save()
 
 
-@app.task
-def back_plotting_documents(project_id: int):
+@app.task(bind=True)
+def back_plotting_documents(self, project_id: int):
     """
     Generates visual plots for clustered data.
 
@@ -286,6 +336,9 @@ def back_plotting_documents(project_id: int):
         The ID of the project for which plots are generated.
     """
     project = Project.objects.get(id=project_id)
+
+    update_task_code(project, self.request.id)
+
     try:
         path = settings.PLOT_DATA / f"{project.pk}_plot.html"
         div_path = settings.PLOT_DATA / f"{project.pk}_div.html"
@@ -300,6 +353,7 @@ def back_plotting_documents(project_id: int):
 
     logger.info("Success creating Plot")
     project.step = ""
+    project.actual_task_code = ""
     project.is_finish = True
     project.is_running = False
     project.save()

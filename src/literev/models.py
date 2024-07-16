@@ -21,6 +21,7 @@ class Project(models.Model):
     is_finish = models.BooleanField(default=False)
     is_running = models.BooleanField(default=False)
     best_dbcv = models.FloatField(default=0.0)
+    actual_task_code = models.CharField(max_length=256, default="", blank=True)
 
 
 class Document(models.Model):
