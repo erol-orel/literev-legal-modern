@@ -131,11 +131,26 @@ def search_continue(
 def search_evaluate(
     request: HttpRequest, context: dict[str, Any]
 ) -> dict[str, Any]:
+    """
+    Evaluate the search form and update the context with the total number of
+    documents.
+
+    Parameters
+    ----------
+    request : HttpRequest
+        The request object.
+    context : dict[str, Any]
+        The context dictionary.
+
+    Returns
+    -------
+    dict[str, Any]
+        The updated context.
+    """
     search_form = SearchForm(request.POST)
     context["search_form"] = search_form
 
     if search_form.is_valid():
-        # project_name = search_form.cleaned_data["project_name"]
         query = search_form.cleaned_data["query"]
         range_begin_date = search_form.cleaned_data["range_begin_date"]
         range_end_date = search_form.cleaned_data["range_end_date"]
@@ -151,7 +166,6 @@ def search_evaluate(
 
 @login_required(login_url="/accounts/login/")
 def search(request: HttpRequest) -> HttpResponse:
-    logging.info("executing the search function")
     context: dict[str, Any] = dict()
 
     # Actual form
@@ -173,9 +187,7 @@ def search(request: HttpRequest) -> HttpResponse:
     submit = request.POST["submit"]
 
     if submit == "search":
-        logging.info("search search")
         query_text = SearchForm(request.POST)["query"].value()
-        logging.info(query_text)
         if query_text == "#COUNT-ALL-CORPUS-LITEREV-00":
             result_all = count_all_corpus()
             logging.info("counting all corpus")
@@ -192,7 +204,6 @@ def search(request: HttpRequest) -> HttpResponse:
         # TODO: Implement this
         # return to the saved variables from
         # request session
-        logging.info("search evaluate")
         context = search_evaluate(request, context)
 
     elif submit == "continue":

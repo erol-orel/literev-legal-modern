@@ -7,8 +7,7 @@ from typing import Any
 from django import forms
 from django.core.exceptions import ValidationError
 
-# from research.models import ArticlesCollector
-# from workflow.libs.parsing import process_search_query
+from literev.libs.parsing import process_search_query
 
 
 class SearchForm(forms.Form):
@@ -62,15 +61,6 @@ class SearchForm(forms.Form):
         if not data:
             raise ValidationError("Form is empty.")
 
-        if not data.get("project_name"):
-            self.add_error("project_name", "Please provide a project name.")
-
-        if not data.get("query"):
-            self.add_error(
-                "query",
-                "Please provide the search query.",
-            )
-
         if not data.get("range_begin_date"):
             self.add_error(
                 "range_begin_date",
@@ -94,31 +84,30 @@ class SearchForm(forms.Form):
 
         return data
 
-    # def clean_search(self) -> str:
-    #     data = super().clean() or {}
-    #     if not data:
-    #         raise ValidationError("Form data is empty.")
+    def clean_query(self) -> str:
+        data = super().clean() or {}
+        if not data:
+            raise ValidationError("Form data is empty.")
 
-    #     search = data.get("search", "")
-    #     if not search:
-    #         return ""
+        query = data.get("query", "")
 
-    # The search query field is allowed to be empty as long
-    #  as a file is uploaded.
-    # If a source database is selected, it will be required to have a query
-    # This is validated in the UI_front views code
+        if not query:
+            return ""
 
-    # (
-    #     validated_search,
-    #     (
-    #         is_valid_query,
-    #         error_in_query,
-    #     ),
-    # ) = process_search_query(search)
+        # The search query field is allowed to be empty as long
+        #  as a file is uploaded.
+        # If a source database is selected, it will be required to have a query
+        # This is validated in the UI_front views code
 
-    # if not is_valid_query:
-    #     raise ValidationError(str(error_in_query))
+        (
+            validated_search,
+            (
+                is_valid_query,
+                error_in_query,
+            ),
+        ) = process_search_query(query)
+        if not is_valid_query:
+            raise ValidationError(str(error_in_query))
 
-    # Replace "+" with spaces to show the query properly in the screen.
-    # return validated_search.replace("+", " ").strip()
-    # return search
+        # Replace "+" with spaces to show the query properly in the screen.
+        return validated_search.replace("+", " ").strip()

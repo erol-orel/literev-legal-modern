@@ -32,6 +32,67 @@ groups:
         run: |
           pre-commit install
           pre-commit run --all-files --verbose
+  tests:
+    tasks:
+      lint:
+        help: Run linter tools
+        dependencies:
+          - task: clean.all
+        run: |
+          pre-commit install
+          pre-commit run --all-files --verbose
+
+      unittest:
+        help: Run tests
+        args:
+          app:
+            help: The name of the app (literev)
+            type: string
+          module:
+            help: Specify the python module used for the test
+            type: string
+            default: ""
+          settings:
+            help: Specify the django settings module
+            type: string
+            default: ""
+          params:
+            help: Specify parameters to be used for tests
+            type: string
+            default: "-vvv"
+        env-file: ./.env
+        run: |
+          CMD="pytest ${{ args.app or args.module }} \
+            --ds=${{ args.settings or env.DJANGO_SETTINGS_MODULE }} ${{ args.params }}"
+          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
+            sugar exec --service literev --cmd $CMD
+          else
+            cd src/
+            export POSTGRES_HOST=localhost
+            $CMD
+          fi
+
+      unit-local:
+        help: Run unit tests locally (host) with pytest
+        args:
+          app:
+            help: The name of the app (workflow, literev, research)
+            type: string
+          module:
+            help: Specify the python module used for the test
+            type: string
+            default: ""
+          params:
+            help: Specify additional parameters to be used for pytest
+            type: string
+            default: "-v"
+        env-file: ./.env
+        dir: src
+        run: |
+          CMD="pytest ${{ args.app or args.module }} \
+            --ds=config.settings.dev ${{ args.params }}"
+          export POSTGRES_HOST=localhost
+          $CMD
 
   django:
     tasks:

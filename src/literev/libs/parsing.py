@@ -142,10 +142,8 @@ def tokenize_expression(query: str) -> list[Token]:
      Token(')', TokenKind.CLOSE_PARENTHESIS)]
     """
 
-    # normalize consecutive double quotes
     query = re.sub(r'"+', '"', query)
 
-    # set constants
     PARENTHESIS = ["(", ")"]
     DOUBLE_QUOTES = '"'
     SINGLE_QUOTES = "'"
@@ -160,7 +158,6 @@ def tokenize_expression(query: str) -> list[Token]:
             # in_quotes we consider every char as part of a subject
             subject += char
             if char == DOUBLE_QUOTES:
-                # another double quote  in_quotes means end of quoted subject
                 tokens.append(
                     Token(
                         subject,
@@ -170,7 +167,6 @@ def tokenize_expression(query: str) -> list[Token]:
                 subject = ""
                 in_quotes = False
         elif char == DOUBLE_QUOTES:
-            # start of quoted subject
             in_quotes = True
             subject += char
         elif char in PARENTHESIS:
@@ -193,13 +189,10 @@ def tokenize_expression(query: str) -> list[Token]:
                 )
             )
         elif char == SINGLE_QUOTES:
-            # single quotes outside of double quotes are ignored
-            # go to next char
             continue
         elif char.isspace():
             # whitespace are ignored but represents the end of a token
             if current_item:
-                # add current_item as new token since whitespace marks the end of a token
                 tokens.append(
                     Token(
                         current_item,
@@ -212,7 +205,6 @@ def tokenize_expression(query: str) -> list[Token]:
         else:
             current_item += char
 
-    # Add any remaining items as tokens
     if current_item:
         tokens.append(
             Token(
@@ -226,7 +218,6 @@ def tokenize_expression(query: str) -> list[Token]:
                 subject, kind=TOKEN_MAP.get(subject.upper(), TokenKind.SUBJECT)
             )
         )
-
     return tokens
 
 
@@ -506,13 +497,10 @@ def process_search_query(
     >>> process_search_query('"virus vitamin" AND telemedicine OR (water AND "good wine")')
     ('"virus vitamin"+AND+telemedicine+OR+(water+AND+"good wine")+', (True, None))
     """
-    # tokenize the expression
     tokens = tokenize_expression(search_query)
 
-    # validate the tokenized expression
     is_valid, exception = validate_expression(tokens)
 
-    # parse expression
     parsed_query = parse_expression(tokens)
 
     return parsed_query, (is_valid, exception)
@@ -1078,11 +1066,12 @@ class ElasticSearchQueryBuilder:
         """Return the elastic search DSL query"""
         es_query = self.ast_to_elasticsearch(self.ast_root)
         es_query = self.adjust_conditions(es_query)
+
         return es_query
 
     def ast_to_elasticsearch(self, node: Optional[Node]) -> dict[str, Any]:
         """
-        Convert an AST node to its equivalent Elasticsearch query representation.
+        Recursively convert an AST node to its equivalent Elasticsearch query representation.
 
         Parameters
         ----------
@@ -1103,60 +1092,59 @@ class ElasticSearchQueryBuilder:
         """
         query_clause: dict[str, Any] = {"bool": {}}
 
-        # check if node is not None
-        # otherwise just return the empty query_clause
         if node is None:
             return query_clause
         else:
             if node.is_subject_node() and node.value:
-                search_term = node.value
+                search_term = node.value.strip('"')
 
-                subject_query = {
-                    "multi_match": {
-                        "query": search_term.replace(
-                            '"', ""
-                        ),  # remove " from search term
-                        "fields": [
-                            "document_text",
-                        ],  # search in both title and abstract
+                if '"' in node.value:
+                    subject_query = {
+                        "bool": {
+                            "should": [
+                                {
+                                    "match_phrase": {
+                                        "document_text": search_term
+                                    }
+                                },
+                            ],
+                            "minimum_should_match": 1,
+                        }
                     }
-                }
-
-                # specific for compounded words (i.e. "clinical testing")
-                if '"' in search_term:
-                    # add type "phrase" for multi word search ("south america")
-                    subject_query["multi_match"]["type"] = "phrase"
-                    # allows typos, small variations and whitespaces
-                    # examples: "south    america", "south amerca"
-                    subject_query["multi_match"]["slop"] = 999
+                else:
+                    subject_query = {
+                        "multi_match": {
+                            "query": search_term,
+                            "fields": ["document_text"],
+                        }
+                    }
 
                 return subject_query
 
             elif node.is_and_node():
-                # Flatten 'must' conditions by combining them at the current level
                 must_conditions = [
                     self.ast_to_elasticsearch(node.left),
                     self.ast_to_elasticsearch(node.right),
                 ]
-                query_clause["bool"]["must"] = self.flatten_conditions(
-                    must_conditions, "must"
-                )
+                if must_conditions:
+                    query_clause["bool"]["must"] = self.flatten_conditions(
+                        must_conditions, "must"
+                    )
 
             elif node.is_or_node():
-                # Flatten 'should' conditions by combining them at the current level
                 should_conditions = [
                     self.ast_to_elasticsearch(node.left),
                     self.ast_to_elasticsearch(node.right),
                 ]
-                query_clause["bool"]["should"] = self.flatten_conditions(
-                    should_conditions, "should"
-                )
+                if should_conditions:
+                    query_clause["bool"]["should"] = self.flatten_conditions(
+                        should_conditions, "should"
+                    )
 
             elif node.is_not_node():
-                # Directly use the 'must_not' clause without additional nesting
-                query_clause["bool"]["must_not"] = [
-                    self.ast_to_elasticsearch(node.child)
-                ]
+                must_not_conditions = [self.ast_to_elasticsearch(node.child)]
+                if must_not_conditions:
+                    query_clause["bool"]["must_not"] = must_not_conditions
 
             return query_clause
 
@@ -1288,7 +1276,7 @@ def process_search_query_elasticsearch(
                 'must': [...],  # Query derived from `search_query`
                 'filter': [{
                     'range': {
-                        'date': {
+                        'decision_date': {
                             'gte': '2020-01-01',
                             'lte': '2021-12-31'
                         }
@@ -1306,12 +1294,12 @@ def process_search_query_elasticsearch(
     to documents within the specified date range.
     """
     tokens = tokenize_expression(search_query)
+
     ast_root = Parser(tokens).parse()
     es_query_builder = ElasticSearchQueryBuilder(ast_root)
 
     elastic_search_query = {"query": es_query_builder.build_query()}
 
-    # add date range filter
     date_from = start_date.strftime("%Y-%m-%d")
     date_to = end_date.strftime("%Y-%m-%d")
     elastic_search_query["query"]["bool"]["filter"] = [

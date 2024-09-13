@@ -20,6 +20,9 @@ env:
   DJANGO_SETTINGS_MODULE: config.settings.dev
   DJANGO_SECRET_KEY: "django-insecure-96*q09uh20(^i4sdxqh3n_v#d-o:**7zrri&k-j3@f10hm88)"
   DJANGO_ENV: dev
+  ES_HOST_URL: "http://95.216.201.202:9200"
+  ES_PASSWORD: "I39hAE_bvikcbRHNhyvf"
+  ES_USERNAME: "elastic"
   MEDIA_ROOT: /opt/data/literev/static/media
   FRONTEND_HOST_PORT: 8000
   POSTGRES_PORT: 35432
@@ -117,6 +120,10 @@ jobs:
     - name: Check migration files
       if: ${{ success() || failure() }}
       run: makim --verbose django.makemigrations --check
+
+    - name: Run tests
+      if: ${{ success() || failure() }}
+      run: makim tests.unittest --module literev/tests
 
     - name: Stop services
       run: |
