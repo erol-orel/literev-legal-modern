@@ -17,13 +17,11 @@ services:
         - GID=${HOST_GID:-1000}
         - ENV=${ENV:-prod}
         - DOCKER_VOLUME_CONTAINER_PATH=${DOCKER_VOLUME_CONTAINER_PATH}
-        - STATIC_ROOT=${STATIC_ROOT:-/opt/data/literev/static}
-        - MEDIA_ROOT=${MEDIA_ROOT:-/opt/data/literev/static/media}
+        - STATIC_ROOT=${STATIC_ROOT:-/tmp/literev/static}
+        - MEDIA_ROOT=${DJANGO_MEDIA_ROOT:-/tmp/literev/media}
         - HTTP_PROXY=${http_proxy}
         - HTTPS_PROXY=${https_proxy}
     user: "literev:literev"
-    volumes:
-      - ${DOCKER_VOLUME_CONTAINER_PATH}:${DOCKER_VOLUME_CONTAINER_PATH}
 
   literev:
     extends: literev-base
@@ -38,8 +36,9 @@ services:
     depends_on:
       - literev-postgres
     volumes:
-      - static_root:${STATIC_ROOT:-/opt/data/literev/static}
-      - media_root:${MEDIA_ROOT:-/opt/data/literev/static/media}
+      - docker_volume:${DOCKER_VOLUME_CONTAINER_PATH}
+      - static_root:${STATIC_ROOT:-/tmp/literev/static}
+      - media_root:${DJANGO_MEDIA_ROOT:-/tmp/literev/media}
     networks:
       - literev
     healthcheck:
@@ -90,8 +89,9 @@ services:
       - literev-redis
       - literev-postgres
     volumes:
-      - static_root:${STATIC_ROOT:-/opt/data/literev/static}
-      - media_root:${MEDIA_ROOT:-/opt/data/literev/static/media}
+      - docker_volume:${DOCKER_VOLUME_CONTAINER_PATH}
+      - static_root:${STATIC_ROOT:-/tmp/literev/static}
+      - media_root:${DJANGO_MEDIA_ROOT:-/tmp/literev/media}
     networks:
       - literev
     deploy:
@@ -118,6 +118,7 @@ services:
 
 
 volumes:
+  docker_volume:
   static_root:
   media_root:
 
