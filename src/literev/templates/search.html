@@ -176,20 +176,18 @@
               <div class="accordion-body row col-11 mx-auto py-3">
                 <div class="row text-center mb-3">
                   <div class="col-12 input-group mb-3">
-                    <span class="input-group-text d-none d-lg-block">
-                      Query
-                    </span>
+                    <span class="input-group-text d-none d-lg-block">Query</span>
                     {{ search_form.query }}
                   </div>
-                  <div class="col-12 col-sm-6 col-md-12 col-lg-6 mb-2">
+                  <div class="col-12 col-sm-6 mb-2">
                     <div class="input-group">
-                      <span class="bg-white input-group-text">From:</span>
+                      <span class="input-group-text">Decision Date From:</span>
                       {{ search_form.range_begin_date }}
                     </div>
                   </div>
-                  <div class="col-12 col-sm-6 col-md-12 col-lg-6">
-                    <div class="input-group col-6">
-                      <span class="bg-white input-group-text">To:</span>
+                  <div class="col-12 col-sm-6 mb-2">
+                    <div class="input-group">
+                      <span class="input-group-text">Decision Date To:</span>
                       {{ search_form.range_end_date }}
                     </div>
                   </div>
