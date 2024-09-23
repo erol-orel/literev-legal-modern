@@ -214,12 +214,13 @@
                   <option value="Result">
                     Result
                   </option>
-                  <option value="Year">
-                    Year
+                  <option value="year_range">
+                    Decision Year
                   </option>
                 </select>
               </div>
             </div>
+
             <div id="value-selector-container"
                  class="col-7">
               <div class="input-group input-group-lg">
@@ -228,6 +229,22 @@
                        class="form-control"
                        placeholder="Criteria" />
               </div>
+            </div>
+
+            <div id="year-selector-container"
+                 class="col-7">
+              <div class="input-group input-group-lg">
+                <input id="year-filter"
+                       type="text"
+                       class="form-control"
+                       placeholder="Enter a year as YYYY or a range as YYYY-YYYY (e.g., 2020 or 2017-2022)."
+                       aria-describedby="validation-error-message" />
+              </div>
+              <!-- Placeholder for validation error -->
+              <small id="validation-error-message"
+                     class="text-danger"
+                     style="display:none">
+              </small>
             </div>
 
             <div id="norm-selector-container"
@@ -280,14 +297,16 @@
             <div class="col-3 d-flex justify-content-around">
               <div>
                 <button id="add-button"
-                        class="btn-lg btn btn-success">
+                        class="btn-lg btn btn-success"
+                        disabled>
                   Add (And)
                 </button>
               </div>
 
               <div>
                 <button id="exclude-button"
-                        class="btn-lg btn btn-secondary">
+                        class="btn-lg btn btn-secondary"
+                        disabled>
                   Exclude (Not)
                 </button>
               </div>

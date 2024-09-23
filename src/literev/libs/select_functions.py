@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 
 from typing import Any
@@ -148,37 +149,36 @@ def download_finalcsv(project: Project) -> HttpResponse:
     return response
 
 
-def get_filters(
-    project: Project, post_data: dict[str, str]
-) -> dict[str, dict[str, Any]]:
+def get_filters(post_data: dict[str, str]) -> dict[str, dict[str, Any]]:
     """
-    Return a filter dictionary from the post_data
+    Return a filter dictionary from the post_data.
 
-    Use the post_data (request.POST) as a argument to extract
-    the key, values where key start with "filter.." and convert its
+    Use the post_data (request.POST) as an argument to extract
+    the key, values where key starts with "filter.." and convert its
     str value to json object and from there add the starting value to
     filter for the function get_filtered_documents.
 
     Parameters
     ----------
-    project : project object Model database
-        The project object model where is used to store
-        search query, status and related data.
-    post_data : a request.POST dictionary dict [str, str]
-        A dictionary obtained from the frontend has the filters sent by
-        the user
+    post_data : dict[str, str]
+        A dictionary obtained from the frontend that has the filters sent by
+        the user.
 
     Returns
     -------
-    filters : A dictonary of filters
-        This variable will be used in get_filtered_documents
+    dict[str, dict[str, Any]]
+        A dictionary of filters that will be used in get_filtered_documents.
     """
     filters: dict[str, Any] = {}
 
     for key, value in post_data.items():
         if "filter" in key:
-            if value != "{}":
-                filters[key] = json.loads(value)
+            try:
+                if value and value != "{}":
+                    filters[key] = json.loads(value)
+            except json.JSONDecodeError:
+                logging.error(f"Invalid JSON data for key {key}: {value}")
+
     return filters
 
 
@@ -186,225 +186,181 @@ def get_filtered_document(
     project: Project, filters: dict[str, Any]
 ) -> list[int]:
     """
-    Return a list of documents id that have been filtered
+    Retrieve a list of filtered document IDs based on the given filters.
 
-    Using the `filters` dictionary and `project` get the filtered
-    documents and return its id in a list.
+    This method filters judiciary documents by several criteria such as
+    Topic, Norm, Keyword, No_decis, Result, and year range, and applies
+    both inclusion and exclusion filters. It returns the document IDs that
+    match the filters.
 
     Parameters
     ----------
-    project : Project object Model database
-        The project object model where is used to store
-        search query, status and related data.
-    filters : A dictionary of filters
-        This has the format {"filter_0": "keyword":[keyword01,...]...}
+    project : Project
+        The project instance used for filtering documents.
+    filters : dict
+        A dictionary containing filter types and their corresponding values.
+        Example format:
+        {"filter-union": {"Topic": ["topic1", "topic2"], ...},
+        "filter-exclude": {"Norm": ["norm1", "norm2"], ...}}
 
     Returns
     -------
-    list_id : list[int]
-        A list of filtered documents id.
+    list[int]
+        A list of document IDs that match the applied filters.
     """
-    union_documents = set()
-    excluded_documents = set()
-    document_center_set: set[int] = set()
+    union_documents = apply_filters(project, filters, "filter-union")
+    excluded_documents = apply_filters(project, filters, "filter-exclude")
 
-    filter_union_list = [v for k, v in filters.items() if "filter-union" in k]
-    filter_exclude_list = [
-        v for k, v in filters.items() if "filter-exclude" in k
-    ]
-
-    for filter_dict in filter_union_list:
-        topic_set = set()
-        norm_set = set()
-        keyword_set = set()
-        no_decis_set = set()
-        result_set = set()
-        year_set = set()
-
-        intersection_set = set()
-
-        # suggested code
-        # topic_list = functools.reduce(operator.iadd, [v for k, v in filter_dict.items() if k == "Topic"], [])
-        # ignoring rule because readability
-        topic_list = sum(  # noqa: RUF017
-            [v for k, v in filter_dict.items() if k == "Topic"], start=[]
-        )
-        for topic in topic_list:
-            prepared_topic = topic.split(": ")[1]
-            cluster_elements = ClusterElement.objects.filter(
-                cluster__project=project,
-                cluster__topic__startswith=prepared_topic,
-            )
-            for cluster in cluster_elements:
-                topic_set.add(cluster.document.pk)
-
-        norm_list = sum(  # noqa: RUF017
-            [v for k, v in filter_dict.items() if k == "Norm"], start=[]
-        )
-
-        for norm in norm_list:
-            regex_key = r".*" + norm.strip() + r".*"
-            document_list = Document.objects.filter(
-                project=project,
-            ).filter(
-                Q(standards__iregex=regex_key),
-            )
-
-            for document in document_list:
-                norm_set.add(document.pk)
-
-        keyword_list = sum(  # noqa: RUF017
-            [v for k, v in filter_dict.items() if k == "Keyword"], start=[]
-        )
-
-        for keyword in keyword_list:
-            regex_key = r".*" + keyword + r".*"
-            document_list = Document.objects.filter(project=project).filter(
-                Q(prepared_for_ngrams__iregex=regex_key)
-            )
-
-            for document in document_list:
-                keyword_set.add(document.pk)
-
-        no_decis_list = sum(  # noqa: RUF017
-            [v for k, v in filter_dict.items() if k == "No_decis"], start=[]
-        )
-
-        for no_d in no_decis_list:
-            documents = Document.objects.filter(
-                project=project,
-                raw_document_id=no_d,
-            )
-
-            for document in documents:
-                no_decis_set.add(document.pk)
-
-        result_list = sum(  # noqa: RUF017
-            [v for k, v in filter_dict.items() if k == "Result"], start=[]
-        )
-
-        for result in result_list:
-            if result == "NO RESULT":
-                documents = Document.objects.filter(
-                    project=project,
-                    result="",
-                )
-            else:
-                documents = Document.objects.filter(
-                    project=project,
-                    result=result,
-                )
-
-            for document in documents:
-                result_set.add(document.pk)
-
-        year_list = sum(  # noqa: RUF017
-            [v for k, v in filter_dict.items() if k == "Year"], start=[]
-        )
-
-        for year in year_list:
-            start = f"{year}-01-01"
-            end = f"{year}-12-31"
-            documents = Document.objects.filter(
-                project=project, decision_date__range=(start, end)
-            )
-
-            for document in documents:
-                year_set.add(document.pk)
-
-        set_list = [
-            norm_set,
-            no_decis_set,
-            keyword_set,
-            topic_set,
-            result_set,
-            year_set,
-        ]
-
-        non_empty_set = [elem for elem in set_list if elem]
-
-        if non_empty_set:
-            intersection_set = non_empty_set[0]
-
-            for elem_set in non_empty_set[1:]:
-                intersection_set &= elem_set
-
-            union_documents |= intersection_set
-
-    for filter_dict in filter_exclude_list:
-        topic_list = sum(  # noqa: RUF017
-            [v for k, v in filter_dict.items() if k == "Topic"], start=[]
-        )
-
-        for topic in topic_list:
-            # get all cluster element object with the topic
-            prepared_topic = topic.split(": ")[1]
-            cluster_elements = ClusterElement.objects.filter(
-                cluster__project=project,
-                cluster__topic__startswith=prepared_topic,
-            )
-            for cluster in cluster_elements:
-                excluded_documents.add(cluster.document.pk)
-
-        norm_list = sum(  # noqa: RUF017
-            [v for k, v in filter_dict.items() if k == "Norm"], start=[]
-        )
-
-        for norm in norm_list:
-            regex_key = r".*" + norm + r".*"
-            document_list = Document.objects.filter(
-                project=project,
-            ).filter(
-                Q(standards__iregex=regex_key),
-            )
-            for document in document_list:
-                excluded_documents.add(document.pk)
-
-        keyword_list = sum(  # noqa: RUF017
-            [v for k, v in filter_dict.items() if k == "Keyword"], start=[]
-        )
-
-        for keyword in keyword_list:
-            regex_key = r".*" + keyword + r".*"
-            document_list = Document.objects.filter(project=project).filter(
-                Q(prepared_for_ngrams__iregex=regex_key)
-            )
-
-            for document in document_list:
-                excluded_documents.add(document.pk)
-
-        no_decis_list = sum(  # noqa: RUF017
-            [v for k, v in filter_dict.items() if k == "No_decis"], start=[]
-        )
-
-        for no_d in no_decis_list:
-            documents = Document.objects.filter(
-                project=project,
-                raw_document_id=no_d,
-            )
-
-            for document in documents:
-                excluded_documents.add(document.pk)
-
-    # check if union_documents are empty because no filter was added
-    # in that union_documents should be all documents in the clusters
-    if not union_documents:
-        empty_filters = True
-        for filter_type in filters.keys():
-            if "filter-union" in filter_type:
-                empty_filters = False
-        if empty_filters:
-            all_cluster_elements = ClusterElement.objects.filter(
+    if not union_documents and not any(
+        "filter-union" in key for key in filters
+    ):
+        union_documents = set(
+            ClusterElement.objects.filter(
                 cluster__project=project
-            )
-
-            for cluster_element in all_cluster_elements:
-                union_documents.add(cluster_element.document.pk)
+            ).values_list("document__pk", flat=True)
+        )
 
     filtered_documents = union_documents - excluded_documents
-    list_id: list[int] = list(document_center_set) + list(filtered_documents)
+    return list(filtered_documents)
 
-    return list_id
+
+def apply_filters(
+    project: Project, filters: dict[str, Any], filter_type: str
+) -> set[int]:
+    """
+    Apply filters to retrieve document IDs based on filter type (union or exclude).
+
+    Parameters
+    ----------
+    project : Project
+        The project instance used for filtering documents.
+    filters : dict
+        The filter data.
+    filter_type : str
+        The type of filter to apply ("filter-union" or "filter-exclude").
+
+    Returns
+    -------
+    set[int]
+        A set of document IDs that match the applied filters.
+    """
+    document_set = set()
+    filter_list = [v for k, v in filters.items() if filter_type in k]
+
+    for filter_dict in filter_list:
+        filter_sets = [
+            get_documents_by_topic(project, filter_dict.get("Topic", [])),
+            get_documents_by_norm(project, filter_dict.get("Norm", [])),
+            get_documents_by_keyword(project, filter_dict.get("Keyword", [])),
+            get_documents_by_no_decis(
+                project, filter_dict.get("No_decis", [])
+            ),
+            get_documents_by_result(project, filter_dict.get("Result", [])),
+            get_documents_by_year_range(
+                project, filter_dict.get("year_range", [])
+            ),
+        ]
+        intersection_set = get_intersection_of_non_empty_sets(filter_sets)
+        document_set |= intersection_set
+
+    return document_set
+
+
+def get_documents_by_topic(project: Project, topics: list[str]) -> set[int]:
+    """Retrieve document IDs filtered by topic."""
+    result = set()
+    for topic in topics:
+        prepared_topic = topic.split(": ")[1]
+        cluster_elements = ClusterElement.objects.filter(
+            cluster__project=project, cluster__topic__startswith=prepared_topic
+        ).values_list("document__pk", flat=True)
+        result.update(cluster_elements)
+    return result
+
+
+def get_documents_by_norm(project: Project, norms: list[str]) -> set[int]:
+    """Retrieve document IDs filtered by norm."""
+    result = set()
+    for norm in norms:
+        regex_key = r".*" + norm.strip() + r".*"
+        documents = Document.objects.filter(project=project).filter(
+            Q(standards__iregex=regex_key)
+        )
+        result.update(documents.values_list("pk", flat=True))
+    return result
+
+
+def get_documents_by_keyword(
+    project: Project, keywords: list[str]
+) -> set[int]:
+    """Retrieve document IDs filtered by keyword."""
+    result = set()
+    for keyword in keywords:
+        regex_key = r".*" + keyword + r".*"
+        documents = Document.objects.filter(project=project).filter(
+            Q(prepared_for_ngrams__iregex=regex_key)
+        )
+        result.update(documents.values_list("pk", flat=True))
+    return result
+
+
+def get_documents_by_no_decis(
+    project: Project, no_decis: list[str]
+) -> set[int]:
+    """Retrieve document IDs filtered by 'no_decis'."""
+    result = set()
+    for no_d in no_decis:
+        documents = Document.objects.filter(
+            project=project, raw_document_id=no_d
+        ).exclude(article__clusterelement__isnull=True)
+        result.update(documents.values_list("pk", flat=True))
+    return result
+
+
+def get_documents_by_result(project: Project, results: list[str]) -> set[int]:
+    """Retrieve document IDs filtered by result."""
+    result = set()
+    for result_value in results:
+        if result_value == "NO RESULT":
+            documents = Document.objects.filter(
+                project=project, result=""
+            ).exclude(article__clusterelement__isnull=True)
+        else:
+            documents = Document.objects.filter(
+                project=project, result=result_value
+            )
+        result.update(documents.values_list("pk", flat=True))
+    return result
+
+
+def get_documents_by_year_range(
+    project: Project, year_ranges: list[str]
+) -> set[int]:
+    """Retrieve document IDs filtered by year range."""
+    result = set()
+    for year_range in year_ranges:
+        if "-" in year_range:
+            start_year, end_year = year_range.split("-")
+        else:
+            start_year = end_year = year_range
+        start_date = f"{start_year}-01-01"
+        end_date = f"{end_year}-12-31"
+        documents = Document.objects.filter(
+            project=project, decision_date__range=(start_date, end_date)
+        ).exclude(clusterelement__isnull=True)
+        result.update(documents.values_list("pk", flat=True))
+    return result
+
+
+def get_intersection_of_non_empty_sets(sets: list[set[int]]) -> set[int]:
+    """Return the intersection of non-empty sets."""
+    non_empty_sets = [s for s in sets if s]
+    if non_empty_sets:
+        intersection_set = non_empty_sets[0]
+        for s in non_empty_sets[1:]:
+            intersection_set &= s
+        return intersection_set
+    return set()
 
 
 def distant_from_center(

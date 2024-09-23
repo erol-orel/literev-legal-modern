@@ -257,177 +257,90 @@ def running(request: HttpRequest) -> HttpResponse:
 
 @login_required(login_url="/accounts/login/")
 def previousgraph(request: HttpRequest) -> HttpResponse:
-    context: dict[str, Any] = dict()
-    context["AreYouSure"] = False
-    # when receive all data for filters
+    """
+    Display the Refine project page.
 
-    project_id = request.GET.get("project_id", None)
+    This view displays the Refine project page. It shows the list of clusters
+    and documents, and allows the user to select a subset of articles to
+    continue with the project. It also displays the graph of the project.
+
+    Parameters
+    ----------
+    request : HttpRequest
+        The request object.
+
+    Returns
+    -------
+    HttpResponse
+        The response object.
+    """
+    context: dict[str, Any] = {}
+    context["AreYouSure"] = False
+
+    project_id = request.GET.get("project_id")
     if not project_id:
         return redirect("/search")
-    # TODO: Add this piece of code after adding user
-    # check if there is the id of the project and this id is available
-    # Check if the project project belongs to the actual user
-    actual_user = request.user
 
-    # Include always the first project
-    if project_id == "1":
-        project_exist = Project.objects.filter(id=project_id).exists()
-    else:
-        project_exist = Project.objects.filter(
-            user=actual_user, id=project_id
-        ).exists()
+    actual_user = request.user
+    project_exist = (
+        Project.objects.filter(id=project_id).exists()
+        if project_id == "1"
+        else Project.objects.filter(user=actual_user, id=project_id).exists()
+    )
 
     if not project_exist:
         return redirect("/search")
-    # give all the variable
-    # list of cluster
+
     project = Project.objects.filter(id=project_id).first()
-
-    if not project:
+    if not project or not project.is_finish:
         return redirect("/search")
 
-    if not project.is_finish:
-        return redirect("/search")
-
-    # when receive all data for filters
     if request.method == "POST":
-        submit = request.POST["submit"]
+        submit = request.POST.get("submit")
 
         if submit == "filters":
-            # Used for debbuging
-            # for key, value in request.POST.items():
-            #     print(key, value)
-            # transform the POST data
-            filters = get_filters(project, request.POST)
-
-            # get a list of id article who match all the filters
+            filters = get_filters(request.POST)
             document_pk_list = get_filtered_document(
                 project=project, filters=filters
             )
-            # save this list in session user
             request.session["document_pk_list"] = document_pk_list
             request.session["id_project"] = project_id
             context["number_article"] = len(document_pk_list)
-            context["project"] = project
             context["AreYouSure"] = True
-            # save data filters if the user cancel and return to select page
-            # request.session["filter_data"] =
-            #   filter_recover_data(request.POST)
-
-            # return render(request, "previousgraph.html", context)
 
         elif submit == "continue":
-            # update the new table choice with
-            # the article selected without their neighbour
-            logging.info(request.session["document_pk_list"])
-
             update_new_table_choice(
-                # user=user,
                 project=project,
                 document_id_list=request.session["document_pk_list"],
             )
+            return redirect(f"/tableselect?project_id={project_id}")
 
-            return redirect("/tableselect?project_id=" + str(project_id))
-
-        elif submit == "cancel":
-            pass
-
-    context["project"] = project
-    context["cluster_list"] = ClusterElement.objects.filter(
-        cluster__project=project
+    context.update(
+        {
+            "project": project,
+            "cluster_list": ClusterElement.objects.filter(
+                cluster__project=project
+            ),
+            "documents_list": Document.objects.filter(project=project),
+            "project_id": project_id,
+        }
     )
 
-    # list of documents, check for valid and invalids documents
-    context["documents_list"] = Document.objects.filter(project=project)
+    context.update(load_plot_data(project.pk))
 
-    # id of the project
-    context["project_id"] = project_id
-    # path = settings.TEMP_DATA / "html" / f"{project.pk}_plot.html"
-
-    FNAME_PROJECT_DIV_PLOT = settings.PLOT_DATA / f"{project.pk}_div.html"
-    FNAME_PROJECT_SCRIPT_PLOT = (
-        settings.PLOT_DATA / f"{project.pk}_script.html"
-    )
-    # get the div plot
-    with open(FNAME_PROJECT_DIV_PLOT, "r") as f:
-        div_plot = f.read()
-    context["div_plot"] = div_plot
-
-    with open(FNAME_PROJECT_SCRIPT_PLOT, "r") as f:
-        script_plot = f.read()
-    context["script_plot"] = script_plot
-
-    # Use in case we  want to export html file
-    # Get the html plot
-    # data = ""
-
-    # FNAME_PROJECT_PLOT = str(
-    #     settings.PLOT_DATA / f"research_{research_id}_plot.html"
-    # )
-    # with open(FNAME_RESEARCH_PLOT, "r") as file:
-    #     data = file.read()
-    # context["path_plot"] = FNAME_PROJECT_PLOT
-
-    # context["plot_html"] = data
-
-    # Load the  div and script components
-
-    # give a list of all topics
     cluster_list = Cluster.objects.filter(project=project).values_list(
         "topic", flat=True
     )
+    context["list_topics"] = list(set(cluster_list))
 
-    # Get the grouped cluster
-    clusters = Cluster.objects.filter(project=project)
+    grouped_clusters = get_grouped_clusters(project)
+    context["list_number_topic10"] = format_grouped_clusters(grouped_clusters)
 
-    grouped_clusters = (
-        clusters.values("topic")
-        .annotate(
-            total_documents=Count("clusterelement__document"),
-        )
-        .order_by("-total_documents")
-    )
+    topics, palette = get_color_map(context["list_topics"])
+    context["topic_colors"] = dict(zip(topics, palette))
 
-    index = 0
-    list_topic_10 = []
-    for e_cluster in grouped_clusters:
-        if e_cluster["topic"] == UNCLASSIFIED_PAPERS_TOPIC:
-            continue
-        index += 1
-        number__topic10_cluster = f"{index}: " + ", ".join(
-            e_cluster["topic"].split(", ")[:10]
-        )
-        list_topic_10.append(number__topic10_cluster)
-
-    context["list_number_topic10"] = list_topic_10
-
-    list_topics = list(set(cluster_list))
-    context["list_topics"] = list_topics
-
-    topics, palette = get_color_map(list_topics)
-
-    context["topic_colors"] = {
-        topic: color for topic, color in zip(topics, palette)
-    }
-
-    # Get normes list
-    standards_list_raw = Document.objects.filter(
-        project=project,
-    ).values_list("standards", flat=True)
-
-    # CEDH.6 ; CEDH.8 ; LPA.59.letb
-    # LEtr.69.al4;LEtr.74.al3;LEtr.74.al1.leta;LaLEtr.6.al3;LaLEtr.10;LaLEtr.12.al2;Cst.36.al3;CEDH.5
-
-    standard_list = set()
-
-    for standards in standards_list_raw:
-        for standard in standards.split(";"):
-            standard_list.add(standard.strip())
-
-    context["standard_list"] = list(standard_list)
-
-    # add values for autocompletion in result
-    result_list = [
+    context["standard_list"] = extract_standard_list(project)
+    context["result_list"] = [
         "REJETE",
         "ADMIS",
         "PARTIELMNT ADMIS",
@@ -439,9 +352,129 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
         "NO RESULT",
     ]
 
-    context["result_list"] = result_list
-
     return render(request, "previousgraph.html", context)
+
+
+def load_plot_data(project_pk: int) -> dict[str, str]:
+    """
+    Load and return the div and script plot data.
+
+    This function reads the div and script plot data from the files
+    generated by the clustering and plotting task. It returns a dictionary
+    with two keys: "div_plot" and "script_plot". The values associated with
+    these keys are the contents of the files.
+
+    Parameters
+    ----------
+    project_pk : int
+        The primary key of the project for which to load the plot data.
+
+    Returns
+    -------
+    dict[str, str]
+        A dictionary with two keys: "div_plot" and "script_plot".
+        The values associated with these keys are the contents of the
+        files generated by the clustering and plotting task.
+    """
+    fname_project_div_plot = settings.PLOT_DATA / f"{project_pk}_div.html"
+    fname_project_script_plot = (
+        settings.PLOT_DATA / f"{project_pk}_script.html"
+    )
+
+    with open(fname_project_div_plot, "r") as f:
+        div_plot = f.read()
+
+    with open(fname_project_script_plot, "r") as f:
+        script_plot = f.read()
+
+    return {"div_plot": div_plot, "script_plot": script_plot}
+
+
+def get_grouped_clusters(project: Project) -> list[dict]:
+    """
+    Return grouped clusters with total documents.
+
+    This function returns a list of dictionaries, each with a "topic" key
+    and a "total_documents" key. The list is ordered by "total_documents"
+    in descending order.
+
+    Parameters
+    ----------
+    project : Project
+        The project for which to retrieve grouped clusters.
+
+    Returns
+    -------
+    list[dict]
+        A list of dictionaries, each with a "topic" key and a
+        "total_documents" key.
+    """
+    return (
+        Cluster.objects.filter(project=project)
+        .values("topic")
+        .annotate(total_documents=Count("clusterelement__document"))
+        .order_by("-total_documents")
+    )
+
+
+def format_grouped_clusters(grouped_clusters: list[dict]) -> list[str]:
+    """
+    Format the grouped clusters for display.
+
+    This function takes the grouped clusters and formats them for display
+    by creating a list of strings with the index and the first 10 topics
+    separated by commas. The unclassified papers cluster is excluded.
+
+    Parameters
+    ----------
+    grouped_clusters : list[dict]
+        The grouped clusters with total documents.
+
+    Returns
+    -------
+    list[str]
+        The formatted list of strings.
+    """
+    index = 0
+    list_topic_10 = []
+    for cluster in grouped_clusters:
+        if cluster["topic"] == UNCLASSIFIED_PAPERS_TOPIC:
+            continue
+        index += 1
+        number__topic10_cluster = (
+            f"{index}: {', '.join(cluster['topic'].split(', ')[:10])}"
+        )
+        list_topic_10.append(number__topic10_cluster)
+    return list_topic_10
+
+
+def extract_standard_list(project: Project) -> list[str]:
+    """
+    Extract and return a unique list of standards from the documents.
+
+    This function takes a project and extracts all the standards from the
+    documents in the project. The standards are split by semicolon and added
+    to a set to remove duplicates. The set is then converted back to a list.
+
+    Parameters
+    ----------
+    project : Project
+        The project from which to extract the standards.
+
+    Returns
+    -------
+    list[str]
+        A list of unique standards.
+    """
+    standards_list_raw = Document.objects.filter(project=project).values_list(
+        "standards", flat=True
+    )
+    standard_list = set()
+    for standards in standards_list_raw:
+        for standard in standards.split(";"):
+            standard_list.add(standard.strip())
+
+    return list(standard_list)
 
 
 def generate_summary(request: HttpRequest, cluster_id: int) -> HttpResponse:

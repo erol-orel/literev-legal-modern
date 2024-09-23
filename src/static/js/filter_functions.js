@@ -1,6 +1,7 @@
 // check for topic selector
 const topicSelectorContainer = document.querySelector("#topic-selector-container");
 const valueSelectorContainer = document.querySelector("#value-selector-container");
+const yearSelectorContainer = document.querySelector("#year-selector-container");
 const normSelectorContainer = document.querySelector("#norm-selector-container");
 const resultSelectorContainer = document.querySelector("#result-selector-container");
 const typeFilter = document.querySelector("#type-filter");
@@ -10,6 +11,7 @@ function checkKeySelector() {
     if (typeFilter.value == "Topic") {
         topicSelectorContainer.hidden = false;
         valueSelectorContainer.hidden = true;
+        yearSelectorContainer.hidden = true;
         normSelectorContainer.hidden = true;
         resultSelectorContainer.hidden = true;
     }
@@ -17,6 +19,7 @@ function checkKeySelector() {
     else if (typeFilter.value == "Norm") {
         topicSelectorContainer.hidden = true;
         valueSelectorContainer.hidden = true;
+        yearSelectorContainer.hidden = true;
         normSelectorContainer.hidden = false;
         resultSelectorContainer.hidden = true;
     }
@@ -24,13 +27,23 @@ function checkKeySelector() {
     else if (typeFilter.value == "Result") {
         topicSelectorContainer.hidden = true;
         valueSelectorContainer.hidden = true;
+        yearSelectorContainer.hidden = true;
         normSelectorContainer.hidden = true;
         resultSelectorContainer.hidden = false;
+    }
+
+    else if (typeFilter.value == "year_range") {
+        topicSelectorContainer.hidden = true;
+        valueSelectorContainer.hidden = true;
+        yearSelectorContainer.hidden = false;
+        normSelectorContainer.hidden = true;
+        resultSelectorContainer.hidden = true;
     }
 
     else {
         topicSelectorContainer.hidden = true;
         valueSelectorContainer.hidden = false;
+        yearSelectorContainer.hidden = true;
         normSelectorContainer.hidden = true;
         resultSelectorContainer.hidden = true;
     }
@@ -272,6 +285,7 @@ const buttonExclude = document.querySelector("#exclude-button");
 buttonExclude.addEventListener("click", () => {
     const container = document.querySelector("#exclude-filter");
     const newFilter = document.querySelector("#text-filter");
+    const yearFilter = document.querySelector("#year-filter");
     const filterType = document.querySelector("#type-filter");
     const topicValue = document.querySelector("#topic-value");
     const normValue = document.querySelector("#norm-filter");
@@ -288,6 +302,9 @@ buttonExclude.addEventListener("click", () => {
     }
     else if (contentType == "Result") {
         content = resultValue.value;
+    }
+    else if (contentType == "year_range") {
+        content = yearFilter.value;
     }
     else {
         content = newFilter.value;
@@ -330,6 +347,7 @@ buttonExclude.addEventListener("click", () => {
 const buttonAdd = document.querySelector("#add-button");
 buttonAdd.addEventListener("click", () => {
     const newFilter = document.querySelector("#text-filter");
+    const yearFilter = document.querySelector("#year-filter");
     const filterType = document.querySelector("#type-filter");
     const topicValue = document.querySelector("#topic-value");
     const normValue = document.querySelector("#norm-filter");
@@ -351,7 +369,9 @@ buttonAdd.addEventListener("click", () => {
     else if (contentType == "Result") {
         content = resultValue.value;
     }
-
+    else if (contentType == "year_range") {
+        content = yearFilter.value;
+    }
     else {
         content = newFilter.value;
     }
@@ -542,3 +562,76 @@ buttonCreate.addEventListener("click", () => {
     addBigOrConnectors();
     
 })
+document.addEventListener('DOMContentLoaded', function() {
+    const typeFilter = document.getElementById('type-filter');
+    const yearFilter = document.getElementById('year-filter');
+    const textFilter = document.getElementById('text-filter');
+    const normFilter = document.getElementById('norm-filter');
+    const resultFilter = document.getElementById('result-filter');
+    const topicValue = document.getElementById('topic-value');
+    const addButton = document.getElementById('add-button');
+    const excludeButton = document.getElementById('exclude-button');
+    const errorMessage = document.getElementById('validation-error-message');
+
+    textFilter.style.display = 'none';
+    yearFilter.style.display = 'block';
+    normFilter.style.display = 'block';
+    resultFilter.style.display = 'block';
+    topicValue.style.display = 'block';
+    addButton.disabled = false;
+    excludeButton.disabled = false;
+
+    function handleFilterChange() {
+        const selectedFilter = typeFilter.value;
+
+        if (selectedFilter === 'year_range') {
+            yearFilter.style.display = 'block';
+            textFilter.style.display = 'none';
+            normFilter.style.display = 'none';
+            resultFilter.style.display = 'none';
+            topicValue.style.display = 'none';
+
+            yearFilter.addEventListener('input', function () {
+                const yearRange = this.value;
+                const yearRangePattern = /^(\d{4})(?:-(\d{4}))?$/;
+
+                const match = yearRange.match(yearRangePattern);
+                if (!match) {
+                    errorMessage.textContent = 'Invalid format. Use YYYY or YYYY-YYYY (e.g., 2020 or 2017-2022).';
+                    errorMessage.style.display = 'block';  // Show format error message
+                    addButton.disabled = true;  // Disable buttons
+                    excludeButton.disabled = true;
+                } else {
+                    const startYear = parseInt(match[1], 10);
+                    const endYear = match[2] ? parseInt(match[2], 10) : startYear; // Handle single year as range
+
+                    if (endYear < startYear) {
+                        errorMessage.textContent = 'The final year cannot be earlier than the start year.';
+                        errorMessage.style.display = 'block';  // Show range error message
+                        addButton.disabled = true;  // Disable buttons
+                        excludeButton.disabled = true;
+                    } else {
+                        errorMessage.style.display = 'none';  // Hide the error message
+                        addButton.disabled = false;  // Enable buttons
+                        excludeButton.disabled = false;
+                    }
+                }
+            });
+        } else {
+            // If another filter is selected, show its input field and enable the buttons
+            yearFilter.style.display = 'none';
+            textFilter.style.display = 'block';
+            normFilter.style.display = selectedFilter === 'Norm' ? 'block' : 'none';
+            resultFilter.style.display = selectedFilter === 'Result' ? 'block' : 'none';
+            topicValue.style.display = selectedFilter === 'Topic' ? 'block' : 'none';
+            addButton.disabled = false;
+            excludeButton.disabled = false;
+        }
+    }
+
+    // Attach event listener for filter type changes
+    typeFilter.addEventListener('change', handleFilterChange);
+
+    // Initialize the filters and button state on page load
+    handleFilterChange();
+});
