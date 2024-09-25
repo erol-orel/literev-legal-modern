@@ -551,63 +551,68 @@ def generate_summary(request: HttpRequest, cluster_id: int) -> HttpResponse:
 
 @login_required(login_url="/accounts/login/")
 def tableselect(request: HttpRequest) -> HttpResponse:
-    context: dict[str, Any] = dict()
-    current_page = 1
+    context: dict[str, Any] = {}
 
-    project_id = request.GET.get("project_id", None)
-
+    project_id = request.POST.get("project_id") or request.GET.get(
+        "project_id"
+    )
     if not project_id:
         return redirect("/search")
 
     actual_user = request.user
 
-    # Include always the first project
-    if project_id == "1":
-        project = Project.objects.filter(id=project_id).first()
-    else:
-        project = Project.objects.filter(
-            user=actual_user, id=project_id
-        ).first()
+    # Fetch the project ensuring access control for non-admin projects
+    project = Project.objects.filter(
+        Q(id=project_id) & (Q(user=actual_user) | Q(id="1"))
+    ).first()
 
     if not project:
         return redirect("/search")
 
-    if "page" in request.GET:
-        current_page = int(request.GET["page"])
-        # check if the page is good.
-        # if too low, redirect to first page
-        if current_page < 1:
-            current_page = 1
-        # if too high, redirect to last page
+    # Handle pagination: Ensure current page is valid and falls within the allowed range
+    current_page = max(1, int(request.GET.get("page", 1)))
+    total_documents = TableChoice.objects.filter(project=project).count()
+    total_pages = max(
+        1,
+        (total_documents + settings.NUMBER_ARTICLE_BY_PAGE - 1)
+        // settings.NUMBER_ARTICLE_BY_PAGE,
+    )
 
-        number_document = TableChoice.objects.filter(project=project).count()
-        if (
-            int(request.GET["page"])
-            > int(number_document / settings.NUMBER_ARTICLE_BY_PAGE) + 1
-        ):
-            current_page = (
-                int(number_document / settings.NUMBER_ARTICLE_BY_PAGE) + 1
-            )
+    if current_page > total_pages:
+        current_page = total_pages
 
-    # if receive a POST request
+    # Prioritize order_by from POST if available, else fallback to GET
+    order_by = request.POST.get("order_by") or request.GET.get(
+        "order_by", "-document__decision_date"
+    )
+
+    # Map order_by fields to correct ForeignKey fields in TableChoice
+    valid_order_by_fields = {
+        "decision_date": "document__decision_date",
+        "-decision_date": "-document__decision_date",
+    }
+
+    # Ensure the order_by field is valid, defaulting if not found
+    order_by = valid_order_by_fields.get(order_by, "-document__decision_date")
+    print(f"Ordenando por: {order_by}")
+
+    # Fetch the TableChoice list ordered and paginated
+    tablechoice_list = TableChoice.objects.filter(
+        project=project,
+        to_display=True,
+    ).order_by(order_by)
+
+    # Handle POST request for action buttons (iterate, reset, finish, navigation)
     if request.method == "POST":
-        check_list = []
-        if "check_row" in request.POST:
-            check_list = [
-                int(table_id) for table_id in request.POST.getlist("check_row")
-            ]
+        check_list = list(map(int, request.POST.getlist("check_row", [])))
         submit = request.POST.get("submit")
-
-        number_document = TableChoice.objects.filter(project=project).count()
 
         if submit == "iterate":
             update_article_is_check_table_choice(
-                project=project,
-                list_id=check_list,
+                project=project, list_id=check_list
             )
             update_article_to_display_table_choice(
-                project=project,
-                list_id=check_list,
+                project=project, list_id=check_list
             )
             update_neighbour_table_choice(project=project)
             return redirect(f"/tableselect?project_id={project.id}")
@@ -618,92 +623,50 @@ def tableselect(request: HttpRequest) -> HttpResponse:
 
         elif submit == "finish":
             update_article_is_check_table_choice(
-                project=project,
-                list_id=check_list,
+                project=project, list_id=check_list
             )
             update_article_to_display_table_choice(
-                project=project,
-                list_id=check_list,
+                project=project, list_id=check_list
             )
-            # note: removed redirect
             return download_finalcsv(project=project)
 
-        elif submit == "previous":
-            if current_page == 1:
-                pass
-            else:
-                update_article_is_check_table_choice(
-                    project=project,
-                    list_id=check_list,
-                )
-                return redirect(
-                    f"/tableselect?project_id={project.id}&page={current_page-1}"
-                )
-        elif submit == "next":
-            if (
-                current_page
-                == int(number_document / settings.NUMBER_ARTICLE_BY_PAGE) + 1
-            ):
-                pass
-            else:
-                update_article_is_check_table_choice(
-                    project=project,
-                    list_id=check_list,
-                )
-                return redirect(
-                    f"/tableselect?project_id={project.id}&page={current_page+1}"
-                )
+        elif submit == "previous" and current_page > 1:
+            update_article_is_check_table_choice(
+                project=project, list_id=check_list
+            )
+            return redirect(
+                f"/tableselect?project_id={project.id}&page={current_page - 1}"
+            )
 
-    tablechoice_list = TableChoice.objects.filter(
-        project=project,
-        to_display=True,
-    ).order_by("id")
+        elif submit == "next" and current_page < total_pages:
+            update_article_is_check_table_choice(
+                project=project, list_id=check_list
+            )
+            return redirect(
+                f"/tableselect?project_id={project.id}&page={current_page + 1}"
+            )
 
-    # define variable about number of articles
+    # Pagination: calculate the correct slice of documents
+    first_article = (current_page - 1) * settings.NUMBER_ARTICLE_BY_PAGE
+    last_article = min(
+        current_page * settings.NUMBER_ARTICLE_BY_PAGE, total_documents
+    )
+    context["tablechoice_list"] = tablechoice_list[first_article:last_article]
+    context["first_page"] = current_page == 1
+    context["last_page"] = current_page == total_pages
+    context["current_page"] = current_page
+    context["total_page"] = total_pages
+
+    # Count the initial articles, neighbors, and checked articles
     context["number_Article_initial"] = TableChoice.objects.filter(
         project=project, is_initial=True
     ).count()
     context["number_Article_neighbour"] = TableChoice.objects.filter(
-        project=project,
-        is_initial=False,
-        to_display=True,
-        is_check=False,
+        project=project, is_initial=False, to_display=True, is_check=False
     ).count()
     context["number_Article_chosen"] = TableChoice.objects.filter(
         project=project, is_check=True
     ).count()
-
-    # give the number of neigbour
-    # context["number_k_neighbour"] = project.number_neighbour
-
-    # define the interval of article for the current page
-    first_article = (current_page - 1) * settings.NUMBER_ARTICLE_BY_PAGE
-    last_article = current_page * settings.NUMBER_ARTICLE_BY_PAGE
-
-    # check if last_article is not greater than the size of the list
-    if last_article < tablechoice_list.count():
-        context["tablechoice_list"] = tablechoice_list[
-            first_article:last_article
-        ]
-        context["last_page"] = False
-    else:
-        context["tablechoice_list"] = tablechoice_list[first_article:]
-        context["last_page"] = True
-    if current_page == 1:
-        context["first_page"] = True
-    else:
-        context["first_page"] = False
-
-    context["current_page"] = current_page
-
-    if tablechoice_list.count() % settings.NUMBER_ARTICLE_BY_PAGE == 0:
-        context["total_page"] = int(
-            tablechoice_list.count() // settings.NUMBER_ARTICLE_BY_PAGE
-        )
-    else:
-        context["total_page"] = (
-            tablechoice_list.count() // settings.NUMBER_ARTICLE_BY_PAGE + 1
-        )
 
     return render(request, "tableselect.html", context)
 
