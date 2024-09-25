@@ -339,7 +339,12 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
     topics, palette = get_color_map(context["list_topics"])
     context["topic_colors"] = dict(zip(topics, palette))
 
-    context["standard_list"] = extract_standard_list(project)
+    context["standard_list"] = extract_refined_list(project)
+
+    context["descriptors_list"] = extract_refined_list(
+        project, is_descriptor=True
+    )
+
     context["result_list"] = [
         "REJETE",
         "ADMIS",
@@ -448,33 +453,43 @@ def format_grouped_clusters(grouped_clusters: list[dict]) -> list[str]:
     return list_topic_10
 
 
-def extract_standard_list(project: Project) -> list[str]:
+def extract_refined_list(
+    project: Project, is_descriptor: bool = False
+) -> list[str]:
     """
-    Extract and return a unique list of standards from the documents.
+    Extract a refined list of standards or descriptors from the project documents.
 
-    This function takes a project and extracts all the standards from the
-    documents in the project. The standards are split by semicolon and added
-    to a set to remove duplicates. The set is then converted back to a list.
+    This function takes a project and a boolean flag indicating whether to extract
+    descriptors or standards and returns a list of unique standards or descriptors
+    from all the project documents, ordered by the result field.
 
     Parameters
     ----------
     project : Project
-        The project from which to extract the standards.
+        The project from which the standards or descriptors are extracted.
+    is_descriptor : bool
+        A boolean flag indicating whether to extract descriptors or standards.
+        Defaults to `False`, which means standards are extracted.
 
     Returns
     -------
     list[str]
-        A list of unique standards.
+        A list of unique standards or descriptors from all the project documents, ordered by the result field.
     """
-    standards_list_raw = Document.objects.filter(project=project).values_list(
-        "standards", flat=True
-    )
-    standard_list = set()
-    for standards in standards_list_raw:
-        for standard in standards.split(";"):
-            standard_list.add(standard.strip())
+    filter_field = "descriptors" if is_descriptor else "standards"
 
-    return list(standard_list)
+    filtered_list_raw = (
+        Document.objects.filter(project=project)
+        .order_by("result")
+        .values_list(f"{filter_field}", flat=True)
+    )
+
+    filtered_list = set()
+    for filter_value in filtered_list_raw:
+        for value in filter_value.split(";"):
+            filtered_list.add(value.strip())
+
+    return sorted(filtered_list)
 
 
 def generate_summary(request: HttpRequest, cluster_id: int) -> HttpResponse:

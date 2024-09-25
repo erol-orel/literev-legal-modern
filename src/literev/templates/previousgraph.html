@@ -217,6 +217,9 @@
                   <option value="year_range">
                     Decision Year
                   </option>
+                  <option value="descriptors">
+                    Descriptor
+                  </option>
                 </select>
               </div>
             </div>
@@ -245,6 +248,22 @@
                      class="text-danger"
                      style="display:none">
               </small>
+            </div>
+
+            <div id="descriptor-selector-container"
+                 class="col-7">
+              <div class="input-group input-group-lg">
+                <input id="descriptor-filter"
+                       class="form-control"
+                       list="datalistDesc"
+                       placeholder="Descriptors to search" />
+                <datalist id="datalistDesc">
+                  {% for desc in descriptors_list %}
+                    <option value="{{ desc }}">
+                    </option>
+                  {% endfor %}
+                </datalist>
+              </div>
             </div>
 
             <div id="norm-selector-container"

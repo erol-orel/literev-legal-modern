@@ -246,11 +246,13 @@ def apply_filters(
     """
     document_set = set()
     filter_list = [v for k, v in filters.items() if filter_type in k]
-
     for filter_dict in filter_list:
         filter_sets = [
             get_documents_by_topic(project, filter_dict.get("Topic", [])),
             get_documents_by_norm(project, filter_dict.get("Norm", [])),
+            get_documents_by_descriptor(
+                project, filter_dict.get("descriptors", [])
+            ),
             get_documents_by_keyword(project, filter_dict.get("Keyword", [])),
             get_documents_by_no_decis(
                 project, filter_dict.get("No_decis", [])
@@ -275,6 +277,21 @@ def get_documents_by_topic(project: Project, topics: list[str]) -> set[int]:
             cluster__project=project, cluster__topic__startswith=prepared_topic
         ).values_list("document__pk", flat=True)
         result.update(cluster_elements)
+    return result
+
+
+def get_documents_by_descriptor(
+    project: Project, descriptors: list[str]
+) -> set[int]:
+    """Retrieve document IDs filtered by descriptors."""
+    result = set()
+    for desc in descriptors:
+        regex_key = r".*" + desc.strip() + r".*"
+        documents = Document.objects.filter(
+            project=project, descriptors__iregex=regex_key
+        ).values_list("pk", flat=True)
+
+        result.update(documents)
     return result
 
 

@@ -33,7 +33,7 @@ class TestPreviousGraphView(TestCase):
         Test that the user is redirected if no project ID is provided.
         """
         self.client.login(username="testuser", password="testpassword")
-        response = self.client.get(self.url, follow=True)  # Follow redirects
+        response = self.client.get(self.url, follow=True)
 
         self.assertEqual(response.request["PATH_INFO"], "/search/")
         self.assertEqual(
@@ -50,13 +50,15 @@ class TestPreviousGraphView(TestCase):
 
     def test_cluster_and_documents_list(self):
         """
-        Test that clusters and documents are properly filtered and included in the context.
+        Test that clusters, documents, standards, and descriptors are properly included in the context.
         """
         cluster = Cluster.objects.create(
             project=self.project, topic="test topic"
         )
         document = Document.objects.create(
-            project=self.project, standards="CEDH.6"
+            project=self.project,
+            standards="CEDH.6",
+            descriptors="SANCTION ADMINISTRATIVE",
         )
 
         ClusterElement.objects.create(
@@ -67,15 +69,21 @@ class TestPreviousGraphView(TestCase):
         response = self.client.get(f"{self.url}?project_id=1")
         self.assertContains(response, "test topic")
         self.assertContains(response, "CEDH.6")
+        self.assertContains(response, "SANCTION ADMINISTRATIVE")
 
     def test_session_data_on_post_filters(self):
         """
-        Test that the correct session data is set when filters are applied.
+        Test that the correct session data is set when filters (including standards and descriptors) are applied.
         """
         self.client.login(username="testuser", password="testpassword")
         response = self.client.post(
             f"{self.url}?project_id=1",
-            {"submit": "filters", "Topic": ["test_topic"]},
+            {
+                "submit": "filters",
+                "Topic": ["test_topic"],
+                "Standards": ["CEDH.6"],
+                "Descriptors": ["SANCTION ADMINISTRATIVE"],
+            },
         )
         self.assertEqual(self.client.session["id_project"], "1")
         self.assertTrue("document_pk_list" in self.client.session)
@@ -105,13 +113,22 @@ class TestPreviousGraphView(TestCase):
         self.client.login(username="testuser", password="testpassword")
 
         document1 = Document.objects.create(
-            project=self.project, id=1, standards="CEDH.1"
+            project=self.project,
+            id=1,
+            standards="CEDH.1",
+            descriptors="MATERNITÉ",
         )
         document2 = Document.objects.create(
-            project=self.project, id=2, standards="CEDH.2"
+            project=self.project,
+            id=2,
+            standards="CEDH.2",
+            descriptors="MARIAGE",
         )
         document3 = Document.objects.create(
-            project=self.project, id=3, standards="CEDH.3"
+            project=self.project,
+            id=3,
+            standards="CEDH.3",
+            descriptors="RÉPRIMANDE",
         )
 
         session = self.client.session
@@ -128,15 +145,19 @@ class TestPreviousGraphView(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-    def test_standard_list_extraction(self):
+    def test_standard_and_descriptor_list_extraction(self):
         """
-        Test that standards are properly extracted and included in the context.
+        Test that standards and descriptors are properly extracted and included in the context.
         """
         Document.objects.create(
-            project=self.project, standards="CEDH.6; CEDH.8; LPA.59"
+            project=self.project,
+            standards="CEDH.6; CEDH.8; LPA.59",
+            descriptors="MATERNITÉ; MARIAGE",
         )
         self.client.login(username="testuser", password="testpassword")
         response = self.client.get(f"{self.url}?project_id=1")
         self.assertContains(response, "CEDH.6")
         self.assertContains(response, "CEDH.8")
         self.assertContains(response, "LPA.59")
+        self.assertContains(response, "MATERNITÉ")
+        self.assertContains(response, "MARIAGE")

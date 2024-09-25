@@ -23,12 +23,14 @@ class FilterTests(TestCase):
         self.doc1 = Document.objects.create(
             project=self.project,
             standards="Test Standard",
+            descriptors="Descriptor 1; Descriptor 2",
             result="RETIRE",
             decision_date="2023-06-01",
         )
         self.doc2 = Document.objects.create(
             project=self.project,
             standards="Another Standard",
+            descriptors="Descriptor 3; Descriptor 4",
             result="REFUSE",
             decision_date="2023-07-01",
         )
@@ -110,7 +112,6 @@ class FilterTests(TestCase):
     def test_get_filtered_document_union_with_and_logic(self):
         """Test filter logic with union filters combining Topic and year_range (AND logic)."""
 
-        # Create additional documents for the year 2020
         doc3 = Document.objects.create(
             project=self.project,
             standards="Standard 3",
@@ -122,7 +123,6 @@ class FilterTests(TestCase):
             pos_x=3.0, pos_y=3.0, document=doc3, cluster=self.cluster
         )
 
-        # Filters combining Topic and year_range
         filters = {
             "filter-union-0": {
                 "Topic": [
@@ -135,10 +135,8 @@ class FilterTests(TestCase):
         # We expect doc3 to match because it belongs to 2020 and the topic is valid.
         expected_docs = [doc3.id]
 
-        # Run the filter and get results
         result_docs = get_filtered_document(self.project, filters)
 
-        # Check that the results match the expected documents
         self.assertEqual(result_docs, expected_docs)
 
     def test_get_filtered_document_exclude_year_range(self):
@@ -188,3 +186,51 @@ class FilterTests(TestCase):
         result_docs = get_filtered_document(self.project, filters)
 
         self.assertEqual(sorted(result_docs), expected_docs)
+
+    def test_get_filtered_document_union_with_descriptors(self):
+        """Test filter logic with union filters using descriptors."""
+
+        # Filters: union by descriptors
+        filters = {
+            "filter-union-0": {"descriptors": ["Descriptor 1"]},
+        }
+
+        # Expect doc1 to match, as it has "Descriptor 1"
+        expected_docs = [self.doc1.id]
+
+        result_docs = get_filtered_document(self.project, filters)
+
+        self.assertEqual(result_docs, expected_docs)
+
+    def test_get_filtered_document_exclude_descriptors(self):
+        """Test exclusion filter using descriptors."""
+
+        # Filters: exclude documents with "Descriptor 1"
+        filters = {
+            "filter-exclude-0": {"descriptors": ["Descriptor 1"]},
+        }
+
+        # Expect doc2 to match, as doc1 has "Descriptor 1" and is excluded
+        expected_docs = [self.doc2.id]
+
+        result_docs = get_filtered_document(self.project, filters)
+
+        self.assertEqual(result_docs, expected_docs)
+
+    def test_get_filtered_document_combined_descriptor_and_topic(self):
+        """Test combined filter logic with both descriptors and topic."""
+
+        # Filters: Union with both descriptors and topic
+        filters = {
+            "filter-union-0": {
+                "descriptors": ["Descriptor 3"],
+                "Topic": ["1: Test Topic"],
+            },
+        }
+
+        # Expect doc2 to match since it has "Descriptor 3" and matches the topic
+        expected_docs = [self.doc2.id]
+
+        result_docs = get_filtered_document(self.project, filters)
+
+        self.assertEqual(result_docs, expected_docs)

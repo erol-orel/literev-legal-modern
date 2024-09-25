@@ -3,6 +3,7 @@ const topicSelectorContainer = document.querySelector("#topic-selector-container
 const valueSelectorContainer = document.querySelector("#value-selector-container");
 const yearSelectorContainer = document.querySelector("#year-selector-container");
 const normSelectorContainer = document.querySelector("#norm-selector-container");
+const descriptorSelectorContainer = document.querySelector("#descriptor-selector-container");
 const resultSelectorContainer = document.querySelector("#result-selector-container");
 const typeFilter = document.querySelector("#type-filter");
 console.log("functions filtering...")
@@ -13,6 +14,7 @@ function checkKeySelector() {
         valueSelectorContainer.hidden = true;
         yearSelectorContainer.hidden = true;
         normSelectorContainer.hidden = true;
+        descriptorSelectorContainer.hidden = true;
         resultSelectorContainer.hidden = true;
     }
 
@@ -21,6 +23,7 @@ function checkKeySelector() {
         valueSelectorContainer.hidden = true;
         yearSelectorContainer.hidden = true;
         normSelectorContainer.hidden = false;
+        descriptorSelectorContainer.hidden = true;
         resultSelectorContainer.hidden = true;
     }
 
@@ -29,6 +32,7 @@ function checkKeySelector() {
         valueSelectorContainer.hidden = true;
         yearSelectorContainer.hidden = true;
         normSelectorContainer.hidden = true;
+        descriptorSelectorContainer.hidden = true;
         resultSelectorContainer.hidden = false;
     }
 
@@ -37,6 +41,16 @@ function checkKeySelector() {
         valueSelectorContainer.hidden = true;
         yearSelectorContainer.hidden = false;
         normSelectorContainer.hidden = true;
+        descriptorSelectorContainer.hidden = true;
+        resultSelectorContainer.hidden = true;
+    }
+
+    else if (typeFilter.value == "descriptors") {
+        topicSelectorContainer.hidden = true;
+        valueSelectorContainer.hidden = true;
+        yearSelectorContainer.hidden = true;
+        normSelectorContainer.hidden = true;
+        descriptorSelectorContainer.hidden = false;
         resultSelectorContainer.hidden = true;
     }
 
@@ -45,6 +59,7 @@ function checkKeySelector() {
         valueSelectorContainer.hidden = false;
         yearSelectorContainer.hidden = true;
         normSelectorContainer.hidden = true;
+        descriptorSelectorContainer.hidden = true;
         resultSelectorContainer.hidden = true;
     }
 }
@@ -289,6 +304,7 @@ buttonExclude.addEventListener("click", () => {
     const filterType = document.querySelector("#type-filter");
     const topicValue = document.querySelector("#topic-value");
     const normValue = document.querySelector("#norm-filter");
+    const descriptorValue = document.querySelector("#descriptor-filter");
     const resultValue = document.querySelector("#result-filter");
 
     let contentType = filterType.value;
@@ -299,6 +315,9 @@ buttonExclude.addEventListener("click", () => {
     }
     else if (contentType == "Norm") {
         content = normValue.value;
+    }
+    else if (contentType == "descriptors") {
+        content = descriptorValue.value;
     }
     else if (contentType == "Result") {
         content = resultValue.value;
@@ -351,6 +370,7 @@ buttonAdd.addEventListener("click", () => {
     const filterType = document.querySelector("#type-filter");
     const topicValue = document.querySelector("#topic-value");
     const normValue = document.querySelector("#norm-filter");
+    const descriptorValue = document.querySelector("#descriptor-filter");
     const container = document.querySelector(`#filter-container-${activeFilter}`);
     const resultValue = document.querySelector("#result-filter");
 
@@ -364,6 +384,10 @@ buttonAdd.addEventListener("click", () => {
 
     else if (contentType == "Norm"){
         content = normValue.value;
+    }
+
+    else if (contentType == "descriptors") {
+        content = descriptorValue.value;
     }
 
     else if (contentType == "Result") {
@@ -567,6 +591,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const yearFilter = document.getElementById('year-filter');
     const textFilter = document.getElementById('text-filter');
     const normFilter = document.getElementById('norm-filter');
+    const descriptorFilter = document.getElementById('descriptor-filter');
     const resultFilter = document.getElementById('result-filter');
     const topicValue = document.getElementById('topic-value');
     const addButton = document.getElementById('add-button');
@@ -576,6 +601,7 @@ document.addEventListener('DOMContentLoaded', function() {
     textFilter.style.display = 'none';
     yearFilter.style.display = 'block';
     normFilter.style.display = 'block';
+    descriptorFilter.style.display = 'block';
     resultFilter.style.display = 'block';
     topicValue.style.display = 'block';
     addButton.disabled = false;
@@ -588,6 +614,7 @@ document.addEventListener('DOMContentLoaded', function() {
             yearFilter.style.display = 'block';
             textFilter.style.display = 'none';
             normFilter.style.display = 'none';
+            descriptorFilter.style.display = 'none';
             resultFilter.style.display = 'none';
             topicValue.style.display = 'none';
 
@@ -622,6 +649,7 @@ document.addEventListener('DOMContentLoaded', function() {
             yearFilter.style.display = 'none';
             textFilter.style.display = 'block';
             normFilter.style.display = selectedFilter === 'Norm' ? 'block' : 'none';
+            descriptorFilter.style.display = selectedFilter === 'descriptors' ? 'block' : 'none';
             resultFilter.style.display = selectedFilter === 'Result' ? 'block' : 'none';
             topicValue.style.display = selectedFilter === 'Topic' ? 'block' : 'none';
             addButton.disabled = false;
