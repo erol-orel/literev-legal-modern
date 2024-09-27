@@ -19,7 +19,6 @@ from django.views.generic import TemplateView
 from literev.forms import SearchForm
 from literev.libs.nlp import nlp_topic_description
 from literev.libs.pipeline import (
-    get_color_map,
     running_restart,
 )
 from literev.libs.select_functions import (
@@ -35,9 +34,7 @@ from literev.libs.table_choice import (
     update_new_table_choice,
 )
 from literev.libs.utils import (
-    count_all_corpus,
     get_number_documents,
-    process_all_documents,
 )
 from literev.models import (
     Cluster,
@@ -46,6 +43,7 @@ from literev.models import (
     Project,
     TableChoice,
 )
+from literev.task_plotting import get_color_map
 from literev.tasks import launch_process, running_delete
 
 UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
@@ -187,18 +185,7 @@ def search(request: HttpRequest) -> HttpResponse:
     submit = request.POST["submit"]
 
     if submit == "search":
-        query_text = SearchForm(request.POST)["query"].value()
-        if query_text == "#COUNT-ALL-CORPUS-LITEREV-00":
-            result_all = count_all_corpus()
-            logging.info("counting all corpus")
-            logging.info(result_all)
-
-        elif query_text == "#PROCESS-ALL-CORPUS-LITEREV-00":
-            process_all_documents()
-            logging.info("processing all corpus")
-
-        else:
-            context = search_search(request, context)
+        context = search_search(request, context)
 
     elif submit == "evaluate":
         # TODO: Implement this
@@ -418,7 +405,7 @@ def get_grouped_clusters(project: Project) -> list[dict]:
         Cluster.objects.filter(project=project)
         .values("topic")
         .annotate(total_documents=Count("clusterelement__document"))
-        .order_by("-total_documents")
+        .order_by("-total_documents", "topic")
     )
 
 

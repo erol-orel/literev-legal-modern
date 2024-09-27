@@ -1,9 +1,86 @@
 import datetime
 import logging
 
+from typing import cast
+
+import psycopg2
+
+from django.conf import settings
+
 from literev.libs.collectors import ElasticSearchCollector
 from literev.models import Project
-from literev.tasks import launch_process
+
+# from literev.tasks import launch_process
+
+
+def update_task_code(project: Project, task_code) -> None:
+    project.actual_task_code = task_code
+    project.save()
+
+
+def get_study_name(project: Project) -> str:
+    """
+    Constructs the project study name.
+
+    It is used for optuna optimization.
+
+    Returns
+    -------
+    str
+        A string which is study name related with the project.
+    """
+
+    return f"study_{project.id}"
+
+
+def get_database_uri() -> str:
+    """
+    Constructs the database URI from environment variables.
+    the database is expected to be used by optuna library in optimization.
+
+    Returns
+    -------
+    str
+        A string representing the PostgreSQL database URI.
+    """
+
+    db = settings.DATABASES["default"]
+    return f"postgresql://{db['USER']}:{db['PASSWORD']}@{db['HOST']}:{db['PORT']}/{db['NAME']}"
+
+
+def count_trials(project: Project) -> int:
+    """
+    Counts the trials for project from optuna database.
+
+    Returns
+    -------
+    counter : int
+        A number of trials made for project.
+    """
+    try:
+        database_uri = get_database_uri()
+        conn = psycopg2.connect(database_uri)
+        cursor = conn.cursor()
+        study_name_research = get_study_name(project)
+
+        cursor.execute(
+            f"SELECT study_id FROM studies WHERE study_name='{study_name_research}';"
+        )
+
+        study_id = cursor.fetchone()[0]
+
+        cursor.execute(
+            f"SELECT count(*) FROM trials WHERE study_id={study_id};"
+        )
+
+        counter = cast(int, cursor.fetchone()[0])
+
+        conn.close()
+
+    except TypeError:
+        counter = 0
+
+    return counter
 
 
 def get_number_documents(
@@ -35,19 +112,20 @@ def count_all_corpus():
     return result
 
 
-def process_all_documents():
-    total_documents = count_all_corpus()
+# WORKAROUND: Keeping this code commented for future legal documents processing
+# def process_all_documents():
+#     total_documents = count_all_corpus()
 
-    project = Project.objects.create(
-        name="Process all corpus",
-        creation_date=datetime.datetime.now(),
-        query="#PROCESS-ALL-CORPUS-LITEREV-00",
-        total_documents=total_documents,
-    )
+#     project = Project.objects.create(
+#         name="Process all corpus",
+#         creation_date=datetime.datetime.now(),
+#         query="#PROCESS-ALL-CORPUS-LITEREV-00",
+#         total_documents=total_documents,
+#     )
 
-    if launch_process(project):
-        logging.info("Starting processing the whole corpus")
-    else:
-        logging.warning("error trying to process the whole corpus")
+#     if launch_process(project):
+#         logging.info("Starting processing the whole corpus")
+#     else:
+#         logging.warning("error trying to process the whole corpus")
 
-    return
+#     return

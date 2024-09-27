@@ -6,6 +6,7 @@ from django import template
 from django.conf import settings
 from django.db.models import Avg, Count, ExpressionWrapper, F, FloatField, Func
 
+from literev.libs.utils import count_trials
 from literev.models import (
     Cluster,
     ClusterElement,
@@ -26,7 +27,7 @@ def get_sample_document(document: Document) -> str:
 @register.filter
 def clustering_percentage(project: Project) -> int:
     n_total_trials = int(settings.NUMBER_TRIALS)
-    step_number = project.step_number
+    step_number = count_trials(project)
 
     return int(step_number / n_total_trials * 100)
 
@@ -34,7 +35,7 @@ def clustering_percentage(project: Project) -> int:
 @register.filter
 def clustering_progress(project: Project) -> str:
     n_total_trials = settings.NUMBER_TRIALS
-    step_number = project.step_number
+    step_number = count_trials(project)
 
     return f"{step_number}/{n_total_trials}"
 
@@ -133,19 +134,18 @@ def clusters_summary(project: Project) -> list[dict[str, Union[str, int]]]:
     # Group clusters by 'topic' and 'summary' to calculate
     # the center coordinates for each group
     grouped_clusters = (
-        clusters.values("topic", "summary", "id")
+        clusters.values("topic", "summary", "order", "id")
         .annotate(
             center_x=Avg("clusterelement__pos_x", output_field=FloatField()),
             center_y=Avg("clusterelement__pos_y", output_field=FloatField()),
             total_documents=Count("clusterelement__document"),
         )
-        .order_by("-total_documents")
+        .order_by("order")
     )
 
     # outlier or noise papers cluster
     unclassified_papers_cluster: dict[str, Any] = {}
 
-    index = 0
     for cluster in grouped_clusters:
         topic = cluster["topic"]
         center_x = cluster["center_x"]
@@ -153,6 +153,7 @@ def clusters_summary(project: Project) -> list[dict[str, Union[str, int]]]:
         total_documents = cluster["total_documents"]
         summary = cluster["summary"]
         cluster_id = cluster["id"]
+        cluster_order = cluster["order"]
 
         if topic == UNCLASSIFIED_PAPERS_TOPIC:
             # reserve the unclassified/noise papers cluster
@@ -161,6 +162,7 @@ def clusters_summary(project: Project) -> list[dict[str, Union[str, int]]]:
                 "cluster_id": cluster_id,
                 "topic": topic,
                 "total_documents": total_documents,
+                "cluster_order": -1,
                 "summary_text": (
                     "Unclassified papers are the outliers or noise points that could "
                     "not fit into any of the identified groups during the clustering process."
@@ -185,14 +187,14 @@ def clusters_summary(project: Project) -> list[dict[str, Union[str, int]]]:
             .order_by("distance")
             .first()
         )
+
         topic_10 = ", ".join(topic.split(", ")[:10])
 
         if most_centered_element:
-            index += 1
             clusters_summary.append(
                 {
-                    "cluster_number": index,
                     "cluster_id": cluster_id,
+                    "cluster_order": cluster_order,
                     "topic": topic,
                     "topic_10": topic_10,
                     "total_documents": total_documents,

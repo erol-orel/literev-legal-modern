@@ -55,6 +55,7 @@ class Document(models.Model):
 
 class Cluster(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    order = models.IntegerField(default=-1)
     topic = models.CharField(max_length=8196)
     summary = models.TextField(default="")
 

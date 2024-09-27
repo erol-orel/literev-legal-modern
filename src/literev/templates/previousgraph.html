@@ -112,8 +112,8 @@
                   <tr style="background-color: {{ topic_colors|get_dict_value:summary.topic }}15">
                     <td class="align-middle py-4 fs-2">
                       <h2 class="text-center">
-                        {% if summary.cluster_number %}
-                          {{ summary.cluster_number }}
+                        {% if summary.cluster_order != -1 %}
+                          {{ summary.cluster_order }}
                         {% endif %}
                       </h2>
                     </td>

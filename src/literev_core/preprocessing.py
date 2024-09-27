@@ -9,7 +9,7 @@ from .utils import (
     create_ngrams,
     create_stopwords,
     define_languages,
-    lemmatization,
+    lemmatize,
     pre_processing,
     remove_common_and_unique,
     remove_words,
@@ -24,7 +24,7 @@ def clean_corpus(corpus: str) -> str:
 
     corpus_to_tokens = sentences_to_words(cleaned_article_corpus)
 
-    lemmatized = lemmatization(corpus_to_tokens)
+    lemmatized = lemmatize(corpus_to_tokens)
 
     corpus_without_stopwords = remove_words(lemmatized, stopwords_list)
 
@@ -41,7 +41,7 @@ def clean_corpus_mp(corpus: str, pk: int) -> tuple[str, int]:
 
     corpus_to_tokens = sentences_to_words(cleaned_corpus)
 
-    lemmatized = lemmatization(corpus_to_tokens)
+    lemmatized = lemmatize(corpus_to_tokens)
 
     corpus_without_stopwords = remove_words(lemmatized, stopwords_list)
 

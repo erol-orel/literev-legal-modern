@@ -212,6 +212,24 @@ groups:
             $CMD
           fi
 
+      fill-order-clusters:
+        help: Fill order cluster in Cluster object DB
+        env-file: .env
+        run: |
+          sugar ext start \
+            --services literev-postgres --options -d
+
+          CMD="python manage.py fill_order_cluster"
+
+          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
+            sugar run --service literev --options --rm --cmd $CMD
+          else
+            cd ./src/
+            export POSTGRES_HOST=localhost
+            $CMD
+          fi
+          echo "[II] Filling order clusters is done."
+          
       optimize-documents:
         help: Run the optimization of the documents
         env-file: .env

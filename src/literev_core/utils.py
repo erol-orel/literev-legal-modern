@@ -18,6 +18,9 @@ SUPPORTED_LANGUAGES = [Language.ENGLISH, Language.FRENCH]
 detector = LanguageDetectorBuilder.from_languages(*SUPPORTED_LANGUAGES).build()
 DATA_PATH = Path(__file__).parent / "data"
 
+NLP = spacy.load("fr_core_news_sm", disable=["parser", "ner"])
+NLP.max_length = 10000000
+
 
 def create_stopwords() -> set[str]:
     """Create a new set of stopwords from a file.
@@ -111,7 +114,7 @@ def sentences_to_words(corpus: str) -> list[str]:
     return tokens_list
 
 
-def lemmatization(
+def lemmatize(
     list_words: list[str],
     allowed_postags: list[str] = ["NOUN", "ADJ", "VERB", "ADV"],
 ) -> str:
@@ -131,10 +134,7 @@ def lemmatization(
               A list of lemmatized words.
     """
 
-    nlp = spacy.load("fr_core_news_sm", disable=["parser", "ner"])
-    nlp.max_length = 10000000
-
-    doc = nlp(" ".join(list_words))
+    doc = NLP(" ".join(list_words))
     list_lemmatized = " ".join(
         token.lemma_ for token in doc if token.pos_ in allowed_postags
     )

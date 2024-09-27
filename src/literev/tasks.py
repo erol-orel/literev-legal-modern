@@ -11,12 +11,12 @@ from config.celery import app
 from literev.libs.collectors import ElasticSearchCollector
 from literev.libs.pipeline import (
     create_document_db,
-    hover_with_keywords,
-    scatter_with_hover,
     update_pp_document,
 )
+from literev.libs.utils import update_task_code
 from literev.models import Document, Project
-from literev_core.clustering import cluster
+from literev.task_clustering import back_clustering_documents
+from literev.task_plotting import back_plotting_documents
 from literev_core.preprocessing import (
     create_ngrams,
     prepare_document,
@@ -25,11 +25,6 @@ from literev_core.preprocessing import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def update_task_code(project: Project, task_code) -> None:
-    project.actual_task_code = task_code
-    project.save()
 
 
 def running_delete(project_id: str) -> None:
@@ -123,14 +118,9 @@ def back_get_documents(self, project_id: int):
     es_collector = ElasticSearchCollector()
 
     try:
-        # Just to get all documents
-        logger.info(f"Project query: {project.query}")
-        if project.query == "#PROCESS-ALL-CORPUS-LITEREV-00":
-            documents_list = es_collector.collect_all_documents()
-        else:
-            documents_list = es_collector.collect_documents(
-                project.query, project.range_begin_date, project.range_end_date
-            )
+        documents_list = es_collector.collect_documents(
+            project.query, project.range_begin_date, project.range_end_date
+        )
 
     except Exception as e:
         logger.error("ElasticSearchCollector Failed")
@@ -259,101 +249,3 @@ def back_preprocess_documents(self, project_id: int):
     project.step = "clustering"
     project.save()
     logger.info("Success preprocessing Documents")
-
-
-@app.task(bind=True)
-def back_clustering_documents(self, project_id: int):
-    """
-    Clusters preprocessed documents using the configured clustering algorithm.
-
-    Parameters
-    ----------
-    project_id : int
-        The ID of the project for which documents are clustered.
-    """
-
-    project = Project.objects.get(id=project_id)
-
-    update_task_code(project, self.request.id)
-
-    documents = Document.objects.filter(project=project)
-
-    try:
-        pp_documents = [
-            document.preprocessed_document
-            for document in documents
-            if document.preprocessed_document != ""
-        ]
-        list_id_docs = [
-            document.pk
-            for document in documents
-            if document.preprocessed_document != ""
-        ]
-    except Exception as e:
-        logger.error("Error getting preprocessed Document from DB")
-        logger.error(f"project id: {project.pk}")
-        logger.error(e)
-        return
-
-    try:
-        embedding_2d_array, best_study_clusterer, tf_idf_sorted = cluster(
-            project, pp_documents
-        )
-    except Exception as e:
-        logger.error(f"Error in clustering, project ID: {project.pk}")
-        logger.error(e)
-        return
-
-    try:
-        hover_with_keywords(
-            project,
-            list_id_docs,
-            embedding_2d_array,
-            best_study_clusterer,
-            tf_idf_sorted,
-        )
-    except Exception as e:
-        logger.error("Error creating Cluster, ClusterElement in DB")
-        logger.error(f"Project id: {project.pk}")
-        logger.error(e)
-        return
-
-    logger.info("Success in Clustering")
-
-    project.step_number = 0
-    project.step = "plotting"
-    project.save()
-
-
-@app.task(bind=True)
-def back_plotting_documents(self, project_id: int):
-    """
-    Generates visual plots for clustered data.
-
-    Parameters
-    ----------
-    project_id : int
-        The ID of the project for which plots are generated.
-    """
-    project = Project.objects.get(id=project_id)
-
-    update_task_code(project, self.request.id)
-
-    try:
-        path = settings.PLOT_DATA / f"{project.pk}_plot.html"
-        div_path = settings.PLOT_DATA / f"{project.pk}_div.html"
-        script_path = settings.PLOT_DATA / f"{project.pk}_script.html"
-
-        scatter_with_hover(project, path, div_path, script_path)
-
-    except Exception as e:
-        logger.error("Error creating Plot")
-        logger.error(e)
-        return
-
-    logger.info("Success creating Plot")
-    project.step = ""
-    project.actual_task_code = ""
-    project.is_finish = True
-    project.is_running = False
-    project.save()
