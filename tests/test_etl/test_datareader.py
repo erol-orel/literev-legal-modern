@@ -55,4 +55,4 @@ def test_corrupted_file_should_fail(reader):
     reader.file_path = CORRUPTED_DATA_PATH
     with pytest.raises(Exception):
         corrupted_objs = [record for record in reader.read_data()]
-        assert corrupted_objs
+        assert corrupted_objs, f"corrupted_objs = '{corrupted_objs}'"
