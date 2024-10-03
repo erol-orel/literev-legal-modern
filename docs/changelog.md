@@ -2,6 +2,37 @@ Release Notes
 ---
 
 
+## [0.3.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.2.0...0.3.0) (2024-10-03)
+
+### Features
+
+* add filter selector in graph result page ([#44](https://github.com/thegraphnetwork-literev/literev-legal/issues/44)) ([996772c](https://github.com/thegraphnetwork-literev/literev-legal/commit/996772c9d0023e218ae896b54bf24ec819084fbf))
+* add html document content page ([#59](https://github.com/thegraphnetwork-literev/literev-legal/issues/59)) ([d9d6363](https://github.com/thegraphnetwork-literev/literev-legal/commit/d9d6363835f88194374b91b3b420428c3582970b))
+* add project page with iteration and refinement features ([#108](https://github.com/thegraphnetwork-literev/literev-legal/issues/108)) ([a9ae1b4](https://github.com/thegraphnetwork-literev/literev-legal/commit/a9ae1b47de62226c8330969a4001bb784a03c8a9))
+* add remove button for running projects in running page ([#81](https://github.com/thegraphnetwork-literev/literev-legal/issues/81)) ([49884da](https://github.com/thegraphnetwork-literev/literev-legal/commit/49884dac2b91c77eb385706687387721754f3293))
+* add remove button in running page ([#65](https://github.com/thegraphnetwork-literev/literev-legal/issues/65)) ([dbbf8c8](https://github.com/thegraphnetwork-literev/literev-legal/commit/dbbf8c828ce8f87a74490a82ea9bbb81ecd10473))
+* add summary auto generation ([#68](https://github.com/thegraphnetwork-literev/literev-legal/issues/68)) ([749ac1b](https://github.com/thegraphnetwork-literev/literev-legal/commit/749ac1bba36e7e6765ea64e6d4d367c7bc79c191))
+* add table select page ([#46](https://github.com/thegraphnetwork-literev/literev-legal/issues/46)) ([2a03a56](https://github.com/thegraphnetwork-literev/literev-legal/commit/2a03a568b18f8ff70933f2e8b15630c96a56ba22))
+* Add task to index data into Elasticsearch ([#60](https://github.com/thegraphnetwork-literev/literev-legal/issues/60)) ([01fc9fc](https://github.com/thegraphnetwork-literev/literev-legal/commit/01fc9fc5cf897502f7174538495b2b107cb56d0c))
+* add user login ([#74](https://github.com/thegraphnetwork-literev/literev-legal/issues/74)) ([c03a0b4](https://github.com/thegraphnetwork-literev/literev-legal/commit/c03a0b4ae21ebfa3f05283c77a350cdf3f0b4363))
+* **docker:** Enhancements for Elasticsearch integration and JSON data indexing ([#103](https://github.com/thegraphnetwork-literev/literev-legal/issues/103)) ([0c744f2](https://github.com/thegraphnetwork-literev/literev-legal/commit/0c744f2fb5a742497e47481970af1fedab46e720))
+* enable filter by result and year in graph page ([#62](https://github.com/thegraphnetwork-literev/literev-legal/issues/62)) ([9dad7c5](https://github.com/thegraphnetwork-literev/literev-legal/commit/9dad7c51b28c6f083e23aa167532eaa621935746))
+* enable openai summary generation ([#45](https://github.com/thegraphnetwork-literev/literev-legal/issues/45)) ([0a67379](https://github.com/thegraphnetwork-literev/literev-legal/commit/0a6737902df7f95a1dac1faabffc6e958e5dc087))
+* Enhance Docker CPU Limits with env variables and DjangosScript improvements ([#53](https://github.com/thegraphnetwork-literev/literev-legal/issues/53)) ([73166f5](https://github.com/thegraphnetwork-literev/literev-legal/commit/73166f56df9abd84d62276ce3639d71020999b2f))
+* **form:** Make Decision date explicit in the search form ([#100](https://github.com/thegraphnetwork-literev/literev-legal/issues/100)) ([8bc0281](https://github.com/thegraphnetwork-literev/literev-legal/commit/8bc0281769a952f962566829b912189545b8f558))
+* Implement Celery for task management to replace existing Threading ([#49](https://github.com/thegraphnetwork-literev/literev-legal/issues/49)) ([7212af9](https://github.com/thegraphnetwork-literev/literev-legal/commit/7212af970cbf737065794c637d5a3088665677b3))
+* Implement order by functionality in table selection ([#102](https://github.com/thegraphnetwork-literev/literev-legal/issues/102)) ([81051f9](https://github.com/thegraphnetwork-literev/literev-legal/commit/81051f9dd2cd899ab722c04a1c6d97016a5d6e37))
+* **nginx:** implement configuration and add SSL certificates for production ([#77](https://github.com/thegraphnetwork-literev/literev-legal/issues/77)) ([d0fdb09](https://github.com/thegraphnetwork-literev/literev-legal/commit/d0fdb099f9cf63488b5fcf9087175829f21979a9))
+* **refine-project:** Add descriptor filtering support ([#101](https://github.com/thegraphnetwork-literev/literev-legal/issues/101)) ([90cb755](https://github.com/thegraphnetwork-literev/literev-legal/commit/90cb7552971daa1b6841cf8c2129be84d6ae07f2))
+* **refine-project:** Add support for filtering documents by year range ([#99](https://github.com/thegraphnetwork-literev/literev-legal/issues/99)) ([92b918f](https://github.com/thegraphnetwork-literev/literev-legal/commit/92b918f8ae031363aacbff5aae75857a06b94ee2))
+* run clustering step outside container ([#47](https://github.com/thegraphnetwork-literev/literev-legal/issues/47)) ([ce664cb](https://github.com/thegraphnetwork-literev/literev-legal/commit/ce664cb91534d892a0442106cf765fc144dd446f))
+* update select page ([#54](https://github.com/thegraphnetwork-literev/literev-legal/issues/54)) ([40addb5](https://github.com/thegraphnetwork-literev/literev-legal/commit/40addb5c7a8a611c96600c594024dc360972463d))
+
+### Bug Fixes
+
+* **docker:** update volume paths for LiteRev base image ([66fbe7d](https://github.com/thegraphnetwork-literev/literev-legal/commit/66fbe7d6b1db3364d83a7d809d4a6e56a472f544))
+* fix bugs in exporting unclassified papers ([#63](https://github.com/thegraphnetwork-literev/literev-legal/issues/63)) ([a4f3ac4](https://github.com/thegraphnetwork-literev/literev-legal/commit/a4f3ac4c670209190e1c53d7adc25b9cb515888c))
+
 ## [0.2.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.1.0...0.2.0) (2024-04-11)
 
 
