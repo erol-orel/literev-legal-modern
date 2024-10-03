@@ -9,9 +9,10 @@ groups:
     compose-path:
       - containers/compose.base.yaml
       - containers/compose.prod.yaml
+      - containers/compose.elasticsearch.yaml
     env-file: .env
     services:
-      default: literev,literev-postgres,literev-redis,literev-celery,literev-nginx,certbot
+      default: literev,literev-postgres,literev-redis,literev-celery,literev-nginx,certbot,elasticsearch
       available:
         - name: literev
         - name: literev-postgres
@@ -19,16 +20,20 @@ groups:
         - name: literev-celery
         - name: literev-nginx
         - name: certbot
+        - name: elasticsearch
+
 
   dev:
     compose-path:
       - containers/compose.base.yaml
       - containers/compose.dev.yaml
+      - containers/compose.elasticsearch.yaml
     env-file: .env
     services:
-      default: literev,literev-postgres,literev-redis,literev-celery
+      default: literev,literev-postgres,literev-redis,literev-celery,elasticsearch
       available:
         - name: literev
         - name: literev-postgres
         - name: literev-redis
         - name: literev-celery
+        - name: literev-elasticsearch

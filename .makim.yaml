@@ -22,16 +22,7 @@ groups:
           rm -rf .pytest_cache
           rm -rf .mypy_cache
           rm -rf .ruff_cache
-
-  tests:
-    tasks:
-      lint:
-        help: Run linter tools
-        dependencies:
-          - target: clean.all
-        run: |
-          pre-commit install
-          pre-commit run --all-files --verbose
+  
   tests:
     tasks:
       lint:
@@ -451,26 +442,41 @@ groups:
             type: string
             required: false
             default: "test_judiciary"
-          raw-jsonl:
+          raw-json:
             help: Specify the original JSON file path
             type: string
             required: false
-            default: "/opt/data/json_raw/output.jsonl"
-          final-jsonl:
+            default: "/opt/data/json_raw/output.json"
+          path-json:
             help: Specify the final JSON file path
             type: string
             required: false
-            default: "/opt/data/json_raw/judiciary_data.jsonl"
+            default: "/opt/data/json_raw/"
+          final-json:
+            help: Specify the final JSON file path
+            type: string
+            required: false
+            default: ""
         shell: bash
         run: |
-          CMD=$(python scripts/index_to_elasticsearch.py "${{ args.index_name }}" "${{ args.raw_jsonl }}" "${{ args.final_jsonl }}")
-      
-          echo "Indexing to Elasticsearch..."
-          if [[ "${{ CMD }}" == "true" ]]; then
-            echo "Indexing to Elasticsearch is done."
-          else
-            echo "Indexing to Elasticsearch failed."
-          fi
+          timestamp=$(date +"%Y%m%d")
+          final_json="${{ args.path_json }}${{ args.index_name }}_$(basename "${{ args.raw_json }}" .json)_${timestamp}.json"
+          python scripts/elasticsearch_loader.py load-data \
+            -i "${{ args.index_name }}" \
+            -r "${{ args.raw_json }}" \
+            -f "$final_json"
+
+      count-docs-in-index:
+        help: |
+          Download data from BioRxiv/MedRxiv API within a specified date range.
+        args:
+          index-name:
+            help: Specify the index name (e.g., 'biorxiv' or 'medrxiv')
+            type: string
+            required: true      
+        shell: bash
+        run: |
+          python scripts/elasticsearch_loader.py count-documents ${{ args.index_name }}
 
   release:
     vars:

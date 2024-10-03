@@ -36,7 +36,7 @@ import logging
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any, Generator, Optional
 
 from elasticsearch import Elasticsearch
 
@@ -46,14 +46,14 @@ logger = logging.getLogger(__name__)
 class DataReader:
     """Helper class for reading large data from files."""
 
-    SUPPORTED_EXTENSIONS = ["jsonl"]
+    SUPPORTED_EXTENSIONS = ["jsonl", "json"]
 
     def __init__(self, file_path: str):
         if not Path(file_path).is_file():
             raise FileNotFoundError(f"File {file_path} does not exist")
         self.file_path = Path(file_path)
 
-    def _read_jsonl_lines(
+    def _read_json_lines(
         self,
     ) -> Generator[tuple[int, dict[str, Any]], None, None]:
         with open(self.file_path, "r", encoding="utf-8") as f:
@@ -65,8 +65,8 @@ class DataReader:
                     raise e
 
     def read_data(self) -> Generator[tuple[int, dict[str, Any]], None, None]:
-        if self.file_path.suffix == ".jsonl":
-            return self._read_jsonl_lines()
+        if self.file_path.suffix == ".jsonl" or "json":
+            return self._read_json_lines()
         else:
             raise NotImplementedError(
                 f"DataReader doesn't support {self.file_path.suffix} file extension. "
@@ -238,38 +238,69 @@ class DataLoader:
     def __init__(self, reader: DataReader) -> None:
         self.reader = reader
 
-    def load_into_es(self, es_client: Elasticsearch, index_name: str) -> None:
+    def load_into_es(
+        self,
+        es_client: Elasticsearch,
+        index_name: str,
+        chamber: Optional[str] = None,
+        op_type: str = "index",
+    ) -> None:
         """
         Load data into an Elasticsearch index.
 
         Parameters
         ----------
         es_client : Elasticsearch
-            An instance of Elasticsearch client.
+            An instance of the Elasticsearch client.
         index_name : str
-            Name of the Elasticsearch index where data will be loaded.
+            The name of the Elasticsearch index where data will be loaded.
+        op_type : str, optional
+            Operation type for indexing in Elasticsearch. Set to "create" to only insert new documents.
+            Default is "index", which updates existing documents with the same record_key.
 
         Raises
         ------
         RuntimeError
-            If an error occurs during data loading, with detailed error message including line number.
+            If an error occurs during data loading, with a detailed error message including the line number.
         """
-
         count = 0
+        overwritten = 0
         missing_documents = []
+        total_documents_in_file = sum(1 for _ in self.reader.read_data())
 
-        for line, document in self.reader.read_data():
-            try:
-                if "document" not in document:
-                    missing_documents.append((line, document))
-                    logger.error(f"No 'document' key in record at line {line}")
-                    continue
+        logger.info(f"Total documents in the file: {total_documents_in_file}")
 
-                count += 1
-                es_client.index(
-                    index=index_name, document=document, id=document.get("id")
+        if chamber:
+            documents = self.filter_by_chamber(chamber)
+        else:
+            documents = self.reader.read_data()
+
+        logger.info(f"Loaded {count} documents into Elasticsearch.")
+
+        for line, doc in documents:
+            record_key = doc.get("record_key")
+            if not record_key:
+                missing_documents.append((line, doc))
+                logger.error(
+                    f"Document on line {line} is missing 'record_key'."
                 )
-                logger.info(f"Indexed document {count} at line {line}")
+                continue
+            try:
+                response = es_client.index(
+                    index=index_name,
+                    document=doc,
+                    id=record_key,
+                    op_type=op_type,
+                )
+
+                if response.get("result") == "created":
+                    count += 1
+                elif response.get("result") == "updated":
+                    overwritten += 1
+                else:
+                    logger.warning(
+                        f"Unexpected result for Record Key {record_key} at line {line}: {response.get('result')}"
+                    )
 
             except Exception as e:
                 logger.exception(
@@ -279,13 +310,26 @@ class DataLoader:
                     f"Error processing record at line {line}: {e}"
                 ) from e
 
+        logger.info(f"Total created documents: {count}")
+        logger.info(f"Total overwritten (updated) documents: {overwritten}")
+        logger.info(f"Total documents in the file: {total_documents_in_file}")
+        logger.info(
+            f"Total indexed documents (created or updated): {count + overwritten}"
+        )
+
         if missing_documents:
             logger.warning(
-                f"Missing document data in {len(missing_documents)} records."
+                f"Missing data in {len(missing_documents)} records."
             )
 
-    def load_into_jsonl_file(self, export_path: str) -> None:
-        """Loads data into a JSONL file."""
+        # Check if total indexed documents match total documents in the file
+        if (count + overwritten) != total_documents_in_file:
+            logger.warning(
+                f"Mismatch in total documents. File: {total_documents_in_file}, Indexed: {count + overwritten}"
+            )
+
+    def load_into_json_file(self, export_path: str) -> None:
+        """Loads data into a JSON file."""
 
         translator, normalizer = DataTranslator(), DataNormalizer()
 

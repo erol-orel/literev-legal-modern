@@ -358,6 +358,31 @@ source:
 As this project uses the `squash and merge` strategy, ensure to apply
 the commit message format to the PR's title.
 
+
+## Indexing JSON Data into Elasticsearch with Makim
+
+To index JSON data into Elasticsearch, you can use the following Makim commands:
+
+1. **Index JSON Data:**
+
+```bash
+makim elasticsearch.index-json --index-name chambre_civil_court \
+--raw-json /opt/data/json_raw/Penal_Civil/decis_cjc_acjc.json \
+--final-json /opt/data/json_raw/decis_cjc_acjc_20241001.json
+```
+This command indexes the raw JSON data from the specified path into the Elasticsearch index named `chambre_civil_court`. The `--final-json` option specifies the output path for the final processed JSON file. If you do not specify a name for the final_json, the script will automatically generate one based on the raw_json filename, appending a timestamp or an identifier to differentiate it (e.g., decis_cjc_acjc.parsed.json).'
+
+2. **Count Documents in Index:**
+
+```bash
+makim elasticsearch.count-docs-in-index --index-name chambre_civil_court
+```
+
+This command retrieves the count of documents currently indexed in `chambre_civil_court`.
+
+Note: When indexing data, the `record_key` is crucial for uniquely identifying each record within the Elasticsearch index. This key should be included in the JSON data being indexed, ensuring that each document can be accurately referenced and updated in Elasticsearch.
+
+
 ## Troubleshooting
 
 * Poetry package hash not found: Hash for <package-name> (<package-version>)
