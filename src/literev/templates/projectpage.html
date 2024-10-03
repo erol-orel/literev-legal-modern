@@ -22,9 +22,10 @@
           <div class="modal-content">
             <div class="modal-header">
               <h1 class="modal-title fs-5">
-                Would you like to continue with these parameters?
+                A new refinement is being created with the following data.
+                Would you like to continue?
               </h1>
-              <button class="btn-close"
+              <button class="cancel-generate btn-close"
                       type="submit"
                       name="submit"
                       value="cancel"
@@ -33,13 +34,35 @@
             </div>
             <div class="modal-body">
               <ul class="list-group">
-                <li class="list-group-item mx-4 ps-4 mb-4">
-                  number of documents : {{ number_article }}
+                <li class="list-group-item mx-4 ps-4">
+                  Number of documents : {{ number_article }}
+                </li>
+                <li class="list-group-item mx-4 ps-4">
+                  Owner : {{ user.username }}
                 </li>
               </ul>
+              <hr />
+              <div class="mx-4 mb-3">
+                <label for="name-refinement"
+                       class="form-label">
+                  Please provide a Refinement name
+                </label>
+                <input class="form-control"
+                       id="name-refinement"
+                       type="text"
+                       name="refinement-name"
+                       placeholder="Refinement Name"
+                       required />
+                <input type="hidden"
+                       name="filters"
+                       value="{{ filters }}" />
+                <input type="hidden"
+                       name="document_pk_list"
+                       value="{{ document_pk_list }}" />
+              </div>
             </div>
             <div class="modal-footer">
-              <button class="btn btn-secondary"
+              <button class="cancel-generate btn btn-secondary"
                       type="submit"
                       name="submit"
                       value="cancel">
@@ -60,6 +83,77 @@
       </form>
     </div>
   {% endif %}
+
+  {% if confirm_delete_project %}
+    <div class="div modal-backdrop fade show">
+    </div>
+    <form action=""
+          method="POST">
+      {% csrf_token %}
+      <div class="modal fade show"
+           style="display: block"
+           id="deleteModal"
+           tabindex="-1"
+           aria-labelledby="deleteModal"
+           aria-hidden="false">
+
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h1 class="modal-title fs-5"
+                  id="deleteModalLabel">
+                Delete Project
+              </h1>
+              <button class="btn-close"
+                      data-bs-dismiss="modal"
+                      type='submit'
+                      name='submit'
+                      value='cancel'
+                      aria-label="Close">
+              </button>
+            </div>
+            <div class="modal-body">
+              <p>
+                Are you sure you want to delete following project?
+              </p>
+              <div class="ms-5">
+                Project: {{ research.name }}
+              </div>
+              <div class="ms-5 mb-3">
+                Query:
+                {% if research.search %}
+                  {{ research.search }}
+                {% else %}
+                  No query
+                {% endif %}
+              </div>
+              <p>
+                This action cannot be undone. Delete this project will permanently remove it.
+              </p>
+            </div>
+            <div class="modal-footer">
+              <input type="hidden"
+                     name="project_id"
+                     value="{{ project_id }}" />
+              <button class="btn btn-secondary"
+                      type='submit'
+                      name='submit'
+                      value='cancel'
+                      data-bs-dismiss="modal">
+                Close
+              </button>
+              <button type="submit"
+                      name="submit"
+                      value="confirm_delete_project"
+                      class="btn btn-danger">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  {% endif %}
   <!-- ---- -->
 {% endblock modal %}
 
@@ -67,9 +161,109 @@
   <div class="d-flex  flex-grow-1 overflow-scroll">
     <div class="flex-grow-1 justify-content-center">
       <h2 class="text-center my-4 py-4">
-        <i class="fa-solid fa-filter me-2"></i>
-        Refine Project
+        <i class="text-dark fa-solid fa-book-open-reader me-2"></i>
+        <a class="text-dark">Project: </a> {{ project.name }}
       </h2>
+      {% if refinement_limit_exceeded %}
+        <div class="row text-center">
+          <div class="alert alert-warning">
+            <span> You have reached the limit of refinements.</span>
+          </div>
+        </div>
+      {% endif %}
+      <div class="container">
+
+        <div class="row">
+          <div class="mx-auto col-lg-8 col-md-12 col-sm-12">
+            <hr />
+            <div class="fw-bold fs-3">
+              Details
+            </div>
+            <table class="table">
+              <tbody>
+                <tr>
+                  <th scope="row">
+                    Owner
+                  </th>
+                  <td>
+                    {{ project.user.username }}
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Creation date
+                  </th>
+                  <td>
+                    {{ project.creation_date }}
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Query
+                  </th>
+                  <td>
+                    {{ project.query }}
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Range date project
+                  </th>
+                  <td>
+                    <div>
+                      From: {{ project.range_begin_date }}
+                    </div>
+                    <div>
+                      To: {{ project.range_end_date }}
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Number of Documents
+                  </th>
+                  <td class="align-middle">
+                    {{ project | count_processed_documents }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+        <div class="row">
+          <div class="mx-auto col-lg-8 col-md-12 col-sm-12"">
+            <div class="fw-bold fs-5 mb-2">
+              Management
+            </div>
+            <form action=""
+                  method="POST">
+              {% csrf_token %}
+              <div class="row">
+                <input type="hidden"
+                       name="project_id"
+                       value="{{ project.id }}" />
+                <div class="d-grid gap-2 col-6 mx-auto">
+                  <button type="submit"
+                          name="submit"
+                          value="delete"
+                          class="btn btn-danger text-white">
+                    <i class="fa-regular fa-trash-can me-2"></i> Delete
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+      </div>
+      <div class="container my-2">
+        <div class="text-center">
+          <div class="fw-bold fs-3 d-inline-block me-3 mt-5">
+            Clusters plot
+          </div>
+        </div>
+      </div>
       <div class="d-flex justify-content-center mt-3 mb-5">
         <div class="d-flex container">
           {% if div_plot %}
@@ -385,7 +579,72 @@
         </div>
       </form>
     </div>
+    {% if refinements %}
+      <div class="container mb-5 fs-5">
+        <div class="fw-bold fs-3 text-center mb-3">
+          Refinement history
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">
+                Name
+              </th>
 
+              <th scope="col">
+                Owner
+              </th>
+              <th scope="col">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for refinement in refinements %}
+              <tr>
+                <th scope="row">
+                  <form action=""
+                        method='POST'>
+                    {% csrf_token %}
+                    <div class="btn-group"
+                         role="group"
+                         aria-label="refinements-table">
+                      <button type="submit"
+                              name="get-refinement"
+                              value="{{ refinement.id }}"
+                              class="btn btn-outline-secondary my-2">
+                        {{ refinement.name }}
+                      </button>
+                      <button type="submit"
+                              name="remove-refinement"
+                              value="{{ refinement.id }}"
+                              class="btn btn-outline-danger my-2">
+                        X
+                      </button>
+                    </div>
+                  </form>
+                </th>
+
+                <td class="align-middle">
+                  {{ refinement.owner.username }}
+                </td>
+                <td>
+                  <form action=""
+                        method="POST">
+                    {% csrf_token %}
+                    <input type="hidden"
+                           name="refinement_id"
+                           value="{{ refinement.id }}" />
+
+                  </form>
+                </td>
+
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
   </div>
 </div>
 </div>
@@ -397,6 +656,17 @@
   <script src="{% static "js/select_functions.js" %}" defer> </script>
 
   <script src="{% static "js/filter_functions.js" %}"> </script>
+
+  {% if AreYouSure %}
+    <script>
+      const cancelButtons = document.querySelectorAll(".cancel-generate");
+      console.log(cancelButtons)
+      cancelButtons.forEach(btn => btn.addEventListener("click", (e) => {
+        const nameInput = document.querySelector("#name-refinement");
+        nameInput.removeAttribute("required"); 
+      }))
+    </script>
+  {% endif %}
 
   <script src="{% static "js/bokeh.min.js" %}"></script>
   {% if script_plot %}

@@ -22,15 +22,23 @@ from literev.libs.pipeline import (
     running_restart,
 )
 from literev.libs.select_functions import (
+    create_refinement,
     download_finalcsv,
     get_filtered_document,
     get_filters,
+    get_raw_filters,
+    load_last_iteration,
+    remove_refinement,
 )
 from literev.libs.table_choice import (
+    create_iteration,
+    get_iteration,
+    get_json_iterations_render,
+    iterate_check_list,
+    remove_iteration,
     reset_table_choice,
-    update_article_is_check_table_choice,
-    update_article_to_display_table_choice,
-    update_neighbour_table_choice,
+    update_document_is_check_table_choice,
+    update_document_to_display_table_choice,
     update_new_table_choice,
 )
 from literev.libs.utils import (
@@ -38,9 +46,10 @@ from literev.libs.utils import (
 )
 from literev.models import (
     Cluster,
-    ClusterElement,
     Document,
     Project,
+    ProjectRefinement,
+    RefinementIteration,
     TableChoice,
 )
 from literev.task_plotting import get_color_map
@@ -243,7 +252,7 @@ def running(request: HttpRequest) -> HttpResponse:
 
 
 @login_required(login_url="/accounts/login/")
-def previousgraph(request: HttpRequest) -> HttpResponse:
+def projectpage(request: HttpRequest, project_id: int) -> HttpResponse:
     """
     Display the Refine project page.
 
@@ -255,6 +264,8 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
     ----------
     request : HttpRequest
         The request object.
+    project_id : int
+        identifier id of the project
 
     Returns
     -------
@@ -263,8 +274,9 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
     """
     context: dict[str, Any] = {}
     context["AreYouSure"] = False
+    context["confirm_delete_project"] = False
+    context["refinement_limit_exceeded"] = False
 
-    project_id = request.GET.get("project_id")
     if not project_id:
         return redirect("/search")
 
@@ -283,32 +295,87 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
         return redirect("/search")
 
     if request.method == "POST":
+        if request.POST.get("get-refinement"):
+            refinement_id = request.POST.get("get-refinement")
+
+            if refinement_id:
+                # get refinement and go the table select
+                load_last_iteration(actual_user, project, int(refinement_id))
+
+                return redirect(f"/tableselect/{project.id}/{refinement_id}/")
+
+        if request.POST.get("remove-refinement"):
+            refinement_id = request.POST.get("remove-refinement")
+
+            if refinement_id:
+                remove_refinement(actual_user, project, int(refinement_id))
+
         submit = request.POST.get("submit")
 
         if submit == "filters":
-            filters = get_filters(request.POST)
-            document_pk_list = get_filtered_document(
-                project=project, filters=filters
-            )
-            request.session["document_pk_list"] = document_pk_list
-            request.session["id_project"] = project_id
-            context["number_article"] = len(document_pk_list)
-            context["AreYouSure"] = True
+            # check refinements limit
+            refinement_limit = settings.LIMIT_NUMBER_REFINEMENTS
+            refinement_number = ProjectRefinement.objects.filter(
+                owner=actual_user, project=project
+            ).count()
+
+            if refinement_number >= refinement_limit:
+                context["refinement_limit_exceeded"] = True
+            else:
+                filters = get_filters(request.POST)
+                filters_str = get_raw_filters(request.POST)
+
+                document_pk_list = get_filtered_document(
+                    project=project, filters=filters
+                )
+                context["filters"] = filters_str
+                context["document_pk_list"] = " ".join(
+                    str(pk) for pk in document_pk_list
+                )
+                context["number_article"] = len(document_pk_list)
+                context["AreYouSure"] = True
+
+        elif submit == "delete":
+            context["confirm_delete_project"] = True
+
+        elif submit == "confirm_delete_project":
+            project_id = request.POST["project_id"]
+            running_delete(project_id)
+
+            return redirect("/running")
 
         elif submit == "continue":
+            document_pk_list_str = request.POST.get("document_pk_list", "")
+            document_pk_list = [int(pk) for pk in document_pk_list_str.split()]
+
+            filters_str = request.POST.get("filters", "")
+
             update_new_table_choice(
+                user=actual_user,
                 project=project,
-                document_id_list=request.session["document_pk_list"],
+                document_id_list=document_pk_list,
             )
-            return redirect(f"/tableselect?project_id={project_id}")
+
+            refinement_name = request.POST.get("refinement-name", "No name")
+
+            number_documents = len(document_pk_list)
+
+            new_refinement_id = create_refinement(
+                actual_user,
+                project,
+                refinement_name,
+                number_documents,
+                filters_str,
+            )
+
+            # create iteration
+            create_iteration(actual_user, project, new_refinement_id)
+
+            return redirect(f"/tableselect/{project_id}/{new_refinement_id}")
 
     context.update(
         {
             "project": project,
-            "cluster_list": ClusterElement.objects.filter(
-                cluster__project=project
-            ),
-            "documents_list": Document.objects.filter(project=project),
             "project_id": project_id,
         }
     )
@@ -321,9 +388,11 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
     context["list_topics"] = list(set(cluster_list))
 
     grouped_clusters = get_grouped_clusters(project)
+
     context["list_number_topic10"] = format_grouped_clusters(grouped_clusters)
 
     topics, palette = get_color_map(context["list_topics"])
+
     context["topic_colors"] = dict(zip(topics, palette))
 
     context["standard_list"] = extract_refined_list(project)
@@ -344,7 +413,12 @@ def previousgraph(request: HttpRequest) -> HttpResponse:
         "NO RESULT",
     ]
 
-    return render(request, "previousgraph.html", context)
+    refinements = ProjectRefinement.objects.filter(
+        owner=actual_user, project=project
+    )
+    context["refinements"] = refinements
+
+    return render(request, "projectpage.html", context)
 
 
 def load_plot_data(project_pk: int) -> dict[str, str]:
@@ -429,14 +503,21 @@ def format_grouped_clusters(grouped_clusters: list[dict]) -> list[str]:
     """
     index = 0
     list_topic_10 = []
+    exists_unclassified = False
+
     for cluster in grouped_clusters:
         if cluster["topic"] == UNCLASSIFIED_PAPERS_TOPIC:
+            exists_unclassified = True
             continue
         index += 1
         number__topic10_cluster = (
             f"{index}: {', '.join(cluster['topic'].split(', ')[:10])}"
         )
         list_topic_10.append(number__topic10_cluster)
+
+    if exists_unclassified:
+        list_topic_10.append(UNCLASSIFIED_PAPERS_TOPIC)
+
     return list_topic_10
 
 
@@ -537,13 +618,19 @@ def generate_summary(request: HttpRequest, cluster_id: int) -> HttpResponse:
 
 
 @login_required(login_url="/accounts/login/")
-def tableselect(request: HttpRequest) -> HttpResponse:
+def tableselect(
+    request: HttpRequest, project_id: int, refinement_id: int
+) -> HttpResponse:
     context: dict[str, Any] = {}
+    context["active_iteration_id"] = -1
+    context["iterations_limit_exceeded"] = False
+    context["processing_filters"] = False
+    context["active_iteration_id"] = -1
 
-    project_id = request.POST.get("project_id") or request.GET.get(
-        "project_id"
-    )
     if not project_id:
+        return redirect("/search")
+
+    if not refinement_id:
         return redirect("/search")
 
     actual_user = request.user
@@ -568,6 +655,101 @@ def tableselect(request: HttpRequest) -> HttpResponse:
     if current_page > total_pages:
         current_page = total_pages
 
+    # enable processing message if needed
+    if project.step == "processing_filters":
+        context["processing_filters"] = True
+        return render(request, "tableselect.html", context)
+
+    # Handle POST request for action buttons (iterate, reset, finish, navigation)
+    if request.method == "POST":
+        # Used for debbuging
+        # for k, v in request.POST.items():
+        #     print(k, v)
+
+        check_list = []
+
+        if "check_row" in request.POST:
+            check_list = [
+                int(table_id) for table_id in request.POST.getlist("check_row")
+            ]
+
+        if request.POST.get("get-iteration") is not None:
+            iteration_id = request.POST.get("get-iteration")
+            if iteration_id is not None:
+                get_iteration(
+                    actual_user, project, refinement_id, int(iteration_id)
+                )
+                context["active_iteration_id"] = int(iteration_id)
+
+        if request.POST.get("remove-iteration") is not None:
+            iteration_id = request.POST.get("remove-iteration")
+
+            if iteration_id is not None:
+                remove_iteration(
+                    actual_user, project, refinement_id, int(iteration_id)
+                )
+                context["active_iteration_id"] = -1
+
+        submit = request.POST.get("submit")
+
+        if submit == "iterate":
+            # Check iteration limit
+            iterations_limit = settings.LIMIT_NUMBER_ITERATIONS
+            iterations_number = RefinementIteration.objects.filter(
+                refinement_id=refinement_id
+            ).count()
+
+            if iterations_number >= iterations_limit:
+                context["iterations_limit_exceeded"] = True
+
+            else:
+                active_iteration_id = int(
+                    request.POST.get("active_iteration_id", -1)
+                )
+                iterate_check_list(
+                    actual_user,
+                    project,
+                    refinement_id,
+                    check_list,
+                    active_iteration_id,
+                )
+
+                # context["active_iteration_id"] = -1
+
+                return redirect(f"/tableselect/{project_id}/{refinement_id}")
+
+        elif submit == "reset":
+            reset_table_choice(
+                user=actual_user, project=project, refinement_id=refinement_id
+            )
+
+            return redirect(f"/tableselect/{project_id}/{refinement_id}")
+
+        elif submit == "finish":
+            update_document_is_check_table_choice(
+                user=actual_user, project=project, list_id=check_list
+            )
+            update_document_to_display_table_choice(
+                user=actual_user, project=project, list_id=check_list
+            )
+            return download_finalcsv(project=project)
+
+        elif submit == "previous" and current_page > 1:
+            update_document_is_check_table_choice(
+                user=actual_user, project=project, list_id=check_list
+            )
+            return redirect(
+                f"/tableselect/{project_id}/{refinement_id}/?page={current_page - 1}"
+            )
+
+        elif submit == "next" and current_page < total_pages:
+            update_document_is_check_table_choice(
+                user=actual_user, project=project, list_id=check_list
+            )
+            return redirect(
+                f"/tableselect/{project_id}/{refinement_id}/?page={current_page + 1}"
+            )
+
     # Prioritize order_by from POST if available, else fallback to GET
     order_by = request.POST.get("order_by") or request.GET.get(
         "order_by", "-document__decision_date"
@@ -581,57 +763,12 @@ def tableselect(request: HttpRequest) -> HttpResponse:
 
     # Ensure the order_by field is valid, defaulting if not found
     order_by = valid_order_by_fields.get(order_by, "-document__decision_date")
-    print(f"Ordenando por: {order_by}")
 
     # Fetch the TableChoice list ordered and paginated
     tablechoice_list = TableChoice.objects.filter(
         project=project,
         to_display=True,
     ).order_by(order_by)
-
-    # Handle POST request for action buttons (iterate, reset, finish, navigation)
-    if request.method == "POST":
-        check_list = list(map(int, request.POST.getlist("check_row", [])))
-        submit = request.POST.get("submit")
-
-        if submit == "iterate":
-            update_article_is_check_table_choice(
-                project=project, list_id=check_list
-            )
-            update_article_to_display_table_choice(
-                project=project, list_id=check_list
-            )
-            update_neighbour_table_choice(project=project)
-            return redirect(f"/tableselect?project_id={project.id}")
-
-        elif submit == "reset":
-            reset_table_choice(project=project)
-            return redirect(f"/tableselect?project_id={project.id}")
-
-        elif submit == "finish":
-            update_article_is_check_table_choice(
-                project=project, list_id=check_list
-            )
-            update_article_to_display_table_choice(
-                project=project, list_id=check_list
-            )
-            return download_finalcsv(project=project)
-
-        elif submit == "previous" and current_page > 1:
-            update_article_is_check_table_choice(
-                project=project, list_id=check_list
-            )
-            return redirect(
-                f"/tableselect?project_id={project.id}&page={current_page - 1}"
-            )
-
-        elif submit == "next" and current_page < total_pages:
-            update_article_is_check_table_choice(
-                project=project, list_id=check_list
-            )
-            return redirect(
-                f"/tableselect?project_id={project.id}&page={current_page + 1}"
-            )
 
     # Pagination: calculate the correct slice of documents
     first_article = (current_page - 1) * settings.NUMBER_ARTICLE_BY_PAGE
@@ -654,6 +791,19 @@ def tableselect(request: HttpRequest) -> HttpResponse:
     context["number_Article_chosen"] = TableChoice.objects.filter(
         project=project, is_check=True
     ).count()
+
+    input_active_iteration_id = int(
+        request.POST.get("active_iteration_id", -1)
+    )
+    active_iteration_id = context.get(
+        "active_iteration_id", input_active_iteration_id
+    )
+
+    iterations_render = get_json_iterations_render(
+        refinement_id, active_iteration_id
+    )
+
+    context["iterations"] = iterations_render
 
     return render(request, "tableselect.html", context)
 

@@ -20,6 +20,11 @@ UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
 
 
 @register.filter
+def count_processed_documents(project: Project) -> int:
+    return ClusterElement.objects.filter(cluster__project=project).count()
+
+
+@register.filter
 def get_sample_document(document: Document) -> str:
     return document.raw_document_text[:650]
 

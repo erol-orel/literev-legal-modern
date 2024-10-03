@@ -3,8 +3,6 @@ import datetime
 from django.contrib.auth.models import User
 from django.db import models
 
-# from literev.models import CustomUser
-
 
 class Project(models.Model):
     user = models.ForeignKey(
@@ -68,9 +66,33 @@ class ClusterElement(models.Model):
 
 
 class TableChoice(models.Model):
-    # user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, default=None, null=True, blank=True
+    )
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     document = models.ForeignKey(Document, on_delete=models.CASCADE)
     to_display = models.BooleanField(default=True)
     is_initial = models.BooleanField(default=True)
     is_check = models.BooleanField(default=False)
+
+
+class ProjectRefinement(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    name = models.CharField(max_length=1024)
+    origin = models.ForeignKey(
+        "ProjectRefinement", on_delete=models.SET_NULL, null=True, blank=True
+    )
+    filters = models.JSONField(default=dict)
+
+
+class RefinementIteration(models.Model):
+    refinement = models.ForeignKey(ProjectRefinement, on_delete=models.CASCADE)
+    parent_iteration = models.ForeignKey(
+        "RefinementIteration", on_delete=models.SET_NULL, null=True, blank=True
+    )
+    number_documents = models.IntegerField(default=0)
+    checked_documents_ids = models.JSONField(default=list)
+    excluded_documents_ids = models.JSONField(default=list)
+    new_neighbors_ids = models.JSONField(default=list)
+    result_documents_ids = models.JSONField(default=list)

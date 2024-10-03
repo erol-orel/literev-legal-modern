@@ -27,13 +27,14 @@ from literev_core.preprocessing import (
 logger = logging.getLogger(__name__)
 
 
-def running_delete(project_id: str) -> None:
+def running_delete(project_id: str | int) -> None:
     project = Project.objects.filter(pk=project_id).first()
     # Using try and except in case the project is finish
     try:
         task_id = project.actual_task_code
-        task = AsyncResult(task_id)
-        task.revoke(terminate=True, signal="SIGKILL")
+        if task_id:
+            task = AsyncResult(task_id)
+            task.revoke(terminate=True, signal="SIGKILL")
 
     except:
         logging.info(

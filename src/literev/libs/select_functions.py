@@ -12,12 +12,16 @@ from django.conf import settings
 from django.db.models import Count, Q
 from django.http import HttpResponse
 
+from literev.libs.table_choice import get_iteration
 from literev.models import (
     Cluster,
     ClusterElement,
     Document,
     Project,
+    ProjectRefinement,
+    RefinementIteration,
     TableChoice,
+    User,
 )
 
 UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
@@ -149,6 +153,40 @@ def download_finalcsv(project: Project) -> HttpResponse:
     return response
 
 
+def get_raw_filters(post_data: dict[str, str]) -> str:
+    """
+    Return a raw filter dictionary from the post_data
+
+    Use the post_data (request.POST) as a argument to extract
+    the key, values where key start with "filter.." and convert its
+    str value to python object, then is converted to and str value
+    to store in session.
+    This generates the value will be stored in request.sessions
+    and will help to keep the filters selected by the user.
+
+    Parameters
+    ----------
+    post_data : a request.POST dictionary dict [str, str]
+        A dictionary obtained from the frontend has the filters sent by
+        the user
+
+    Returns
+    -------
+    raw_filters : str
+        Store the selected filters in a string, this string has
+        json format.
+    """
+    filters: dict[str, Any] = {}
+
+    for key, value in post_data.items():
+        if "filter" in key and value != "{}":
+            filters[key] = json.loads(value)
+
+    raw_filters = json.dumps(filters)
+
+    return raw_filters
+
+
 def get_filters(post_data: dict[str, str]) -> dict[str, dict[str, Any]]:
     """
     Return a filter dictionary from the post_data.
@@ -271,12 +309,23 @@ def apply_filters(
 def get_documents_by_topic(project: Project, topics: list[str]) -> set[int]:
     """Retrieve document IDs filtered by topic."""
     result = set()
+
     for topic in topics:
-        prepared_topic = topic.split(": ")[1]
-        cluster_elements = ClusterElement.objects.filter(
-            cluster__project=project, cluster__topic__startswith=prepared_topic
-        ).values_list("document__pk", flat=True)
-        result.update(cluster_elements)
+        if topic == UNCLASSIFIED_PAPERS_TOPIC:
+            cluster_elements = ClusterElement.objects.filter(
+                cluster__project=project,
+                cluster__topic=UNCLASSIFIED_PAPERS_TOPIC,
+            ).values_list("document__pk", flat=True)
+            result.update(cluster_elements)
+
+        else:
+            prepared_topic = topic.split(": ")[1]
+            cluster_elements = ClusterElement.objects.filter(
+                cluster__project=project,
+                cluster__topic__startswith=prepared_topic,
+            ).values_list("document__pk", flat=True)
+            result.update(cluster_elements)
+
     return result
 
 
@@ -329,7 +378,7 @@ def get_documents_by_no_decis(
     for no_d in no_decis:
         documents = Document.objects.filter(
             project=project, raw_document_id=no_d
-        ).exclude(article__clusterelement__isnull=True)
+        ).exclude(document__clusterelement__isnull=True)
         result.update(documents.values_list("pk", flat=True))
     return result
 
@@ -341,7 +390,7 @@ def get_documents_by_result(project: Project, results: list[str]) -> set[int]:
         if result_value == "NO RESULT":
             documents = Document.objects.filter(
                 project=project, result=""
-            ).exclude(article__clusterelement__isnull=True)
+            ).exclude(document__clusterelement__isnull=True)
         else:
             documents = Document.objects.filter(
                 project=project, result=result_value
@@ -380,77 +429,69 @@ def get_intersection_of_non_empty_sets(sets: list[set[int]]) -> set[int]:
     return set()
 
 
-def distant_from_center(
-    pos_x: float, pos_y: float, center: tuple[float, float]
-) -> float:
-    return (center[0] - pos_x) ** 2 + (center[1] - pos_y) ** 2
+def remove_refinement(
+    user: User, project: Project, refinement_id: int
+) -> None:
+    ProjectRefinement.objects.filter(
+        owner=user, project=project, id=refinement_id
+    ).delete()
 
 
-def neighbour_document(document: Document, project: Project) -> list[Document]:
+def create_refinement(
+    user: User,
+    project: Project,
+    refinement_name: str,
+    number_documents: int,
+    filters: str,
+    origin: ProjectRefinement | None = None,
+) -> int:
+    """Save the actual state of all TableChoices objects.
+    Give a name to this actual states and saves it into refinement json file.
+
+    Parameters
+    ----------
+    user : User
+        Refinement owner.
+    research : Research object Model database
+        The research object model where is used to store
+        search query, status and related data.
+    refinement_name : str
+        name of the refinment.
+    number_documents : int
+        documents in the new created refinement.
+    origin : ResearchRefinement object model database
+        Parent of the refinement.
     """
-    Return a list of document but there isn't the center document in the list.
 
-    The function take an document, a project and process with clusterelement
-    object, the nearest neighbor. By default, take the 5 nearest.
-    by iteration, search around the document +-100 and if doesn't
-    have enough, the same but with +-200 around. We make max +-1000.
-    """
-    number_neighbor = 10
-    neighbour_documents: list[Document] = []
-    distant = 10
-    cluster_center_document_list = ClusterElement.objects.filter(
-        document=document, cluster__project=project
+    refinement = ProjectRefinement.objects.create(
+        project=project,
+        owner=user,
+        name=f"{refinement_name} ({number_documents} documents)",
+        origin=origin,
+        filters=json.dumps(filters),
     )
-    # if the document doesn't exist in the cluster
-    if not cluster_center_document_list.exists():
-        return neighbour_documents
 
-    cluster_center_document = cluster_center_document_list[0]
-    center = (cluster_center_document.pos_x, cluster_center_document.pos_y)
+    return refinement.id
 
-    nearest_cluster: list[ClusterElement] = []
 
-    while True:
-        if len(nearest_cluster) >= number_neighbor or distant > 1000:
-            break
+def load_last_iteration(
+    user: User, project: Project, refinement_id: int
+) -> None:
+    """Loads the last iteration from the given refinement id
 
-        cluster_list = ClusterElement.objects.filter(
-            cluster__project=project,
-            pos_x__gte=center[0] - distant,
-            pos_x__lte=center[0] + distant,
-            pos_y__gte=center[1] - distant,
-            pos_y__lte=center[1] + distant,
-        )
+    Parameters
+    ----------
+    user : User
+        Refinement owner.
+    research : Research object Model database
+        The research object model where is used to store
+        search query, status and related data.
+    refinement_id : int
+        Refinement object id which is related with the iterations.
+    """
+    last_iteration = RefinementIteration.objects.filter(
+        refinement_id=refinement_id
+    ).last()
 
-        for cluster in cluster_list:
-            # if this is the cluster of the center document pass to next
-            # iteration
-            if cluster.document == document:
-                continue
-
-            # if there are some place, add the cluster
-            if len(nearest_cluster) < number_neighbor:
-                nearest_cluster.append(cluster)
-            else:
-                # else, check distant from center with all cluster in list
-                # if there is one who is better, the new replace the ancient
-                for i in range(len(nearest_cluster)):
-                    ancient_distant = distant_from_center(
-                        nearest_cluster[i].pos_x,
-                        nearest_cluster[i].pos_y,
-                        center,
-                    )
-                    new_distant = distant_from_center(
-                        cluster.pos_x, cluster.pos_y, center
-                    )
-                    if new_distant < ancient_distant:
-                        nearest_cluster[i] = cluster
-                        break
-
-        distant += 10
-
-    # recuperate all document from cluster list
-    for cluster in nearest_cluster:
-        neighbour_documents.append(cluster.document)
-
-    return neighbour_documents
+    if last_iteration:
+        get_iteration(user, project, refinement_id, last_iteration.id)

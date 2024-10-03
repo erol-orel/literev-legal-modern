@@ -234,6 +234,8 @@ for dir in [
 ]:
     os.makedirs(dir, exist_ok=True)
 
+LIMIT_NUMBER_REFINEMENTS = env.int("LIMIT_NUMBER_REFINEMENTS", default=15)
+LIMIT_NUMBER_ITERATIONS = env.int("LIMIT_NUMBER_ITERATIONS", default=15)
 
 # DOCUMENTS COLLECTORS
 # ------------------------------------------------------------------------------
