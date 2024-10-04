@@ -8,7 +8,7 @@ from django.db.models import Count, Q
 logging.basicConfig(level=logging.INFO)
 
 from http import HTTPStatus
-from typing import Any
+from typing import Any, cast
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -16,7 +16,11 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.views.generic import TemplateView
 
-from literev.forms import SearchForm
+from literev.forms import HistoricalForm, SearchForm
+from literev.libs.historical_functions import (
+    filter_and_sort_projects,
+    sort_all_projects,
+)
 from literev.libs.nlp import nlp_topic_description
 from literev.libs.pipeline import (
     running_restart,
@@ -51,9 +55,14 @@ from literev.models import (
     ProjectRefinement,
     RefinementIteration,
     TableChoice,
+    User,
 )
 from literev.task_plotting import get_color_map
-from literev.tasks import launch_process, running_delete
+from literev.tasks import (
+    launch_process,
+    remove_all_finished_projects,
+    running_delete,
+)
 
 UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
 
@@ -244,7 +253,11 @@ def running(request: HttpRequest) -> HttpResponse:
             running_delete(project_id)
 
     # Include always the first project
-    projects = Project.objects.filter(Q(user=user) | Q(id=1)).order_by("-id")
+    projects = (
+        Project.objects.filter(Q(user=user) | Q(id=1))
+        .exclude(is_finish=True)
+        .order_by("-id")
+    )
 
     context["projects"] = projects
 
@@ -257,7 +270,7 @@ def projectpage(request: HttpRequest, project_id: int) -> HttpResponse:
     Display the Refine project page.
 
     This view displays the Refine project page. It shows the list of clusters
-    and documents, and allows the user to select a subset of articles to
+    and documents, and allows the user to select a subset of documents to
     continue with the project. It also displays the graph of the project.
 
     Parameters
@@ -332,7 +345,7 @@ def projectpage(request: HttpRequest, project_id: int) -> HttpResponse:
                 context["document_pk_list"] = " ".join(
                     str(pk) for pk in document_pk_list
                 )
-                context["number_article"] = len(document_pk_list)
+                context["number_document"] = len(document_pk_list)
                 context["AreYouSure"] = True
 
         elif submit == "delete":
@@ -771,17 +784,19 @@ def tableselect(
     ).order_by(order_by)
 
     # Pagination: calculate the correct slice of documents
-    first_article = (current_page - 1) * settings.NUMBER_ARTICLE_BY_PAGE
-    last_article = min(
+    first_document = (current_page - 1) * settings.NUMBER_ARTICLE_BY_PAGE
+    last_document = min(
         current_page * settings.NUMBER_ARTICLE_BY_PAGE, total_documents
     )
-    context["tablechoice_list"] = tablechoice_list[first_article:last_article]
+    context["tablechoice_list"] = tablechoice_list[
+        first_document:last_document
+    ]
     context["first_page"] = current_page == 1
     context["last_page"] = current_page == total_pages
     context["current_page"] = current_page
     context["total_page"] = total_pages
 
-    # Count the initial articles, neighbors, and checked articles
+    # Count the initial documents, neighbors, and checked documents
     context["number_Article_initial"] = TableChoice.objects.filter(
         project=project, is_initial=True
     ).count()
@@ -820,3 +835,70 @@ def contentdocument(request: HttpRequest, document_id: int) -> HttpResponse:
     context["document"] = document
 
     return render(request, "contentdocument.html", context)
+
+
+def historicalpage(request: HttpRequest) -> HttpResponse:
+    context: dict[str, Any] = dict()
+
+    historical_form = HistoricalForm()
+    context["historical_form"] = historical_form
+    context["filter_by_query"] = False
+
+    user = cast(User, request.user)
+
+    if request.method == "POST":
+        submit = request.POST["submit"]
+
+        if submit == "historical":
+            historical_form = HistoricalForm(request.POST)
+            context["historical_form"] = historical_form
+            context["filter_by_query"] = True
+            context["query_filter"] = ""
+
+            if historical_form.is_valid():
+                search = historical_form.cleaned_data["search"]
+
+                keywords = search.split()
+                sort_type = request.POST.get("sort_type", "")
+
+                # filter according to keyword otherwise return
+                # all project projects
+                if keywords:
+                    context["query_filter"] = search
+
+                    context["projects_list"] = filter_and_sort_projects(
+                        user, keywords, sort_type
+                    )
+                else:
+                    context["projects_list"] = sort_all_projects(
+                        user, sort_type
+                    )
+
+                return render(request, "historicalpage.html", context)
+
+        if submit == "delete":
+            project_id = int(request.POST["project_id"])
+            project_name = request.POST["project_name"]
+            project_query = request.POST["project_query"]
+            context["delete_message"] = True
+            context["project_id"] = project_id
+            context["project_name"] = project_name
+            context["project_query"] = project_query
+
+        if submit == "confirm_delete":
+            project_id = int(request.POST["project_id"])
+            running_delete(project_id)
+
+        if submit == "delete_all_finished":
+            remove_all_finished_projects(user)
+
+    if not context["filter_by_query"]:
+        # get all finished project
+        project_list = Project.objects.filter(
+            user=user, is_finish=True
+        ).order_by("-id")
+
+        if project_list.exists():
+            context["projects_list"] = project_list
+
+    return render(request, "historicalpage.html", context)

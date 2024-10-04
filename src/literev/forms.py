@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 
-from typing import Any
+from typing import Any, cast
 
 from django import forms
 from django.core.exceptions import ValidationError
@@ -111,3 +111,35 @@ class SearchForm(forms.Form):
 
         # Replace "+" with spaces to show the query properly in the screen.
         return validated_search.replace("+", " ").strip()
+
+
+class HistoricalForm(forms.Form):
+    search = forms.CharField(
+        max_length=4096,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Historical search keywords",
+            }
+        ),
+        label="",
+        required=False,
+        empty_value="",
+    )
+
+    def clean_search(self) -> str:
+        data = super().clean() or {}
+
+        if not data:
+            raise ValidationError("Form data is empty.")
+
+        search = data.get("search", "")
+
+        # TODO: Check if this will be neccesary
+        # historical search do not need to check
+        # for boolean operators and forbidden characters
+        # check, error = error_parsing_historical(search)
+        # if not check:
+        #     raise ValidationError(error)
+
+        return cast(str, search)

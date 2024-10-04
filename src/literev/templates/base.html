@@ -82,6 +82,21 @@
               </a>
             </li>
             <hr />
+            <li {% if actual_url == "running" %}
+                  class="nav-item"
+                {% endif %}>
+              <a href="{% url "historicalpage" %}"
+                 class="nav-link
+                        {% if actual_url == "historicalpage" %}
+                          text-black active rounded-pill
+                        {% else %}
+                          text-white
+                        {% endif %}">
+                <i class="fa-solid fa-gears me-3"></i>
+                Project Historial
+              </a>
+            </li>
+            <hr />
           {% endwith %}
         </ul>
         <hr />

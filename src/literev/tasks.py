@@ -14,7 +14,7 @@ from literev.libs.pipeline import (
     update_pp_document,
 )
 from literev.libs.utils import update_task_code
-from literev.models import Document, Project
+from literev.models import Document, Project, User
 from literev.task_clustering import back_clustering_documents
 from literev.task_plotting import back_plotting_documents
 from literev_core.preprocessing import (
@@ -54,6 +54,13 @@ def running_delete(project_id: str | int) -> None:
     for path in paths:
         if os.path.isfile(path):
             os.remove(path)
+
+
+def remove_all_finished_projects(user: User) -> None:
+    projects_query = Project.objects.filter(user=user, is_finish=True)
+
+    for project in projects_query:
+        running_delete(project.id)
 
 
 def launch_process(project: Project) -> bool:
@@ -184,7 +191,7 @@ def back_preparing_documents(self, project_id: int):
             )
 
     logger.info("Success preparing Documents")
-    project.step = "processing"
+    project.step = "preprocessing"
     project.save()
 
 

@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% load filtering_functions %}
+
+{% block modal %}
+  {% if delete_message %}
+    <div class="div modal-backdrop fade show">
+    </div>
+    <form action=""
+          method="POST">
+      {% csrf_token %}
+      <div class="modal fade show"
+           style="display: block"
+           id="deleteModal"
+           tabindex="-1"
+           aria-labelledby="deleteModal"
+           aria-hidden="false">
+
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h1 class="modal-title fs-5"
+                  id="deleteModalLabel">
+                Delete Project
+              </h1>
+              <button class="btn-close"
+                      data-bs-dismiss="modal"
+                      type='submit'
+                      name='submit'
+                      value='cancel'
+                      aria-label="Close">
+              </button>
+            </div>
+            <div class="modal-body">
+              <p>
+                Are you sure you want to delete following project?
+              </p>
+              <div class="ms-5">
+                Project: {{ project_name }}
+              </div>
+              <div class="ms-5 mb-3">
+                Query:
+                {% if project_search %}
+                  {{ project_search }}
+                {% else %}
+                  No query
+                {% endif %}
+              </div>
+              <p>
+                This action cannot be undone. Delete this project will permanently remove it.
+              </p>
+            </div>
+            <div class="modal-footer">
+              <input type="hidden"
+                     name="project_id"
+                     value="{{ project_id }}" />
+              <button class="btn btn-secondary"
+                      type='submit'
+                      name='submit'
+                      value='cancel'
+                      data-bs-dismiss="modal">
+                Close
+              </button>
+              <button type="submit"
+                      name="submit"
+                      value="confirm_delete"
+                      class="btn btn-danger">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  {% endif %}
+{% endblock modal %}
+
+{% block content %}
+  <div class="d-flex">
+    <div class="container">
+      <div class="col-sm-12 col-md-12 col-xl-12">
+
+        <div class="mt-4 p-4">
+          <h2 class="text-center col-12 mb-5">
+            <i class="fa-regular fa-rectangle-list me-3"></i>
+            Historical Search
+          </h2>
+          <form class="row"
+                action=""
+                method="POST">
+            {% csrf_token %}
+
+            <div class="col-sm-12 col-lg-5 mb-3">
+              <div class="input-group">
+                <span class="bg-white input-group-text"
+                      for="input_search">Search:</span>
+                {{ historical_form.search }}
+              </div>
+            </div>
+            <div class="col-sm-12 col-lg-4 mb-3">
+              <div class="input-group">
+                <label class="bg-white  input-group-text"
+                       for="sort_type">
+                  Sorting type
+                </label>
+                <select class="form-select"
+                        id="sort_type"
+                        name="sort_type"
+                        default="pertinence">
+                  <option value="more_documents_first"
+                          selected>
+                    More Documents first
+                  </option>
+                  <option value="less_documents_first">
+                    Less Documents first
+                  </option>
+                </select>
+              </div>
+            </div>
+            <div class="col-sm-12 col-lg-1 text-center">
+              <button class="btn btn-primary mb-3"
+                      type="submit"
+                      name="submit"
+                      value="historical">
+                Search
+              </button>
+            </div>
+            <div class="col-sm-12 col-lg-1 text-center">
+              <button class="btn btn-dark mb-3"
+                      type="submit"
+                      name="submit"
+                      value="no_filter">
+                Clear
+              </button>
+            </div>
+          </form>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container pb-5 px-4">
+    {% if query_filter %}
+      <h3>
+        <span class="badge text-bg-info">
+          filter by keywords: {{ query_filter }}
+        </span>
+      </h3>
+    {% endif %}
+    <!-- Historical Search List -->
+    <div class="fs-5 row"
+         style="overflow:auto">
+      <div class="col-12">
+        <div>
+          <div class="row align-items-center fs-5 mb-3 g-2 fw-bold">
+            <div class="col-4">
+              Project Name
+            </div>
+            <div class="col-4">
+              Query
+            </div>
+            <div class="text-center col-2">
+              Documents
+            </div>
+            <div class="text-center col-2">
+              Actions
+            </div>
+          </div>
+          <div class="row">
+            <hr />
+          </div>
+          {% if projects_list %}
+            {% for project in projects_list %}
+              <div class="project-search-metadata row align-items-center fs-5 g-3 mb-2">
+                <div class="col-4 d-flex">
+                  <div style="cursor:pointer"
+                       data-bs-toggle="collapse"
+                       data-bs-target="#collapse-step-finished-{{ forloop.counter }}">
+                    <div>
+                      <i class="fa-sharp fa-solid fa-chevron-right fa-sm"></i>
+                    </div>
+                  </div>
+                  <div>
+                    <a class="ms-2 fw-bold"
+                       href="/project/{{ project.id }}">{{ project.name }}</a>
+                  </div>
+                </div>
+                <div class="col-4">
+                  {{ project.query }}
+                </div>
+                <div class="text-center col-2">
+                  {{ project | count_processed_documents }}
+                </div>
+                <form class="col-2 d-flex justify-content-xl-center gap-3"
+                      show
+                      info
+                      method="POST">
+                  {% csrf_token %}
+
+                  <!-- Button trigger modal -->
+                  <div>
+                    <input type="hidden"
+                           name="project_id"
+                           value="{{ project.id }}" />
+                    <input type="hidden"
+                           name="project_name"
+                           value="{{ project.name }}" />
+                    <input type="hidden"
+                           name="project_query"
+                           value="{{ project.query }}" />
+                    <button type="submit"
+                            name="submit"
+                            value="delete"
+                            class="btn btn-danger text-white">
+                      <i class="fa-regular fa-trash-can"></i>
+                    </button>
+                  </div>
+                </form>
+                <div class="collapse row align-items-start pt-4 mb-3 text-muted fs-6"
+                     id="collapse-step-finished-{{ forloop.counter }}">
+                  <div class="col-2">
+                    <div>
+                      <p>
+                        Created on
+                      </p>
+                      <p>
+                        {{ project.creation_date }}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="col-2">
+                    <div>
+                      <p>
+                        Date range
+                      </p>
+                      <p>
+                        from: {{ project.range_begin_date }}
+                      </p>
+                      <p>
+                        to: {{ project.range_end_date }}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="col-3">
+                    <div>
+                      <p>
+                        Sources
+                      </p>
+
+                    </div>
+                  </div>
+                  <div class="col-3">
+                    <div>
+                      <p>
+                        File Sources
+                      </p>
+
+                    </div>
+                  </div>
+                  <div class="col-2">
+                    <div>
+                      <p>
+                        Best DBCV
+                      </p>
+                      <p>
+                        {{ project.best_dbcv |floatformat:"3" }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <hr />
+              </div>
+            {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="row justify-content-center justify-content-xl-end">
+      <div class="col-12 col-md-10 col-xl-6">
+        <div class="row justify-content-center justify-content-xl-end">
+          <div class="col-7 d-flex justify-content-end gap-5">
+            <form action=""
+                  method="POST">
+              {% csrf_token %}
+
+              <!-- Button trigger modal -->
+              {% if projects_list %}
+                <button type="button"
+                        data-bs-toggle="modal"
+                        data-bs-target="#deleteAllFinishedModal"
+                        class="btn btn-md btn-danger text-white">
+                  Delete all finished projects
+                </button>
+              {% endif %}
+
+              <!-- Modal -->
+              <div class="modal fade"
+                   id="deleteAllFinishedModal"
+                   tabindex="-1"
+                   aria-labelledby="deleteAllFinishedModalLabel"
+                   aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h1 class="modal-title fs-5"
+                          id="deleteAllFinishedModalLabel">
+                        Delete Project
+                      </h1>
+                      <button type="button"
+                              class="btn-close"
+                              data-bs-dismiss="modal"
+                              aria-label="Close">
+                      </button>
+                    </div>
+                    <div class="modal-body">
+                      <p>
+                        Are you sure you want to delete all finished project projects?
+                      </p>
+                      <p>
+                        All finished project projects will be permanently removed.
+                      </p>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button"
+                              class="btn btn-secondary"
+                              data-bs-dismiss="modal">
+                        Close
+                      </button>
+                      <button type="submit"
+                              name="submit"
+                              value="delete_all_finished"
+                              class="btn btn-danger">
+                        Delete all finished
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+{% endblock content %}
+
+{% block jscode %}
+{% endblock jscode %}

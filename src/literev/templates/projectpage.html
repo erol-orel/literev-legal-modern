@@ -35,8 +35,9 @@
             <div class="modal-body">
               <ul class="list-group">
                 <li class="list-group-item mx-4 ps-4">
-                  Number of documents : {{ number_article }}
+                  Number of documents : {{ number_document }}
                 </li>
+                <!-- Use this piece of code when sharing project feature is enable -->
                 <li class="list-group-item mx-4 ps-4">
                   Owner : {{ user.username }}
                 </li>
@@ -72,7 +73,7 @@
                       name="submit"
                       value="continue"
                       class="btn btn-primary"
-                      {% if number_article == 0 %}
+                      {% if number_document == 0 %}
                         disabled
                       {% endif %}>
                 Continue
@@ -117,12 +118,12 @@
                 Are you sure you want to delete following project?
               </p>
               <div class="ms-5">
-                Project: {{ research.name }}
+                Project: {{ project.name }}
               </div>
               <div class="ms-5 mb-3">
                 Query:
-                {% if research.search %}
-                  {{ research.search }}
+                {% if project.query %}
+                  {{ project.query }}
                 {% else %}
                   No query
                 {% endif %}
@@ -181,14 +182,15 @@
             </div>
             <table class="table">
               <tbody>
-                <tr>
+                <!-- Uncomment this code when sharing project feature is enabled -->
+                <!-- <tr>
                   <th scope="row">
                     Owner
                   </th>
                   <td>
                     {{ project.user.username }}
                   </td>
-                </tr>
+                </tr> -->
                 <tr>
                   <th scope="row">
                     Creation date
