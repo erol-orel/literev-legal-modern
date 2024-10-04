@@ -109,9 +109,7 @@ def load_data(
     )
     reader = DataReader(file_path=final_json)
     data_loader = DataLoader(reader)
-    data_loader.load_into_es(
-        es_client=es_client, index_name=index_to_load, file_path=str(raw_json)
-    )
+    data_loader.load_into_es(es_client=es_client, index_name=index_to_load)
     logger.info("Data loaded successfully.")
 
 

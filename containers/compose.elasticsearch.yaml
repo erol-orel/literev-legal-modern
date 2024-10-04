@@ -1,7 +1,8 @@
 services:
   elasticsearch:
+    hostname: elasticsearch
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.1
-    user: ${HOST_UID:-1000}:${HOST_GID:-1000}
+    user: "1000:1000" # Required UID and GID for Elasticsearch permissions
     env_file:
       ../.env
     environment:

@@ -2,6 +2,10 @@ version: '3.9'
 
 services:
   literev-base:
+    # TODO(#113): Consider refactoring the Dockerfile to avoid creating directories
+    # during the build process. This can lead to unnecessary layers and
+    # image size. Instead, create these directories at runtime or in the
+    # entrypoint script to ensure they are always created when needed.
     restart: unless-stopped
     stdin_open: true
     tty: true
@@ -22,6 +26,8 @@ services:
         - HTTP_PROXY=${http_proxy}
         - HTTPS_PROXY=${https_proxy}
     user: "literev:literev"
+    volumes:
+      - ${DOCKER_VOLUME_CONTAINER_PATH}:${DOCKER_VOLUME_CONTAINER_PATH}
 
   literev:
     extends: literev-base

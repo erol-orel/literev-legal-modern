@@ -35,7 +35,7 @@ def get_projects_list(project_id_list: list[int]) -> QuerySet[Project]:
     projects_sorted = Project.objects.filter(id__in=project_id_list).order_by(
         preferred
     )
-    
+
     return projects_sorted
 
 
@@ -55,7 +55,7 @@ def filter_and_sort_projects(
             project_id_count[project.id] = ClusterElement.objects.filter(
                 cluster__project=project
             ).count()
-    
+
     if sort_type == "more_documents_first":
         sorted_id_list = list(
             sorted(
