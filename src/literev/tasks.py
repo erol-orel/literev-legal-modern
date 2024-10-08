@@ -10,10 +10,9 @@ from django.db import transaction
 from config.celery import app
 from literev.libs.collectors import ElasticSearchCollector
 from literev.libs.pipeline import (
-    create_document_db,
     update_pp_document,
 )
-from literev.libs.utils import update_task_code
+from literev.libs.utils import save_documents_to_db, update_task_code
 from literev.models import Document, Project, User
 from literev.task_clustering import back_clustering_documents
 from literev.task_plotting import back_plotting_documents
@@ -77,16 +76,11 @@ def launch_process(project: Project) -> bool:
     bool
         True if the process was successfully started, False otherwise.
     """
-
-    # Use a database transaction to ensure data integrity
     with transaction.atomic():
-        # Reload the project instance from the database to avoid stale data
-        # Double check the project's state to avoid race conditions
         if project.is_finish or project.is_running:
             return False
 
-        # The chain primitive lets us link together signatures so that one is called
-        # after the other, essentially forming a chain of callbacks.
+        # Pass the selected_indices as an argument to the first task
         task_chain = chain(
             back_get_documents.si(project.id),
             back_preparing_documents.si(project.id),
@@ -95,13 +89,7 @@ def launch_process(project: Project) -> bool:
             back_plotting_documents.si(project.id),
         )
 
-        # Use delay() for the task chain when the execution is straightforward and
-        # you don't need any specific configurations for how the chain should execute.
-        # Use apply_async() when you need to configure particular execution parameters for the chain,
-        # like scheduling, prioritizing, or assigning to specific queues.
-
         task_chain.apply_async()
-        # Update the project's state to reflect that it is now running
         project.is_running = True
         project.save()
 
@@ -110,43 +98,64 @@ def launch_process(project: Project) -> bool:
 
 
 @app.task(bind=True)
-def back_get_documents(self, project_id: int):
+def back_get_documents(self, project_id: int) -> bool:
     """
-    Fetches documents based on the project's criteria and saves them into the database.
+    Fetches documents based on the project's criteria for each selected index and saves them into the database.
 
     Parameters
     ----------
     project_id : int
         The ID of the project for which documents are fetched.
+
+    Returns
+    -------
+    bool
+        True if documents were successfully fetched and saved, False otherwise.
     """
     project = Project.objects.get(id=project_id)
-
     update_task_code(project, self.request.id)
 
-    es_collector = ElasticSearchCollector()
+    indices = project.selected_indices
+    project_query = project.query
+    start_date = project.range_begin_date
+    end_date = project.range_end_date
 
-    try:
-        documents_list = es_collector.collect_documents(
-            project.query, project.range_begin_date, project.range_end_date
-        )
+    logger.info(
+        f"Starting document collection for project {project_id} with query: {project_query}"
+    )
 
-    except Exception as e:
-        logger.error("ElasticSearchCollector Failed")
-        logger.error(e)
-        return False
+    failed_indices = []
 
-    for document in documents_list:
+    for index in indices:
+        logger.info(f"Processing index: {index}")
         try:
-            create_document_db(project, document)
+            collector = ElasticSearchCollector(index_name=index)
+            documents = collector.collect_documents(
+                project_query, start_date, end_date
+            )
+
+            save_documents_to_db(project, documents)
+            logger.info(f"Successfully saved documents for index: {index}")
 
         except Exception as e:
-            logger.error(f"Document creation failed, ID: {document.doc_id}")
-            logger.error(e)
+            logger.error(
+                f"Failed to collect documents for index: {index}: {e}"
+            )
+            failed_indices.append(index)
 
-    logger.info("Success getting Documents")
+    # Log and return final status
+    if failed_indices:
+        logger.error(
+            f"Document collection failed for indices: {', '.join(failed_indices)}"
+        )
+        return False
+
+    # Update project status and save
     project.step = "preparing"
     project.save()
-
+    logger.info(
+        f"Document collection and saving completed successfully for project {project_id}"
+    )
     return True
 
 

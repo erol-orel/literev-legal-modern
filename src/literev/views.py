@@ -74,8 +74,27 @@ class HomePageView(TemplateView):
 def search_search(
     request: HttpRequest, context: dict[str, Any]
 ) -> dict[str, Any]:
+    """
+    Handles the search functionality and initiates project creation based on the selected indices.
+
+    Parameters
+    ----------
+    request : HttpRequest
+        The request object containing form data.
+    context : dict[str, Any]
+        The context dictionary to be passed to the template.
+
+    Returns
+    -------
+    dict[str, Any]
+        The updated context dictionary.
+    """
     search_form = SearchForm(request.POST)
     context["search_form"] = search_form
+
+    # Capture the selected indices from the POST request
+    selected_indices = request.POST.get("selected_indices", "").split(",")
+    context["selected_indices"] = selected_indices
 
     if search_form.is_valid():
         project_name = search_form.cleaned_data["project_name"]
@@ -83,24 +102,31 @@ def search_search(
         range_begin_date = search_form.cleaned_data["range_begin_date"]
         range_end_date = search_form.cleaned_data["range_end_date"]
 
-        total_documents = get_number_documents(
-            query, range_begin_date, range_end_date
+        # Calculate total documents for each selected index
+        total_documents = sum(
+            get_number_documents(
+                index_name, query, range_begin_date, range_end_date
+            )
+            for index_name in selected_indices
         )
 
-        # enable continue message box
+        # Enable the continue message box if criteria are met
         context["continue_message_box"] = True
 
+        # Update context and session with the new data
         new_data = {
             "project_name": project_name,
             "query": query,
             "range_begin_date": range_begin_date.strftime("%Y/%m/%d"),
             "range_end_date": range_end_date.strftime("%Y/%m/%d"),
             "total_documents": total_documents,
+            "selected_indices": selected_indices,  # Store selected indices in session
         }
-        logging.info("updating request session")
-        # update context variables
+
+        logging.info(
+            "Updating request session with project details and selected indices."
+        )
         context.update(new_data)
-        # save in request session the data
         request.session.update(new_data)
 
     return context
@@ -122,6 +148,8 @@ def search_continue(
 
     total_documents = request.session["total_documents"]
 
+    selected_indices = request.session["selected_indices"]
+
     project = Project.objects.create(
         user=user,
         name=project_name,
@@ -130,6 +158,7 @@ def search_continue(
         range_begin_date=range_begin_date,
         range_end_date=range_end_date,
         total_documents=total_documents,
+        selected_indices=selected_indices,
     )
 
     result = launch_process(project)
@@ -149,7 +178,7 @@ def search_evaluate(
 ) -> dict[str, Any]:
     """
     Evaluate the search form and update the context with the total number of
-    documents.
+    documents and selected indices.
 
     Parameters
     ----------
@@ -166,13 +195,21 @@ def search_evaluate(
     search_form = SearchForm(request.POST)
     context["search_form"] = search_form
 
+    # Capture the selected indices from the POST request
+    selected_indices = request.POST.get("selected_indices", "").split(",")
+    context["selected_indices"] = selected_indices
+
     if search_form.is_valid():
         query = search_form.cleaned_data["query"]
         range_begin_date = search_form.cleaned_data["range_begin_date"]
         range_end_date = search_form.cleaned_data["range_end_date"]
 
-        total_documents = get_number_documents(
-            query, range_begin_date, range_end_date
+        # Calculate total documents for each selected index
+        total_documents = sum(
+            get_number_documents(
+                index_name, query, range_begin_date, range_end_date
+            )
+            for index_name in selected_indices
         )
 
         context["total_documents"] = total_documents

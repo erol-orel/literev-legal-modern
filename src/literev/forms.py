@@ -20,7 +20,7 @@ class SearchForm(forms.Form):
             }
         ),
         label="",
-        required=False,
+        required=True,
     )
 
     # creation date is automatically given when the Research Object is created
@@ -34,7 +34,7 @@ class SearchForm(forms.Form):
             }
         ),
         label="",
-        required=False,
+        required=True,
     )
 
     range_begin_date = forms.DateField(

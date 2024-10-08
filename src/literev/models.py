@@ -14,6 +14,7 @@ class Project(models.Model):
     range_begin_date = models.DateField(default=datetime.date(1900, 1, 1))
     range_end_date = models.DateField(default=datetime.date(1900, 1, 1))
     total_documents = models.IntegerField(default=0)
+    selected_indices = models.JSONField(default=list)
     step = models.CharField(max_length=256, default="getting_documents")
     step_number = models.IntegerField(default=0)
     is_finish = models.BooleanField(default=False)

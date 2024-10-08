@@ -66,7 +66,7 @@
               </ul>
             </div>
             <div class="modal-footer">
-              <span> <!-- adds cursor 'not -allowed' when button is disabled -->
+              <span>
                 <button class="btn btn-secondary"
                         type='submit'
                         name='submit'
@@ -89,7 +89,6 @@
       </form>
     </div>
   {% endif %}
-  <!-- ---- -->
 {% endblock modal %}
 
 {% block content %}
@@ -106,56 +105,48 @@
     <ul class="dropdown-menu">
       <li>
         <a class="dropdown-item"
-           href="#">Queries use the Boolean operators AND,
-        OR and NOT.</a>
+           href="#">Queries use the Boolean operators AND, OR, and NOT.</a>
       </li>
       <li>
         <a class="dropdown-item"
-           href="#">
-        Example: water AND contamination NOT cholera</a>
+           href="#">Example: water AND contamination NOT cholera</a>
       </li>
       <li>
         <a class="dropdown-item"
-           href="#">Use quotes to combine two separate
-        terms into one. </a>
+           href="#">Use quotes to combine two separate terms into one.</a>
       </li>
       <li>
         <a class="dropdown-item"
-           href="#">
-        Example: "water contamination" AND cholera</a>
+           href="#">Example: "water contamination" AND cholera</a>
       </li>
       <li>
         <a class="dropdown-item"
-           href="#">Parenthesis can also be used to
-        combine search terms.</a>
+           href="#">Parenthesis can also be used to combine search terms.</a>
       </li>
       <li>
         <a class="dropdown-item"
-           href="#">
-        Example: ("water contamination" OR cholera) AND health</a>
+           href="#">Example: ("water contamination" OR cholera) AND health</a>
       </li>
     </ul>
   </div>
 
-  <!-- ----- -->
+  <!-- Search Form -->
   <div class="d-flex flex-grow-1 justify-content-center">
     <div class="search-block col-xl-8 mx-auto">
       <form id="formResearch"
             class="px-5"
-            action=''
-            method='POST'
-            enctype='multipart/form-data'>
+            action=""
+            method="POST"
+            enctype="multipart/form-data">
         {% csrf_token %}
         <h1 class="text-center mb-4 text-dark">
-          <i class="fa-solid fa-magnifying-glass me-2"></i>
-          Project
+          <i class="fa-solid fa-magnifying-glass me-2"></i> Project
         </h1>
         <div class="col-12 input-group">
-          <span class="input-group-text d-none d-lg-block">
-            Project Name
-          </span>
+          <span class="input-group-text d-none d-lg-block">Project Name</span>
           {{ search_form.project_name }}
         </div>
+        <!-- Accordion Panel for Sources and Query -->
         <div class="accordion py-3"
              id="accordionPanelsStayOpenExample">
           <div class="accordion-item">
@@ -167,16 +158,78 @@
                       data-bs-target="#panelsStayOpen-collapseOne"
                       aria-expanded="true"
                       aria-controls="panelsStayOpen-collapseOne">
-                Query
+                Jurisprudence Sources and Search Terms
               </button>
             </h2>
             <div id="panelsStayOpen-collapseOne"
                  class="accordion-collapse collapse show"
                  aria-labelledby="panelsStayOpen-headingOne">
               <div class="accordion-body row col-11 mx-auto py-3">
+                <!-- Radio Selection for Jurisprudence Sources -->
+                <div class="col-6 text-start py-2">
+                  <h6 class="text-dark d-none d-lg-block">
+                    Select Jurisprudence Source:
+                  </h6>
+                  <!-- Radio Inputs for Jurisprudence Sources -->
+                  <div class="form-check ps-sm-5 text-start">
+                    <div class="form-check">
+                      <input class="form-check-input index-radio"
+                             type="radio"
+                             name="index_names"
+                             value="administrative_court"
+                             id="adminCourtRadio"
+                             {% if "administrative_court" in selected_indices %}
+                               checked
+                             {% endif %}
+                             required />
+                      <label class="form-check-label"
+                             for="adminCourtRadio">
+                        Administrative Court
+                      </label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input index-radio"
+                             type="radio"
+                             name="index_names"
+                             value="civil_court"
+                             id="civilCourtRadio"
+                             {% if "civil_court" in selected_indices %}
+                               checked
+                             {% endif %}
+                             required />
+                      <label class="form-check-label"
+                             for="civilCourtRadio">
+                        Civil Court
+                      </label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input index-radio"
+                             type="radio"
+                             name="index_names"
+                             value="penal_court"
+                             id="penalCourtRadio"
+                             {% if "penal_court" in selected_indices %}
+                               checked
+                             {% endif %}
+                             required />
+                      <label class="form-check-label"
+                             for="penalCourtRadio">
+                        Penal Court
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Hidden Field to Store Selected Index -->
+                <input type="hidden"
+                       name="selected_indices"
+                       id="selectedIndicesField"
+                       value="" />
+
+                <!-- Query Inputs -->
                 <div class="row text-center mb-3">
                   <div class="col-12 input-group mb-3">
-                    <span class="input-group-text d-none d-lg-block">Query</span>
+                    <span class="input-group-text d-none d-lg-block">Search Term:</span>
                     {{ search_form.query }}
                   </div>
                   <div class="col-12 col-sm-6 mb-2">
@@ -196,7 +249,7 @@
             </div>
           </div>
         </div>
-
+        <!-- Display Total Documents -->
         {% if total_documents == 0 %}
           <div class="row text-center">
             <div class="alert alert-primary">
@@ -211,6 +264,7 @@
           </div>
         {% endif %}
 
+        <!-- Display Project Creation Message -->
         {% if project_created_message %}
           <div class="row text-center">
             <div class="alert alert-primary">
@@ -219,6 +273,7 @@
           </div>
         {% endif %}
 
+        <!-- Display Form Errors -->
         <div class="row text-center">
           {% for error in errors %}
             <div class="alert alert-danger">
@@ -237,29 +292,26 @@
               </div>
             {% endfor %}
           {% endfor %}
-
         </div>
 
+        <!-- Action Buttons -->
         <div class="row mt-3 mb-5 text-center">
           <div class="col-6">
-            <span> <!-- adds cursor 'not -allowed' when button is disabled -->
-              <button class="btn btn-outline-secondary"
-                      type='submit'
-                      name='submit'
-                      value='evaluate'>
-                Evaluate
-              </button>
-            </span>
+            <button class="btn btn-outline-secondary"
+                    type='submit'
+                    name='submit'
+                    value='evaluate'
+                    id="evaluate-button">
+              Evaluate
+            </button>
           </div>
           <div class="col-6">
-            <span> <!-- adds cursor 'not -allowed' when button is disabled -->
-              <button class="btn btn-primary"
-                      type='submit'
-                      name="submit"
-                      value="search">
-                Create Project
-              </button>
-            </span>
+            <button class="btn btn-primary"
+                    type='submit'
+                    name="submit"
+                    value="search">
+              Create Project
+            </button>
           </div>
         </div>
 
@@ -270,308 +322,99 @@
 
 {% block jscode %}
   <script>
-  // Code for disabling buttons as described in issue 277
+document.addEventListener("DOMContentLoaded", function() {
+  // Select necessary DOM elements
+  const evaluateButton = document.querySelector("button[name='submit'][value='evaluate']");
+  const createProjectButton = document.querySelector("button[name='submit'][value='search']");
+  const selectedIndicesField = document.querySelector("#selectedIndicesField");
+  const radioButtons = document.querySelectorAll(".index-radio");
 
-  // DomContentLoaded event makes sure to run only after document has rendered
-  document.addEventListener("DOMContentLoaded", function() {
-
-    // Select relevant DOM elements and store them in variables for easier access
-    const projectNameInput = document.querySelector("input[name='name']");
-
-    const uploadFilesButton = document.querySelector("button[data-bs-target='#staticBackdrop']");
-    const removeFilesButton = document.querySelector("button[value='remove_uploaded']");
-
-    const createProjectButton = document.querySelector("button[value='research']");
-    const evaluateButton = document.querySelector("button[value='evaluate']");
-
-    const modalCancelButton = document.querySelector(".modal-footer button[value='cancel']");
-    const modalCloseButton = document.querySelector(".modal-header button[value='cancel']");
-    const modalContinueButton = document.querySelector("button[value='continue']");
-
-    // Creates a spinner with an optional custom message argument
-    function makeSpinnerHTML(message = "") {
-      return (`<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ${message}`);
-    };
-
-    // Attach event handlers
-    evaluateButton.addEventListener('click', handleEvaluateButtonClick);
-    createProjectButton.addEventListener('click', handleCreateProjectButtonClick);
-
-    // the Continue button should be checked since the modal is conditionally rendered
-    // only when the context variable AreYouSure is True we can add event listeners
-    //  to those elements in the modal
-    if (modalContinueButton){
-      modalContinueButton.addEventListener('click', handleContinueButtonClick);
+  /**
+   * Updates the hidden field with the selected radio value.
+   */
+  function updateSelectedIndicesField() {
+    const selectedRadio = Array.from(radioButtons).find(radio => radio.checked);
+    if (selectedRadio) {
+      selectedIndicesField.value = selectedRadio.value;
     }
+  }
 
-    // it handles clicks on 'Evaluate' button
-    function handleEvaluateButtonClick() {
-      const evaluateSpinner = makeSpinnerHTML("Evaluating...");
-      handleButtonClick(evaluateButton, createProjectButton, evaluateSpinner);
-    }
-
-    // it handles clicks on 'Create Project' button
-    function handleCreateProjectButtonClick() {
-      const createProjectSpinner = makeSpinnerHTML("Creating...");
-      handleButtonClick(createProjectButton, evaluateButton, createProjectSpinner);
-    }
-
-    // handles clicks on 'Continue' button in the modal
-    function handleContinueButtonClick() {
-      const continueSpinner = makeSpinnerHTML("Starting...");
-      handleButtonClick(modalContinueButton, modalCancelButton, continueSpinner, function (){
-        // disable modal close  button
-        modalCloseButton.classList.add("disabled");
-        modalCloseButton.style.pointerEvents = "none";
-      });
-    }
-
-    // This function handles button clicks and allows for custom behavior through a callback function.
-    function handleButtonClick(clickedButton, otherButton, spinnerHtml, callback) {
-      // Check if project has a name
-      if (projectNameInput.value) {
-        // Disable clicked button
-        clickedButton.style.pointerEvents = "none"; // deactivate clicks
-        clickedButton.classList.add("disabled"); // add disabled bootstrap class
-        clickedButton.innerHTML = spinnerHtml;  // add spinner
-
-        // Disable opposite button
-        otherButton.style.pointerEvents = "none";
-        otherButton.classList.add("disabled");
-        otherButton.parentElement.style.cursor = "not-allowed"; // add cursor effect to span parent
-
-        // Disable upload file buttons
-        uploadFilesButton.style.pointerEvents = "none";
-        uploadFilesButton.classList.add("disabled");
-        removeFilesButton.style.pointerEvents = "none";
-        removeFilesButton.classList.add("disabled");
-
-        // Execute a custom callback if a function is given
-        if (typeof callback === 'function') {
-          callback(); // executes custom behavior or side effects
-        }
-      }
-    }
-
-  });
-  </script>
-  <script>
-  const importButton = document.querySelector("#import-button");
-  const filesForm = document.querySelector("#id_file_field");
-  const filesUploadedNames = document.querySelector(".uploaded-files");
-  importButton.addEventListener("click", () => {
-    while (filesUploadedNames.firstChild) {
-      filesUploadedNames.removeChild(filesUploadedNames.lastChild);
-    }
-    const filesCount = filesForm.files.length;
-
-    const filesCountElement = document.createElement("h5");
-    filesCountElement.classList.add("card-title", "ms-3", "mb-3");
-    filesCountElement.textContent = filesCount + " Files";
-    filesUploadedNames.appendChild(filesCountElement)
-
-    const listContainer = document.createElement("ul");
-    listContainer.classList.add("list-group");
-
-    for(file of filesForm.files){
-      let p = document.createElement("li");
-      p.classList.add("list-group-item","ms-5");
-      p.textContent = file.name;
-      listContainer.appendChild(p)
-    }
-
-    filesUploadedNames.appendChild(listContainer);
-    checkSearchBox();
-
-  })
-  </script>
-  <script type="text/javascript">
-
-  // Code for the date picker
-  $(function () {
-    $('#id_From').datepicker({
-      format: "yyyy-mm-dd"
-    });
-  });
-  $(function () {
-    $('#id_To').datepicker({
-      format: "yyyy-mm-dd",
-    });
+  // Attach change event listeners to radio buttons to update the hidden field dynamically
+  radioButtons.forEach(radio => {
+    radio.addEventListener("change", updateSelectedIndicesField);
   });
 
-  document.querySelectorAll('input[id^="id_pre"]').forEach(element => {
-    element.classList.add("form-check-input");
+  // Attach event listeners for Evaluate and Create Project buttons to update selected indices
+  evaluateButton.addEventListener("click", function(event) {
+    updateSelectedIndicesField();  // Update hidden field with selected index
+  });
+
+  createProjectButton.addEventListener("click", function(event) {
+    updateSelectedIndicesField();  // Update hidden field with selected index
+  });
+
+  // Initial setup for updating the hidden field when page loads
+  updateSelectedIndicesField();
+
+  // Original JavaScript functionality for modal and other UI components
+  const projectNameInput = document.querySelector("input[name='name']");
+  const uploadFilesButton = document.querySelector("button[data-bs-target='#staticBackdrop']");
+  const removeFilesButton = document.querySelector("button[value='remove_uploaded']");
+  const modalCancelButton = document.querySelector(".modal-footer button[value='cancel']");
+  const modalCloseButton = document.querySelector(".modal-header button[value='cancel']");
+  const modalContinueButton = document.querySelector("button[value='continue']");
+
+  function makeSpinnerHTML(message = "") {
+    return (`<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ${message}`);
+  };
+
+  function handleButtonClick(clickedButton, otherButton, spinnerHtml, callback) {
+    if (projectNameInput.value) {
+      clickedButton.style.pointerEvents = "none";
+      clickedButton.classList.add("disabled");
+      clickedButton.innerHTML = spinnerHtml;
+
+      otherButton.style.pointerEvents = "none";
+      otherButton.classList.add("disabled");
+      otherButton.parentElement.style.cursor = "not-allowed";
+
+      uploadFilesButton.style.pointerEvents = "none";
+      uploadFilesButton.classList.add("disabled");
+      removeFilesButton.style.pointerEvents = "none";
+      removeFilesButton.classList.add("disabled");
+
+      if (typeof callback === 'function') {
+        callback();
+      }
+    }
+  }
+
+  // Functions to handle button clicks
+  function handleEvaluateButtonClick() {
+    const evaluateSpinner = makeSpinnerHTML("Evaluating...");
+    handleButtonClick(evaluateButton, createProjectButton, evaluateSpinner);
+  }
+
+  function handleCreateProjectButtonClick() {
+    const createProjectSpinner = makeSpinnerHTML("Creating...");
+    handleButtonClick(createProjectButton, evaluateButton, createProjectSpinner);
+  }
+
+  function handleContinueButtonClick() {
+    const continueSpinner = makeSpinnerHTML("Starting...");
+    handleButtonClick(modalContinueButton, modalCancelButton, continueSpinner, function() {
+      modalCloseButton.classList.add("disabled");
+      modalCloseButton.style.pointerEvents = "none";
     });
-  document.querySelectorAll('label[for^="id_pre"]').forEach(e => {
-    e.classList.add("form-check-label");
-  })
-
-  document.querySelectorAll('input[id^="id_open"]').forEach(element => {
-    element.classList.add("form-check-input");
-    });
-
-  document.querySelectorAll('label[for^="id_open"]').forEach(e => {
-    e.classList.add("form-check-label");
-  })
-
-  const preprint = document.querySelector("#check-preprint");
-  const preprintDBs = document.querySelectorAll('input[id^="id_preprint"]');
-
-  const openaccess = document.querySelector("#check-open-access");
-  const openaccessDBs = document.querySelectorAll('input[id^="id_open"]');
-
-  const searchBox = document.querySelector("#id_search");
-
-  function checkSources() {
-    for(source of preprintDBs){
-      if (source.checked){
-        return true
-      }
-    }
-    for(source of openaccessDBs){
-      if(source.checked){
-        return true
-      }
-    }
-    return false
   }
 
-  function checkFileSources(){
-    if(filesUploadedNames.childNodes.length > 1){
-      return true
-    }
-    return false
+  // Attach event listeners to the buttons
+  evaluateButton.addEventListener('click', handleEvaluateButtonClick);
+  createProjectButton.addEventListener('click', handleCreateProjectButtonClick);
+
+  if (modalContinueButton) {
+    modalContinueButton.addEventListener('click', handleContinueButtonClick);
   }
-
-  function checkSearchBox() {
-    if(checkFileSources() || checkSources()){
-      searchBox.disabled = false;
-    }
-    else {
-      searchBox.disabled = true;
-    }
-  }
-  checkSearchBox();
-
-  for (dataBaseCheck of preprintDBs) {
-    if (!dataBaseCheck.checked){
-      preprint.checked = false;
-      break;
-    }
-  }
-
-  preprint.addEventListener("click", (e)=>{
-    if (e.target.checked){
-      for(dataBaseCheck of preprintDBs){
-        dataBaseCheck.checked = true;
-      }
-    }
-    else {
-      for(dataBaseCheck of preprintDBs){
-        dataBaseCheck.checked = false;
-      }
-    }
-    checkSearchBox();
-  })
-
-  preprintDBs.forEach((dataBase) => {
-    dataBase.addEventListener("click", () => {
-      checkSearchBox();
-      for(dataBaseCheck of preprintDBs){
-        if (dataBaseCheck.checked == false){
-          preprint.checked = false;
-          return
-        }
-      }
-      preprint.checked = true;
-
-    })
-  })
-
-  for (dataBaseCheck of openaccessDBs) {
-    if (!dataBaseCheck.checked){
-      openaccess.checked = false;
-      break;
-    }
-  }
-
-  openaccess.addEventListener("click", (e)=>{
-    if (e.target.checked){
-      for(dataBaseCheck of openaccessDBs){
-        dataBaseCheck.checked = true;
-      }
-    }
-    else {
-      for(dataBaseCheck of openaccessDBs){
-        dataBaseCheck.checked = false;
-      }
-    }
-    checkSearchBox()
-  })
-
-  openaccessDBs.forEach((dataBase) => {
-    dataBase.addEventListener("click", () => {
-      checkSearchBox()
-      for(dataBaseCheck of openaccessDBs){
-        if (dataBaseCheck.checked == false){
-          openaccess.checked = false;
-          return
-        }
-      }
-      openaccess.checked = true
-    })
-  })
+});
   </script>
-
-  {% if deactivate_all_collectors %}
-    <script>
-    // disable dates input, searchbox, and checkbox if no sources are available
-  function disableCollectors() {
-    const preprint = document.querySelector("#check-preprint");
-    const preprintDBs = document.querySelectorAll('input[id^="id_preprint"]');
-    const openaccess = document.querySelector("#check-open-access");
-    const openaccessDBs = document.querySelectorAll('input[id^="id_open"]');
-    // const toDateInput = document.querySelector("#id_To");
-    // const fromDateInput = document.querySelector("#id_From");
-    const uploadFilesAccordion = document.querySelector("#panelsFile-collapseOne")
-
-    const dbSourcesDiv = document.querySelectorAll(".col-6.text-start.py-2");
-    const searchAndDateDiv = document.querySelector(".row.text-center.mb-3");
-
-
-    // hide sources and query fields
-    dbSourcesDiv.forEach(div => div.classList.add("d-none"));
-    searchAndDateDiv.classList.add("d-none");
-
-    // open Upload files accordion
-    uploadFilesAccordion.classList.add("show");
-
-    // deactivate searchBox
-    searchBox.disabled = true;
-    searchBox.classList.add("d-none")
-
-    // deactivate preprint sources
-    preprint.disabled = true;
-    preprint.checked = false;
-    preprintDBs.forEach((dataBase) => {
-      dataBase.disabled = true;
-      dataBase.checked = false;
-    })
-    
-    // deactivate openaccess sources
-    openaccess.disabled = true;
-    openaccess.checked = false;
-    openaccessDBs.forEach((dataBase) => {
-      dataBase.disabled = true;
-      dataBase.checked = false;
-    })
-
-
-    
-  }
-
-  disableCollectors();
-    </script>
-  {% endif %}
-
 {% endblock jscode %}

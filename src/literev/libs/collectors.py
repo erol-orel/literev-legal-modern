@@ -53,13 +53,22 @@ class MetaData:
 
 
 class ElasticSearchCollector:
-    """Implements all essential methods for collecting data from elasticsearch sources."""
+    """Implements all essential methods for collecting data from Elasticsearch sources."""
 
     es: Elasticsearch
     ES_PAGE_SIZE: int = 1000
-    ES_INDEX_NAME: str = "judiciary"
+    index_name: str = ""
 
-    def __init__(self) -> None:
+    def __init__(self, index_name: str) -> None:
+        """
+        Initializes the ElasticSearchCollector with the specified index name.
+
+        Parameters
+        ----------
+        index_name : str
+            The name of the Elasticsearch index to be used for collecting data.
+        """
+        self.index_name = index_name
         self.es = Elasticsearch(
             [settings.ES_HOST_URL],
             basic_auth=(settings.ES_USERNAME, settings.ES_PASSWORD),
@@ -103,7 +112,7 @@ class ElasticSearchCollector:
         es_query["size"] = self.ES_PAGE_SIZE
 
         response = self.es.search(
-            index=self.ES_INDEX_NAME, body=es_query, scroll="2m"
+            index=self.index_name, body=es_query, scroll="2m"
         )
 
         scroll_id = response["_scroll_id"]
@@ -197,7 +206,7 @@ class ElasticSearchCollector:
             end_date=end,
         )
 
-        response = self.es.count(index=self.ES_INDEX_NAME, body=es_query)
+        response = self.es.count(index=self.index_name, body=es_query)
 
         return int(response["count"])
 
@@ -209,28 +218,6 @@ class ElasticSearchCollector:
         """Counts total number of articles for a given query."""
         es_query = {"query": {"match_all": {}}}
 
-        response = self.es.count(index=self.ES_INDEX_NAME, body=es_query)
+        response = self.es.count(index=self.index_name, body=es_query)
 
         return int(response["count"])
-
-    def collect_all_documents(self) -> list[MetaData]:
-        """Retrieve articles based on the provided search parameters."""
-
-        es_query = {"query": {"match_all": {}}}
-
-        # get all documents from every page response from elasticsearch
-        documents = self.get_all_documents_from_es_response(es_query)
-
-        result = []
-
-        for doc in documents:
-            metadata = self.extract_document_metadata(doc)
-
-            if metadata:
-                result.append(metadata)
-            else:
-                logging.warning(
-                    f"This document does not have document_text field: {doc}"
-                )
-
-        return result

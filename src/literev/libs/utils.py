@@ -7,7 +7,8 @@ import psycopg2
 
 from django.conf import settings
 
-from literev.libs.collectors import ElasticSearchCollector
+from literev.libs.collectors import ElasticSearchCollector, MetaData
+from literev.libs.pipeline import create_document_db
 from literev.models import Project
 
 # from literev.tasks import launch_process
@@ -84,9 +85,12 @@ def count_trials(project: Project) -> int:
 
 
 def get_number_documents(
-    query: str, range_begin_date: datetime.date, range_end_date: datetime.date
+    index_name: str,
+    query: str,
+    range_begin_date: datetime.date,
+    range_end_date: datetime.date,
 ) -> int:
-    es_collector = ElasticSearchCollector()
+    es_collector = ElasticSearchCollector(index_name=index_name)
     result = 0
     try:
         result += es_collector.get_max_documents(
@@ -110,6 +114,26 @@ def count_all_corpus():
         logging.warning(e)
 
     return result
+
+
+def save_documents_to_db(project: Project, documents: list[MetaData]) -> None:
+    """
+    Saves a list of documents into the database for a specific project.
+
+    Parameters
+    ----------
+    project : Project
+        The project for which documents are saved.
+    documents : list[MetaData]
+        A list of metadata objects representing the documents to be saved.
+    """
+    for document in documents:
+        try:
+            create_document_db(project, document)
+        except Exception as e:
+            logging.error(
+                f"Failed to save document ID: {document.doc_id} - {e}"
+            )
 
 
 # WORKAROUND: Keeping this code commented for future legal documents processing

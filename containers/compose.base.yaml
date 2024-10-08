@@ -32,7 +32,6 @@ services:
   literev:
     extends: literev-base
     hostname: literev
-    container_name: literev
     env_file:
       - ../.env
     environment:
@@ -56,7 +55,6 @@ services:
 
   literev-postgres:
     hostname: literev-postgres
-    container_name: literev-postgres
     # restart: unless-stopped
     build:
       context: ..
@@ -83,7 +81,6 @@ services:
   literev-celery:
     extends: literev-base
     hostname: literev-celery
-    container_name: literev-celery  
     build:
       context: ..
       dockerfile: containers/literev/Dockerfile
@@ -110,7 +107,6 @@ services:
   literev-redis:
     image: redis:7-alpine
     hostname: literev-redis
-    container_name: literev-redis
     networks:
       - literev
     deploy:
