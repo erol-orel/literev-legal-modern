@@ -333,7 +333,7 @@ def projectpage(request: HttpRequest, project_id: int) -> HttpResponse:
     actual_user = request.user
     project_exist = (
         Project.objects.filter(id=project_id).exists()
-        if project_id == "1"
+        if project_id == 1
         else Project.objects.filter(user=actual_user, id=project_id).exists()
     )
 
@@ -687,7 +687,7 @@ def tableselect(
 
     # Fetch the project ensuring access control for non-admin projects
     project = Project.objects.filter(
-        Q(id=project_id) & (Q(user=actual_user) | Q(id="1"))
+        Q(id=project_id) & (Q(user=actual_user) | Q(id=1))
     ).first()
 
     if not project:
@@ -932,7 +932,7 @@ def historicalpage(request: HttpRequest) -> HttpResponse:
     if not context["filter_by_query"]:
         # get all finished project
         project_list = Project.objects.filter(
-            user=user, is_finish=True
+            (Q(user=user) & Q(is_finish=True)) | Q(id=1)
         ).order_by("-id")
 
         if project_list.exists():
