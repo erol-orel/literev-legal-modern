@@ -2,6 +2,13 @@ Release Notes
 ---
 
 
+## [0.4.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.3.0...0.4.0) (2024-10-09)
+
+### Features
+
+* add historical page ([#110](https://github.com/thegraphnetwork-literev/literev-legal/issues/110)) ([ec503d5](https://github.com/thegraphnetwork-literev/literev-legal/commit/ec503d5aad3c863b0b99152f12cd7c267238c1e4))
+* Update collectors to support multiple data sources ([#114](https://github.com/thegraphnetwork-literev/literev-legal/issues/114)) ([fc64a2e](https://github.com/thegraphnetwork-literev/literev-legal/commit/fc64a2e8312273142ada57ab3b90cd2e0f34956b))
+
 ## [0.3.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.2.0...0.3.0) (2024-10-03)
 
 ### Features
