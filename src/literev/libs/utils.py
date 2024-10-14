@@ -134,22 +134,3 @@ def save_documents_to_db(project: Project, documents: list[MetaData]) -> None:
             logging.error(
                 f"Failed to save document ID: {document.doc_id} - {e}"
             )
-
-
-# WORKAROUND: Keeping this code commented for future legal documents processing
-# def process_all_documents():
-#     total_documents = count_all_corpus()
-
-#     project = Project.objects.create(
-#         name="Process all corpus",
-#         creation_date=datetime.datetime.now(),
-#         query="#PROCESS-ALL-CORPUS-LITEREV-00",
-#         total_documents=total_documents,
-#     )
-
-#     if launch_process(project):
-#         logging.info("Starting processing the whole corpus")
-#     else:
-#         logging.warning("error trying to process the whole corpus")
-
-#     return

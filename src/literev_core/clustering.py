@@ -426,11 +426,15 @@ def cluster_corpuses(
         # piece of code is running all trials at once
         n_trials = number_trials
         n_jobs = number_jobs
+        n_trials_per_job = int(n_trials / n_jobs)
+
         with joblib.parallel_backend("threading", n_jobs=n_jobs):
             Parallel()(
                 [
-                    delayed(optimize)(objective, n_trials, storage, study_name)
-                    for _ in range(1)
+                    delayed(optimize)(
+                        objective, n_trials_per_job, storage, study_name
+                    )
+                    for _ in range(n_jobs)
                 ]
             )
     except Exception as e:

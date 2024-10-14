@@ -76,6 +76,8 @@ def launch_process(project: Project) -> bool:
     bool
         True if the process was successfully started, False otherwise.
     """
+    logger.info(f"Starting process for project {project.id}.")
+
     with transaction.atomic():
         if project.is_finish or project.is_running:
             return False

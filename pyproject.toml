@@ -52,7 +52,7 @@ django-extensions = ">=3.2.3"
 djlint = ">=1.32.1"
 ipython = ">=8.14.0"
 jupyter = ">=1"
-makim = "1.15.2"
+makim = "1.17.0"
 mccabe = ">=0.7.0"
 mypy = ">=1.8" # issue: https://github.com/typeddjango/django-stubs/issues/1802
 notebook = ">=6.5.4"

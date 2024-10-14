@@ -1,12 +1,12 @@
 version: 1.0
-shell: bash
+backend: bash
 env-file: .env
 groups:
   clean:
     tasks:
       all:
         help: remove build artifacts, compiled files, and cache
-        shell: bash
+        backend: bash
         run: |
           find . -name '*.egg-info' -exec rm -rf {} +
           find . -name '*.egg' -exec rm -f {} +
@@ -311,7 +311,7 @@ groups:
           sudo chown -R ${HOST_UID}:${HOST_GID} ${STATIC_ROOT}
 
       postgres-database-backup:
-        shell: bash
+        backend: bash
         args:
           container-name:
             help: Specify the name of the container
@@ -354,7 +354,7 @@ groups:
           fi
 
       postgres-database-restore:
-        shell: bash
+        backend: bash
         args:
           container-name:
             help: Specify the name of the container
@@ -457,7 +457,7 @@ groups:
             type: string
             required: false
             default: ""
-        shell: bash
+        backend: bash
         run: |
           timestamp=$(date +"%Y%m%d")
           final_json="${{ args.path_json }}${{ args.index_name }}_$(basename "${{ args.raw_json }}" .json)_${timestamp}.json"
@@ -474,9 +474,57 @@ groups:
             help: Specify the index name (e.g., 'biorxiv' or 'medrxiv')
             type: string
             required: true      
-        shell: bash
+        backend: bash
         run: |
           python scripts/elasticsearch_loader.py count-documents ${{ args.index_name }}
+
+      process-documents:
+        help: Load processed documents into the database
+        env-file: .env
+        args:
+          index_name:
+            help: Specify the index name
+            type: string
+            required: true
+          username:
+            help: Specify the username
+            type: string
+            required: true
+          date_start:
+            help: Specify the start date
+            type: string
+            required: false
+            default: "2024-01-01"
+          date_end:
+            help: Specify the end date
+            type: string
+            required: false
+        backend: bash
+        run: |
+          # Ensure default values for date_end if not provided
+          DATE_END="${{ args.date_end }}"
+          if [[ -z "$DATE_END" || "$DATE_END" == "None" ]]; then
+            DATE_END=$(date +'%Y-%m-%d')
+          fi
+
+          # Construct the command to avoid extra quotes being added
+          CMD="python manage.py process_corpus\
+            --index-name ${{ args.index_name }}\
+            --username ${{ args.username }}\
+            --start-date ${{ args.date_start }}\
+            --end-date $DATE_END"
+
+          echo "Executing command: $CMD"
+
+          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
+            sugar run --service literev --options --rm --cmd "$CMD"
+            echo "Started indexing for index ${{ args.index_name }} with date range ${{ args.date_start }} - $DATE_END"
+          else
+            cd ./src/
+            export POSTGRES_HOST=localhost
+            export ES_HOST_URL=http://localhost:9200
+            eval "$CMD"
+          fi
 
   release:
     vars:
