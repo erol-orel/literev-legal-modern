@@ -6,6 +6,7 @@ from django.test import TestCase, override_settings
 
 from literev.libs.data_files import (
     get_dataframe_project,
+    get_es_scores,
     load_hdbscan_prob,
     load_tfidf_keywords,
 )
@@ -17,7 +18,7 @@ DATA_PATH = Path(__file__).parent / "sample_test"
 
 
 @override_settings(ARTICLE_DATA=DATA_PATH)
-class ScoringTest(TestCase):
+class DataFilesTest(TestCase):
     def setUp(self) -> None:
         self.project = Project.objects.create(
             id=30,
@@ -42,3 +43,14 @@ class ScoringTest(TestCase):
         scores = load_hdbscan_prob(self.project)
 
         self.assertTrue(isinstance(scores, list))
+
+    def test_get_es_scores(self):
+        """Tests load elasticsearch scores"""
+        scores = get_es_scores(self.project)
+
+        # check the most scored and the least scored
+
+        highest_score = scores[1450]
+        lowest_score = scores[1459]
+
+        self.assertTrue(highest_score > lowest_score)

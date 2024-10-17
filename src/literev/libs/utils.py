@@ -3,6 +3,7 @@ import logging
 
 from typing import cast
 
+import joblib
 import psycopg2
 
 from django.conf import settings
@@ -125,10 +126,17 @@ def save_documents_to_db(project: Project, documents: list[MetaData]) -> None:
     documents : list[MetaData]
         A list of metadata objects representing the documents to be saved.
     """
+    es_scores_dict = dict()
     for document in documents:
         try:
-            create_document_db(project, document)
+            new_project_id = create_document_db(project, document)
+            es_scores_dict[new_project_id] = document.es_score
         except Exception as e:
             logging.error(
                 f"Failed to save document ID: {document.doc_id} - {e}"
             )
+    # Saving elastic search scores
+    joblib.dump(
+        es_scores_dict,
+        settings.ARTICLE_DATA / f"es_scores_project_{project.id}.pkl",
+    )

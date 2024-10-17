@@ -8,11 +8,12 @@ import spacy
 from django.conf import settings
 from django.db.models.query import QuerySet
 
-from literev.libs.data_files import get_dataframe_project
+from literev.libs.data_files import get_dataframe_project, get_es_scores
 from literev.models import ClusterElement, Project, TableChoice
 
 logging.basicConfig(level=logging.INFO)
 NLP = spacy.load("fr_core_news_md")
+
 
 def get_most_similar_keywords(
     keywords: list[str], columns_name: list[str]
@@ -94,6 +95,40 @@ def extract_keywords(expression: str) -> list[str]:
     result = [phrase for phrase in phrases if phrase not in logical_operators]
 
     return result
+
+
+def sort_by_es_score(
+    project: Project, tablechoice: QuerySet[TableChoice]
+) -> list[TableChoice]:
+    """
+    Sort tablechoice object by elasticsearch score.
+
+    Parameters
+    ----------
+    project : Project object
+        A project related with the keywords
+    tablechoice: QuerySet[TableChoice]
+        A set of tablechoice object, used to show table select page.
+
+    Returns
+    -------
+    list[TableChoice]
+        List of sorted tablechoice objects.
+    """
+    scores = get_es_scores(project)
+
+    if scores:
+        sorted_list = sorted(
+            tablechoice,
+            key=lambda x: scores[x.document.id],
+            reverse=True,
+        )
+
+        return sorted_list
+
+    logging.warning(f"There is no es scores for project : {project.id}")
+
+    return list(tablechoice)
 
 
 def sort_by_keyword_score(

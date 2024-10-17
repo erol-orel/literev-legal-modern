@@ -50,6 +50,7 @@ class MetaData:
     summary: str  # resume
     standards: str  # normes
     result: str  # resultat
+    es_score: float  # elastic search score given by _score field
 
 
 class ElasticSearchCollector:
@@ -68,7 +69,7 @@ class ElasticSearchCollector:
         index_name : str
             The name of the Elasticsearch index to be used for collecting data.
         """
-        self.index_name = ""#index_name
+        self.index_name = index_name
         self.es = Elasticsearch(
             [settings.ES_HOST_URL],
             basic_auth=(settings.ES_USERNAME, settings.ES_PASSWORD),
@@ -139,9 +140,12 @@ class ElasticSearchCollector:
         documents = []
         for es_hit in hits:
             # get article from elasticsearch hit _source key
+            es_score = es_hit.get("_score", 0)
             article = es_hit["_source"]
             if article:
+                article["es_score"] = es_score
                 documents.append(article)
+
         return documents
 
     def extract_document_metadata(
@@ -178,6 +182,7 @@ class ElasticSearchCollector:
         summary = document.get("summary", "")
         standards = document.get("standards", "")
         result = document.get("result", "")
+        es_score = document.get("es_score", 0)
 
         if document_text:
             metadata = MetaData(
@@ -190,6 +195,7 @@ class ElasticSearchCollector:
                 summary=summary,
                 standards=standards,
                 result=result,
+                es_score=es_score,
             )
 
             return metadata

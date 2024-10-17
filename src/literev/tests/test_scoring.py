@@ -11,6 +11,7 @@ from literev.libs.scoring import (
     get_dataframe_project,
     get_most_similar_keywords,
     get_topic_and_hdbscan_score,
+    sort_by_es_score,
     sort_by_keyword_score,
 )
 from literev.libs.table_choice import render_table_choice, sort_table_choice
@@ -23,6 +24,7 @@ from literev.models import (
 )
 
 DATA_PATH = Path(__file__).parent / "sample_test"
+
 
 @override_settings(ARTICLE_DATA=DATA_PATH)
 class ScoringTest(TestCase):
@@ -174,3 +176,13 @@ class ScoringTest(TestCase):
 
         self.assertEqual(last.document.id, 1459)
         self.assertEqual(last.document.raw_document_text, "document text 1459")
+
+    def test_sort_by_es_score(self):
+        """Test sorting by elasticsearch score"""
+        result = sort_by_es_score(self.project, self.tablechoice)
+
+        first_tablechoice = result[0]
+        last_tablechoice = result[-1]
+
+        self.assertEqual(first_tablechoice.document.id, 1450)
+        self.assertEqual(last_tablechoice.document.id, 1459)

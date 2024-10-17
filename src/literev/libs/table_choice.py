@@ -10,6 +10,7 @@ from django.db.models.query import QuerySet
 from literev.libs.data_files import load_hdbscan_prob
 from literev.libs.scoring import (
     get_topic_and_hdbscan_score,
+    sort_by_es_score,
     sort_by_keyword_score,
 )
 from literev.models import (
@@ -108,6 +109,8 @@ def sort_table_choice(
         return list(tablechoice.order_by("document__decision_date"))
     elif order_by == "-decision_date":
         return list(tablechoice.order_by("-document__decision_date"))
+    elif order_by == "es_score":
+        return sort_by_es_score(project, tablechoice)
 
     return sort_by_keyword_score(project, tablechoice, order_by)
 

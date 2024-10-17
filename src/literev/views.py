@@ -18,7 +18,7 @@ from django.shortcuts import redirect, render
 from django.views.generic import TemplateView
 
 from literev.forms import HistoricalForm, SearchForm
-from literev.libs.data_files import load_tfidf_keywords
+from literev.libs.data_files import get_es_scores, load_tfidf_keywords
 from literev.libs.historical_functions import (
     filter_and_sort_projects,
     sort_all_projects,
@@ -705,6 +705,7 @@ def tableselect(
     context["iterations_limit_exceeded"] = False
     context["processing_filters"] = False
     context["active_iteration_id"] = -1
+    context["has_es_scores"] = False
 
     if not project_id:
         return redirect(reverse("search"))
@@ -730,6 +731,7 @@ def tableselect(
     total_documents = TableChoice.objects.filter(
         project=project, to_display=True
     ).count()
+
     total_pages = max(
         1,
         (total_documents + settings.NUMBER_ARTICLE_BY_PAGE - 1)
@@ -886,6 +888,11 @@ def tableselect(
         project=project,
         to_display=True,
     )
+
+    # Check if the project has elasticsearch scores
+    es_scores = get_es_scores(project)
+    if es_scores:
+        context["has_es_scores"] = True
 
     tablechoice_list, hdbscan_scores = render_table_choice(
         project, tablechoice_queryset, sort_by

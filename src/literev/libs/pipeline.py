@@ -98,7 +98,7 @@ def create_document_db(project: Project, document: MetaData) -> None:
 
     """
 
-    Document.objects.create(
+    new_document = Document.objects.create(
         project=project,
         raw_document_id=convert_to_target_type(document.doc_id),
         raw_document_text=convert_to_target_type(document.document_text),
@@ -109,6 +109,8 @@ def create_document_db(project: Project, document: MetaData) -> None:
         standards=convert_to_target_type(document.standards),
         result=convert_to_target_type(document.result),
     )
+
+    return new_document.id
 
 
 def update_pp_document(pk: int, pp_corpus: str) -> None:

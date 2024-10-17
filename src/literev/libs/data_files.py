@@ -62,6 +62,29 @@ def get_dataframe_project(project: Project) -> pd.DataFrame:
     return df
 
 
+def get_es_scores(project: Project) -> dict[int, str]:
+    """
+    Loads saved elasticsearch scores.
+    Parameters
+    ----------
+    project : Project object
+        A project related with the elasticsearch scores.
+
+    Returns
+    -------
+    list[str]
+        List of saved elasticsearch scores for the project.
+    """
+    path = settings.ARTICLE_DATA / f"es_scores_project_{project.id}.pkl"
+
+    if not path.exists():
+        return dict()
+
+    scores = joblib.load(path)
+
+    return scores
+
+
 def load_hdbscan_prob(project: Project) -> list[float]:
     """
     Loads saved hdbscan scores.

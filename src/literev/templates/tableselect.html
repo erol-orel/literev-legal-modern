@@ -141,6 +141,14 @@
                             {% endif %}>
                       Decision Date (Descending)
                     </option>
+                    {% if has_es_scores %}
+                      <option value="es_score"
+                              {% if sort_by == "es_score" %}
+                                selected
+                              {% endif %}>
+                        ES query score
+                      </option>
+                    {% endif %}
                     {% for keyword in keywords %}
                       <option value="{{ keyword }}"
                               {% if sort_by == keyword %}
