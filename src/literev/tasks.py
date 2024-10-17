@@ -114,6 +114,9 @@ def back_get_documents(self, project_id: int) -> bool:
     bool
         True if documents were successfully fetched and saved, False otherwise.
     """
+
+    process_all_corpus_query = str(settings.PROCESS_ALL_CORPUS_QUERY)
+
     project = Project.objects.get(id=project_id)
     update_task_code(project, self.request.id)
 
@@ -132,11 +135,16 @@ def back_get_documents(self, project_id: int) -> bool:
         logger.info(f"Processing index: {index}")
         try:
             collector = ElasticSearchCollector(index_name=index)
-            documents = collector.collect_documents(
-                project_query, start_date, end_date
-            )
+
+            if project.query == process_all_corpus_query:
+                documents = collector.collect_all_documents()
+            else:
+                documents = collector.collect_documents(
+                    project_query, start_date, end_date
+                )
 
             save_documents_to_db(project, documents)
+
             logger.info(f"Successfully saved documents for index: {index}")
 
         except Exception as e:
@@ -145,14 +153,12 @@ def back_get_documents(self, project_id: int) -> bool:
             )
             failed_indices.append(index)
 
-    # Log and return final status
     if failed_indices:
         logger.error(
             f"Document collection failed for indices: {', '.join(failed_indices)}"
         )
         return False
 
-    # Update project status and save
     project.step = "preparing"
     project.save()
     logger.info(

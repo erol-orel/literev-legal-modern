@@ -101,20 +101,6 @@ def get_number_documents(
     return result
 
 
-def count_all_corpus():
-    es_collector = ElasticSearchCollector()
-    result = 0
-    # fetch the total documents from elastic search
-    # It could happen that ES is not working at the moment
-    try:
-        result += es_collector.count_all_corpus()
-    except Exception as e:
-        logging.warning("ElasticSearch Error in counting all documents")
-        logging.warning(e)
-
-    return result
-
-
 def save_documents_to_db(project: Project, documents: list[MetaData]) -> None:
     """
     Saves a list of documents into the database for a specific project.

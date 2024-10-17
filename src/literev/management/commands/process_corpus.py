@@ -16,37 +16,9 @@ logging.basicConfig(level=logging.INFO)
 User = get_user_model()
 
 
-def count_all_corpus(index_name: str) -> int:
-    """
-    Count all documents in the Elasticsearch corpus for a given index.
-
-    Parameters
-    ----------
-    index_name : str
-        The name of the Elasticsearch index.
-
-    Returns
-    -------
-    int
-        The total number of documents in the specified index.
-    """
-    es_collector = ElasticSearchCollector(index_name=index_name)
-    try:
-        total_documents = es_collector.count_all_corpus()
-        logger.info(
-            f"Total documents for index {index_name}: {total_documents}"
-        )
-        return total_documents
-
-    except Exception as e:
-        logger.error(
-            f"Failed to count documents for index {index_name}. Error: {e}"
-        )
-        return 0
-
-
 def process_all_documents(
     index_name: str,
+    search_term: str,
     user: User,
     start_date: datetime.date,
     end_date: datetime.date,
@@ -65,46 +37,93 @@ def process_all_documents(
     end_date : datetime.date
         The end date for filtering documents.
     """
-    total_documents = count_all_corpus(index_name=index_name)
+
+    es_collector = ElasticSearchCollector(index_name=index_name)
+
     try:
-        # Create a new project specifically for processing the entire corpus
-        project = Project.objects.create(
-            user=user,
-            name=f"Process All Documents ({index_name})",
-            creation_date=datetime.datetime.now(),
-            query="#PROCESS-ALL-CORPUS-LITEREV-00",
-            total_documents=total_documents,
-            selected_indices=[index_name],
-            range_begin_date=start_date,
-            range_end_date=end_date,
-            is_running=False,
-            is_finish=False,
+        total_documents = es_collector.count_all_documents()
+        project = create_project(
+            index_name,
+            search_term,
+            user,
+            total_documents,
+            start_date,
+            end_date,
         )
         logger.info(
             f"Project created with ID: {project.id} for user: {user.username}"
         )
 
-    except Exception as e:
-        logger.warning(
-            f"Failed to create project for index '{index_name}'. Error: {e}"
-        )
-        return
-
-    try:
         if launch_process(project):
             logger.info(
-                f"Successfully started processing the corpus for project ID: {project.id}"
+                f"Successfully started processing for project ID: {project.id}"
             )
         else:
-            logger.warning(
-                f"Failed to launch process for project ID: {project.id}"
-            )
+            handle_project_failure(project, "Failed to launch process.")
+
     except Exception as e:
-        logger.warning(
-            f"Error while launching process for project ID: {project.id}. Error: {e}"
+        logger.error(
+            f"Error during processing for index '{index_name}'. Error: {e}"
         )
-        project.delete()
-        logger.warning(f"Deleted project ID: {project.id} due to failure.")
+
+
+def create_project(
+    index_name: str,
+    search_term: str,
+    user: User,
+    total_documents: int,
+    start_date: datetime.date,
+    end_date: datetime.date,
+) -> Project:
+    """
+    Create a new Project instance for document processing.
+
+    Parameters
+    ----------
+    user : User
+        The Django user object associated with the project.
+    index_name : str
+        The name of the Elasticsearch index.
+    total_documents : int
+        The total number of documents in the index.
+    start_date : datetime.date
+        The start date for filtering documents.
+    end_date : datetime.date
+        The end date for filtering documents.
+
+    Returns
+    -------
+    Project
+        The created project object.
+    """
+    return Project.objects.create(
+        user=user,
+        name=f"Process All Documents ({index_name})",
+        creation_date=datetime.datetime.now(),
+        query=search_term,
+        total_documents=total_documents,
+        selected_indices=[index_name],
+        range_begin_date=start_date,
+        range_end_date=end_date,
+        is_running=False,
+        is_finish=False,
+    )
+
+
+def handle_project_failure(project: Project, message: str) -> None:
+    """
+    Handle project failure by logging an error and deleting the project.
+
+    Parameters
+    ----------
+    project : Project
+        The project object that failed.
+    message : str
+        A custom error message to log.
+    """
+    logger.warning(f"{message} Project ID: {project.id}")
+    project.delete()
+    logger.warning(f"Deleted project ID: {project.id} due to failure.")
 
 
 class Command(BaseCommand):
@@ -117,6 +136,13 @@ class Command(BaseCommand):
             type=str,
             required=True,
             help="The name of the Elasticsearch index to process all documents from.",
+        )
+        parser.add_argument(
+            "--search-term",
+            "-q",
+            type=str,
+            required=True,
+            help="The query .",
         )
         parser.add_argument(
             "--username",
@@ -142,6 +168,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         index_name = options["index_name"]
+        search_term = options["search_term"]
         username = options["username"]
         start_date_str = options["start_date"]
         end_date_str = options["end_date"]
@@ -183,6 +210,7 @@ class Command(BaseCommand):
 
         process_all_documents(
             index_name=index_name,
+            search_term=search_term,
             user=user,
             start_date=start_date,
             end_date=end_date,

@@ -482,20 +482,24 @@ groups:
         help: Load processed documents into the database
         env-file: .env
         args:
-          index_name:
+          index-name:
             help: Specify the index name
+            type: string
+            required: true
+          search-term:
+            help: Specify the search term
             type: string
             required: true
           username:
             help: Specify the username
             type: string
             required: true
-          date_start:
+          date-start:
             help: Specify the start date
             type: string
             required: false
-            default: "2024-01-01"
-          date_end:
+            default: "1900-01-01"
+          date-end:
             help: Specify the end date
             type: string
             required: false
@@ -510,6 +514,7 @@ groups:
           # Construct the command to avoid extra quotes being added
           CMD="python manage.py process_corpus\
             --index-name ${{ args.index_name }}\
+            --search-term ${{ args.search_term }}\
             --username ${{ args.username }}\
             --start-date ${{ args.date_start }}\
             --end-date $DATE_END"

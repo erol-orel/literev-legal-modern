@@ -34,7 +34,7 @@ class Document(models.Model):
     procedure_type = models.CharField(max_length=256, default="")
     descriptors = models.TextField(default="", null=True, blank=True)
     standards = models.CharField(
-        max_length=256, default="", null=True, blank=True
+        max_length=512, default="", null=True, blank=True
     )  # normes
     result = models.CharField(
         max_length=256, default="", null=True, blank=True

@@ -106,7 +106,6 @@ class ScoringTest(TestCase):
 
         self.assertEqual(set(expected), set(result))
 
-
     def test_get_dataframe_project(self):
         """Test get dataframe tfidf"""
         df = get_dataframe_project(self.project)

@@ -78,5 +78,15 @@ class ElasticSearchCollectorTestCase(
         documents = collector.collect_documents(
             search_query, start_date, end_date
         )
-        # breakpoint()
         assert len(documents) == 158
+
+    def test_count_all_documents(self) -> None:
+        """
+        Test case for counting documents in an Elasticsearch index.
+        This is based on the same approach used for the collect tests.
+        """
+        collector = ElasticSearchCollector(index_name="judiciary")
+
+        total_documents = collector.count_all_documents()
+
+        assert total_documents == 22296

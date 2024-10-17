@@ -220,10 +220,52 @@ class ElasticSearchCollector:
         """Create document from metadata."""
         pass
 
-    def count_all_corpus(self):
-        """Counts total number of articles for a given query."""
+    # Collecting and counting documents in PROCESS-ALL-CORPUS
+    def collect_all_documents(self) -> list[MetaData]:
+        """
+        Retrieve all articles from the Elasticsearch index based on the 'match_all' query.
+
+        Returns
+        -------
+        list[MetaData]
+            A list of metadata for the retrieved documents.
+        """
         es_query = {"query": {"match_all": {}}}
+        try:
+            documents = self.get_all_documents_from_es_response(es_query)
+            result = [
+                metadata
+                for doc in documents
+                if (metadata := self.extract_document_metadata(doc))
+            ]
+            if not result:
+                logging.warning(
+                    "No valid documents found with 'document_text' field."
+                )
+            logging.info(f"Total documents collected: {len(result)}")
+            return result
+        except Exception as e:
+            logging.error(f"Error while collecting documents: {e}")
+            return []
 
-        response = self.es.count(index=self.index_name, body=es_query)
+    def count_all_documents(self) -> int:
+        """
+        Count the total number of documents in the specified Elasticsearch index.
 
-        return int(response["count"])
+        Returns
+        -------
+        int
+            The total number of documents in the index.
+        """
+        try:
+            total_count_response = self.es.count(index=self.index_name)
+            count = total_count_response.get("count", 0)
+            logging.info(
+                f"Total documents in index '{self.index_name}': {count}"
+            )
+            return count
+        except Exception as e:
+            logging.error(
+                f"Error counting documents in index '{self.index_name}': {e}"
+            )
+            return 0
