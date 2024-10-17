@@ -25,11 +25,6 @@ def count_processed_documents(project: Project) -> int:
 
 
 @register.filter
-def get_sample_document(document: Document) -> str:
-    return document.raw_document_text[:650]
-
-
-@register.filter
 def clustering_percentage(project: Project) -> int:
     n_total_trials = int(settings.NUMBER_TRIALS)
     step_number = count_trials(project)

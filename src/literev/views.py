@@ -4,6 +4,7 @@ import datetime
 import logging
 
 from django.db.models import Count, Q
+from django.urls import reverse
 
 logging.basicConfig(level=logging.INFO)
 
@@ -17,6 +18,7 @@ from django.shortcuts import redirect, render
 from django.views.generic import TemplateView
 
 from literev.forms import HistoricalForm, SearchForm
+from literev.libs.data_files import load_tfidf_keywords
 from literev.libs.historical_functions import (
     filter_and_sort_projects,
     sort_all_projects,
@@ -40,6 +42,7 @@ from literev.libs.table_choice import (
     get_json_iterations_render,
     iterate_check_list,
     remove_iteration,
+    render_table_choice,
     reset_table_choice,
     update_document_is_check_table_choice,
     update_document_to_display_table_choice,
@@ -302,7 +305,9 @@ def running(request: HttpRequest) -> HttpResponse:
 
 
 @login_required(login_url="/accounts/login/")
-def projectpage(request: HttpRequest, project_id: int) -> HttpResponse:
+def projectpage(
+    request: HttpRequest, project_id: int | None = None
+) -> HttpResponse:
     """
     Display the Refine project page.
 
@@ -328,7 +333,7 @@ def projectpage(request: HttpRequest, project_id: int) -> HttpResponse:
     context["refinement_limit_exceeded"] = False
 
     if not project_id:
-        return redirect("/search")
+        return redirect(reverse("search"))
 
     actual_user = request.user
     project_exist = (
@@ -338,11 +343,11 @@ def projectpage(request: HttpRequest, project_id: int) -> HttpResponse:
     )
 
     if not project_exist:
-        return redirect("/search")
+        return redirect(reverse("search"))
 
     project = Project.objects.filter(id=project_id).first()
     if not project or not project.is_finish:
-        return redirect("/search")
+        return redirect(reverse("search"))
 
     if request.method == "POST":
         if request.POST.get("get-refinement"):
@@ -352,7 +357,17 @@ def projectpage(request: HttpRequest, project_id: int) -> HttpResponse:
                 # get refinement and go the table select
                 load_last_iteration(actual_user, project, int(refinement_id))
 
-                return redirect(f"/tableselect/{project.id}/{refinement_id}/")
+                return redirect(
+                    reverse(
+                        "tableselect",
+                        kwargs={
+                            "project_id": project.id,
+                            "refinement_id": int(refinement_id),
+                            "num": 1,
+                            "order_by": "decision_date",
+                        },
+                    )
+                )
 
         if request.POST.get("remove-refinement"):
             refinement_id = request.POST.get("remove-refinement")
@@ -392,7 +407,7 @@ def projectpage(request: HttpRequest, project_id: int) -> HttpResponse:
             project_id = request.POST["project_id"]
             running_delete(project_id)
 
-            return redirect("/running")
+            return redirect(reverse("running"))
 
         elif submit == "continue":
             document_pk_list_str = request.POST.get("document_pk_list", "")
@@ -421,7 +436,17 @@ def projectpage(request: HttpRequest, project_id: int) -> HttpResponse:
             # create iteration
             create_iteration(actual_user, project, new_refinement_id)
 
-            return redirect(f"/tableselect/{project_id}/{new_refinement_id}")
+            return redirect(
+                reverse(
+                    "tableselect",
+                    kwargs={
+                        "project_id": project_id,
+                        "refinement_id": new_refinement_id,
+                        "num": 1,
+                        "order_by": "decision_date",
+                    },
+                )
+            )
 
     context.update(
         {
@@ -669,7 +694,11 @@ def generate_summary(request: HttpRequest, cluster_id: int) -> HttpResponse:
 
 @login_required(login_url="/accounts/login/")
 def tableselect(
-    request: HttpRequest, project_id: int, refinement_id: int
+    request: HttpRequest,
+    project_id: int,
+    refinement_id: int,
+    num: int = 1,
+    order_by: str = "decision_date",
 ) -> HttpResponse:
     context: dict[str, Any] = {}
     context["active_iteration_id"] = -1
@@ -678,10 +707,10 @@ def tableselect(
     context["active_iteration_id"] = -1
 
     if not project_id:
-        return redirect("/search")
+        return redirect(reverse("search"))
 
     if not refinement_id:
-        return redirect("/search")
+        return redirect(reverse("search"))
 
     actual_user = request.user
 
@@ -691,11 +720,16 @@ def tableselect(
     ).first()
 
     if not project:
-        return redirect("/search")
+        return redirect(reverse("search"))
+
+    sort_by = order_by
+    context["sort_by"] = order_by
 
     # Handle pagination: Ensure current page is valid and falls within the allowed range
-    current_page = max(1, int(request.GET.get("page", 1)))
-    total_documents = TableChoice.objects.filter(project=project).count()
+    current_page = max(1, num)
+    total_documents = TableChoice.objects.filter(
+        project=project, to_display=True
+    ).count()
     total_pages = max(
         1,
         (total_documents + settings.NUMBER_ARTICLE_BY_PAGE - 1)
@@ -725,6 +759,7 @@ def tableselect(
 
         if request.POST.get("get-iteration") is not None:
             iteration_id = request.POST.get("get-iteration")
+
             if iteration_id is not None:
                 get_iteration(
                     actual_user, project, refinement_id, int(iteration_id)
@@ -764,16 +799,32 @@ def tableselect(
                     active_iteration_id,
                 )
 
-                # context["active_iteration_id"] = -1
-
-                return redirect(f"/tableselect/{project_id}/{refinement_id}")
+                return redirect(
+                    reverse(
+                        "tableselect",
+                        kwargs={
+                            "project_id": project_id,
+                            "refinement_id": refinement_id,
+                            "num": current_page,
+                            "order_by": sort_by,
+                        },
+                    )
+                )
 
         elif submit == "reset":
             reset_table_choice(
                 user=actual_user, project=project, refinement_id=refinement_id
             )
 
-            return redirect(f"/tableselect/{project_id}/{refinement_id}")
+            return redirect(
+                reverse(
+                    "tableselect",
+                    kwargs={
+                        "project_id": project_id,
+                        "refinement_id": refinement_id,
+                    },
+                )
+            )
 
         elif submit == "finish":
             update_document_is_check_table_choice(
@@ -784,12 +835,34 @@ def tableselect(
             )
             return download_finalcsv(project=project)
 
+        elif submit == "update_order":
+            sort_by = request.POST.get("update_order_by")
+            return redirect(
+                reverse(
+                    "tableselect",
+                    kwargs={
+                        "project_id": project_id,
+                        "refinement_id": refinement_id,
+                        "num": current_page,
+                        "order_by": sort_by,
+                    },
+                )
+            )
+
         elif submit == "previous" and current_page > 1:
             update_document_is_check_table_choice(
                 user=actual_user, project=project, list_id=check_list
             )
             return redirect(
-                f"/tableselect/{project_id}/{refinement_id}/?page={current_page - 1}"
+                reverse(
+                    "tableselect",
+                    kwargs={
+                        "project_id": project_id,
+                        "refinement_id": refinement_id,
+                        "num": current_page - 1,
+                        "order_by": sort_by,
+                    },
+                )
             )
 
         elif submit == "next" and current_page < total_pages:
@@ -797,28 +870,32 @@ def tableselect(
                 user=actual_user, project=project, list_id=check_list
             )
             return redirect(
-                f"/tableselect/{project_id}/{refinement_id}/?page={current_page + 1}"
+                reverse(
+                    "tableselect",
+                    kwargs={
+                        "project_id": project_id,
+                        "refinement_id": refinement_id,
+                        "num": current_page + 1,
+                        "order_by": sort_by,
+                    },
+                )
             )
 
-    # Prioritize order_by from POST if available, else fallback to GET
-    order_by = request.POST.get("order_by") or request.GET.get(
-        "order_by", "-document__decision_date"
-    )
-
-    # Map order_by fields to correct ForeignKey fields in TableChoice
-    valid_order_by_fields = {
-        "decision_date": "document__decision_date",
-        "-decision_date": "-document__decision_date",
-    }
-
-    # Ensure the order_by field is valid, defaulting if not found
-    order_by = valid_order_by_fields.get(order_by, "-document__decision_date")
-
     # Fetch the TableChoice list ordered and paginated
-    tablechoice_list = TableChoice.objects.filter(
+    tablechoice_queryset = TableChoice.objects.filter(
         project=project,
         to_display=True,
-    ).order_by(order_by)
+    )
+
+    tablechoice_list, hdbscan_scores = render_table_choice(
+        project, tablechoice_queryset, sort_by
+    )
+
+    context["hdbscan_scores"] = hdbscan_scores
+
+    keywords = load_tfidf_keywords(project)
+
+    context["keywords"] = keywords
 
     # Pagination: calculate the correct slice of documents
     first_document = (current_page - 1) * settings.NUMBER_ARTICLE_BY_PAGE
@@ -865,7 +942,7 @@ def contentdocument(request: HttpRequest, document_id: int) -> HttpResponse:
     context: dict[str, Any] = dict()
 
     if not document_id:
-        return redirect("/search")
+        return redirect(reverse("search"))
 
     document = Document.objects.get(pk=document_id)
 

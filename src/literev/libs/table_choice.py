@@ -5,6 +5,13 @@ import logging
 from threading import Thread
 from typing import Iterator
 
+from django.db.models.query import QuerySet
+
+from literev.libs.data_files import load_hdbscan_prob
+from literev.libs.scoring import (
+    get_topic_and_hdbscan_score,
+    sort_by_keyword_score,
+)
 from literev.models import (
     ClusterElement,
     Document,
@@ -16,6 +23,93 @@ from literev.models import (
 )
 
 filter_thread_dict = dict()
+
+
+def render_table_choice(
+    project: Project, tablechoice: QuerySet[TableChoice], order_by: str
+) -> tuple[list[dict[str | int, str | float | int]], bool]:
+    """
+    Return a list of documents data and a boolean value to indicate if the document has hdbscan scores.
+
+    Parameters
+    ----------
+    project : Project object
+        A project related with topic and scores.
+    tablechoice: QuerySet[TableChoice]
+        A set of tablechoice object, used to show table select page.
+    order_by : str
+        Used to sort the tablechoice objects
+
+    Returns
+    -------
+    tablechoice_render, has_scores : list, bool
+        list of documents data and boolean value to check if the documents has scores from hhdbscan.
+    """
+    has_scores = False
+    tablechoice_render = []
+
+    sorted_tablechoice = sort_table_choice(project, tablechoice, order_by)
+
+    hdbscan_scores = load_hdbscan_prob(project)
+
+    if hdbscan_scores:
+        has_scores = True
+        topic_scores = get_topic_and_hdbscan_score(hdbscan_scores, project)
+
+    for tablechoice_e in sorted_tablechoice:
+        render_e = {
+            "id": tablechoice_e.id,
+            "is_check": tablechoice_e.is_check,
+            "document_pk": tablechoice_e.document.pk,
+            "procedure_type": tablechoice_e.document.procedure_type,
+            "decision_type": tablechoice_e.document.decision_type,
+            "decision_date": tablechoice_e.document.decision_date,
+            "result": tablechoice_e.document.result,
+            "standards": tablechoice_e.document.standards,
+            "sample_document": tablechoice_e.document.raw_document_text[:650],
+        }
+
+        if has_scores:
+            render_e.update(
+                {
+                    "topic": topic_scores[tablechoice_e.document.id]["topic"],
+                    "hdbscan_score": topic_scores[tablechoice_e.document.id][
+                        "hdbscan_score"
+                    ],
+                }
+            )
+
+        tablechoice_render.append(render_e)
+
+    return tablechoice_render, has_scores
+
+
+def sort_table_choice(
+    project: Project, tablechoice: QuerySet[TableChoice], order_by: str
+) -> list[TableChoice]:
+    """
+    Sort tablechoice object by order_by string.
+
+    Parameters
+    ----------
+    project : Project object
+        A project related with the keywords
+    tablechoice: QuerySet[TableChoice]
+        A set of tablechoice object, used to show table select page.
+    order_by : str
+        Used to sort the tablechoice objects
+
+    Returns
+    -------
+    list[TableChoice]
+        List of sorted tablechoice objects.
+    """
+    if order_by == "decision_date":
+        return list(tablechoice.order_by("document__decision_date"))
+    elif order_by == "-decision_date":
+        return list(tablechoice.order_by("-document__decision_date"))
+
+    return sort_by_keyword_score(project, tablechoice, order_by)
 
 
 def neighbour_document(document: Document, project: Project) -> list[Document]:

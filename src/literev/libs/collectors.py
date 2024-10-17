@@ -68,7 +68,7 @@ class ElasticSearchCollector:
         index_name : str
             The name of the Elasticsearch index to be used for collecting data.
         """
-        self.index_name = index_name
+        self.index_name = ""#index_name
         self.es = Elasticsearch(
             [settings.ES_HOST_URL],
             basic_auth=(settings.ES_USERNAME, settings.ES_PASSWORD),

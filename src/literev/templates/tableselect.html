@@ -21,7 +21,7 @@
             action=""
             method="POST">
         {% csrf_token %}
-        <div class="row col-12 mb-4">
+        <div class="row col-12">
           <div class="fs-5 col-10 mx-auto">
             <div class="p-4 bg-light">
               <div class="row text-center mb-4 mt-3">
@@ -74,7 +74,6 @@
             <hr class="mb-5" />
           </div>
           {% if not processing_filters %}
-
             <div class="container">
               {% for iteration in iterations %}
                 <div class="btn-group"
@@ -108,22 +107,6 @@
               {% endfor %}
             </div>
           {% endif %}
-
-          <div class="col-12 mb-3 mx-auto mt-2">
-            {% if not processing_filters %}
-              <div class="d-flex justify-content-between">
-                {% if not first_page %}
-                  <div class="col-4 text-start">
-                    <input class="btn btn-outline-dark"
-                           type="submit"
-                           name="submit"
-                           value="previous" />
-                  </div>
-                {% endif %}
-
-              </div>
-            {% endif %}
-          </div>
         </div>
         {% if processing_filters %}
           <div class="mt-5 d-flex justify-content-center">
@@ -134,50 +117,76 @@
             <span class="ms-3 fs-4 text-secondary">Processing new results ...</span>
           </div>
         {% else %}
-          <div id="select_ordered_table"
-               class="container text-center mt-4">
+          <div class="container text-center mt-4">
             <div class="row justify-content-center">
-
               <div class="col-3 d-flex align-items-center">
                 <div class="d-flex align-items-center">
-                  <label for="order_by"
+                  <label for="update_order_by"
                          class="form-label me-2 mb-0">
-                    <b>Sort:</b>
+                    <b>Sort by:</b>
                   </label>
-                  <select name="order_by"
-                          id="order_by"
+                  <select name="update_order_by"
+                          id="update_order_by"
                           class="form-select"
                           aria-label="Select order">
                     <option value="decision_date"
-                            {% if request.GET.order_by == "decision_date" or request.POST.order_by == "decision_date" %}
+                            {% if sort_by == "decision_date" %}
                               selected
                             {% endif %}>
                       Decision Date (Ascending)
                     </option>
                     <option value="-decision_date"
-                            {% if request.GET.order_by == "-decision_date" or request.POST.order_by == "-decision_date" %}
+                            {% if sort_by == "-decision_date" %}
                               selected
                             {% endif %}>
                       Decision Date (Descending)
                     </option>
+                    {% for keyword in keywords %}
+                      <option value="{{ keyword }}"
+                              {% if sort_by == keyword %}
+                                selected
+                              {% endif %}>
+                        keyword: {{ keyword }}
+                      </option>
+                    {% endfor %}
                   </select>
                 </div>
                 <button type="submit"
                         name="submit"
                         id="apply_order_button"
+                        value="update_order"
                         class="btn btn-primary mt-2"
                         hidden>
                   Apply Order
                 </button>
               </div>
-
               <div class="col-9 text-end">
                 page: <span class="fw-bold">{{ current_page }}/{{ total_page }}</span>
               </div>
-
             </div>
           </div>
-
+          <div class="col-12 mb-3 mx-auto mt-4">
+            {% if not processing_filters %}
+              <div class="d-flex justify-content-between">
+                <div class="col-4 text-start">
+                  {% if not first_page %}
+                    <input class="btn btn-outline-dark"
+                           type="submit"
+                           name="submit"
+                           value="previous" />
+                  {% endif %}
+                </div>
+                <div class="col-4 mb-2 text-end">
+                  {% if not last_page %}
+                    <input class="btn btn-outline-dark"
+                           type="submit"
+                           name="submit"
+                           value="next" />
+                  {% endif %}
+                </div>
+              </div>
+            {% endif %}
+          </div>
           <div class="container">
             <hr />
             <div class="row">
@@ -204,53 +213,66 @@
                   <h3 class="text-end">
                     <span class="badge text-bg-dark">
                       <a class="text-white"
-                         href="{% url 'contentdocument' document_id=tablechoice.document.pk %}">{{ tablechoice.document.procedure_type }}</a>
+                         href="{% url 'contentdocument' document_id=tablechoice.document_pk %}">{{ tablechoice.procedure_type }}</a>
                     </span>
                   </h3>
                   <div class="ms-auto mt-3 text-start mb-3">
                     <div>
-                      <b>{{ tablechoice.document.decision_type }}</b>, du {{ tablechoice.document.decision_date }}
-                      <b>Result:</b> {{ tablechoice.document.result }}
+                      <b>{{ tablechoice.decision_type }}</b>, du {{ tablechoice.decision_date }}
+                      <b>Result:</b> {{ tablechoice.result }}
                     </div>
                   </div>
                   <div class="mb-3 ms-auto">
                     <div>
-                      <b>Normes:</b> {{ tablechoice.document.standards }}
+                      <b>Normes:</b> {{ tablechoice.standards }}
                     </div>
                   </div>
                   <div class="mb-3 ms-auto">
                     <div>
-                      <b>Extraits:</b> {{ tablechoice.document | get_sample_document }} ...
+                      <b>Extraits:</b> {{ tablechoice.sample_document }} ...
                     </div>
                   </div>
                 </div>
+                {% if hdbscan_scores %}
+                  <div class="col-1">
+                  </div>
+                  <div class="col-12 text-center fs-5 mb-3">
+                    <span class="badge bg-success">Cluster : {{ tablechoice.topic }}</span>
+
+                    <span class="badge bg-light text-dark"> Strength cluster : {{ tablechoice.hdbscan_score | floatformat:"3" }}</span>
+                  </div>
+                {% endif %}
                 <hr />
               {% endfor %}
             </div>
           </div>
-          <div class="col-12 mb-3 mx-auto">
-            <div class="d-flex justify-content-between">
-              {% if not first_page %}
+          <div class="col-12 mb-3 mx-auto mt-4">
+            {% if not processing_filters %}
+              <div class="d-flex justify-content-between">
                 <div class="col-4 text-start">
-                  <input class="btn btn-outline-dark"
-                         type="submit"
-                         name="submit"
-                         value="previous" />
+                  {% if not first_page %}
+                    <input class="btn btn-outline-dark"
+                           type="submit"
+                           name="submit"
+                           value="previous" />
+                  {% endif %}
                 </div>
-              {% endif %}
 
-              <div class="col-12 text-end">
-                page: <span class="fw-bold">{{ current_page }}/{{ total_page }}</span>
+                <div class="col-4 mb-2 text-end">
+                  {% if not last_page %}
+                    <input class="btn btn-outline-dark"
+                           type="submit"
+                           name="submit"
+                           value="next" />
+                  {% endif %}
+                </div>
               </div>
-
-              {% if not last_page %}
-                <div class="col-4 text-end">
-                  <input class="btn btn-outline-dark"
-                         type="submit"
-                         name="submit"
-                         value="next" />
-                </div>
-              {% endif %}
+            {% endif %}
+          </div>
+          <div class="col-12">
+            <div class="col-4 mx-auto text-center mb-4">
+              page:
+              <span class="fw-bold">{{ current_page }}/{{ total_page }}</span>
             </div>
           </div>
           <div class="col-10 mx-auto">
@@ -311,11 +333,8 @@
     </script>
   {% endif %}
   <script>
-    const selectOrderBy = document.getElementById('order_by');
+    const selectOrderBy = document.getElementById('update_order_by');
     const applyOrderButton = document.getElementById('apply_order_button');
-
-    console.log('Select:', selectOrderBy.value);
-    console.log('Apply:', applyOrderButton.value);
 
     selectOrderBy.addEventListener('change', () => {
       console.log('Order selected:', selectOrderBy.value);

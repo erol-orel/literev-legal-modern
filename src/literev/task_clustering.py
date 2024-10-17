@@ -1,5 +1,6 @@
 import logging
 
+import joblib
 import numpy as np
 import optuna
 import pandas as pd
@@ -9,6 +10,7 @@ from django.db.models import Count
 
 from config.celery import app
 from literev.libs.nlp import nlp_topic_description
+from literev.libs.scoring import extract_keywords, get_most_similar_keywords
 from literev.libs.utils import (
     get_database_uri,
     get_study_name,
@@ -179,6 +181,34 @@ def back_clustering_documents(self, project_id: int):
                 index += 1
                 cluster.order = index
                 cluster.save()
+
+    query_keywords = extract_keywords(project.query)
+
+    tfidf_keywords = get_most_similar_keywords(query_keywords, columns_name)
+
+    hdbscan_scores = best_study_clusterer.probabilities_
+
+    joblib.dump(
+        hdbscan_scores,
+        settings.ARTICLE_DATA / f"hdbscan_scores_project_{project.id}.pkl",
+    )
+
+    joblib.dump(
+        tfidf_keywords,
+        settings.ARTICLE_DATA / f"tfidf_keywords_project_{project.id}.pkl",
+    )
+
+    joblib.dump(
+        list_id_docs,
+        settings.ARTICLE_DATA / f"id_list_project_{project.id}.pkl",
+    )
+    joblib.dump(
+        tf_idf, settings.ARTICLE_DATA / f"tf_idf_project_{project.id}.pkl"
+    )
+    joblib.dump(
+        columns_name,
+        settings.ARTICLE_DATA / f"column_name_project_{project.id}.pkl",
+    )
 
     project.step_number = 0
     project.step = "plotting"

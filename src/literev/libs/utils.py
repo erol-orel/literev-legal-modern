@@ -11,8 +11,6 @@ from literev.libs.collectors import ElasticSearchCollector, MetaData
 from literev.libs.pipeline import create_document_db
 from literev.models import Project
 
-# from literev.tasks import launch_process
-
 
 def update_task_code(project: Project, task_code) -> None:
     project.actual_task_code = task_code

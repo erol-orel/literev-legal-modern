@@ -10,7 +10,7 @@ urlpatterns = [
     path('running/', running, name='running'),
     path('historicalpage/', historicalpage, name='historicalpage'),
     path('project/<int:project_id>/', projectpage, name='projectpage'),
-    path("tableselect/<int:project_id>/<int:refinement_id>/", tableselect, name="tableselect"),
+    path("tableselect/<int:project_id>/<int:refinement_id>/page=<int:num>/sort_by=<str:order_by>/", tableselect, name="tableselect"),
     path('contentdocument/<int:document_id>', contentdocument, name='contentdocument'),
     path("generatesummary/<int:cluster_id>/", generate_summary, name="generate-summary"),
 ]

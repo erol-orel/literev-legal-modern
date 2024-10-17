@@ -155,7 +155,7 @@ def remove_words(list_lemmatized: str, list_stopwords: set[str]) -> str:
 
 def create_ngrams(
     corpus_list: list[str],
-) -> Tuple[phrases.FrozenPhrases, phrases.FrozenPhrases, list[list[str]]]:
+) -> tuple[phrases.FrozenPhrases, phrases.FrozenPhrases, list[list[str]]]:
     """Trains models to to identify bigrams and trigrams using
     the whole corpus of articles. And use those models to include into
     the article corpus bigram and trigrams
@@ -214,7 +214,7 @@ def remove_common_and_unique(list_trigrams: list[list[str]]) -> list[str]:
     # common_and_unique_words = TfidfVectorizer(min_df=2, max_df=0.60).fit(
     #    " ".join(list(set(doc))) for doc in list_trigrams
     # )
-    # print(common_and_unique_words.stop_words_)
+
     list_temporary = [
         [
             word
