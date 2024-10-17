@@ -2,6 +2,18 @@ Release Notes
 ---
 
 
+## [0.5.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.4.0...0.5.0) (2024-10-17)
+
+### Features
+
+* add elasticsearch scores to sort tableselect page ([#125](https://github.com/thegraphnetwork-literev/literev-legal/issues/125)) ([5ff7225](https://github.com/thegraphnetwork-literev/literev-legal/commit/5ff7225fb887edb2cb7efa719fb40f24ac539dec))
+* **django-management:** Refactor ALL-CORPUS processing into standalone script with Makim task ([#120](https://github.com/thegraphnetwork-literev/literev-legal/issues/120)) ([33ca5af](https://github.com/thegraphnetwork-literev/literev-legal/commit/33ca5af9ea21cb225c11bce7e8ed966c31ebf43f))
+* sort by keyword in query and show hdbscan scores in table select page ([#115](https://github.com/thegraphnetwork-literev/literev-legal/issues/115)) ([93d04c9](https://github.com/thegraphnetwork-literev/literev-legal/commit/93d04c9af7d89360aaa9ae1599a1f6b5159cb4b5))
+
+### Bug Fixes
+
+* allow permissions to first project ([#119](https://github.com/thegraphnetwork-literev/literev-legal/issues/119)) ([15008a9](https://github.com/thegraphnetwork-literev/literev-legal/commit/15008a902ccb0ee511f71322d63249ea9ca46356))
+
 ## [0.4.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.3.0...0.4.0) (2024-10-09)
 
 ### Features
