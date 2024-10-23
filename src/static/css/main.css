@@ -130,3 +130,13 @@ a[aria-expanded='false'] > .expand_caret {
 .research-search-metadata div[aria-expanded='true'] > div > i.fa-chevron-right {
   transform: rotate(90deg);
 }
+
+
+/* highlight keyword styles */
+.query-keywords-highlight {
+  background-color: #FFFF77;
+}
+
+.topic-keywords-highlight {
+  background-color: #AEFF77;
+}

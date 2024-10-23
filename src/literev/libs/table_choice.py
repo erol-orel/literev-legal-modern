@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 
 from threading import Thread
 from typing import Iterator
@@ -9,6 +10,7 @@ from django.db.models.query import QuerySet
 
 from literev.libs.data_files import load_hdbscan_prob
 from literev.libs.scoring import (
+    extract_keywords,
     get_topic_and_hdbscan_score,
     sort_by_es_score,
     sort_by_keyword_score,
@@ -24,6 +26,42 @@ from literev.models import (
 )
 
 filter_thread_dict = dict()
+
+
+def highlight_words(
+    text: str, words_to_highlight: list[str], style_class: str
+) -> str:
+    """
+    Highlights word in words_to_highlight wrapping it with an html tag with style_class.
+
+    Parameters
+    ----------
+    text : str
+        Text where the words will be highlighted
+    words_to_highlight : list[str]
+        list of word to be highlighted.
+    style_class : str
+        style class to be assined to the word,
+        this class should exist in the css file.
+
+    Returns
+    -------
+    test : str
+        A text containing highlighted words with html tags.
+    """
+    for word in words_to_highlight:
+        # Regular expression pattern to match the whole word in a case-insensitive manner
+        pattern = r'\b(?<!["\'<>])(' + re.escape(word) + r")(?![^<>]*>)\b"
+
+        # Use a lambda function to replace and retain the matched word's original case
+        # The `re.sub` will handle all matches of the pattern in the text
+        text = re.sub(
+            pattern,
+            lambda match: f'<span class="{style_class}">{match.group(1)}</span>',
+            text,
+            flags=re.IGNORECASE,
+        )
+    return text
 
 
 def render_table_choice(
@@ -57,6 +95,8 @@ def render_table_choice(
         has_scores = True
         topic_scores = get_topic_and_hdbscan_score(hdbscan_scores, project)
 
+    query_keywords = extract_keywords(project.query)
+
     for tablechoice_e in sorted_tablechoice:
         render_e = {
             "id": tablechoice_e.id,
@@ -67,7 +107,11 @@ def render_table_choice(
             "decision_date": tablechoice_e.document.decision_date,
             "result": tablechoice_e.document.result,
             "standards": tablechoice_e.document.standards,
-            "sample_document": tablechoice_e.document.raw_document_text[:650],
+            "sample_document": highlight_words(
+                tablechoice_e.document.raw_document_text[:800],
+                query_keywords,
+                "query-keywords-highlight",
+            ),
         }
 
         if has_scores:
@@ -78,6 +122,12 @@ def render_table_choice(
                         "hdbscan_score"
                     ],
                 }
+            )
+            topic_keywords = render_e["topic"].split(", ")
+            render_e["sample_document"] = highlight_words(
+                render_e["sample_document"],
+                topic_keywords,
+                "topic-keywords-highlight",
             )
 
         tablechoice_render.append(render_e)
