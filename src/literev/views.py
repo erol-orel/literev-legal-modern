@@ -457,10 +457,13 @@ def projectpage(
 
     context.update(load_plot_data(project.pk))
 
-    cluster_list = Cluster.objects.filter(project=project).values_list(
-        "topic", flat=True
+    cluster_list = (
+        Cluster.objects.filter(project=project)
+        .values_list("topic", flat=True)
+        .order_by("order")
     )
-    context["list_topics"] = list(set(cluster_list))
+
+    context["list_topics"] = list(cluster_list)
 
     grouped_clusters = get_grouped_clusters(project)
 
@@ -554,7 +557,7 @@ def get_grouped_clusters(project: Project) -> list[dict]:
         Cluster.objects.filter(project=project)
         .values("topic")
         .annotate(total_documents=Count("clusterelement__document"))
-        .order_by("-total_documents", "topic")
+        .order_by("order")
     )
 
 
