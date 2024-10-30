@@ -118,7 +118,7 @@ def sort_by_es_score(
 
     if scores:
         sorted_list = sorted(
-            tablechoice,
+            list(tablechoice),
             key=lambda x: scores[x.document.id],
             reverse=True,
         )
@@ -168,7 +168,9 @@ def sort_by_keyword_score(
 
 
 def get_topic_and_hdbscan_score(
-    hdbscan_scores: list[float], project: Project
+    hdbscan_scores: list[float],
+    project: Project,
+    tablechoice: QuerySet[TableChoice],
 ) -> dict[int, dict[str, str | float]]:
     """
     Return a dict containing the scores and topic for documents.
@@ -193,12 +195,26 @@ def get_topic_and_hdbscan_score(
     for doc_id, score in zip(list_id_docs, hdbscan_scores):
         scores_dict[doc_id] = score
 
-    cluster_elements = ClusterElement.objects.filter(cluster__project=project)
+    selected_document_ids = [tc.document.id for tc in tablechoice]
+    cluster_elements = ClusterElement.objects.filter(
+        cluster__project=project, document_id__in=selected_document_ids
+    )
 
     for cluster_e in cluster_elements:
+        if cluster_e.cluster.order == -1:
+            text_topic = cluster_e.cluster.topic
+
+        else:
+            text_topic = (
+                "Topic "
+                + str(cluster_e.cluster.order)
+                + " : "
+                + cluster_e.cluster.topic
+            )
+
         topic_scores_dict[cluster_e.document.id] = {
-            "topic": cluster_e.cluster.topic,
-            "hdbscan_score": scores_dict[cluster_e.document.id],
+            "topic": text_topic,
+            "hdbscan_score": scores_dict[cluster_e.document.id] * 100,
         }
 
     return topic_scores_dict

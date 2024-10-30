@@ -18,7 +18,6 @@ from django.shortcuts import redirect, render
 from django.views.generic import TemplateView
 
 from literev.forms import HistoricalForm, SearchForm
-from literev.libs.data_files import get_es_scores, load_tfidf_keywords
 from literev.libs.historical_functions import (
     filter_and_sort_projects,
     sort_all_projects,
@@ -33,7 +32,6 @@ from literev.libs.select_functions import (
     get_filtered_document,
     get_filters,
     get_raw_filters,
-    load_last_iteration,
     remove_refinement,
 )
 from literev.libs.table_choice import (
@@ -41,9 +39,10 @@ from literev.libs.table_choice import (
     get_iteration,
     get_json_iterations_render,
     iterate_check_list,
-    remove_iteration,
+    remove_iteration_get_parent,
     render_table_choice,
     reset_table_choice,
+    sort_table_choice,
     update_document_is_check_table_choice,
     update_document_to_display_table_choice,
     update_new_table_choice,
@@ -332,9 +331,6 @@ def projectpage(
     context["confirm_delete_project"] = False
     context["refinement_limit_exceeded"] = False
 
-    if not project_id:
-        return redirect(reverse("search"))
-
     actual_user = request.user
     project_exist = (
         Project.objects.filter(id=project_id).exists()
@@ -355,16 +351,12 @@ def projectpage(
 
             if refinement_id:
                 # get refinement and go the table select
-                load_last_iteration(actual_user, project, int(refinement_id))
-
                 return redirect(
                     reverse(
-                        "tableselect",
+                        "tableselect-default",
                         kwargs={
                             "project_id": project.id,
                             "refinement_id": int(refinement_id),
-                            "num": 1,
-                            "order_by": "decision_date",
                         },
                     )
                 )
@@ -438,12 +430,10 @@ def projectpage(
 
             return redirect(
                 reverse(
-                    "tableselect",
+                    "tableselect-default",
                     kwargs={
                         "project_id": project_id,
                         "refinement_id": new_refinement_id,
-                        "num": 1,
-                        "order_by": "decision_date",
                     },
                 )
             )
@@ -700,21 +690,14 @@ def tableselect(
     request: HttpRequest,
     project_id: int,
     refinement_id: int,
+    iteration_id: int = -1,
     num: int = 1,
     order_by: str = "decision_date",
 ) -> HttpResponse:
     context: dict[str, Any] = {}
-    context["active_iteration_id"] = -1
     context["iterations_limit_exceeded"] = False
     context["processing_filters"] = False
-    context["active_iteration_id"] = -1
     context["has_es_scores"] = False
-
-    if not project_id:
-        return redirect(reverse("search"))
-
-    if not refinement_id:
-        return redirect(reverse("search"))
 
     actual_user = request.user
 
@@ -725,15 +708,43 @@ def tableselect(
 
     if not project:
         return redirect(reverse("search"))
+    context["project"] = project
+    # enable processing message if needed
+    if project.step == "processing_filters":
+        context["processing_filters"] = True
+        return render(request, "tableselect.html", context)
 
-    sort_by = order_by
-    context["sort_by"] = order_by
+    # get iteration_id if not given
+    if iteration_id == -1:
+        last_iteration = RefinementIteration.objects.filter(
+            refinement_id=refinement_id
+        ).last()
+        if last_iteration:
+            iteration_id = last_iteration.id
+            get_iteration(actual_user, project, refinement_id, iteration_id)
+            return redirect(
+                reverse(
+                    "tableselect",
+                    kwargs={
+                        "project_id": project_id,
+                        "refinement_id": refinement_id,
+                        "iteration_id": iteration_id,
+                        "num": 1,
+                        "order_by": "decision_date",
+                    },
+                )
+            )
 
+    if iteration_id == -1:
+        return redirect(reverse("search"))
+
+    # validate page number
     # Handle pagination: Ensure current page is valid and falls within the allowed range
     current_page = max(1, num)
-    total_documents = TableChoice.objects.filter(
-        project=project, to_display=True
-    ).count()
+
+    tablechoice = TableChoice.objects.filter(user=actual_user, project=project)
+    tablechoice_to_display = tablechoice.filter(to_display=True)
+    total_documents = tablechoice_to_display.count()
 
     total_pages = max(
         1,
@@ -743,11 +754,6 @@ def tableselect(
 
     if current_page > total_pages:
         current_page = total_pages
-
-    # enable processing message if needed
-    if project.step == "processing_filters":
-        context["processing_filters"] = True
-        return render(request, "tableselect.html", context)
 
     # Handle POST request for action buttons (iterate, reset, finish, navigation)
     if request.method == "POST":
@@ -763,22 +769,51 @@ def tableselect(
             ]
 
         if request.POST.get("get-iteration") is not None:
-            iteration_id = request.POST.get("get-iteration")
+            dest_iteration_id = request.POST.get("get-iteration")
 
-            if iteration_id is not None:
+            if dest_iteration_id is not None:
                 get_iteration(
-                    actual_user, project, refinement_id, int(iteration_id)
+                    actual_user, project, refinement_id, int(dest_iteration_id)
                 )
-                context["active_iteration_id"] = int(iteration_id)
+                # add a redirect tableselect
+                return redirect(
+                    reverse(
+                        "tableselect",
+                        kwargs={
+                            "project_id": project_id,
+                            "refinement_id": refinement_id,
+                            "iteration_id": int(dest_iteration_id),
+                            "num": 1,
+                            "order_by": "decision_date",
+                        },
+                    )
+                )
 
         if request.POST.get("remove-iteration") is not None:
-            iteration_id = request.POST.get("remove-iteration")
+            removed_iteration_id = request.POST.get("remove-iteration")
 
-            if iteration_id is not None:
-                remove_iteration(
-                    actual_user, project, refinement_id, int(iteration_id)
+            if removed_iteration_id is not None:
+                parent_id = remove_iteration_get_parent(
+                    actual_user,
+                    project,
+                    refinement_id,
+                    int(removed_iteration_id),
                 )
-                context["active_iteration_id"] = -1
+                # get the parent iteration and redirect to tableselect
+                get_iteration(actual_user, project, refinement_id, parent_id)
+
+                return redirect(
+                    reverse(
+                        "tableselect",
+                        kwargs={
+                            "project_id": project_id,
+                            "refinement_id": refinement_id,
+                            "iteration_id": parent_id,
+                            "num": 1,
+                            "order_by": "decision_date",
+                        },
+                    )
+                )
 
         submit = request.POST.get("submit")
 
@@ -793,25 +828,22 @@ def tableselect(
                 context["iterations_limit_exceeded"] = True
 
             else:
-                active_iteration_id = int(
-                    request.POST.get("active_iteration_id", -1)
-                )
                 iterate_check_list(
                     actual_user,
                     project,
                     refinement_id,
                     check_list,
-                    active_iteration_id,
+                    iteration_id,
                 )
+
+                # update_check_list_iteration(iteration_id, check_list)
 
                 return redirect(
                     reverse(
-                        "tableselect",
+                        "tableselect-default",
                         kwargs={
                             "project_id": project_id,
                             "refinement_id": refinement_id,
-                            "num": current_page,
-                            "order_by": sort_by,
                         },
                     )
                 )
@@ -823,7 +855,7 @@ def tableselect(
 
             return redirect(
                 reverse(
-                    "tableselect",
+                    "tableselect-default",
                     kwargs={
                         "project_id": project_id,
                         "refinement_id": refinement_id,
@@ -841,15 +873,17 @@ def tableselect(
             return download_finalcsv(project=project)
 
         elif submit == "update_order":
-            sort_by = request.POST.get("update_order_by")
+            order_by = request.POST.get("update_order_by")
+            # TODO: Check if it is required to save checked articles
             return redirect(
                 reverse(
                     "tableselect",
                     kwargs={
                         "project_id": project_id,
                         "refinement_id": refinement_id,
-                        "num": current_page,
-                        "order_by": sort_by,
+                        "iteration_id": iteration_id,
+                        "num": 1,
+                        "order_by": order_by,
                     },
                 )
             )
@@ -864,8 +898,9 @@ def tableselect(
                     kwargs={
                         "project_id": project_id,
                         "refinement_id": refinement_id,
+                        "iteration_id": iteration_id,
                         "num": current_page - 1,
-                        "order_by": sort_by,
+                        "order_by": order_by,
                     },
                 )
             )
@@ -880,67 +915,55 @@ def tableselect(
                     kwargs={
                         "project_id": project_id,
                         "refinement_id": refinement_id,
+                        "iteration_id": iteration_id,
                         "num": current_page + 1,
-                        "order_by": sort_by,
+                        "order_by": order_by,
                     },
                 )
             )
 
-    # Fetch the TableChoice list ordered and paginated
-    tablechoice_queryset = TableChoice.objects.filter(
-        project=project,
-        to_display=True,
-    )
-
-    # Check if the project has elasticsearch scores
-    es_scores = get_es_scores(project)
-    if es_scores:
-        context["has_es_scores"] = True
-
-    tablechoice_list, hdbscan_scores = render_table_choice(
-        project, tablechoice_queryset, sort_by
-    )
-
-    context["hdbscan_scores"] = hdbscan_scores
-
-    keywords = load_tfidf_keywords(project)
-
-    context["keywords"] = keywords
+    context["sort_by"] = order_by
 
     # Pagination: calculate the correct slice of documents
     first_document = (current_page - 1) * settings.NUMBER_ARTICLE_BY_PAGE
     last_document = min(
         current_page * settings.NUMBER_ARTICLE_BY_PAGE, total_documents
     )
-    context["tablechoice_list"] = tablechoice_list[
-        first_document:last_document
-    ]
+
+    sorted_table_choice = sort_table_choice(
+        project, tablechoice_to_display, order_by
+    )
+
+    tablechoice_list, has_hdbscan_scores, has_es_scores = render_table_choice(
+        project, sorted_table_choice[first_document:last_document]
+    )
+
+    context["hdbscan_scores"] = has_hdbscan_scores
+    context["has_es_scores"] = has_es_scores
+
+    # Disable sorting by similar keywords
+    # WORKAROUND to enable check why is taking long time
+    # keywords = load_tfidf_keywords(project)
+    # context["keywords"] = keywords
+
+    context["tablechoice_list"] = tablechoice_list
     context["first_page"] = current_page == 1
     context["last_page"] = current_page == total_pages
     context["current_page"] = current_page
     context["total_page"] = total_pages
 
     # Count the initial documents, neighbors, and checked documents
-    context["number_Article_initial"] = TableChoice.objects.filter(
-        project=project, is_initial=True
+    context["number_Article_initial"] = tablechoice.filter(
+        is_initial=True
     ).count()
-    context["number_Article_neighbour"] = TableChoice.objects.filter(
-        project=project, is_initial=False, to_display=True, is_check=False
+    context["number_Article_neighbour"] = tablechoice.filter(
+        is_initial=False, to_display=True, is_check=False
     ).count()
-    context["number_Article_chosen"] = TableChoice.objects.filter(
-        project=project, is_check=True
+    context["number_Article_chosen"] = tablechoice.filter(
+        is_check=True
     ).count()
 
-    input_active_iteration_id = int(
-        request.POST.get("active_iteration_id", -1)
-    )
-    active_iteration_id = context.get(
-        "active_iteration_id", input_active_iteration_id
-    )
-
-    iterations_render = get_json_iterations_render(
-        refinement_id, active_iteration_id
-    )
+    iterations_render = get_json_iterations_render(refinement_id, iteration_id)
 
     context["iterations"] = iterations_render
 

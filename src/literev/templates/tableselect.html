@@ -17,12 +17,65 @@
           </div>
         </div>
       {% endif %}
-      <form class="row"
+      <div class="container">
+
+        <div class="row">
+          <div class="mx-auto col-lg-8 col-md-12 col-sm-12">
+            <hr />
+            <div class="fw-bold fs-3">
+              Details
+            </div>
+            <table class="table">
+              <tbody>
+                <tr>
+                  <th scope="row">
+                    Creation date
+                  </th>
+                  <td>
+                    {{ project.creation_date }}
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Query
+                  </th>
+                  <td>
+                    {{ project.query }}
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Range date project
+                  </th>
+                  <td>
+                    <div>
+                      From: {{ project.range_begin_date }}
+                    </div>
+                    <div>
+                      To: {{ project.range_end_date }}
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row">
+                    Number of Documents
+                  </th>
+                  <td class="align-middle">
+                    {{ project | count_processed_documents }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+      <form class="row mt-4"
             action=""
             method="POST">
         {% csrf_token %}
         <div class="row col-12">
-          <div class="fs-5 col-10 mx-auto">
+          <div class="fs-5 mx-auto col-lg-8 col-md-12 col-sm-12">
             <div class="p-4 bg-light">
               <div class="row text-center mb-4 mt-3">
                 <div class="col-12">
@@ -54,19 +107,19 @@
                 <button type="submit"
                         name="submit"
                         value="iterate"
-                        class="col-md-2 col-sm-12 btn btn-secondary mb-2">
+                        class="col-md-3 col-sm-12 btn btn-secondary mb-2">
                   Iterate
                 </button>
                 <button type="submit"
                         name="submit"
                         value="reset"
-                        class="col-md-2 col-sm-12 btn btn-secondary mb-2">
+                        class="col-md-3 col-sm-12 btn btn-secondary mb-2">
                   Reset
                 </button>
                 <button type="submit"
                         name="submit"
                         value="finish"
-                        class="col-md-2 col-sm-12 btn btn-primary mb-2">
+                        class="col-md-3 col-sm-12 btn btn-primary mb-2">
                   Export Selected
                 </button>
               </div>
@@ -146,17 +199,15 @@
                               {% if sort_by == "es_score" %}
                                 selected
                               {% endif %}>
-                        ES query score
+                        Query relevance score
                       </option>
                     {% endif %}
-                    {% for keyword in keywords %}
-                      <option value="{{ keyword }}"
-                              {% if sort_by == keyword %}
-                                selected
-                              {% endif %}>
+                    <!-- Disable sorting by similar keywords -->
+                    <!-- {% for keyword in keywords %}
+                      <option value="{{ keyword }}" {% if sort_by == keyword %} selected {% endif %}>
                         keyword: {{ keyword }}
                       </option>
-                    {% endfor %}
+                    {% endfor %} -->
                   </select>
                 </div>
                 <button type="submit"
@@ -218,12 +269,17 @@
                   {% endif %}
                 </div>
                 <div class="col-11">
-                  <h3 class="text-end">
-                    <span class="badge text-bg-dark">
-                      <a class="text-white"
-                         href="{% url 'contentdocument' document_id=tablechoice.document_pk %}">{{ tablechoice.procedure_type }}</a>
-                    </span>
-                  </h3>
+                  <div class="d-flex justify-content-between">
+                    <div class="fs-5 align-self-center">
+                      <span class="badge bg-score-query text-dark">Query relevance score: {{ tablechoice.es_score }} </span>
+                    </div>
+                    <h3>
+                      <span class="badge text-bg-dark">
+                        <a class="text-white"
+                           href="{% url 'contentdocument' document_id=tablechoice.document_pk %}">{{ tablechoice.procedure_type }}</a>
+                      </span>
+                    </h3>
+                  </div>
                   <div class="ms-auto mt-3 text-start mb-3">
                     <div>
                       <b>{{ tablechoice.decision_type }}</b>, du {{ tablechoice.decision_date }}
@@ -245,9 +301,8 @@
                   <div class="col-1">
                   </div>
                   <div class="col-12 text-center fs-5 mb-3">
-                    <span class="badge bg-success">Cluster : {{ tablechoice.topic }}</span>
-
-                    <span class="badge bg-light text-dark"> Strength cluster : {{ tablechoice.hdbscan_score | floatformat:"3" }}</span>
+                    <span class="badge bg-success"> {{ tablechoice.topic }}</span>
+                    <span class="badge bg-light text-dark"> Topic score : {{ tablechoice.hdbscan_score | floatformat:"1" }} %</span>
                   </div>
                 {% endif %}
                 <hr />
@@ -300,9 +355,6 @@
           </div>
           <div class="col-8 mx-auto mb-5">
             <div class="row justify-content-center mt-3 gap-md-3 gap-sm-2 gap-lg-5">
-              <input type="hidden"
-                     name="active_iteration_id"
-                     value="{{ active_iteration_id }}" />
               <button type="submit"
                       name="submit"
                       value="iterate"

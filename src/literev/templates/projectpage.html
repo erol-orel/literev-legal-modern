@@ -53,7 +53,8 @@
                        type="text"
                        name="refinement-name"
                        placeholder="Refinement Name"
-                       required />
+                       required
+                       autofocus />
                 <input type="hidden"
                        name="filters"
                        value="{{ filters }}" />
@@ -69,7 +70,8 @@
                       value="cancel">
                 Cancel
               </button>
-              <button type="submit"
+              <button id="continue-button"
+                      type="submit"
                       name="submit"
                       value="continue"
                       class="btn btn-primary"
@@ -77,6 +79,16 @@
                         disabled
                       {% endif %}>
                 Continue
+              </button>
+              <button id="starting-update"
+                      class="btn btn-primary col-5"
+                      type="button"
+                      disabled
+                      hidden="">
+                <span class="spinner-border spinner-border-sm"
+                      role="status"
+                      aria-hidden="true"></span>
+                Creating ...
               </button>
             </div>
           </div>
@@ -661,12 +673,38 @@
 
   {% if AreYouSure %}
     <script>
+      const continueButton = document.getElementById("continue-button");
       const cancelButtons = document.querySelectorAll(".cancel-generate");
-      console.log(cancelButtons)
+      const startingButton = document.getElementById("starting-update");
+
       cancelButtons.forEach(btn => btn.addEventListener("click", (e) => {
         const nameInput = document.querySelector("#name-refinement");
         nameInput.removeAttribute("required"); 
       }))
+      // Get the input field
+      const inputRefName = document.getElementById("name-refinement");
+      
+      // Execute a function when the user presses a key on the keyboard
+      inputRefName.addEventListener("keypress", function(event) {
+        // If the user presses the "Enter" key on the keyboard
+        if (event.key === "Enter") {
+          // Cancel the default action, if needed
+          event.preventDefault();
+          // Trigger the button element with a click
+          continueButton.click();
+        }
+      });
+
+    continueButton.addEventListener("click", () => {
+      continueButton.style.pointerEvents = "none";
+      cancelButtons.forEach((button) => {
+        button.style.pointerEvents = 'none';
+        button.style.disabled = true;
+        button.style.cursor = "not-allowed";
+      });
+      continueButton.hidden = true;
+      startingButton.hidden = false;
+    });
     </script>
   {% endif %}
 

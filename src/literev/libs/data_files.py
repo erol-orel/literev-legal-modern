@@ -71,8 +71,9 @@ def get_es_scores(project: Project) -> dict[int, str]:
 
     Returns
     -------
-    list[str]
-        List of saved elasticsearch scores for the project.
+    dict[int, str]
+        Dictionary with document_id as key and elasticsearch
+        score as value for the project.
     """
     path = settings.ARTICLE_DATA / f"es_scores_project_{project.id}.pkl"
 

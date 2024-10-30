@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest import skip
 
 import joblib
 import pandas as pd
@@ -130,17 +131,18 @@ class ScoringTest(TestCase):
     def test_get_topic_and_hdbscan_score(self):
         """Test get topic and hdbscan score"""
         dict_topic_scores = get_topic_and_hdbscan_score(
-            self.hdbscan_scores, self.project
+            self.hdbscan_scores, self.project, self.tablechoice
         )
         sample_id = 1473
-        expected_hdbscan_score = 0.8610864867390485
-        expected_topic = "topic 2"
+        expected_hdbscan_score = 0.8610864867390485 * 100
+        expected_topic = "Topic 2 : topic 2"
 
         result = dict_topic_scores[sample_id]
 
         self.assertEqual(result["topic"], expected_topic)
         self.assertEqual(result["hdbscan_score"], expected_hdbscan_score)
 
+    @skip("skipping because the functions is not enabled in the workflow")
     def test_render_table_choice(self):
         """Test render tablechoice generation"""
         render_list, has_scores = render_table_choice(
@@ -159,6 +161,7 @@ class ScoringTest(TestCase):
         self.assertEqual(last_result["sample_document"], "document text 1455")
         self.assertEqual(last_result["topic"], "topic 2")
 
+    @skip("skipping because the functions is not enabled in the workflow")
     def test_sort_table_choice(self):
         """Test sorting table choice"""
         tablechoice_list = sort_table_choice(

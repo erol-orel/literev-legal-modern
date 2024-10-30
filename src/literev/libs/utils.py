@@ -70,7 +70,7 @@ def count_trials(project: Project) -> int:
         study_id = cursor.fetchone()[0]
 
         cursor.execute(
-            f"SELECT count(*) FROM trials WHERE study_id={study_id};"
+            f"SELECT count(*) FROM trials WHERE study_id={study_id} AND state='COMPLETE';"
         )
 
         counter = cast(int, cursor.fetchone()[0])

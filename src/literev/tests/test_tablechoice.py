@@ -1,4 +1,3 @@
-
 from django.test import TestCase
 
 from literev.libs.table_choice import highlight_words
@@ -15,7 +14,7 @@ class HighligthKeywords(TestCase):
 
         words_to_highlight = ["liberal", "senate", "highlight"]
         style_class = "red-highlight"
-        
+
         result = highlight_words(sample, words_to_highlight, style_class)
-        
+
         self.assertEqual(expected, result)

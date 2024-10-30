@@ -140,3 +140,7 @@ a[aria-expanded='false'] > .expand_caret {
 .topic-keywords-highlight {
   background-color: #AEFF77;
 }
+
+.bg-score-query {
+  background-color: #FBE05D;
+}

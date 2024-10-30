@@ -8,12 +8,11 @@ from typing import Iterator
 
 from django.db.models.query import QuerySet
 
-from literev.libs.data_files import load_hdbscan_prob
+from literev.libs.data_files import get_es_scores, load_hdbscan_prob
 from literev.libs.scoring import (
     extract_keywords,
     get_topic_and_hdbscan_score,
     sort_by_es_score,
-    sort_by_keyword_score,
 )
 from literev.models import (
     ClusterElement,
@@ -65,8 +64,9 @@ def highlight_words(
 
 
 def render_table_choice(
-    project: Project, tablechoice: QuerySet[TableChoice], order_by: str
-) -> tuple[list[dict[str | int, str | float | int]], bool]:
+    project: Project,
+    tablechoice: QuerySet[TableChoice],
+) -> tuple[list[dict[str | int, str | float | int]], bool, bool]:
     """
     Return a list of documents data and a boolean value to indicate if the document has hdbscan scores.
 
@@ -84,20 +84,26 @@ def render_table_choice(
     tablechoice_render, has_scores : list, bool
         list of documents data and boolean value to check if the documents has scores from hhdbscan.
     """
-    has_scores = False
+    has_hdbscan_scores = False
+    has_es_scores = False
     tablechoice_render = []
 
-    sorted_tablechoice = sort_table_choice(project, tablechoice, order_by)
+    es_scores = get_es_scores(project)
+
+    if es_scores:
+        has_es_scores = True
 
     hdbscan_scores = load_hdbscan_prob(project)
 
     if hdbscan_scores:
-        has_scores = True
-        topic_scores = get_topic_and_hdbscan_score(hdbscan_scores, project)
+        has_hdbscan_scores = True
+        topic_scores = get_topic_and_hdbscan_score(
+            hdbscan_scores, project, tablechoice
+        )
 
     query_keywords = extract_keywords(project.query)
 
-    for tablechoice_e in sorted_tablechoice:
+    for tablechoice_e in tablechoice:
         render_e = {
             "id": tablechoice_e.id,
             "is_check": tablechoice_e.is_check,
@@ -114,7 +120,7 @@ def render_table_choice(
             ),
         }
 
-        if has_scores:
+        if has_hdbscan_scores:
             render_e.update(
                 {
                     "topic": topic_scores[tablechoice_e.document.id]["topic"],
@@ -130,9 +136,12 @@ def render_table_choice(
                 "topic-keywords-highlight",
             )
 
+        if has_es_scores:
+            render_e.update({"es_score": es_scores[tablechoice_e.document.id]})
+
         tablechoice_render.append(render_e)
 
-    return tablechoice_render, has_scores
+    return tablechoice_render, has_hdbscan_scores, has_es_scores
 
 
 def sort_table_choice(
@@ -162,7 +171,10 @@ def sort_table_choice(
     elif order_by == "es_score":
         return sort_by_es_score(project, tablechoice)
 
-    return sort_by_keyword_score(project, tablechoice, order_by)
+    # Disable for sorting by similar keyword score
+    # return sort_by_keyword_score(project, tablechoice, order_by)
+
+    return list(tablechoice)
 
 
 def neighbour_document(document: Document, project: Project) -> list[Document]:
@@ -386,7 +398,6 @@ def get_iteration(
     no_display_ids = iteration.excluded_documents_ids
     no_initial_ids = iteration.new_neighbors_ids
     checked_ids = iteration.checked_documents_ids
-    # excluded_ids = documents_groups["excluded"]
 
     TableChoice.objects.filter(user=user, project=project).delete()
     # create tablechoice with different documents id
@@ -418,9 +429,9 @@ def get_iteration(
     )
 
 
-def remove_iteration(
+def remove_iteration_get_parent(
     user: User, project: Project, refinement_id: int, iteration_id: int
-) -> None:
+) -> int | None:
     """Removes iteration from database.
 
     Parameters
@@ -440,17 +451,16 @@ def remove_iteration(
     ).first()
 
     if iteration is None:
-        return
+        return None
 
-    # remove iteration from file consider hide from front end
     parent_iteration = iteration.parent_iteration
+
+    if parent_iteration is None:
+        return None
 
     iteration.delete()
 
-    if parent_iteration is None:
-        return
-
-    get_iteration(user, project, refinement_id, parent_iteration.id)
+    return parent_iteration.id
 
 
 def update_new_table_choice(
@@ -472,13 +482,22 @@ def update_new_table_choice(
     # remove all row with this user
     TableChoice.objects.filter(user=user, project=project).delete()
     # add new rows
-    # TODO: create tablechoices objects using bulk_create
-    for document_id in document_id_list:
-        TableChoice.objects.create(
-            user=user,
-            project=project,
-            document_id=int(document_id),
-        )
+
+    batch_size = 1000
+
+    for document_id_list in divide_in_chunks(document_id_list, batch_size):
+        table_choice_objs = []
+
+        for document_id in document_id_list:
+            table_choice_objs.append(
+                TableChoice(
+                    user=user,
+                    project=project,
+                    document_id=document_id,
+                )
+            )
+
+        TableChoice.objects.bulk_create(table_choice_objs)
 
 
 def update_neighbour_table_choice(
@@ -567,7 +586,7 @@ def update_document_to_display_table_choice(
 
 def update_document_is_check_table_choice(
     user: User, project: Project, list_id: list[int]
-) -> bool:
+) -> None:
     """
     The function take a list of id object of TableChoice row and user.
     All row who is in list_id,
@@ -584,6 +603,7 @@ def update_document_is_check_table_choice(
         return
 
     table_choice.filter(id__in=list_id).update(is_check=True)
+    table_choice.exclude(id__in=list_id).update(is_check=False)
 
 
 def all_display_table_choice(project: Project) -> None:
@@ -684,10 +704,23 @@ def back_process_iterate(
         parent_iteration=parent_iteration,
     )
 
+    update_check_list_iteration(parent_iteration_id, check_list)
+
     project.step = ""
     project.save()
 
     del filter_thread_dict[project.id]
+
+
+def update_check_list_iteration(iteration_id: int, check_list: list[int]):
+    iteration = RefinementIteration.objects.get(id=iteration_id)
+    tablechoice = TableChoice.objects.filter(id__in=check_list)
+
+    new_check_set = set(tc.document.id for tc in tablechoice)
+    # update check list in iteration
+    iteration.checked_documents_ids = list(new_check_set)
+
+    iteration.save()
 
 
 def iterate_check_list(
