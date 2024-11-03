@@ -26,6 +26,8 @@ from literev.models import (
 
 filter_thread_dict = dict()
 
+UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
+
 
 def highlight_words(
     text: str, words_to_highlight: list[str], style_class: str
@@ -104,6 +106,13 @@ def render_table_choice(
     query_keywords = extract_keywords(project.query)
 
     for tablechoice_e in tablechoice:
+        rendered_sample = tablechoice_e.document.raw_document_text[:800]
+
+        rendered_sample = highlight_words(
+            rendered_sample,
+            query_keywords,
+            "query-keywords-highlight",
+        )
         render_e = {
             "id": tablechoice_e.id,
             "is_check": tablechoice_e.is_check,
@@ -113,28 +122,26 @@ def render_table_choice(
             "decision_date": tablechoice_e.document.decision_date,
             "result": tablechoice_e.document.result,
             "standards": tablechoice_e.document.standards,
-            "sample_document": highlight_words(
-                tablechoice_e.document.raw_document_text[:800],
-                query_keywords,
-                "query-keywords-highlight",
-            ),
+            "sample_document": rendered_sample,
         }
 
         if has_hdbscan_scores:
+            topic = topic_scores[tablechoice_e.document.id]["topic"]
             render_e.update(
                 {
-                    "topic": topic_scores[tablechoice_e.document.id]["topic"],
+                    "topic": topic,
                     "hdbscan_score": topic_scores[tablechoice_e.document.id][
                         "hdbscan_score"
                     ],
                 }
             )
-            topic_keywords = render_e["topic"].split(", ")
-            render_e["sample_document"] = highlight_words(
-                render_e["sample_document"],
-                topic_keywords,
-                "topic-keywords-highlight",
-            )
+            if topic != UNCLASSIFIED_PAPERS_TOPIC:
+                topic_keywords = topic.split(" : ")[1].split(", ")
+                render_e["sample_document"] = highlight_words(
+                    rendered_sample,
+                    topic_keywords,
+                    "topic-keywords-highlight",
+                )
 
         if has_es_scores:
             render_e.update({"es_score": es_scores[tablechoice_e.document.id]})
@@ -561,7 +568,8 @@ def reset_table_choice(
 
 
 def update_document_to_display_table_choice(
-    user: User, project: Project, list_id: list[int]
+    user: User,
+    project: Project,
 ) -> bool:
     """
     The function take a list of id object of TableChoice row and user.
@@ -579,9 +587,52 @@ def update_document_to_display_table_choice(
     if not table_choice.count():
         return
 
-    table_choice.exclude(is_check=True).exclude(id__in=list_id).update(
-        to_display=False
+    table_choice.exclude(is_check=True).update(to_display=False)
+
+
+def update_check_list_iteration(
+    user: User, project: Project, iteration_id: int
+) -> None:
+    """Update all checked articles in iteration object.
+
+    Parameters
+    ----------
+    user : User
+        research owner.
+    research : Research object Model database
+        The research object model where is used to store
+        search query, status and related data.
+    iteration_id : int
+        It is the iteration id from the current iteration showed in front end.
+
+    """
+    iteration = RefinementIteration.objects.get(id=iteration_id)
+    tablechoice = TableChoice.objects.filter(
+        user=user, project=project, is_check=True
     )
+
+    new_check_set = set(tc.article.id for tc in tablechoice)
+    # update check list in iteration
+    iteration.checked_articles_ids = list(new_check_set)
+    iteration.save()
+
+
+def update_checked_document_page(
+    user: User,
+    project: Project,
+    list_id: list[int],
+    tablechoice_page: list[TableChoice],
+) -> None:
+    page_ids = [tc.id for tc in tablechoice_page]
+    table_choice = TableChoice.objects.filter(
+        user=user, project=project, id__in=page_ids
+    )
+
+    if not table_choice.count():
+        return
+
+    table_choice.filter(id__in=list_id).update(is_check=True)
+    table_choice.exclude(id__in=list_id).update(is_check=False)
 
 
 def update_document_is_check_table_choice(
@@ -645,16 +696,9 @@ def back_process_iterate(
     project.step = "processing_filters"
     project.save()
 
-    update_document_is_check_table_choice(
-        user=user,
-        project=project,
-        list_id=check_list,
-    )
-
     update_document_to_display_table_choice(
         user=user,
         project=project,
-        list_id=check_list,
     )
 
     if parent_iteration_id == -1:
@@ -704,22 +748,38 @@ def back_process_iterate(
         parent_iteration=parent_iteration,
     )
 
-    update_check_list_iteration(parent_iteration_id, check_list)
-
     project.step = ""
     project.save()
 
     del filter_thread_dict[project.id]
 
 
-def update_check_list_iteration(iteration_id: int, check_list: list[int]):
+def update_check_list_iteration(
+    user: User, project: Project, iteration_id: int
+) -> None:
+    """Update all checked articles in iteration object.
+
+    Parameters
+    ----------
+    user : User
+        research owner.
+    project : Project object Model database
+        The project object model where is used to store
+        search query, status and related data.
+    iteration_id : int
+        It is the iteration id from the current iteration showed in front end.
+
+    """
     iteration = RefinementIteration.objects.get(id=iteration_id)
-    tablechoice = TableChoice.objects.filter(id__in=check_list)
+    tablechoice = TableChoice.objects.filter(
+        user=user,
+        project=project,
+        is_check=True,
+    )
 
     new_check_set = set(tc.document.id for tc in tablechoice)
     # update check list in iteration
     iteration.checked_documents_ids = list(new_check_set)
-
     iteration.save()
 
 

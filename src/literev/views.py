@@ -43,8 +43,8 @@ from literev.libs.table_choice import (
     render_table_choice,
     reset_table_choice,
     sort_table_choice,
-    update_document_is_check_table_choice,
-    update_document_to_display_table_choice,
+    update_check_list_iteration,
+    update_checked_document_page,
     update_new_table_choice,
 )
 from literev.libs.utils import (
@@ -755,6 +755,22 @@ def tableselect(
     if current_page > total_pages:
         current_page = total_pages
 
+    context["sort_by"] = order_by
+
+    # Pagination: calculate the correct slice of documents
+    first_document = (current_page - 1) * settings.NUMBER_ARTICLE_BY_PAGE
+    last_document = min(
+        current_page * settings.NUMBER_ARTICLE_BY_PAGE, total_documents
+    )
+
+    sorted_table_choice = sort_table_choice(
+        project, tablechoice_to_display, order_by
+    )
+
+    sorted_page_table_choice = sorted_table_choice[
+        first_document:last_document
+    ]
+
     # Handle POST request for action buttons (iterate, reset, finish, navigation)
     if request.method == "POST":
         # Used for debbuging
@@ -799,21 +815,24 @@ def tableselect(
                     refinement_id,
                     int(removed_iteration_id),
                 )
-                # get the parent iteration and redirect to tableselect
-                get_iteration(actual_user, project, refinement_id, parent_id)
 
-                return redirect(
-                    reverse(
-                        "tableselect",
-                        kwargs={
-                            "project_id": project_id,
-                            "refinement_id": refinement_id,
-                            "iteration_id": parent_id,
-                            "num": 1,
-                            "order_by": "decision_date",
-                        },
+                if parent_id and iteration_id == int(removed_iteration_id):
+                    get_iteration(
+                        actual_user, project, refinement_id, parent_id
                     )
-                )
+
+                    return redirect(
+                        reverse(
+                            "tableselect",
+                            kwargs={
+                                "project_id": project_id,
+                                "refinement_id": refinement_id,
+                                "iteration_id": parent_id,
+                                "num": 1,
+                                "order_by": "decision_date",
+                            },
+                        )
+                    )
 
         submit = request.POST.get("submit")
 
@@ -828,6 +847,15 @@ def tableselect(
                 context["iterations_limit_exceeded"] = True
 
             else:
+                update_checked_document_page(
+                    user=actual_user,
+                    project=project,
+                    list_id=check_list,
+                    tablechoice_page=sorted_page_table_choice,
+                )
+
+                update_check_list_iteration(actual_user, project, iteration_id)
+
                 iterate_check_list(
                     actual_user,
                     project,
@@ -835,8 +863,6 @@ def tableselect(
                     check_list,
                     iteration_id,
                 )
-
-                # update_check_list_iteration(iteration_id, check_list)
 
                 return redirect(
                     reverse(
@@ -864,17 +890,23 @@ def tableselect(
             )
 
         elif submit == "finish":
-            update_document_is_check_table_choice(
-                user=actual_user, project=project, list_id=check_list
+            update_checked_document_page(
+                user=actual_user,
+                project=project,
+                list_id=check_list,
+                tablechoice_page=sorted_page_table_choice,
             )
-            update_document_to_display_table_choice(
-                user=actual_user, project=project, list_id=check_list
-            )
+
             return download_finalcsv(project=project)
 
         elif submit == "update_order":
             order_by = request.POST.get("update_order_by")
-            # TODO: Check if it is required to save checked articles
+            update_checked_document_page(
+                user=actual_user,
+                project=project,
+                list_id=check_list,
+                tablechoice_page=sorted_page_table_choice,
+            )
             return redirect(
                 reverse(
                     "tableselect",
@@ -889,9 +921,13 @@ def tableselect(
             )
 
         elif submit == "previous" and current_page > 1:
-            update_document_is_check_table_choice(
-                user=actual_user, project=project, list_id=check_list
+            update_checked_document_page(
+                user=actual_user,
+                project=project,
+                list_id=check_list,
+                tablechoice_page=sorted_page_table_choice,
             )
+
             return redirect(
                 reverse(
                     "tableselect",
@@ -906,8 +942,11 @@ def tableselect(
             )
 
         elif submit == "next" and current_page < total_pages:
-            update_document_is_check_table_choice(
-                user=actual_user, project=project, list_id=check_list
+            update_checked_document_page(
+                user=actual_user,
+                project=project,
+                list_id=check_list,
+                tablechoice_page=sorted_page_table_choice,
             )
             return redirect(
                 reverse(
@@ -922,20 +961,8 @@ def tableselect(
                 )
             )
 
-    context["sort_by"] = order_by
-
-    # Pagination: calculate the correct slice of documents
-    first_document = (current_page - 1) * settings.NUMBER_ARTICLE_BY_PAGE
-    last_document = min(
-        current_page * settings.NUMBER_ARTICLE_BY_PAGE, total_documents
-    )
-
-    sorted_table_choice = sort_table_choice(
-        project, tablechoice_to_display, order_by
-    )
-
     tablechoice_list, has_hdbscan_scores, has_es_scores = render_table_choice(
-        project, sorted_table_choice[first_document:last_document]
+        project, sorted_page_table_choice
     )
 
     context["hdbscan_scores"] = has_hdbscan_scores
