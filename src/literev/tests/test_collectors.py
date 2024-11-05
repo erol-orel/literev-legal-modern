@@ -28,7 +28,7 @@ class ElasticSearchCollectorTestCase(
         )
 
         # TODO: Update index name to "administrative_court"
-        collector = ElasticSearchCollector(index_name="judiciary")
+        collector = ElasticSearchCollector(index_name="administrative_court")
 
         documents = collector.collect_documents(
             search_query, start_date, end_date
@@ -85,8 +85,8 @@ class ElasticSearchCollectorTestCase(
         Test case for counting documents in an Elasticsearch index.
         This is based on the same approach used for the collect tests.
         """
-        collector = ElasticSearchCollector(index_name="judiciary")
+        collector = ElasticSearchCollector(index_name="administrative_court")
 
         total_documents = collector.count_all_documents()
 
-        assert total_documents == 22296
+        assert total_documents == 22295
