@@ -69,6 +69,7 @@ services:
     user: "postgres:postgres"
     volumes:
       - ${POSTGRES_DATA}:/var/lib/postgresql/data
+      - ${POSTGRES_HOST_BACKUP}:/opt/data/literev/backup
     networks:
       - literev
     healthcheck:
@@ -77,7 +78,7 @@ services:
       timeout: 5s
       retries: 10
     command: postgres -p ${POSTGRES_PORT}
-  
+
   literev-celery:
     extends: literev-base
     hostname: literev-celery
@@ -88,7 +89,6 @@ services:
     env_file:
       - ../.env
     depends_on:
-      - literev
       - literev-redis
       - literev-postgres
     volumes:

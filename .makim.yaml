@@ -1,4 +1,3 @@
-version: 1.0
 backend: bash
 env-file: .env
 groups:
@@ -22,13 +21,14 @@ groups:
           rm -rf .pytest_cache
           rm -rf .mypy_cache
           rm -rf .ruff_cache
-  
+
   tests:
     tasks:
       lint:
         help: Run linter tools
-        dependencies:
-          - task: clean.all
+        hooks:
+          pre-run:
+            - task: clean.all
         run: |
           pre-commit install
           pre-commit run --all-files --verbose
@@ -93,7 +93,7 @@ groups:
           CMD="python manage.py collectstatic --no-input"
 
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
-            sugar run --service literev --options --rm --cmd $CMD
+            sugar compose run --service literev --options "--rm" --cmd "$CMD"
           else
             cd ./src/
             export POSTGRES_HOST=localhost
@@ -106,14 +106,17 @@ groups:
             help: Specify the username
             type: string
             required: True
+            interactive: True
           username:
             help: Specify the username
             type: string
             required: True
+            interactive: True
           password:
             help: Specify the password
             type: string
             required: True
+            interactive: True
         env:
           POSTGRES_HOST: localhost
         help: create an admin user
@@ -123,7 +126,9 @@ groups:
           CMD="python manage.py createsuperuser --noinput --email ${{ args.email }}"
 
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
-            sugar run --service literev --cmd $CMD --options --rm --env DJANGO_SUPERUSER_PASSWORD=$DJANGO_SUPERUSER_PASSWORD --env DJANGO_SUPERUSER_USERNAME=$DJANGO_SUPERUSER_USERNAME
+            SUGAR_FLAGS="--rm --env DJANGO_SUPERUSER_PASSWORD=$DJANGO_SUPERUSER_PASSWORD"
+            SUGAR_FLAGS="${SUGAR_FLAGS} --env DJANGO_SUPERUSER_USERNAME=$DJANGO_SUPERUSER_USERNAME"
+            sugar compose run --service literev --cmd "$CMD" --options "${SUGAR_FLAGS}"
           else
             cd ./src/
             export POSTGRES_HOST=localhost
@@ -139,7 +144,7 @@ groups:
             type: bool
             action: store_true
         run: |
-          sugar ext start \
+          sugar compose-ext start \
             --services literev-postgres --options -d
 
           CWD=$(pwd)
@@ -151,7 +156,7 @@ groups:
             CMD="python manage.py makemigrations ${CMD_FLAG} ${app}"
 
             if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
-              sugar run --service literev --options --rm --cmd $CMD
+              sugar compose run --service literev --options "--rm" --cmd "$CMD"
             else
               cd "${CWD}/src/"
               export POSTGRES_HOST=localhost
@@ -165,13 +170,13 @@ groups:
         help: Migrate regarding to the current migration files
         env-file: .env
         run: |
-          sugar ext start \
+          sugar compose-ext start \
             --services literev-postgres --options -d
 
           CMD="python manage.py migrate --no-input"
 
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
-            sugar run --service literev --options --rm --cmd $CMD
+            sugar compose run --service literev --options "--rm" --cmd "$CMD"
           else
             cd ./src/
             export POSTGRES_HOST=localhost
@@ -180,58 +185,46 @@ groups:
           echo "[II] literev-postgres is running."
 
       runserver:
-        help: Run the django application
+        help: Run the django application directly in the host
         env-file: .env
-        args:
-          plus:
-            help: Run runserver command with additionally resources.
-            type: bool
-            action: store-true
+        env:
+          POSTGRES_HOST: localhost
+          REDIS_HOST: localhost
         run: |
-          sugar ext restart --services literev --options -d
-          {% if args.plus %}
-          CMD="python manage.py runserver_plus 0.0.0.0:8000"
-          {% else %}
-          CMD="python manage.py runserver 0.0.0.0:8000"
-          {% endif %}
-
-          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
-            sugar run --service literev --options --rm
-          else
-            cd src
-            export POSTGRES_HOST=localhost
-            $CMD
-          fi
+          sugar --group dev-host compose-ext restart --options "-d"
+          pushd src
+            python manage.py runserver_plus 0.0.0.0:8000
+          popd
 
       fill-order-clusters:
         help: Fill order cluster in Cluster object DB
         env-file: .env
         run: |
-          sugar ext start \
+          sugar compose-ext start \
             --services literev-postgres --options -d
 
           CMD="python manage.py fill_order_cluster"
 
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
-            sugar run --service literev --options --rm --cmd $CMD
+            sugar compose run --service literev --options "--rm" --cmd "$CMD"
           else
             cd ./src/
             export POSTGRES_HOST=localhost
             $CMD
           fi
           echo "[II] Filling order clusters is done."
-          
+
       optimize-documents:
         help: Run the optimization of the documents
         env-file: .env
         run: |
-          sugar ext start \
+          sugar compose-ext start \
             --services literev-postgres --options -d
 
           CMD="python manage.py optimize_documents"
 
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
-            sugar run --service literev --options --rm --cmd $CMD
+            sugar compose run --service literev --options "--rm" --cmd "$CMD"
           else
             cd ./src/
             export POSTGRES_HOST=localhost
@@ -243,13 +236,13 @@ groups:
         help: Run the optimization of the documents
         env-file: .env
         run: |
-          sugar ext start \
+          sugar compose-ext start \
             --services literev-postgres --options -d
 
           CMD="python manage.py fetch_documents"
 
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
-            sugar run --service literev --options --rm --cmd $CMD
+            sugar compose run --service literev --options "--rm" --cmd "$CMD"
           else
             cd ./src/
             export POSTGRES_HOST=localhost
@@ -286,8 +279,8 @@ groups:
         args:
           timeout:
             help: Specify the timeout for waiting the services
-            type: integer
-            default: 90
+            type: string
+            default: "90"
           service:
             help: Specify the service to be awaited
             type: string
@@ -307,113 +300,83 @@ groups:
           mkdir -p ${LITEREV_CACHE_DIR}
           mkdir -p ${DOCKER_VOLUME_CONTAINER_PATH}
           mkdir -p ${POSTGRES_DATA}
+          mkdir -p ${POSTGRES_HOST_BACKUP}
           mkdir -p ${STATIC_ROOT}
           sudo chown -R ${HOST_UID}:${HOST_GID} ${STATIC_ROOT}
 
-      postgres-database-backup:
+      postgres-dump-database:
         backend: bash
         args:
-          container-name:
-            help: Specify the name of the container
-            type: string
-            required: True
           path:
             help: Specify the path for the backup
             type: string
             required: false
-            default: "/opt/data/backup-literev"
+            default: "/opt/data/literev/backup"
+          dump-name:
+            help: Specify the name for the dump file
+            type: string
+            required: false
+            default: "literev-legal-$(date +%d-%m-%y_%H-%M)"
+        run: |
+          echo "Generating dump file...'"
+          PGPASSWORD="${{ env.POSTGRES_PASSWORD }}" \
+          CMD="bash -c 'pg_dumpall -p ${{ env.POSTGRES_PORT }} -U ${{ env.POSTGRES_USER }} | gzip > ${{ args.path }}/${{ args.dump_name }}.sql.gz'"
+          sugar compose exec --service literev-postgres --cmd "${CMD}"
+          echo "Output dump file: ${{ args.path }}/${{ args.dump_name }}"
+
+          if [[ $? -eq 0 ]]; then
+              echo "Database dumped successfully"
+          else
+              echo "Failed to dump database."
+              exit 1
+          fi
+
+      postgres-restore-database:
+        backend: bash
+        args:
+          path:
+            help: Specify the path for the backup
+            type: string
+            required: false
+            default: "/opt/data/literev/backup"
           dump-name:
             help: Specify the name for the dump file
             type: string
             required: false
             default: "literev-legal-$(date +%d-%m-%y_%H-%M).sql.gz"
-        run: |
-          # Function to validate IP address
-          validate_ip() {
-              local IP=$1
-              if [[ $IP =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-                  echo "Valid IP address: $IP"
-                  return 0
-              else
-                  return 1
-              fi
-          }
-
-          # Get IP address
-          POSTGRES_HOST=$(python scripts/get_ip_address.py "${{ args.container_name }}")
-
-          # Check if IP address is valid
-          if ! validate_ip "$POSTGRES_HOST"; then
-              echo "Failed to retrieve valid IP address. Check container status."
-              exit 1
-          else
-              echo "Backup name: '${{ args.path }}/${{ args.dump_name }}'"
-              PGPASSWORD="${{ env.POSTGRES_PASSWORD }}" \
-              pg_dump -h "$POSTGRES_HOST" -p 35432 -U "${{ env.POSTGRES_USER }}" -d "${{ env.POSTGRES_DB_LITEREV }}" | \
-              gzip > "${{ args.path }}/${{ args.dump_name }}"
-          fi
-
-      postgres-database-restore:
-        backend: bash
-        args:
-          container-name:
-            help: Specify the name of the container
+          drop-all:
+            help: Specify if the database should be dropped before restoring
             type: string
             required: True
-          dump-file:
-            help: Specify the path of the database dump file to restore
-            type: string
-            required: true
         run: |
-          # Function to validate IP address
-          validate_ip() {
-              local IP=$1
-              if [[ $IP =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-                  echo "Valid IP address: $IP"
-                  return 0
-              else
-                  return 1
-              fi
-          }
+          # grep -vE "CREATE ROLE postgres|ALTER ROLE postgres" "${path_file}" > \
+          # "${{ args.path }}/pre_${{ args.dump_name }}.sql"
 
-          # Get IP address from the specified container
-          POSTGRES_HOST=$(python scripts/get_ip_address.py "${{ args.container_name }}")
+          echo "Getting dump file: '${{ args.path }}/${{ args.dump_name }}'"
+          CMD="bash -c 'gunzip -c ${{ args.path }}/${{ args.dump_name }} > ${{ args.path }}/${{ args.dump_name }}.sql'"
+          sugar compose exec --service literev-postgres --cmd "${CMD}"
 
-          # Check if IP address is valid
-          if ! validate_ip "$POSTGRES_HOST"; then
-              echo "Failed to retrieve valid IP address. Check container status."
-              exit 1
+          if [ "${{ args.drop_all }}" = "true" ]; then
+            echo "Dropping existing roles and database..."
+            sugar compose exec --service literev-postgres --cmd bash -c \
+            'psql -v ON_ERROR_STOP=1 --host=localhost -U ${{ env.POSTGRES_USER }} -p ${{ env.POSTGRES_PORT }} -c \
+            "DROP DATABASE IF EXISTS literev;"'
+            sugar compose exec --service literev-postgres --cmd bash -c \
+            'psql -v ON_ERROR_STOP=1 --host=localhost -U ${{ env.POSTGRES_USER }} -p ${{ env.POSTGRES_PORT }} -c \
+            "DROP OWNED BY literev CASCADE; DROP ROLE IF EXISTS literev;"'
           fi
 
-          echo "[II] Preparing to restore database..."
+          echo "Restoring database..."
+          CMD="bash -c 'cat ${{ args.path }}/${{ args.dump_name }}.sql | "
+          CMD="${CMD} psql -v -U ${{ env.POSTGRES_USER }} -p ${{ env.POSTGRES_PORT }} -d postgres'"
+          sugar compose exec --service literev-postgres --cmd "${CMD}"
 
-          # Set environment variable for PostgreSQL password
-          export PGPASSWORD="${{ env.POSTGRES_PASSWORD }}"
-
-          # Prepare command to drop the existing database if it exists
-          DROP_CMD="psql -v ON_ERROR_STOP=1 --host=$POSTGRES_HOST -U "${{ env.POSTGRES_USER }}" \
-          -p "${{ env.POSTGRES_PORT }}" -c 'DROP DATABASE IF EXISTS literev;'"
-
-          # Execute the drop database command
-          echo "Attempting to drop the existing 'literev' database..."
-          eval $DROP_CMD
-
-          # Command to create the database if it does not exist
-          CREATE_CMD="psql -v ON_ERROR_STOP=1 --host=$POSTGRES_HOST -U "${{ env.POSTGRES_USER }}" \
-          -p "${{ env.POSTGRES_PORT }}" -c 'CREATE DATABASE literev WITH OWNER literev;'"
-
-          # Execute the create database command
-          echo "Creating the 'literev' database with owner 'literev'..."
-          eval $CREATE_CMD
-
-          # Construct the psql command for restoring the database
-          PSQL_CMD="psql -v ON_ERROR_STOP=1 --host=$POSTGRES_HOST -U "${{ env.POSTGRES_USER }}" \
-          -p "${{ env.POSTGRES_PORT }}" -d literev"
-
-          # Gunzip the database dump and restore it
-          echo "Restoring database from dump file..."
-          gunzip -c "${{ args.dump_file }}" | $PSQL_CMD
-          echo "Database restored successfully."
+          if [[ $? -eq 0 ]]; then
+              echo "Database restored successfully."
+          else
+              echo "Failed to restore database."
+              exit 1
+          fi
 
   nginx:
     tasks:
@@ -427,9 +390,11 @@ groups:
         run: |
           ./scripts/generate-certificates.sh
       setup:
-        dependencies:
-          - task: nginx.proxydomain
-          - task: nginx.generate-certificate
+        hooks:
+          pre-run:
+            - task: clean.all
+            - task: nginx.proxydomain
+            - task: nginx.generate-certificate
 
   elasticsearch:
     tasks:
@@ -457,14 +422,18 @@ groups:
             type: string
             required: false
             default: ""
+        # env:
+        #   TIMESTAMP: '$(date +"%Y%m%d")'
         backend: bash
         run: |
-          timestamp=$(date +"%Y%m%d")
+          export timestamp=$(date +"%Y%m%d")
+          echo ${timestamp}
+
           final_json="${{ args.path_json }}${{ args.index_name }}_$(basename "${{ args.raw_json }}" .json)_${timestamp}.json"
           python scripts/elasticsearch_loader.py load-data \
-            -i "${{ args.index_name }}" \
-            -r "${{ args.raw_json }}" \
-            -f "$final_json"
+           -i "${{ args.index_name }}" \
+           -r "${{ args.raw_json }}" \
+           -f "$final_json"
 
       count-docs-in-index:
         help: |
@@ -473,7 +442,7 @@ groups:
           index-name:
             help: Specify the index name (e.g., 'biorxiv' or 'medrxiv')
             type: string
-            required: true      
+            required: true
         backend: bash
         run: |
           python scripts/elasticsearch_loader.py count-documents ${{ args.index_name }}
@@ -522,7 +491,7 @@ groups:
           echo "Executing command: $CMD"
 
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
-            sugar run --service literev --options --rm --cmd "$CMD"
+            sugar run --service literev --options "--rm" --cmd "$CMD"
             echo "Started indexing for index ${{ args.index_name }} with date range ${{ args.date_start }} - $DATE_END"
           else
             cd ./src/

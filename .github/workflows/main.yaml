@@ -34,6 +34,7 @@ env:
   POSTGRES_USER_LITEREV: literev
   POSTGRES_PASSWORD_LITEREV: literevqsx3409po
   POSTGRES_DATA: /opt/data/literev/postgres
+  POSTGRES_HOST_BACKUP: /opt/data/literev/backup
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   CERTBOT_EMAIL: ci@literev.unige.ch
   CERTBOT_DOMAIN: literev.unige.ch
@@ -93,28 +94,27 @@ jobs:
     #   if: ${{ success() || failure() }}
     #   run: makim tests.lint
 
+    - name: Create volumes
+      run: |
+        mkdir -p ${DOCKER_VOLUME_CONTAINER_PATH}
+        mkdir -p ${POSTGRES_HOST_BACKUP}
+
     - name: Clean-up and Setup
       run: |
         makim clean.all
         makim containers.host-setup
 
     - name: Remove old database
-      run: sugar down --options --volumes || true
+      run: sugar compose down --options --volumes || true
 
     - name: Build images
-      run: sugar build --services literev-postgres
+      run: sugar compose build --services literev-postgres
 
     - name: Start literev-postgres container
-      run: sugar ext start --services literev-postgres --options -d
+      run: sugar compose-ext start --services literev-postgres --options -d
 
     - name: Migrate containers
       run: makim django.migrate
-
-    - name: Health check
-      run: |
-        sleep 10
-        docker ps
-        # makim containers.wait-all
 
     - name: Check migration files
       if: ${{ success() || failure() }}
@@ -126,8 +126,8 @@ jobs:
 
     - name: Stop services
       run: |
-        sugar stop
-        sugar down --options --volumes
+        sugar compose stop
+        sugar compose down --options --volumes
 
     - name: Semantic Release PR Title Check
       uses: osl-incubator/semantic-release-pr-title-check@v1.4.1
