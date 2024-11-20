@@ -15,6 +15,7 @@ from literev.libs.scoring import (
     sort_by_es_score,
 )
 from literev.models import (
+    Cluster,
     ClusterElement,
     Document,
     Project,
@@ -23,6 +24,7 @@ from literev.models import (
     TableChoice,
     User,
 )
+from literev.task_plotting import get_color_map
 
 filter_thread_dict = dict()
 
@@ -59,6 +61,42 @@ def highlight_words(
         text = re.sub(
             pattern,
             lambda match: f'<span class="{style_class}">{match.group(1)}</span>',
+            text,
+            flags=re.IGNORECASE,
+        )
+    return text
+
+
+def highlight_words_topic(
+    text: str, words_to_highlight: list[str], color_code: str
+) -> str:
+    """
+    Highlights word in words_to_highlight wrapping it with an html tag with color_code.
+
+    Parameters
+    ----------
+    text : str
+        Text where the words will be highlighted
+    words_to_highlight : list[str]
+        list of word to be highlighted.
+    style_class : str
+        style class to be assined to the word,
+        this class should exist in the css file.
+
+    Returns
+    -------
+    test : str
+        A text containing highlighted words with html tags.
+    """
+    for word in words_to_highlight:
+        # Regular expression pattern to match the whole word in a case-insensitive manner
+        pattern = r'\b(?<!["\'<>])(' + re.escape(word) + r")(?![^<>]*>)\b"
+
+        # Use a lambda function to replace and retain the matched word's original case
+        # The `re.sub` will handle all matches of the pattern in the text
+        text = re.sub(
+            pattern,
+            lambda match: f'<span style="background-color: { color_code }40">{match.group(1)}</span>',
             text,
             flags=re.IGNORECASE,
         )
@@ -105,6 +143,19 @@ def render_table_choice(
 
     query_keywords = extract_keywords(project.query)
 
+    if has_hdbscan_scores:
+        clusters = Cluster.objects.filter(project=project).order_by("order")
+
+        topics_for_color = []
+        for cluster in clusters:
+            topics_for_color.append(cluster.topic)
+
+        topics, palette = get_color_map(topics_for_color)
+
+        color_dict = {
+            topic_str: color for topic_str, color in zip(topics, palette)
+        }
+
     for tablechoice_e in tablechoice:
         rendered_sample = tablechoice_e.document.raw_document_text[:800]
 
@@ -127,20 +178,27 @@ def render_table_choice(
 
         if has_hdbscan_scores:
             topic = topic_scores[tablechoice_e.document.id]["topic"]
+            if topic != UNCLASSIFIED_PAPERS_TOPIC:
+                topic_key = topic.split(" : ")[1]
+            else:
+                topic_key = UNCLASSIFIED_PAPERS_TOPIC
+
             render_e.update(
                 {
                     "topic": topic,
                     "hdbscan_score": topic_scores[tablechoice_e.document.id][
                         "hdbscan_score"
                     ],
+                    "color": color_dict[topic_key],
                 }
             )
             if topic != UNCLASSIFIED_PAPERS_TOPIC:
                 topic_keywords = topic.split(" : ")[1].split(", ")
-                render_e["sample_document"] = highlight_words(
+                color_code = color_dict[topic_key]
+                render_e["sample_document"] = highlight_words_topic(
                     rendered_sample,
                     topic_keywords,
-                    "topic-keywords-highlight",
+                    color_code,
                 )
 
         if has_es_scores:
@@ -588,33 +646,6 @@ def update_document_to_display_table_choice(
         return
 
     table_choice.exclude(is_check=True).update(to_display=False)
-
-
-def update_check_list_iteration(
-    user: User, project: Project, iteration_id: int
-) -> None:
-    """Update all checked articles in iteration object.
-
-    Parameters
-    ----------
-    user : User
-        research owner.
-    research : Research object Model database
-        The research object model where is used to store
-        search query, status and related data.
-    iteration_id : int
-        It is the iteration id from the current iteration showed in front end.
-
-    """
-    iteration = RefinementIteration.objects.get(id=iteration_id)
-    tablechoice = TableChoice.objects.filter(
-        user=user, project=project, is_check=True
-    )
-
-    new_check_set = set(tc.article.id for tc in tablechoice)
-    # update check list in iteration
-    iteration.checked_articles_ids = list(new_check_set)
-    iteration.save()
 
 
 def update_checked_document_page(

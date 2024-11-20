@@ -301,7 +301,8 @@
                   <div class="col-1">
                   </div>
                   <div class="col-12 text-center fs-5 mb-3">
-                    <span class="badge bg-success"> {{ tablechoice.topic }}</span>
+                    <span class="badge text-dark"
+                          style="background-color: {{ tablechoice.color }}80"> {{ tablechoice.topic }}</span>
                     <span class="badge bg-light text-dark"> Topic score : {{ tablechoice.hdbscan_score | floatformat:"1" }} %</span>
                   </div>
                 {% endif %}
