@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 # gpt model consumed by the api
-GPT_MODEL = "gpt-3.5-turbo"
+GPT_MODEL = "gpt-4o-mini"
 
 # max tokens accepted by gpt-3.5-turbo model
 # openai plan on increasing the max tokens, more info at:
@@ -131,9 +131,9 @@ def build_prompt(cluster: Cluster) -> str:
 
     # base prompt used for generating the topic description
     prompt_template = (
-        "Provide a succint general description"  # TODO: include or change to clear and concise
-        "based on the following most important keywords: {keywords} selected"
-        "from a cluster containing case law from the canton of Geneva in Switzerland."
+        "Provide a clear and concise general description based on the following "
+        "most important keywords: {keywords} selected "
+        "from a cluster containing case law from the canton of Geneva in Switzerland. "
         "The following descriptors for each case law provide additional context:\n\n"
     )
 
@@ -143,11 +143,12 @@ def build_prompt(cluster: Cluster) -> str:
     prompt_constraints = (
         "Ensure the response maintains a narrative voice suitable for general "
         "description while minimizing the use of pronouns. Avoid unnecessary "
-        "introductions and redundancies. Avoid using quotes and backticks "
+        "introductions and redundancies. Avoid using quotes and backticks. "
         "Avoid the use of the following keywords and expressions: keyword, "
-        "keywords, topic, case, we propose, "
-        "proposing, we, this report. Summarize it in two sentences in french language."
-    )  # TODO:add Do not include names and not based in one article
+        "keywords, topic, case, we propose, proposing, we, this report. "
+        "Do not include names or generate the answer based solely on a single article. "
+        "Summarize it in two sentences in French language."
+    )
 
     # this template is used for each document
     document_prompt_template = (
@@ -159,9 +160,11 @@ def build_prompt(cluster: Cluster) -> str:
     # inject topic keyword into prompt
     prompt = prompt_template.format(keywords=cluster.topic)
 
-    # generate encoder based on specific gpt model
-    # Change model to gpt o mini
-    enc = tiktoken.encoding_for_model(GPT_MODEL)
+    # Attempt to use the tokenizer for the specified model, fallback if unavailable
+    try:
+        enc = tiktoken.encoding_for_model(GPT_MODEL)
+    except KeyError:
+        enc = tiktoken.get_encoding("cl100k_base")
 
     # get all documents related to cluster(topic)
     documents = Document.objects.filter(clusterelement__cluster=cluster)
