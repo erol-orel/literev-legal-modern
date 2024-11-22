@@ -3,18 +3,15 @@ from __future__ import annotations
 import datetime
 import logging
 
-from django.db.models import Count, Q
-from django.urls import reverse
-
-logging.basicConfig(level=logging.INFO)
-
 from http import HTTPStatus
 from typing import Any, cast
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Q
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views.generic import TemplateView
 
 from literev.forms import HistoricalForm, SearchForm
@@ -54,6 +51,7 @@ from literev.models import (
     Cluster,
     Document,
     Project,
+    ProjectRAG,
     ProjectRefinement,
     RefinementIteration,
     TableChoice,
@@ -66,6 +64,7 @@ from literev.tasks import (
     running_delete,
 )
 
+logging.basicConfig(level=logging.INFO)
 UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
 
 
@@ -991,8 +990,10 @@ def tableselect(
     ).count()
 
     iterations_render = get_json_iterations_render(refinement_id, iteration_id)
-
     context["iterations"] = iterations_render
+
+    context["project_id"] = project_id
+    context["iteration_id"] = iteration_id
 
     return render(request, "tableselect.html", context)
 
@@ -1076,3 +1077,34 @@ def historicalpage(request: HttpRequest) -> HttpResponse:
             context["projects_list"] = project_list
 
     return render(request, "historicalpage.html", context)
+
+
+@login_required(login_url="/accounts/login/")
+def rag(
+    request: HttpRequest,
+    project_id: int,
+) -> HttpResponse:
+    context: dict[str, Any] = dict(
+        project_id=project_id,
+    )
+
+    project = Project.objects.filter(id=project_id).first()
+
+    if not project:
+        return redirect(reverse("search"))
+
+    table_choice = TableChoice.objects.filter(
+        project=project,
+        user=cast(User, request.user),
+        is_check=True,
+    )
+
+    documents_ids = list(table_choice.values_list("document_id", flat=True))
+
+    project_rag = ProjectRAG.objects.filter(project=project).last()
+
+    context["project_rag_id"] = project_rag.id if project_rag else None
+    context["documents_ids"] = documents_ids
+    context["number_documents"] = len(documents_ids)
+
+    return render(request, "rag.html", context)

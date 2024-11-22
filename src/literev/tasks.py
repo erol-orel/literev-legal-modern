@@ -13,7 +13,7 @@ from literev.libs.pipeline import (
     update_pp_document,
 )
 from literev.libs.utils import save_documents_to_db, update_task_code
-from literev.models import Document, Project, User
+from literev.models import Document, Project, ProjectRAG, User
 from literev.task_clustering import back_clustering_documents
 from literev.task_plotting import back_plotting_documents
 from literev_core.preprocessing import (
@@ -24,6 +24,8 @@ from literev_core.preprocessing import (
 )
 
 logger = logging.getLogger(__name__)
+
+from literev.libs.rag_pdf import PDFRAG
 
 
 def running_delete(project_id: str | int) -> None:
@@ -274,3 +276,30 @@ def back_preprocess_documents(self, project_id: int):
     project.step = "clustering"
     project.save()
     logger.info("Success preprocessing Documents")
+
+
+@app.task
+def task_rag_result_table(
+    project_rag_id: int,
+    document_ids: list[int],
+) -> int:
+    """Run RAG for the data from result table."""
+    try:
+        project_rag = ProjectRAG.objects.get(id=project_rag_id)
+        rag = PDFRAG(
+            project_rag_id=project_rag.id,
+            document_ids=document_ids,
+        )
+        rag.run()
+
+    except Exception as e:
+        logging.error(f"[task_rag_result_table] (#{project_rag_id}): {e}")
+        project_rag_fallback = ProjectRAG.objects.filter(
+            id=project_rag_id
+        ).first()
+        if project_rag_fallback:
+            project_rag_fallback.status = "failed"
+            project_rag_fallback.save()
+        raise e
+
+    return project_rag_id

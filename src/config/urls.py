@@ -19,16 +19,19 @@ from django.urls import include, path
 from django.conf import settings
 from django.conf.urls.static import static
 
+from literev.urls import (
+    api_urlpatterns as project_api_urlpatterns,
+)
 
 static_url = static(
     str(settings.STATIC_URL), document_root=settings.STATIC_ROOT #NOQA
 )
 
 urlpatterns = [
-    # path("", include(("literev.urls", "literev"), namespace="literev")),
     path('', include('literev.urls')),
     path("accounts/", include("django.contrib.auth.urls")),
     path('admin/', admin.site.urls),
+    path("api/project/", include(project_api_urlpatterns)),
 ]
 
 if "debug_toolbar" in settings.INSTALLED_APPS:

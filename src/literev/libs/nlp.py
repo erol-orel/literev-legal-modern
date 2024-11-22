@@ -131,7 +131,7 @@ def build_prompt(cluster: Cluster) -> str:
 
     # base prompt used for generating the topic description
     prompt_template = (
-        "Provide a succint general description"
+        "Provide a succint general description"  # TODO: include or change to clear and concise
         "based on the following most important keywords: {keywords} selected"
         "from a cluster containing case law from the canton of Geneva in Switzerland."
         "The following descriptors for each case law provide additional context:\n\n"
@@ -139,6 +139,7 @@ def build_prompt(cluster: Cluster) -> str:
 
     # constraints can be fine-tuned to prevent unwanted words or sentences
     # this is to prevent unwanted words or sentences
+
     prompt_constraints = (
         "Ensure the response maintains a narrative voice suitable for general "
         "description while minimizing the use of pronouns. Avoid unnecessary "
@@ -146,7 +147,7 @@ def build_prompt(cluster: Cluster) -> str:
         "Avoid the use of the following keywords and expressions: keyword, "
         "keywords, topic, case, we propose, "
         "proposing, we, this report. Summarize it in two sentences in french language."
-    )
+    )  # TODO:add Do not include names and not based in one article
 
     # this template is used for each document
     document_prompt_template = (
@@ -159,6 +160,7 @@ def build_prompt(cluster: Cluster) -> str:
     prompt = prompt_template.format(keywords=cluster.topic)
 
     # generate encoder based on specific gpt model
+    # Change model to gpt o mini
     enc = tiktoken.encoding_for_model(GPT_MODEL)
 
     # get all documents related to cluster(topic)
@@ -178,10 +180,12 @@ def build_prompt(cluster: Cluster) -> str:
         abstract_words = document.preprocessed_document.split()
 
         document_abstract = (
-            # get first 30 words from preprocessed text
+            # get 10 random words from preprocessed text
             " ".join(
-                random.choices(population=abstract_words, k=10)
-            )  # random selection 30 words
+                random.choices(
+                    population=abstract_words, k=27
+                )  # TODO: take random adjacent words
+            )  # random selection 10 words
             if len(abstract_words) > 10
             else document.preprocessed_document
         )

@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% load filtering_functions %}
+
+{% block content %}
+  <div class="d-flex">
+    <div class="container justify-content-center">
+      <div class="col-sm-12 col-md-12 col-xl-11 mx-auto">
+        <div class="justify-content-center mt-4 p-4">
+          <h2 class="text-center col-12 mb-5">
+            <i class="fa-regular fa-rectangle-list me-3"></i>
+            Ask the documents
+          </h2>
+          <div class="mb-3">
+            <button type="button"
+                    class="btn btn-primary"
+                    onclick="window.history.back();">
+              <i class="bi bi-arrow-left"></i> Back
+            </button>
+          </div>
+
+          <form class="row"
+                id="ragForm"
+                method="post">
+            {% csrf_token %}
+            <div class="col-sm-12 col-lg-12 mb-3 text-center">
+              <div class="input-group mb-3">
+                <input type="text"
+                       name="query"
+                       id="queryInput"
+                       class="form-control"
+                       placeholder="Ask what you want"
+                       aria-label="question"
+                       required />
+                <button type="submit"
+                        class="btn btn-outline-secondary"
+                        id="ask-button"
+                        disabled>
+                  Ask
+                </button>
+              </div>
+            </div>
+          </form>
+          <div class="text-center mb-2">
+            <b>Number of selected documents: </b> {{ number_documents }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="loadingSpinner"
+       class="mt-5 d-flex justify-content-center"
+       style="display: none;
+              visibility: hidden">
+    <div class="spinner-border text-primary"
+         role="status">
+      <span class="visually-hidden">Asking to LiteRev RAG ...</span>
+    </div>
+    <span class="ms-3 fs-4 text-secondary">Asking to LiteRev RAG ...</span>
+  </div>
+
+  <div class="container pb-5 px-4"
+       id="resultsQuestion"
+       style="display: none">
+    <div class="fs-5 row"
+         style="overflow:auto">
+      <strong>Question:</strong>
+      <span id="questionText"></span>
+    </div>
+  </div>
+
+  <div class="container pb-5 px-4"
+       id="resultsContainer"
+       style="display: none">
+    <div class="fs-5 row"
+         style="overflow:auto">
+      <div class="col-12">
+        <div>
+          <div class="row">
+            <hr />
+          </div>
+          <div id="ragAnswers">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block jscode %}
+  {{ documents_ids|json_script:"documents_ids" }}
+  <script>
+    function show_loading() {
+      // Show the loading spinner and hide results
+      document.getElementById("loadingSpinner").style.display = "block";
+      document.getElementById("loadingSpinner").style.visibility = "visible";
+      document.getElementById("resultsContainer").style.display = "none";
+      document.getElementById("resultsContainer").style.visibility = "hidden";
+      document.getElementById("resultsQuestion").style.display = "none";
+      document.getElementById("resultsQuestion").style.visibility = "hidden";
+      document.getElementById("ask-button").disabled = true;
+    }
+
+
+    function show_table() {
+      document.getElementById("loadingSpinner").style.display = "none";
+      document.getElementById("loadingSpinner").style.visibility = "hidden";
+      document.getElementById("resultsContainer").style.display = "block";
+      document.getElementById("resultsContainer").style.visibility = "visible";
+      document.getElementById("resultsQuestion").style.display = "block";
+      document.getElementById("resultsQuestion").style.visibility = "visible";
+      {% if number_documents > 0 %}
+      document.getElementById("ask-button").disabled = false;
+      {% endif %}
+    }
+
+    const checkStatus = async () => {
+      const getResponse = await axios.get(
+        "{% url 'projectrag-by-project' project_id=project_id %}"
+      );
+      const ragStatus = getResponse.data.status;
+
+      if (ragStatus === "completed") {
+        document.getElementById("questionText").innerHTML = getResponse.data.query;
+        const documentsResponse = await axios.get(
+          "{% url 'projectdocumentsrag-list' %}",
+          { params: { project_rag: getResponse.data.id } }
+        );
+        renderResults(documentsResponse.data);
+        return;
+      } 
+
+      if (ragStatus === null) {
+        /* if there is no request/question yet */
+        {% if number_documents > 0 %}
+        document.getElementById("ask-button").disabled = false;
+        {% endif %}
+      } else if (ragStatus === "in-progress") {
+        show_loading();
+      }
+
+      setTimeout(checkStatus, 1000);
+    };
+
+    document.getElementById("ragForm").addEventListener("submit", async function(event) {
+      event.preventDefault();
+      show_loading();
+
+      const query = document.getElementById("queryInput").value;
+      const csrftoken = document.getElementsByName("csrfmiddlewaretoken")[0].value;
+      const projectId = {{ project_id }};
+      const scriptTag = document.getElementById("documents_ids");
+      const documentIds = JSON.parse(scriptTag.textContent);
+
+      try {
+        await axios.post(
+          "{% url 'projectrag-by-project' project_id=project_id %}",
+          { project_id: projectId, query: query, documents_ids: documentIds },
+          { headers: { "X-CSRFToken": csrftoken }}
+        );
+        checkStatus();
+      } catch (error) {
+        console.error("An error occurred:", error);
+      }
+    });
+
+    function renderResults(ragData) {
+      const answersContainer = document.getElementById("ragAnswers");
+      answersContainer.innerHTML = "";
+
+      ragData.forEach(documentRag => {
+          const documentRow = `
+              <div class="project-search-metadata col-12">
+                <div class="d-flex justify-content-between mb-2">
+                    <h3>
+                      <span class="badge text-bg-dark">
+                        <a class="text-white" href="${documentRag.document.url_document}" target="_blank">${documentRag.document.procedure_type}</a>
+                      </span>
+                    </h3>
+                  </div>
+                  <div class="ms-auto mt-3 text-start mb-3">
+                    <div>
+                      <b>${documentRag.document.decision_type}</b>, du ${documentRag.document.decision_date}
+                      <b>Result:</b> ${documentRag.document.result}
+                    </div>
+                  </div>
+                  <div class="mb-3 ms-auto">
+                    <div>
+                      <b>Normes:</b> ${documentRag.document.standards}
+                    </div>
+                  </div>
+                </div>
+                 <div class="mb-2">
+                 <b>Answer: </b>
+                  ${documentRag.answer}
+                 </div>
+                 <div class="mb-5 ms-auto">
+                    <div>
+                      <b>Highlighted in document: </b>
+                      ${documentRag.citation}
+                    </div>
+                  </div>
+              </div>
+              <div class="row mb-2"><hr /></div>
+          `;
+          answersContainer.insertAdjacentHTML("beforeend", documentRow);
+      });
+
+      show_table();
+  }
+  
+  document.addEventListener("DOMContentLoaded", function() {
+    checkStatus();
+  });
+
+  </script>
+{% endblock jscode %}

@@ -71,6 +71,7 @@
         </div>
       </div>
       <form class="row mt-4"
+            id="frmArticles"
             action=""
             method="POST">
         {% csrf_token %}
@@ -122,6 +123,18 @@
                         class="col-md-3 col-sm-12 btn btn-primary mb-2">
                   Export Selected
                 </button>
+                {% if project_id %}
+                  <button type="button"
+                          id="btnRAG"
+                          onclick="updateFormDataAndOpenPageRAG();"
+                          value="rag"
+                          class="col-md-3 col-sm-12 btn btn-primary mb-2"
+                          data-bs-toggle="tooltip"
+                          data-bs-placement="bottom"
+                          data-bs-title="Ask questions to selected documents">
+                    Ask Selected
+                  </button>
+                {% endif %}
               </div>
             </div>
             <hr class="mb-5" />
@@ -343,7 +356,7 @@
             <div class="p-4 bg-light">
               <div class="row text-center">
                 <div class="col">
-                  Article checked: <span class="article-counter-bottom fw-bold">{{ number_Article_chosen }}</span>
+                  Documents checked: <span class="article-counter-bottom fw-bold">{{ number_Article_chosen }}</span>
                 </div>
                 <div class="col">
                   Check/Uncheck all
@@ -386,6 +399,50 @@
 {% block jscode %}
   <script src="{% static 'js/select_functions.js' %}"></script>
   <script src="{% static 'js/checkbox_counter.js' %}"></script>
+  <script>
+    async function updateFormDataAndOpenPageRAG() {
+      let selectedDocuments = [];
+      let deselectedDocuments = [];
+
+      document.querySelectorAll('input[name="check_row"]').forEach((checkbox) => {
+        const documentId = parseInt(checkbox.value, 10);
+        if (checkbox.checked) {
+          selectedDocuments.push(documentId);
+        } else {
+          deselectedDocuments.push(documentId);
+        }
+      });
+
+      const data = {
+        selected_documents: selectedDocuments,
+        deselected_documents: deselectedDocuments
+      };
+
+      const endpointUrl = "{% url 'update-table-choice' project_id=project_id page=current_page iteration_id=iteration_id %}";
+
+      try {
+          const response = await axios.put(endpointUrl, data, {
+              headers: {
+                  "X-CSRFToken": "{{ csrf_token }}",
+                  "Content-Type": "application/json",
+              },
+          });
+
+          if (response.status === 200 || response.status === 204) {
+              openPageRAG();
+          } else {
+              console.error("Failed to update data before redirecting to RAG page.");
+          }
+      } catch (error) {
+          console.error("Error updating table choice:", error.response || error.message);
+      }
+    }
+
+    function openPageRAG() {
+      const url = "{% url 'project-rag-page' project_id=project_id %}";
+      window.location.href = url;
+    }
+  </script>
   {% if processing_filters %}
     <script>
     setTimeout(function(){

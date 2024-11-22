@@ -2,6 +2,7 @@ import datetime
 
 from django.contrib.auth.models import User
 from django.db import models
+from django.utils import timezone
 
 
 class Project(models.Model):
@@ -97,3 +98,75 @@ class RefinementIteration(models.Model):
     excluded_documents_ids = models.JSONField(default=list)
     new_neighbors_ids = models.JSONField(default=list)
     result_documents_ids = models.JSONField(default=list)
+
+
+class ProjectRAG(models.Model):
+    """
+    Model representing a RAG (Retrieval-Augmented Generation) record for a specific project.
+
+    Fields:
+        project (ForeignKey): Points to the related Project model.
+        query (CharField): The query used for the RAG.
+        created_at (DateTimeField): Timestamp of when this data was created.
+        status (CharField): Indicates the current status of the RAG, either 'completed' or 'in-progress'.
+    """
+
+    STATUS_CHOICES = [
+        ("completed", "Completed"),
+        ("in-progress", "In Progress"),
+    ]
+
+    project = models.ForeignKey(
+        "Project", on_delete=models.CASCADE, related_name="project_rags"
+    )
+    query = models.CharField(max_length=500)
+    created_at = models.DateTimeField(default=timezone.now)
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default="in-progress"
+    )
+
+    def __str__(self) -> str:
+        return (
+            f"ProjectRAG for Project ID {self.project.id} - "
+            f"Query: {self.query} - Status: {self.status}"
+        )
+
+
+class ProjectDocumentRAG(models.Model):
+    """
+    Model representing the items associated with a specific ProjectRAG entry.
+
+    Fields:
+        project_rag (ForeignKey): Points to the related ProjectRAG.
+        document (ForeignKey): Points to the related Document.
+        citation (TextField): A sentence or paragraph as a citation.
+        answer (TextField): The answer generated from the RAG.
+        from_full_text (BooleanField): Indicates if the answer was generated from the PDF.
+    """
+
+    project_rag = models.ForeignKey(
+        ProjectRAG, on_delete=models.CASCADE, related_name="documents"
+    )
+    document = models.ForeignKey(
+        "Document", on_delete=models.CASCADE, related_name="document_rags"
+    )
+    citation = models.TextField()
+    answer = models.TextField()
+
+    def set_source(self, source: str) -> None:
+        """
+        Set the source type for the answer (pdf or abstract).
+
+        Parameters
+        ----------
+        source : str
+            The content source ('pdf' or 'abstract') used to generate the answer.
+        """
+        self.from_full_text = source == "pdf"
+        self.save()
+
+    def __str__(self) -> str:
+        return (
+            f"ProjectDocumentRAG for ProjectRAG ID {self.project_rag.id} - "
+            f"Document ID {self.document.id}"
+        )
