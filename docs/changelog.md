@@ -2,6 +2,21 @@ Release Notes
 ---
 
 
+## [0.6.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.5.0...0.6.0) (2024-11-22)
+
+### Features
+
+* add rag workflow ([#137](https://github.com/thegraphnetwork-literev/literev-legal/issues/137)) ([0aaedf9](https://github.com/thegraphnetwork-literev/literev-legal/commit/0aaedf90e6438e78e4068c69563a1693fb7153d9))
+* **config:** Update Makim Tasks, Sugar Commands, and Development Dependencies   ([#131](https://github.com/thegraphnetwork-literev/literev-legal/issues/131)) ([9c0464d](https://github.com/thegraphnetwork-literev/literev-legal/commit/9c0464dde3afe6ec672b30d288f776a559d117dd))
+* highlight keywords in tableselect page ([#127](https://github.com/thegraphnetwork-literev/literev-legal/issues/127)) ([e81fc8e](https://github.com/thegraphnetwork-literev/literev-legal/commit/e81fc8e69e12dc4a235c31d0c365d12593a422c2))
+* **summary:** switch from gpt-3.5-turbo to gpt-4o-mini and refine prompt template ([#142](https://github.com/thegraphnetwork-literev/literev-legal/issues/142)) ([debc93a](https://github.com/thegraphnetwork-literev/literev-legal/commit/debc93a2d0d326064fd16236d4a7d0f3a665e29a))
+* **ui:** implement color-coded topics and keyword highlights ([#139](https://github.com/thegraphnetwork-literev/literev-legal/issues/139)) ([6571996](https://github.com/thegraphnetwork-literev/literev-legal/commit/657199625ebfd605db75b793d19aa7e533088540))
+
+### Bug Fixes
+
+* solve refinement workflow and add minor changes ([#129](https://github.com/thegraphnetwork-literev/literev-legal/issues/129)) ([b27a778](https://github.com/thegraphnetwork-literev/literev-legal/commit/b27a778fdbb5816d8ca1e2372f0a7e585219dcec))
+* solve summary color issues ([#126](https://github.com/thegraphnetwork-literev/literev-legal/issues/126)) ([98eb0e0](https://github.com/thegraphnetwork-literev/literev-legal/commit/98eb0e04e5703bc111f865dd4ece85bbb74c2cde))
+
 ## [0.5.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.4.0...0.5.0) (2024-10-17)
 
 ### Features
