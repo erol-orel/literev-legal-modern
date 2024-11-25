@@ -44,11 +44,12 @@ class PDFRAG:
         documents = Document.objects.filter(id__in=self.document_ids)
 
         template_prompt = (
-            "Vous êtes un assistant pour les tâches de réponse aux questions. "
-            "Utilisez les éléments de contexte suivants récupérés pour répondre à la question. "
-            "Si vous ne connaissez pas la réponse, "
-            "dites que vous ne la connaissez pas. Gardez la réponse précise et concise."
-            "\nQuery:```{query}```\nContext: ```{context}```"
+            "Vous êtes un assistant spécialisé dans les réponses aux questions. "
+            "Utilisez les éléments de contexte suivants pour répondre de manière précise et concise à la question posée. "
+            "Pour les questions fermées (oui/non), répondez par 'Oui,' 'Non,' ou une seule phrase concise expliquant la réponse. "
+            "Si vous ne connaissez pas la réponse ou si elle n'est pas dans le contexte fourni, "
+            "dites que vous ne pouvez pas répondre en l'absence d'informations suffisantes."
+            "\nQuestion : ```{query}```\nContexte : ```{context}```"
         )
 
         for document in documents:
