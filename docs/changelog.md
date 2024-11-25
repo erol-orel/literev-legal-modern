@@ -2,6 +2,12 @@ Release Notes
 ---
 
 
+## [0.8.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.7.0...0.8.0) (2024-11-25)
+
+### Features
+
+* enable sharing projects to all users by id ([#136](https://github.com/thegraphnetwork-literev/literev-legal/issues/136)) ([5747fb3](https://github.com/thegraphnetwork-literev/literev-legal/commit/5747fb396db56c8ee2c22d45a8de10918a38dcf1))
+
 ## [0.7.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.6.0...0.7.0) (2024-11-25)
 
 ### Features
