@@ -12,6 +12,7 @@ from literev.libs.collectors import ElasticSearchCollector
 from literev.libs.pipeline import (
     update_pp_document,
 )
+from literev.libs.rag_pdf import PDFRAG
 from literev.libs.utils import save_documents_to_db, update_task_code
 from literev.models import Document, Project, ProjectRAG, User
 from literev.task_clustering import back_clustering_documents
@@ -25,10 +26,21 @@ from literev_core.preprocessing import (
 
 logger = logging.getLogger(__name__)
 
-from literev.libs.rag_pdf import PDFRAG
+
+def get_shared_projects_ids() -> None:
+    return [
+        project.id
+        for project in Project.objects.filter(
+            query="#PROCESS-ALL-CORPUS-LITEREV-00"
+        )
+    ]
 
 
 def running_delete(project_id: str | int) -> None:
+    # Avoid to remove SHARED projects
+    if int(project_id) in get_shared_projects_ids():
+        return
+
     project = Project.objects.filter(pk=project_id).first()
     # Using try and except in case the project is finish
     try:
@@ -49,8 +61,26 @@ def running_delete(project_id: str | int) -> None:
     plot_path = settings.PLOT_DATA / f"{project_id}_plot.html"
     div_path = settings.PLOT_DATA / f"{project_id}_div.html"
     script_path = settings.PLOT_DATA / f"{project_id}_script.html"
+    hdbscan_scores_path = (
+        settings.ARTICLE_DATA / f"hdbscan_scores_project_{project.id}.pkl"
+    )
+    list_id_docs_path = (
+        settings.ARTICLE_DATA / f"id_list_project_{project.id}.pkl"
+    )
+    tf_idf_path = settings.ARTICLE_DATA / f"tf_idf_project_{project.id}.pkl"
+    columns_name_path = (
+        settings.ARTICLE_DATA / f"column_name_project_{project.id}.pkl"
+    )
 
-    paths = [plot_path, div_path, script_path]
+    paths = [
+        plot_path,
+        div_path,
+        script_path,
+        hdbscan_scores_path,
+        list_id_docs_path,
+        tf_idf_path,
+        columns_name_path,
+    ]
 
     for path in paths:
         if os.path.isfile(path):

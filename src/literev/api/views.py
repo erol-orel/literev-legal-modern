@@ -17,7 +17,7 @@ from literev.api.serializers import (
 )
 from literev.libs.table_choice import update_check_list_iteration
 from literev.models import Project, ProjectDocumentRAG, ProjectRAG, TableChoice
-from literev.tasks import task_rag_result_table
+from literev.tasks import get_shared_projects_ids, task_rag_result_table
 
 
 class ProjectRAGbyProjectIdAPIView(APIView):
@@ -38,7 +38,10 @@ class ProjectRAGbyProjectIdAPIView(APIView):
 
         project = get_object_or_404(Project, pk=project_id)
 
-        if project.user != request.user:
+        if (
+            project.user != request.user
+            and project.id not in get_shared_projects_ids()
+        ):
             raise PermissionDenied(
                 "You do not have permission to access this project."
             )
@@ -75,7 +78,10 @@ class ProjectRAGbyProjectIdAPIView(APIView):
             )
 
         project = get_object_or_404(Project, pk=project_id)
-        if project.user != request.user:
+        if (
+            project.user != request.user
+            and project_id not in get_shared_projects_ids()
+        ):
             raise PermissionDenied(
                 "You do not have permission to access this project."
             )
@@ -165,8 +171,9 @@ class UpdateTableChoiceAPIView(APIView):
 
         # Check if the user has access to the project
         if (
-            project.user
-            != user  # TODO: change this section to enable access to shared projects when implemented
+            project.user != user
+            and not project.id
+            in get_shared_projects_ids()  # TODO: change this section to enable access to shared projects when implemented
         ):
             return Response(
                 {

@@ -211,12 +211,14 @@
                     <input type="hidden"
                            name="project_query"
                            value="{{ project.query }}" />
-                    <button type="submit"
-                            name="submit"
-                            value="delete"
-                            class="btn btn-danger text-white">
-                      <i class="fa-regular fa-trash-can"></i>
-                    </button>
+                    {% if not project.id|check_shared_project %}
+                      <button type="submit"
+                              name="submit"
+                              value="delete"
+                              class="btn btn-danger text-white">
+                        <i class="fa-regular fa-trash-can"></i>
+                      </button>
+                    {% endif %}
                   </div>
                 </form>
                 <div class="collapse row align-items-start pt-4 mb-3 text-muted fs-6"

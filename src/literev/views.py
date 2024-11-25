@@ -59,6 +59,7 @@ from literev.models import (
 )
 from literev.task_plotting import get_color_map
 from literev.tasks import (
+    get_shared_projects_ids,
     launch_process,
     remove_all_finished_projects,
     running_delete,
@@ -66,6 +67,8 @@ from literev.tasks import (
 
 logging.basicConfig(level=logging.INFO)
 UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
+
+# get the list of shared project id
 
 
 class HomePageView(TemplateView):
@@ -292,7 +295,9 @@ def running(request: HttpRequest) -> HttpResponse:
 
     # Include always the first project
     projects = (
-        Project.objects.filter(Q(user=user) | Q(id=1))
+        Project.objects.filter(
+            Q(user=user) | Q(id__in=get_shared_projects_ids())
+        )
         .exclude(is_finish=True)
         .order_by("-id")
     )
@@ -333,7 +338,7 @@ def projectpage(
     actual_user = request.user
     project_exist = (
         Project.objects.filter(id=project_id).exists()
-        if project_id == 1
+        if project_id in get_shared_projects_ids()
         else Project.objects.filter(user=actual_user, id=project_id).exists()
     )
 
@@ -702,7 +707,8 @@ def tableselect(
 
     # Fetch the project ensuring access control for non-admin projects
     project = Project.objects.filter(
-        Q(id=project_id) & (Q(user=actual_user) | Q(id=1))
+        Q(id=project_id)
+        & (Q(user=actual_user) | Q(id__in=get_shared_projects_ids()))
     ).first()
 
     if not project:
@@ -1070,7 +1076,8 @@ def historicalpage(request: HttpRequest) -> HttpResponse:
     if not context["filter_by_query"]:
         # get all finished project
         project_list = Project.objects.filter(
-            (Q(user=user) & Q(is_finish=True)) | Q(id=1)
+            (Q(user=user) & Q(is_finish=True))
+            | Q(id__in=get_shared_projects_ids())
         ).order_by("-id")
 
         if project_list.exists():

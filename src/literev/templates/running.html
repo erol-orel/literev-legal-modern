@@ -219,7 +219,7 @@
                     Restart
                   </button>
                 </div>
-                {% if project.id != 1 %}
+                {% if not project.id|check_shared_project %}
                   <div class="ms-2 col-sm-12 col-xxl-4">
                     <button type="submit"
                             name="submit"

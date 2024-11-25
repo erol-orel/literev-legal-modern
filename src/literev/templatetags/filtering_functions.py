@@ -13,10 +13,16 @@ from literev.models import (
     Document,
     Project,
 )
+from literev.tasks import get_shared_projects_ids
 
 register = template.Library()
 
 UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
+
+
+@register.filter
+def check_shared_project(project_id: int):
+    return project_id in get_shared_projects_ids()
 
 
 @register.filter
