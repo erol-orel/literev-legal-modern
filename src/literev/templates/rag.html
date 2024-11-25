@@ -172,40 +172,61 @@
       answersContainer.innerHTML = "";
 
       ragData.forEach(documentRag => {
-          const documentRow = `
-              <div class="project-search-metadata col-12">
+          let documentHeader = `
+            <div class="project-search-metadata col-12">
                 <div class="d-flex justify-content-between mb-2">
                     <h3>
-                      <span class="badge text-bg-dark">
-                        <a class="text-white" href="${documentRag.document.url_document}" target="_blank">${documentRag.document.procedure_type}</a>
-                      </span>
+                        <span class="badge text-bg-dark">
+                            <a class="text-white" href="${documentRag.document.url_document}" target="_blank">${documentRag.document.procedure_type}</a>
+                        </span>
                     </h3>
-                  </div>
-                  <div class="ms-auto mt-3 text-start mb-3">
-                    <div>
-                      <b>${documentRag.document.decision_type}</b>, du ${documentRag.document.decision_date}
-                      <b>Result:</b> ${documentRag.document.result}
-                    </div>
-                  </div>
-                  <div class="mb-3 ms-auto">
-                    <div>
-                      <b>Normes:</b> ${documentRag.document.standards}
-                    </div>
-                  </div>
                 </div>
-                 <div class="mb-2">
-                 <b>Answer: </b>
-                  ${documentRag.answer}
-                 </div>
-                 <div class="mb-5 ms-auto">
+                <div class="ms-auto mt-3 text-start mb-3">
                     <div>
-                      <b>Highlighted in document: </b>
-                      ${documentRag.citation}
+                        <b>${documentRag.document.decision_type}</b>, du ${documentRag.document.decision_date}
+                        <b>Result:</b> ${documentRag.document.result}
                     </div>
-                  </div>
-              </div>
-              <div class="row mb-2"><hr /></div>
+                </div>
+            </div>
           `;
+
+          let documentStandards = `
+            <div class="mb-2">
+              <b>Normes:</b> ${documentRag.document.standards}
+            </div>
+          `
+          let documentAns = `
+          <div class="mb-2">
+                <b>Answer: </b>
+                ${documentRag.answer}
+          </div>
+          `
+          let documentCitation = `
+            <div class="mb-5 ms-auto">
+                <div>
+                    <b>Highlighted in document: </b>
+                    ${documentRag.citation}
+                </div>
+            </div>
+          `
+          const documentDivisor = `
+             <div class="row mb-2">
+                <hr />
+            </div>
+          `
+          let documentRow = documentHeader
+          
+          if(documentRag.document.standards != ""){
+            documentRow += documentStandards;
+          }
+
+          if(documentRag.answer == "No content available." || documentRag.answer == "Error generating response.") {
+            documentRow += documentAns + documentDivisor;
+          }
+          else{
+            documentRow += documentAns + documentCitation + documentDivisor;
+          }
+          
           answersContainer.insertAdjacentHTML("beforeend", documentRow);
       });
 

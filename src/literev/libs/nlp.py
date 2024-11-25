@@ -182,12 +182,12 @@ def build_prompt(cluster: Cluster) -> str:
         # get document abstract sentences by splitting it on "."
         abstract_words = document.preprocessed_document.split()
         number_sample_words = 27
-        rnd_index = random.randrange(len(abstract_words)- number_sample_words)
-        
+        rnd_index = random.randrange(len(abstract_words) - number_sample_words)
+
         document_abstract = (
             # get 27 random adjacent words from preprocessed text
             " ".join(
-                abstract_words[rnd_index:rnd_index+number_sample_words]
+                abstract_words[rnd_index : rnd_index + number_sample_words]
             )
             if len(abstract_words) > number_sample_words
             else document.preprocessed_document
