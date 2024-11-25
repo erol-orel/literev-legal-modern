@@ -185,8 +185,8 @@ def get_topic_and_hdbscan_score(
     topic_scores_dict : dict
         A dict containing the scores and topic for documents.
     """
-    scores_dict = dict()
-    topic_scores_dict = dict()
+    scores_dict = {}
+    topic_scores_dict = {}
 
     list_id_docs = joblib.load(
         settings.ARTICLE_DATA / f"id_list_project_{project.id}.pkl"

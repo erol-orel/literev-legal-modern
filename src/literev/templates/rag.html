@@ -131,7 +131,7 @@
         );
         renderResults(documentsResponse.data);
         return;
-      } 
+      }
 
       if (ragStatus === null) {
         /* if there is no request/question yet */
@@ -215,7 +215,7 @@
             </div>
           `
           let documentRow = documentHeader
-          
+
           if(documentRag.document.standards != ""){
             documentRow += documentStandards;
           }
@@ -226,13 +226,13 @@
           else{
             documentRow += documentAns + documentCitation + documentDivisor;
           }
-          
+
           answersContainer.insertAdjacentHTML("beforeend", documentRow);
       });
 
       show_table();
   }
-  
+
   document.addEventListener("DOMContentLoaded", function() {
     checkStatus();
   });

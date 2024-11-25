@@ -26,7 +26,7 @@ from literev.models import (
 )
 from literev.task_plotting import get_color_map
 
-filter_thread_dict = dict()
+filter_thread_dict = {}
 
 UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
 
@@ -265,7 +265,7 @@ def neighbour_document(document: Document, project: Project) -> list[Document]:
     if not cluster_center_document:
         return neighbour_documents
 
-    distances = dict()
+    distances = {}
 
     for cluster_e in clusters_elements:
         distances[cluster_e] = (

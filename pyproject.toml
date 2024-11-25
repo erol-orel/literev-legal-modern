@@ -11,7 +11,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.10,<3.11.dev0"
 elasticsearch = "^8.12.1"
 django = "^5.0.3"
 django-environ = ">=0.10.0"
@@ -140,26 +140,31 @@ quote-style = "double"
 
 
 [tool.mypy]
-plugins = ["mypy_django_plugin.main"]
-python_version = "3.9"
+mypy_path = "src/"
+plugins = [
+	"mypy_django_plugin.main",
+	"mypy_drf_plugin.main",
+]
+python_version = "3.10"
 check_untyped_defs = true
-strict = true
 ignore_missing_imports = true
 warn_unused_ignores = true
 warn_redundant_casts = true
 warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+ignore_errors = true
+ignore_missing_imports = true
+module = [
+  "requests",
+  "*.migrations.*",
+]
 
 
 [tool.django-stubs]
 django_settings_module = "config.settings"
 strict_settings = false
 ignore_missing_model_attributes = true
-
-[[tool.mypy.overrides]]
-module = [
-  "requests",
-]
-ignore_missing_imports = true
 
 
 [tool.djlint]

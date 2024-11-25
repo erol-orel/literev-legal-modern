@@ -6,7 +6,7 @@ from threading import Thread
 from literev.libs.collectors import MetaData
 from literev.models import Document, Project
 
-thread_dict = dict()
+thread_dict = {}
 
 
 def running_restart(project_id: str) -> None:

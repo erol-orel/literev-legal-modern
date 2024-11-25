@@ -47,6 +47,23 @@ env:
   USE_CONTAINER: True
 
 jobs:
+  check_branch:
+    name: Check if branch is ahead of main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v3
+        if: ${{ github.event_name == 'pull_request' }}
+        with:
+          fetch-depth: 0
+
+      - name: Check if branch is ahead of main
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          if ! git merge-base --is-ancestor origin/main ${{ github.event.pull_request.head.sha }};
+          then echo "This branch is not up to date with main";
+          exit 1; fi
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -90,9 +107,9 @@ jobs:
     - name: Install dependencies
       run: poetry install
 
-    # - name: Run linter
-    #   if: ${{ success() || failure() }}
-    #   run: makim tests.lint
+    - name: Run linter
+      if: ${{ success() || failure() }}
+      run: makim tests.lint
 
     - name: Create volumes
       run: |

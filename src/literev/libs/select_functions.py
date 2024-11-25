@@ -51,7 +51,7 @@ def create_final_file(project: Project) -> str:
     )
 
     # create the csv file from a dictionary
-    metadata: dict[str, list[int | str]] = dict()
+    metadata: dict[str, list[int | str]] = {}
 
     metadata["number_cluster"] = []
     metadata["topic"] = []
@@ -71,7 +71,7 @@ def create_final_file(project: Project) -> str:
         .order_by("-total_documents")
     )
 
-    number_topic: dict[str, str] = dict()
+    number_topic: dict[str, str] = {}
 
     index = 0
     for cluster in sorted_clusters:

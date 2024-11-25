@@ -37,10 +37,12 @@ class ElasticSearchCollectorTestCase(
         match_pattern = lambda result: (
             "recours" in result
             or (
-                "juridique du mariage" in result
-                and "rejoindre en Suisse" in result
+                (
+                    "juridique du mariage" in result
+                    and "rejoindre en Suisse" in result
+                )
+                and "congo" not in result
             )
-            and "congo" not in result
         )
 
         check_results: list[bool] = [

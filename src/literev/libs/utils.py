@@ -112,7 +112,7 @@ def save_documents_to_db(project: Project, documents: list[MetaData]) -> None:
     documents : list[MetaData]
         A list of metadata objects representing the documents to be saved.
     """
-    es_scores_dict = dict()
+    es_scores_dict = {}
     for document in documents:
         try:
             new_project_id = create_document_db(project, document)

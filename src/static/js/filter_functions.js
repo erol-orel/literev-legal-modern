@@ -203,19 +203,19 @@ const filterTag = (content, filterIdx) => {
 const unionFilter = (filterNumber) => {
     const divContainer = document.createElement("div");
     divContainer.classList.add("py-3", "col-12", "div-filter-union");
-    
+
     const containerCard = document.createElement("div");
     containerCard.classList.add("card", "border", "bg-info", "border-secondary", "border-opacity-100", "border-3", "rounded")
-    
+
     const containerBody = document.createElement("div");
     containerBody.classList.add("card-body");
-    
+
     const containerHeader = document.createElement("div");
     containerHeader.classList.add("d-flex", "justify-content-between");
-    
+
     const titleFilter = document.createElement("h4");
     titleFilter.textContent = "Filter";
-    
+
     const removeFilter = document.createElement("button");
     removeFilter.classList.add("btn", "btn-danger", "text-bold", "text-white");
     removeFilter.setAttribute("data-index", filterNumber);
@@ -290,7 +290,7 @@ function updateFilterTagList(filterElement) {
     }
 }
 
-// Create a filterExclude and appending to the DOM    
+// Create a filterExclude and appending to the DOM
 let filterExclude = excludeFilter();
 const filterExcludeContainer = document.querySelector("#filter-exclude-container");
 filterExcludeContainer.appendChild(filterExclude.divContainer);
@@ -496,7 +496,7 @@ function removeConnectors() {
 function addOrConnectors() {
     const tagFilters = filterExclude.divContainer.querySelectorAll(".filter-tag");
     const n = tagFilters.length;
-    
+
     for(let i=1;i<n;i++){
         const orTagFilter = orTag();
         tagFilters[i].parentElement.insertBefore(orTagFilter.divContainer, tagFilters[i])
@@ -533,7 +533,7 @@ function removeBigOrConnectors() {
 
 // List of filter to send in the post
 let unionFilterList = [];
-let activeFilter = -1; // Active filter index 
+let activeFilter = -1; // Active filter index
 
 // Add event listener to create filter button
 const buttonCreate = document.querySelector("#create-filter");
@@ -584,7 +584,7 @@ buttonCreate.addEventListener("click", () => {
     //inputData.show(); // used for debbuging
     removeBigOrConnectors();
     addBigOrConnectors();
-    
+
 })
 document.addEventListener('DOMContentLoaded', function() {
     const typeFilter = document.getElementById('type-filter');

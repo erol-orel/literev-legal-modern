@@ -17,7 +17,7 @@ stopwords_list = create_stopwords()
 def clean_corpus(
     corpus: str
 ) -> str:
-    
+
     cleaned_article_corpus = pre_processing(corpus)
 
     corpus_to_tokens = sentences_to_words(
@@ -40,17 +40,17 @@ def clean_corpus_mp(
     if not define_languages(corpus):
         print("discarding, not french: ", index)
         return ""
-    
+
     if index == 0:
         print("------------raw corpus")
         print(corpus)
-      
+
     cleaned_corpus = pre_processing(corpus)
 
     if index == 0:
         print("------------cleaned_article_corpus")
         print(cleaned_corpus)
-              
+
     corpus_to_tokens = sentences_to_words(
         cleaned_corpus
     )
@@ -72,13 +72,13 @@ def clean_corpus_mp(
     if index == 0:
         print("------------corpus_without_stopwords")
         print(corpus_without_stopwords)
-    
+
     if not corpus_without_stopwords:
         print("discarding, emtpy after removing stopwords: ", index)
         return ""
 
     return corpus_without_stopwords, index
-    
+
 def back_preprocessing(corpuses):
 
     prepared_for_ngrams = []
@@ -89,7 +89,7 @@ def back_preprocessing(corpuses):
             continue
 
         cleaned_corpus = clean_corpus(corpus)
-        
+
         if not cleaned_corpus:
             print("discarting, emtpy after removing stopwords: ", index)
             continue
@@ -97,18 +97,18 @@ def back_preprocessing(corpuses):
         prepared_for_ngrams.append(cleaned_corpus)
 
     list_trigrams = create_ngrams(prepared_for_ngrams)
-    
+
     #remove common and unique
 
     corpuses_wo_common_and_unique = remove_common_and_unique(list_trigrams)
-    
+
     # clean empty corpus
     preprocessed_corpus = remove_empty(corpuses_wo_common_and_unique)
-    
+
     return preprocessed_corpus
 
 def back_preprocessing_mp(corpuses):
-    prepared_for_ngrams_dict = dict()
+    prepared_for_ngrams_dict = {}
     prepared_for_ngrams = []
     with concurrent.futures.ProcessPoolExecutor() as executor:
         futures = [
@@ -124,29 +124,27 @@ def back_preprocessing_mp(corpuses):
                 continue
             try:
                 prepared_for_ngrams_dict[index] = corpus
-               
+
             except Exception as e:
                 print(f"Error processing future: {e}")
 
         concurrent.futures.wait(futures)
-        
+
     sorted_dict = dict(sorted(prepared_for_ngrams_dict.items()))
     for k, v in sorted_dict.items():
         prepared_for_ngrams.append(v)
     print('---------prepared for ngrams')
     print(prepared_for_ngrams[0])
     list_trigrams = create_ngrams(prepared_for_ngrams)
-    
+
     print('-----------list trigrams')
     print(list_trigrams[0])
-    
+
     #remove common and unique
 
     corpuses_wo_common_and_unique = remove_common_and_unique(list_trigrams)
-    
+
     # clean empty corpus
     preprocessed_corpuses = remove_empty(corpuses_wo_common_and_unique)
-    
+
     return preprocessed_corpuses
-    
-    

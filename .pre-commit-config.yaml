@@ -1,10 +1,23 @@
-default_stages:
-  - pre-commit
+exclude: "^docs/|/migrations/|devcontainer.json"
+default_stages: [pre-commit]
+
+default_language_version:
+  python: python3.10
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.1.0
+    rev: v4.6.0
     hooks:
+      - id: trailing-whitespace
       - id: end-of-file-fixer
+      - id: check-json
+      - id: check-toml
+      - id: check-xml
+      - id: debug-statements
+      - id: check-builtin-literals
+      - id: check-case-conflict
+      - id: check-docstring-first
+      - id: detect-private-key
 
   - repo: https://github.com/Riverside-Healthcare/djLint
     rev: v1.32.1
@@ -29,8 +42,7 @@ repos:
 
     - id: ruff-format
       name: ruff-format
-      entry: ruff format
-      exclude: "docs/|migrations/.*|literev/urls.py"
+      entry: ruff format --no-force-exclude
       language: system
       pass_filenames: true
       types:

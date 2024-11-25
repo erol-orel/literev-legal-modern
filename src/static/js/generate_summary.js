@@ -1,10 +1,10 @@
 /*
  * This script is designed for integration with the previousgraph.html template.
- * It is advisable to perform DOM manipulation within the ready function to ensure 
- * that the HTML content is fully loaded and parsed before the script interacts 
+ * It is advisable to perform DOM manipulation within the ready function to ensure
+ * that the HTML content is fully loaded and parsed before the script interacts
  * with DOM elements.
  *
- * The main function serves as the entry point, allowing the inclusion of various 
+ * The main function serves as the entry point, allowing the inclusion of various
  * routines for execution.
  */
 
@@ -32,7 +32,7 @@ function main() {
  */
 function makeSpinnerHTML(message = "") {
     return (
-        `<span class="spinner-border spinner-border-sm" 
+        `<span class="spinner-border spinner-border-sm"
         role="status" aria-hidden="true"></span> ${message}`
     );
 };
@@ -40,7 +40,7 @@ function makeSpinnerHTML(message = "") {
 
 /*****************************************************
 * Main Routine Functions
-* 
+*
 * Those functions encapsulates specific behavior and/or
 * functionalities and are called inside the main function
 *********************************************************/
@@ -111,7 +111,7 @@ async function openaiFallback() {
             clickedButton.style.pointerEvents = "auto";
             clickedButton.classList.remove("disabled");
             // swap the original button state back
-            clickedButton.innerHTML = buttonDefaultInnerHTML; 
+            clickedButton.innerHTML = buttonDefaultInnerHTML;
 
             if (error.status == 503) {
                 // handle the case where the service is still unavailable

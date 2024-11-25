@@ -145,7 +145,7 @@ def plot_clusters(
             tools=["box_zoom", "reset", "tap"],
         )
 
-    config: dict[str, list[Optional[Union[float, str, dt.date]]]] = dict()
+    config: dict[str, list[Optional[Union[float, str, dt.date]]]] = {}
     config["x"] = []
     config["y"] = []
     config["procedure_type"] = []
@@ -172,7 +172,7 @@ def plot_clusters(
         .order_by("order")
     )
 
-    cluster_number_data: dict[str, list[str | int]] = dict()
+    cluster_number_data: dict[str, list[str | int]] = {}
 
     cluster_number_data["x"] = []
     cluster_number_data["y"] = []

@@ -78,7 +78,7 @@ def get_es_scores(project: Project) -> dict[int, str]:
     path = settings.ARTICLE_DATA / f"es_scores_project_{project.id}.pkl"
 
     if not path.exists():
-        return dict()
+        return {}
 
     scores = joblib.load(path)
 

@@ -49,7 +49,7 @@ def filter_and_sort_projects(
             query__iregex=key_regex,
             is_finish=True,
         )
-        project_id_count = dict()
+        project_id_count = {}
 
         for project in projects_queryset:
             project_id_count[project.id] = ClusterElement.objects.filter(
@@ -78,7 +78,7 @@ def filter_and_sort_projects(
 def sort_all_projects(user: User, sort_type: str) -> list[Project]:
     projects_query_set = Project.objects.filter(user=user, is_finish=True)
 
-    project_id_count = dict()
+    project_id_count = {}
     for project in projects_query_set:
         project_id_count[project.id] = ClusterElement.objects.filter(
             cluster__project=project

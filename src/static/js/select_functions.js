@@ -51,7 +51,7 @@ function light_cluster(topic)
     {
         light(points[i])
     }
-    
+
 }
 
 function dark_cluster(topic)
@@ -62,7 +62,7 @@ function dark_cluster(topic)
     {
         dark(points[i])
     }
-    
+
 }
 
 
@@ -74,7 +74,7 @@ function toggle(source) {
 +   * Toggle the checkboxes based on the state of the source checkbox.
 +   * Update the counter based on the number of checkboxes toggled.
 +   */
-    
+
     const checkboxes = document.getElementsByName('check_row');
     let addValue = -1;
     if(source.checked){

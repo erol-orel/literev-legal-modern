@@ -220,7 +220,7 @@ def search_evaluate(
 
 @login_required(login_url="/accounts/login/")
 def search(request: HttpRequest) -> HttpResponse:
-    context: dict[str, Any] = dict()
+    context: dict[str, Any] = {}
 
     # Actual form
     search_form = SearchForm()
@@ -263,7 +263,7 @@ def search(request: HttpRequest) -> HttpResponse:
 
 @login_required(login_url="/accounts/login/")
 def running(request: HttpRequest) -> HttpResponse:
-    context: dict[str, Any] = dict()
+    context: dict[str, Any] = {}
     context["delete_message"] = False
     user = request.user
 
@@ -1000,7 +1000,7 @@ def tableselect(
 
 @login_required(login_url="/accounts/login/")
 def contentdocument(request: HttpRequest, document_id: int) -> HttpResponse:
-    context: dict[str, Any] = dict()
+    context: dict[str, Any] = {}
 
     if not document_id:
         return redirect(reverse("search"))
@@ -1013,7 +1013,7 @@ def contentdocument(request: HttpRequest, document_id: int) -> HttpResponse:
 
 
 def historicalpage(request: HttpRequest) -> HttpResponse:
-    context: dict[str, Any] = dict()
+    context: dict[str, Any] = {}
 
     historical_form = HistoricalForm()
     context["historical_form"] = historical_form

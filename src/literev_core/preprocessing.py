@@ -97,7 +97,7 @@ def preprocess_documents(list_trigrams: list[list[str]]) -> list[str]:
 
 
 def preprocessing_mp(pk_list: list[int], corpuses: list[str]) -> list[str]:
-    prepared_for_ngrams_dict = dict()
+    prepared_for_ngrams_dict = {}
     prepared_for_ngrams = []
     rejected = set()
     logging.info("mp started")
