@@ -2,6 +2,13 @@ Release Notes
 ---
 
 
+## [0.7.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.6.0...0.7.0) (2024-11-25)
+
+### Features
+
+* Improve Clustering Summary ([#145](https://github.com/thegraphnetwork-literev/literev-legal/issues/145)) ([ee2b3fe](https://github.com/thegraphnetwork-literev/literev-legal/commit/ee2b3febc04a90b46edde6d3f0d49638cb88a737))
+* **rag:** Enhance RAG prompt template to handle closed questions ([#148](https://github.com/thegraphnetwork-literev/literev-legal/issues/148)) ([c6e7a12](https://github.com/thegraphnetwork-literev/literev-legal/commit/c6e7a1237c21c2884357dd3949c6eb4453c53824))
+
 ## [0.6.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.5.0...0.6.0) (2024-11-22)
 
 ### Features
