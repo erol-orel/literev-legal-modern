@@ -11,25 +11,17 @@ from openai import OpenAI
 
 from literev.models import Cluster, Document
 
-# logger
 logger = logging.getLogger(__name__)
 
-# openai client
 openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 # gpt model consumed by the api
 GPT_MODEL = "gpt-4o-mini"
-
-# max tokens accepted by gpt-3.5-turbo model
-# openai plan on increasing the max tokens, more info at:
-# https://openai.com/blog/new-models-and-developer-products-announced-at-devday
-GPT_MODEL_MAX_TOKENS = 4096
-
-# number of tokens reserved for gpt response
+GPT_MODEL_MAX_TOKENS = 128000
 MAX_TOKENS_RESPONSE = 250
-
 # 200 tokens extra margin for security
-TOKEN_LIMIT = MAX_TOKENS_RESPONSE - MAX_TOKENS_RESPONSE - 200
+TOKEN_LIMIT = GPT_MODEL_MAX_TOKENS - MAX_TOKENS_RESPONSE - 200
+RANDOM_K = 27
 
 
 def call_chatgpt(prompt: str, api_key: str = settings.OPENAI_API_KEY) -> str:
@@ -71,7 +63,7 @@ def call_chatgpt(prompt: str, api_key: str = settings.OPENAI_API_KEY) -> str:
             model=GPT_MODEL,
             messages=messages,  # type: ignore
             max_tokens=MAX_TOKENS_RESPONSE,
-            temperature=0.4,  # this sets the creativity of the response
+            temperature=0,
         )
     except openai.RateLimitError as e:
         if settings.DEBUG:
@@ -132,22 +124,24 @@ def build_prompt(cluster: Cluster) -> str:
     # base prompt used for generating the topic description
     prompt_template = (
         "Provide a clear and concise general description based on the following "
-        "most important keywords: {keywords} selected "
-        "from a cluster containing case law from the canton of Geneva in Switzerland. "
-        "The following descriptors for each case law provide additional context:\n\n"
+        "most important keywords: {keywords} from a cluster containing "
+        "law cases from the canton of Geneva in Switzerland. The summary must "
+        "represent all law cases collectively and not be based only on a single one. "
+        "In addition to the most important keywords, use "
+        "the following additional context coming from the law cases contained in this cluster:"
+        "\n\n"
     )
 
     # constraints can be fine-tuned to prevent unwanted words or sentences
     # this is to prevent unwanted words or sentences
-
     prompt_constraints = (
-        "Ensure the response maintains a narrative voice suitable for general "
-        "description while minimizing the use of pronouns. Avoid unnecessary "
-        "introductions and redundancies. Avoid using quotes and backticks. "
-        "Avoid the use of the following keywords and expressions: keyword, "
-        "keywords, topic, case, we propose, proposing, we, this report. "
-        "Do not include names or generate the answer based solely on a single article. "
-        "Summarize it in two sentences in French language."
+        "Ensure the response maintains a narrative voice suitable for a general "
+        "description while minimizing the use of pronouns. "
+        "Avoid: unnecessary introductions and redundancies, using quotes, backticks, "
+        "cluster's keywords and names of individuals, and words such as topic, case, "
+        "we propose, proposing, we, this report. Summarize in exactly "
+        "two sentences, ensuring no redundancy between sentences. "
+        "Write the response in French."
     )
 
     # this template is used for each document
@@ -157,67 +151,59 @@ def build_prompt(cluster: Cluster) -> str:
         "Keywords Sample: {document_abstract}.\n\n"
     )
 
-    # inject topic keyword into prompt
+    # Initialize tokenizer
+    enc = tiktoken.encoding_for_model(GPT_MODEL)
+
+    # Inject keywords into prompt
     prompt = prompt_template.format(keywords=cluster.topic)
 
-    # Attempt to use the tokenizer for the specified model, fallback if unavailable
-    try:
-        enc = tiktoken.encoding_for_model(GPT_MODEL)
-    except KeyError:
-        enc = tiktoken.get_encoding("cl100k_base")
-
-    # get all documents related to cluster(topic)
+    # Get all documents related to cluster(topic)
     documents = Document.objects.filter(clusterelement__cluster=cluster)
 
-    # calculate initial number of tokens
-    tokens_count = len(enc.encode(prompt)) + len(
-        enc.encode(prompt_constraints)
+    # Template for document descriptions
+    document_prompt_template = (
+        "Document number: {document_number}\n"
+        "Descriptor: {document_descriptor}\n"
+        "Keywords Sample: {document_abstract}.\n\n"
     )
 
-    # loop through all documents
+    prompt_fragments = []
+
+    # Iterate through documents to build the prompt
     for document_number, document in enumerate(documents, start=1):
-        # get document title
+        # Get document descriptros
         document_descriptor = document.descriptors
 
-        # get document abstract sentences by splitting it on "."
         abstract_words = document.preprocessed_document.split()
-        number_sample_words = 27
-        rnd_index = random.randrange(len(abstract_words) - number_sample_words)
+        rnd_index = random.randrange(len(abstract_words) - RANDOM_K)
 
         document_abstract = (
             # get 27 random adjacent words from preprocessed text
-            " ".join(
-                abstract_words[rnd_index : rnd_index + number_sample_words]
-            )
-            if len(abstract_words) > number_sample_words
+            " ".join(abstract_words[rnd_index : rnd_index + RANDOM_K])
+            if len(abstract_words) > RANDOM_K
             else document.preprocessed_document
         )
 
-        # fill the document prompt template with current loop's document data
+        # Build document-specific prompt
         document_prompt = document_prompt_template.format(
             document_number=document_number,
-            document_descriptor=document_descriptor,
+            document_descriptor=document_descriptor,  # TODO: Add Topics?
             document_abstract=document_abstract,
         )
 
-        # count number of tokens in the document prompt
+        # Count tokens for the document prompt
         document_tokens = len(enc.encode(document_prompt))
 
-        # update tokens count for the next loop
-        tokens_count = tokens_count + document_tokens
+        # Check if the document fits within the remaining token budget
+        if document_tokens > GPT_MODEL_MAX_TOKENS:
+            break  # Stop adding documents
 
-        # check if the token limit was reached
-        if tokens_count > TOKEN_LIMIT:
-            # break the loop without appending the document to the prompt
-            break
+        # Add document prompt to the main fragments
+        prompt_fragments.append(document_prompt)
 
-        # limit not reached, append the document prompt to the 'main' prompt
-        prompt = prompt + document_prompt
-
-    # add constraints at the end of the prompt after the loop
-    # gpt performs better if we pass the constraints at the end
-    prompt = prompt + prompt_constraints
-    return prompt
+    # Finalize prompt with constraints
+    full_prompt = prompt + "".join(prompt_fragments) + prompt_constraints
+    return full_prompt
 
 
 def nlp_topic_description(
@@ -253,7 +239,7 @@ def nlp_topic_description(
         # returns dummy text if dev mode and there's no openai api key
         return (
             "This is a dev mode dummy summary text for topic keywords: "
-            f"{cluster.topic}."  # cluster.topic
+            f"{cluster.topic}."
         )
 
     prompt = build_prompt(cluster)

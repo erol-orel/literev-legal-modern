@@ -124,7 +124,7 @@ def back_clustering_documents(self, project_id: int):
             tf_idf_sorted.iloc[:, w]
             .mean(axis=1)
             .sort_values(ascending=False)
-            .head(10)
+            .head(30)
             .index.values
         )
 
