@@ -220,12 +220,17 @@
             documentRow += documentStandards;
           }
 
-          if(documentRag.answer == "No content available." || documentRag.answer == "Error generating response.") {
-            documentRow += documentAns + documentDivisor;
+          if (
+              documentRag.answer === "No content available." ||
+              documentRag.answer === "Error generating response." ||
+              documentRag.answer === "Réponse non disponible."
+          )
+          {
+              documentRow += documentAns + documentDivisor;
+          } else {
+              documentRow += documentAns + documentCitation + documentDivisor;
           }
-          else{
-            documentRow += documentAns + documentCitation + documentDivisor;
-          }
+
 
           answersContainer.insertAdjacentHTML("beforeend", documentRow);
       });
