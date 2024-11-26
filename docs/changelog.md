@@ -2,6 +2,13 @@ Release Notes
 ---
 
 
+## [0.8.1](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.8.0...0.8.1) (2024-11-26)
+
+### Bug Fixes
+
+* Improve the RAG prompt ([#152](https://github.com/thegraphnetwork-literev/literev-legal/issues/152)) ([6caedb3](https://github.com/thegraphnetwork-literev/literev-legal/commit/6caedb3a6a4cf577bfb9156107c1c572b2433562))
+* just show 10 keywords from topic ([#153](https://github.com/thegraphnetwork-literev/literev-legal/issues/153)) ([ee6913c](https://github.com/thegraphnetwork-literev/literev-legal/commit/ee6913cc168bbb00e8c060b8f73a0c59b8a0bb77))
+
 ## [0.8.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.7.0...0.8.0) (2024-11-25)
 
 ### Features
