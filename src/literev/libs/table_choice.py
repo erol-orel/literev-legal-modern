@@ -185,7 +185,9 @@ def render_table_choice(
 
             render_e.update(
                 {
-                    "topic": topic,
+                    "topic": topic.split(" : ")[0]
+                    + " : "
+                    + ", ".join(topic.split(" : ")[1].split(", ")[:10]),
                     "hdbscan_score": topic_scores[tablechoice_e.document.id][
                         "hdbscan_score"
                     ],
@@ -197,7 +199,7 @@ def render_table_choice(
                 color_code = color_dict[topic_key]
                 render_e["sample_document"] = highlight_words_topic(
                     rendered_sample,
-                    topic_keywords,
+                    topic_keywords[:10],
                     color_code,
                 )
 
