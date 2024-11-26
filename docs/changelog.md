@@ -2,6 +2,12 @@ Release Notes
 ---
 
 
+## [0.9.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.8.1...0.9.0) (2024-11-26)
+
+### Features
+
+* **rag:** improve French response handling for unavailable content ([#154](https://github.com/thegraphnetwork-literev/literev-legal/issues/154)) ([514ddbe](https://github.com/thegraphnetwork-literev/literev-legal/commit/514ddbe302213f5d272a27fcb60b52731b81acf0))
+
 ## [0.8.1](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.8.0...0.8.1) (2024-11-26)
 
 ### Bug Fixes
