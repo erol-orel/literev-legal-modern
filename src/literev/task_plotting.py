@@ -183,9 +183,18 @@ def plot_clusters(
             continue
         cluster_number_data["x"].append(e_cluster["center_x"])
         cluster_number_data["y"].append(e_cluster["center_y"])
-        cluster_number_data["number"].append(e_cluster["order"])
+        cluster_number_data["number"].append(str(e_cluster["order"]))
 
     cluster_number_source = ColumnDataSource(data=cluster_number_data)
+
+    fig.circle(
+        x="x",
+        y="y",
+        size=38,
+        fill_color="white",
+        line_color="black",
+        source=cluster_number_source,
+    )
 
     number_label = LabelSet(
         x="x",
@@ -193,7 +202,10 @@ def plot_clusters(
         text="number",
         source=cluster_number_source,
         text_font_size="36px",
-        text_color="#807876",
+        text_color="black",
+        text_font_style="bold",
+        text_align="center",
+        text_baseline="middle",
     )
 
     for point in clusters_points:
