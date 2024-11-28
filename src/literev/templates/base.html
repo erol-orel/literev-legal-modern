@@ -35,10 +35,17 @@
       <!-- sidebar -->
       <div class="sidebar d-flex flex-column flex-shrink-0 p-3 text-bg-dark"
            id="side_nav">
-        <div class="d-flex justify-content-between  d-block">
-          <a class="navbar-brand ms-2 fs-2"
-             href="{% url "home" %}">
-          Lite<span class="text-primary">Rev</span></a>
+        <div class="d-none d-md-flex justify-content-between align-items-center">
+          <a class="navbar-brand d-flex align-items-center"
+             href="{% url 'home' %}">
+            <img src="{% static 'images/logo_sans_fond.png' %}"
+                 alt="Logo"
+                 class="img-fluid"
+                 style="max-height: 40px" />
+            <span class="fs-4 ms-2">
+              Lite<span class="text-primary">Rev</span>
+            </span>
+          </a>
           <button class="close-btn navbar-toggler d-md-none"
                   type="button">
             <i class="fs-2 fa-solid fa-bars-staggered"></i>
@@ -83,7 +90,7 @@
               </a>
             </li>
             <hr />
-            <li {% if actual_url == "running" %}
+            <li {% if actual_url == "historicalpage" %}
                   class="nav-item"
                 {% endif %}>
               <a href="{% url "historicalpage" %}"
@@ -108,9 +115,17 @@
         <header class="bg-dark">
           <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
             <div class="container-fluid">
-              <div class="d-flex justify-content-between d-md-none d-block">
-                <a class="navbar-brand fs-4"
-                   href="#">LiteRev</a>
+              <div class="d-flex justify-content-between align-items-center d-md-none">
+                <a class="navbar-brand d-flex align-items-center"
+                   href="{% url 'home' %}">
+                  <img src="{% static 'images/logo_sans_fond.png' %}"
+                       alt="Logo"
+                       class="img-fluid"
+                       style="max-height: 40px" />
+                  <span class="fs-4 ms-2">
+                    Lite<span class="text-primary">Rev</span>
+                  </span>
+                </a>
                 <button class="open-btn navbar-toggler"
                         type="button">
                   <i class="fa-solid fa-bars-staggered"></i>
@@ -128,19 +143,18 @@
               <div class="collapse navbar-collapse"
                    id="navbarNav">
                 <ul class="navbar-nav ms-auto">
-                  <!-- Link for future how it works page or manual page -->
-                  <!-- <li class="nav-item">
-                  <a class="nav-link fs-5 me-3" aria-current="page" href="#">Learn it</a>
-                </li> -->
+                  <!-- Future links can be added here -->
                   <li class="nav-item">
-                    <span class="fs-5 nav-link fs-5 active me-3"><i class="fa-regular fa-user me-2"></i>User:  {{ user.username }} </span>
+                    <span class="fs-5 nav-link active me-3">
+                      <i class="fa-regular fa-user me-2"></i>User: {{ user.username }}
+                    </span>
                   </li>
                   <li class="nav-item">
                     <form method="post"
                           action="{% url 'logout' %}">
                       {% csrf_token %}
                       <button type="submit"
-                              class="d-inline btn nav-link fs-5">
+                              class="btn nav-link fs-5">
                         <i class="fa-solid fa-right-from-bracket me-2"></i>
                         Log Out
                       </button>

@@ -20,11 +20,17 @@
   </head>
   <body>
     <header class="bg-dark fixed-top">
-      <nav class="container navbar navbar-expand-lg navbar-dark bg-dark">
+      <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
-          <a class="navbar-brand fs-4"
-             href="{% url "home" %}">
-            Lite<span class="text-primary">Rev</span>
+          <a class="navbar-brand d-flex align-items-center"
+             href="{% url 'home' %}">
+            <img src="{% static 'images/logo_sans_fond.png' %}"
+                 alt="Logo"
+                 class="img-fluid"
+                 style="max-height: 40px" />
+            <span class="fs-4 ms-2">
+              Lite<span class="text-primary">Rev</span>
+            </span>
           </a>
           <button class="navbar-toggler"
                   type="button"
@@ -38,14 +44,9 @@
           <div class="collapse navbar-collapse"
                id="navbarNav">
             <ul class="navbar-nav ms-auto">
-              <!-- link for future how it works or manual page -->
-              <!-- <li class="nav-item">
-                    <a class="nav-link fs-5 me-3" aria-current="page" href="#">Learn it</a>
-</li> -->
-
               {% if user.is_authenticated %}
                 <li class="nav-item">
-                  <span class="fs-5 nav-link fs-5 active">
+                  <span class="fs-5 nav-link active">
                     <i class="fa-regular fa-user me-2"></i>
                     User: {{ user.username }}
                   </span>
@@ -55,7 +56,7 @@
                         action="{% url 'logout' %}">
                     {% csrf_token %}
                     <button type="submit"
-                            class="d-inline btn nav-link fs-5">
+                            class="btn nav-link fs-5">
                       <i class="fa-solid fa-right-from-bracket me-2"></i>
                       Log Out
                     </button>
@@ -64,13 +65,12 @@
               {% else %}
                 <li class="nav-item">
                   <a class="nav-link fs-5"
-                     href="{% url "login" %}">
+                     href="{% url 'login' %}">
                     <i class="fa-solid fa-right-to-bracket me-2"></i>
                     Login
                   </a>
                 </li>
               {% endif %}
-
             </ul>
           </div>
         </div>
