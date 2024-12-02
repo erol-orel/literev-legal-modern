@@ -183,11 +183,17 @@ def render_table_choice(
             else:
                 topic_key = UNCLASSIFIED_PAPERS_TOPIC
 
+            topic10 = (
+                topic.split(" : ")[0]
+                + " : "
+                + ", ".join(topic.split(" : ")[1].split(", ")[:10])
+                if topic != UNCLASSIFIED_PAPERS_TOPIC
+                else topic
+            )
+
             render_e.update(
                 {
-                    "topic": topic.split(" : ")[0]
-                    + " : "
-                    + ", ".join(topic.split(" : ")[1].split(", ")[:10]),
+                    "topic": topic10,
                     "hdbscan_score": topic_scores[tablechoice_e.document.id][
                         "hdbscan_score"
                     ],

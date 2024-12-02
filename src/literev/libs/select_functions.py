@@ -187,6 +187,32 @@ def get_raw_filters(post_data: dict[str, str]) -> str:
     return raw_filters
 
 
+def get_render_filter_list(filters: dict[str, str]) -> list[tuple[str, str]]:
+    filter_list = []
+    for filter_type, filter_content in filters.items():
+        row = ""
+        if "union" in filter_type:
+            row_key = "Union Set:"
+            set_items = []
+            for k, v in filter_content.items():
+                for val in v:
+                    set_item = k + ": " + val
+                    set_items.append(set_item)
+            row += "<b> AND </b>".join(set_items)
+        elif "exclude" in filter_type:
+            row_key = "Excluded Set:"
+            set_items = []
+            for k, v in filter_content.items():
+                for val in v:
+                    set_item = k + ": " + val
+                    set_items.append(set_item)
+            row += "<b> OR </b>".join(set_items)
+
+        filter_list.append((row_key, row))
+
+    return filter_list
+
+
 def get_filters(post_data: dict[str, str]) -> dict[str, dict[str, Any]]:
     """
     Return a filter dictionary from the post_data.
@@ -336,9 +362,13 @@ def get_documents_by_descriptor(
     result = set()
     for desc in descriptors:
         regex_key = r".*" + desc.strip() + r".*"
-        documents = Document.objects.filter(
-            project=project, descriptors__iregex=regex_key
-        ).values_list("pk", flat=True)
+        documents = (
+            Document.objects.filter(
+                project=project, descriptors__iregex=regex_key
+            )
+            .exclude(clusterelement__isnull=True)
+            .values_list("pk", flat=True)
+        )
 
         result.update(documents)
     return result
@@ -349,8 +379,10 @@ def get_documents_by_norm(project: Project, norms: list[str]) -> set[int]:
     result = set()
     for norm in norms:
         regex_key = r".*" + norm.strip() + r".*"
-        documents = Document.objects.filter(project=project).filter(
-            Q(standards__iregex=regex_key)
+        documents = (
+            Document.objects.filter(project=project)
+            .filter(Q(standards__iregex=regex_key))
+            .exclude(clusterelement__isnull=True)
         )
         result.update(documents.values_list("pk", flat=True))
     return result
@@ -363,10 +395,14 @@ def get_documents_by_keyword(
     result = set()
     for keyword in keywords:
         regex_key = r".*" + keyword + r".*"
-        documents = Document.objects.filter(project=project).filter(
-            Q(prepared_for_ngrams__iregex=regex_key)
+        documents = (
+            Document.objects.filter(project=project)
+            .filter(Q(prepared_for_ngrams__iregex=regex_key))
+            .exclude(clusterelement__isnull=True)
         )
+
         result.update(documents.values_list("pk", flat=True))
+
     return result
 
 
@@ -378,8 +414,9 @@ def get_documents_by_no_decis(
     for no_d in no_decis:
         documents = Document.objects.filter(
             project=project, raw_document_id=no_d
-        ).exclude(document__clusterelement__isnull=True)
+        ).exclude(clusterelement__isnull=True)
         result.update(documents.values_list("pk", flat=True))
+
     return result
 
 
@@ -390,12 +427,13 @@ def get_documents_by_result(project: Project, results: list[str]) -> set[int]:
         if result_value == "NO RESULT":
             documents = Document.objects.filter(
                 project=project, result=""
-            ).exclude(document__clusterelement__isnull=True)
+            ).exclude(clusterelement__isnull=True)
         else:
             documents = Document.objects.filter(
                 project=project, result=result_value
-            )
+            ).exclude(clusterelement__isnull=True)
         result.update(documents.values_list("pk", flat=True))
+
     return result
 
 
@@ -415,6 +453,7 @@ def get_documents_by_year_range(
             project=project, decision_date__range=(start_date, end_date)
         ).exclude(clusterelement__isnull=True)
         result.update(documents.values_list("pk", flat=True))
+
     return result
 
 
@@ -426,6 +465,7 @@ def get_intersection_of_non_empty_sets(sets: list[set[int]]) -> set[int]:
         for s in non_empty_sets[1:]:
             intersection_set &= s
         return intersection_set
+
     return set()
 
 

@@ -203,6 +203,7 @@ def build_prompt(cluster: Cluster) -> str:
 
     # Finalize prompt with constraints
     full_prompt = prompt + "".join(prompt_fragments) + prompt_constraints
+
     return full_prompt
 
 

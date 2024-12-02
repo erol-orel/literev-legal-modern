@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 import logging
 
 from http import HTTPStatus
@@ -28,7 +29,7 @@ from literev.libs.select_functions import (
     download_finalcsv,
     get_filtered_document,
     get_filters,
-    get_raw_filters,
+    get_render_filter_list,
     remove_refinement,
 )
 from literev.libs.table_choice import (
@@ -384,12 +385,14 @@ def projectpage(
                 context["refinement_limit_exceeded"] = True
             else:
                 filters = get_filters(request.POST)
-                filters_str = get_raw_filters(request.POST)
+                filters_json = json.dumps(
+                    filters
+                )  # get_raw_filters(request.POST)
 
                 document_pk_list = get_filtered_document(
                     project=project, filters=filters
                 )
-                context["filters"] = filters_str
+                context["filters"] = filters_json
                 context["document_pk_list"] = " ".join(
                     str(pk) for pk in document_pk_list
                 )
@@ -409,7 +412,7 @@ def projectpage(
             document_pk_list_str = request.POST.get("document_pk_list", "")
             document_pk_list = [int(pk) for pk in document_pk_list_str.split()]
 
-            filters_str = request.POST.get("filters", "")
+            filters_json = json.loads(request.POST.get("filters", ""))
 
             update_new_table_choice(
                 user=actual_user,
@@ -426,7 +429,7 @@ def projectpage(
                 project,
                 refinement_name,
                 number_documents,
-                filters_str,
+                filters_json,
             )
 
             # create iteration
@@ -998,6 +1001,20 @@ def tableselect(
     iterations_render = get_json_iterations_render(refinement_id, iteration_id)
     context["iterations"] = iterations_render
 
+    _refinement = ProjectRefinement.objects.filter(id=refinement_id).first()
+    rendered_filters = []
+
+    if _refinement:
+        try:
+            raw_filter = json.loads(_refinement.filters)
+            if raw_filter and not isinstance(raw_filter, str):
+                rendered_filters = get_render_filter_list(raw_filter)
+        except Exception as e:
+            logging.warning(
+                f"An error ocurred: {e}, refinement id:{refinement_id}"
+            )
+
+    context["filters_list"] = rendered_filters
     context["project_id"] = project_id
     context["iteration_id"] = iteration_id
 

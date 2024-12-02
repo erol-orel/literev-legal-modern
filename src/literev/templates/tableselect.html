@@ -80,10 +80,32 @@
             <div class="p-4 bg-light">
               <div class="row text-center mb-4 mt-3">
                 <div class="col-12">
-                  Initial documents number: <span class="fw-bold">{{ number_Article_initial }}</span>
+                  Initial documents number in Refinement: <span class="fw-bold">{{ number_Article_initial }}</span>
                 </div>
+
               </div>
+
               <div class="row ps-3 mb-4">
+                {% if filters_list %}
+                  <b>Refinement Criteria</b>
+                  <div class="col-12 mb-3">
+                    <table class="table">
+                      <tbody>
+                        {% for filter in filters_list %}
+                          <tr>
+                            <th scope="row">
+                              {{ filter.0 }}
+                            </th>
+                            <td>
+                              {{ filter.1|safe }}
+                            </td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+
+                  </div>
+                {% endif %}
                 <div class="col">
                   k neighbour: <span class="fw-bold">10</span>
                 </div>
