@@ -1,10 +1,14 @@
 import logging
 import os
 
+from datetime import date
+from typing import Iterator
+
 from celery import chain
 from celery.result import AsyncResult
 from django.conf import settings
 from django.db import transaction
+from django.db.models.query import QuerySet
 
 # Local imports
 from config.celery import app
@@ -51,25 +55,26 @@ def running_delete(project_id: str | int) -> None:
 
     except:
         logging.info(
-            f"There is no celery task code for project id: {project.id}"
+            f"There is no celery task code for project id: {project_id}"
         )
 
     project = Project.objects.filter(pk=project_id).first()
 
-    project.delete()
+    if project:
+        project.delete()
 
     plot_path = settings.PLOT_DATA / f"{project_id}_plot.html"
     div_path = settings.PLOT_DATA / f"{project_id}_div.html"
     script_path = settings.PLOT_DATA / f"{project_id}_script.html"
     hdbscan_scores_path = (
-        settings.ARTICLE_DATA / f"hdbscan_scores_project_{project.id}.pkl"
+        settings.ARTICLE_DATA / f"hdbscan_scores_project_{project_id}.pkl"
     )
     list_id_docs_path = (
-        settings.ARTICLE_DATA / f"id_list_project_{project.id}.pkl"
+        settings.ARTICLE_DATA / f"id_list_project_{project_id}.pkl"
     )
-    tf_idf_path = settings.ARTICLE_DATA / f"tf_idf_project_{project.id}.pkl"
+    tf_idf_path = settings.ARTICLE_DATA / f"tf_idf_project_{project_id}.pkl"
     columns_name_path = (
-        settings.ARTICLE_DATA / f"column_name_project_{project.id}.pkl"
+        settings.ARTICLE_DATA / f"column_name_project_{project_id}.pkl"
     )
 
     paths = [
@@ -333,3 +338,174 @@ def task_rag_result_table(
         raise e
 
     return project_rag_id
+
+
+@app.task(bind=True)
+def back_get_update_documents(
+    self, old_project_id: int, new_project_id: int
+) -> bool:
+    """
+    Fetches documents based on the project's criteria for each selected index and saves them into the database.
+
+    Parameters
+    ----------
+    project_id : int
+        The ID of the project for which documents are fetched.
+
+    Returns
+    -------
+    bool
+        True if documents were successfully fetched and saved, False otherwise.
+    """
+
+    old_project = Project.objects.get(id=old_project_id)
+    new_project = Project.objects.get(id=new_project_id)
+
+    update_task_code(new_project, self.request.id)
+
+    indices = new_project.selected_indices
+    new_project_query = new_project.query
+    start_date = old_project.range_end_date
+    end_date = new_project.range_end_date
+
+    logger.info(
+        f"Starting document collection for project {old_project_id} with query: {new_project_query}"
+    )
+
+    failed_indices = []
+
+    for index in indices:
+        logger.info(f"Processing index: {index}")
+        try:
+            collector = ElasticSearchCollector(index_name=index)
+
+            documents = collector.collect_documents(
+                new_project_query, start_date, end_date
+            )
+
+            save_documents_to_db(new_project, documents)
+
+            logger.info(f"Successfully saved documents for index: {index}")
+
+        except Exception as e:
+            logger.error(
+                f"Failed to collect documents for index: {index}: {e}"
+            )
+            failed_indices.append(index)
+
+    if failed_indices:
+        logger.error(
+            f"Document collection failed for indices: {', '.join(failed_indices)}"
+        )
+        return False
+
+    new_project.step = "preparing"
+    new_project.save()
+    logger.info(
+        f"Document collection and saving completed successfully for project {new_project_id}"
+    )
+    return True
+
+
+def divide_in_chunks_query(
+    query_set: QuerySet[Document], batch_size: int = 500
+) -> Iterator[list[Document]]:
+    """Divides a list into chuncks.
+
+    Parameters
+    ----------
+    query_set : QuerySet[Document]
+        QuerySet containing Document objects.
+    batch_size : int
+        size of chunks
+
+    Returns
+    -------
+    Iterator[list[Document]]
+        A chunked Document list.
+    """
+    total = query_set.count()
+
+    for i in range(0, total, batch_size):
+        end = min(i + batch_size, total)
+        yield query_set[i:end]
+
+
+def launch_update_process(
+    old_project: Project, new_name: str, new_number_docs: int
+) -> bool:
+    """
+    Creates a new project which is the updated version of project.
+
+    Parameters
+    ----------
+    project : Project
+        The project instance containing details about the project.
+    new_name: str
+        New name for the updated project.
+    new_number_docs : int
+        The new estimated total number of documents for the
+        updated project.
+
+    Returns
+    -------
+    bool
+        True if the process was successfully started, False otherwise.
+    """
+
+    today = date.today()
+
+    new_project = Project.objects.create(
+        user=old_project.user,
+        name=new_name,
+        query=old_project.query,
+        range_begin_date=old_project.range_begin_date,
+        range_end_date=today,
+        total_documents=new_number_docs,
+        selected_indices=old_project.selected_indices,
+    )
+
+    documents = Document.objects.filter(project=old_project)
+
+    # Copy documents from the old project to the new project
+    for documents_list in divide_in_chunks_query(documents):
+        new_documents_obj = []
+        for document in documents_list:
+            new_documents_obj.append(
+                Document(
+                    project=new_project,
+                    decision_type=document.decision_type,
+                    decision_date=document.decision_date,
+                    procedure_type=document.procedure_type,
+                    descriptors=document.descriptors,
+                    standards=document.standards,
+                    result=document.result,
+                    raw_document_id=document.raw_document_id,
+                    raw_document_text=document.raw_document_text,
+                    prepared_for_ngrams=document.prepared_for_ngrams,
+                    procedure_year=document.procedure_year,
+                )
+            )
+
+        Document.objects.bulk_create(new_documents_obj)
+
+    with transaction.atomic():
+        if new_project.is_finish or new_project.is_running:
+            return False
+
+        # Pass the selected_indices as an argument to the first task
+        task_chain = chain(
+            back_get_update_documents.si(old_project.id, new_project.id),
+            back_preparing_documents.si(new_project.id),
+            back_preprocess_documents.si(new_project.id),
+            back_clustering_documents.si(new_project.id),
+            back_plotting_documents.si(new_project.id),
+        )
+
+        task_chain.apply_async()
+        new_project.is_running = True
+        new_project.save()
+
+    logger.info(f"Processing workflow initiated for project {new_project.id}.")
+
+    return True

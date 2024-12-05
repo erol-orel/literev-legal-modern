@@ -80,7 +80,7 @@
                       {% endif %}>
                 Continue
               </button>
-              <button id="starting-update"
+              <button id="creating-refinement"
                       class="btn btn-primary col-5"
                       type="button"
                       disabled
@@ -167,11 +167,165 @@
       </div>
     </form>
   {% endif %}
+
+  {% if confirm_update_project %}
+    <div class="div modal-backdrop fade show">
+    </div>
+    <div class="modal fade show"
+         style="display: block"
+         data-bs-keyboard="false"
+         tabindex="-1"
+         aria-labelledby="staticBackdropLabel"
+         aria-modal="true">
+      <form action=""
+            method="POST">
+        {% csrf_token %}
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h1 class="modal-title fs-5 mt-3">
+                A new updated project is going to be created.
+                Would you like to continue with these parameters
+                to update?
+              </h1>
+              <button class="btn-close cancel-update"
+                      type="submit"
+                      name="submit"
+                      value="cancel"
+                      aria-label="Close">
+              </button>
+            </div>
+            <div class="modal-body">
+              <ul class="list-group">
+                <li class="list-group-item mx-4 ps-4">
+                  <div class="row">
+                    <div class="col-4">
+                      New date range :
+                    </div>
+                    <div class="col-8">
+                      <div>
+                        {{ begin_date }}
+                      </div>
+                      <div>
+                        {{ new_end_date }}
+                      </div>
+                    </div>
+                  </div>
+                </li>
+                <li class="list-group-item mx-4 ps-4">
+                  Number of aditional documents : {{ estimated_new_documents }}
+                </li>
+                <li class="list-group-item mx-4 ps-4 mb-4">
+                  New total estimated documents : {{ new_total_documents }}
+                </li>
+              </ul>
+            </div>
+            <div class="mx-4 mb-3">
+              <label for="update-name"
+                     class="form-label">
+                Please confirm or provide a name for the updated Project
+              </label>
+              <input class="form-control"
+                     id="update-name"
+                     type="text"
+                     name="update-name"
+                     placeholder="New Project name"
+                     value="{{ new_project_name }}"
+                     required
+                     autofocus />
+
+              <input type="hidden"
+                     name="new_total_documents"
+                     value="{{ new_total_documents }}" />
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-secondary cancel-update"
+                      type="submit"
+                      name="submit"
+                      value="cancel">
+                Cancel
+              </button>
+              <button id="continue-update"
+                      type="submit"
+                      name="submit"
+                      value="confirm-update"
+                      class="btn btn-primary"
+                      {% if estimated_new_documents == 0 %}
+                        disabled
+                      {% endif %}>
+                Continue
+              </button>
+              <button id="starting-update"
+                      class="btn btn-primary col-5"
+                      type="button"
+                      disabled
+                      hidden="">
+                <span class="spinner-border spinner-border-sm"
+                      role="status"
+                      aria-hidden="true"></span>
+                Starting Update...
+              </button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  {% endif %}
+
+  {% if update_message %}
+    <div class="div modal-backdrop fade show">
+    </div>
+    <form action=""
+          method="POST">
+      {% csrf_token %}
+      <div class="modal fade show"
+           style="display: block"
+           id="deleteModal"
+           tabindex="-1"
+           aria-labelledby="deleteModal"
+           aria-hidden="false">
+
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h1 class="modal-title fs-5"
+                  id="deleteModalLabel">
+                Updating Research Project...
+              </h1>
+              <button class="btn-close"
+                      data-bs-dismiss="modal"
+                      type='submit'
+                      name='submit'
+                      value='accept-update'
+                      aria-label="Close">
+              </button>
+            </div>
+            <div class="modal-body">
+              <p>
+                The research project is being updated.
+              </p>
+              <div class="ms-5">
+                <b>Project:</b> {{ project_name }}
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="submit"
+                      name="submit"
+                      value="accept-update"
+                      class="btn btn-primary">
+                Accept
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  {% endif %}
   <!-- ---- -->
 {% endblock modal %}
 
 {% block content %}
-  <div class="d-flex  flex-grow-1 overflow-scroll">
+  <div class="d-flex flex-grow-1 overflow-scroll">
     <div class="flex-grow-1 justify-content-center">
       <h2 class="text-center my-4 py-4">
         <i class="text-dark fa-solid fa-book-open-reader me-2"></i>
@@ -183,6 +337,15 @@
             <span> You have reached the limit of refinements.</span>
           </div>
         </div>
+      {% endif %}
+      {% if errors %}
+        {% for error in errors %}
+          <div class="row text-center">
+            <div class="alert alert-warning">
+              <span> {{ error }} </span>
+            </div>
+          </div>
+        {% endfor %}
       {% endif %}
       <div class="container">
 
@@ -255,6 +418,14 @@
                     method="POST">
                 {% csrf_token %}
                 <div class="row">
+                  <div class="d-grid gap-2 col-6 mx-auto">
+                    <button type="submit"
+                            name="submit"
+                            value="update"
+                            class="btn btn-primary">
+                      <i class="fa-solid fa-arrow-up-wide-short me-2"></i>Update
+                    </button>
+                  </div>
                   <input type="hidden"
                          name="project_id"
                          value="{{ project.id }}" />
@@ -650,10 +821,8 @@
                     <input type="hidden"
                            name="refinement_id"
                            value="{{ refinement.id }}" />
-
                   </form>
                 </td>
-
               </tr>
             {% endfor %}
           </tbody>
@@ -672,13 +841,50 @@
 
   <script src="{% static "js/filter_functions.js" %}"> </script>
 
+  {% if confirm_update_project %}
+    <script>
+      const continueUpdateButton = document.getElementById("continue-update");
+      const cancelButtonsUpdate = document.querySelectorAll(".cancel-update");
+      const startingButtonUpdate = document.getElementById("starting-update");
+
+      cancelButtonsUpdate.forEach(btn => btn.addEventListener("click", (e) => {
+        const nameInput = document.querySelector("#update-name");
+        nameInput.removeAttribute("required");
+      }))
+      // Get the input field
+      const inputRefUpdateName = document.getElementById("update-name");
+
+      // Execute a function when the user presses a key on the keyboard
+      inputRefUpdateName.addEventListener("keypress", function(event) {
+        // If the user presses the "Enter" key on the keyboard
+        if (event.key === "Enter") {
+          // Cancel the default action, if needed
+          event.preventDefault();
+          // Trigger the button element with a click
+          continueUpdateButton.click();
+        }
+      });
+
+    continueUpdateButton.addEventListener("click", () => {
+      continueUpdateButton.style.pointerEvents = "none";
+      cancelButtonsUpdate.forEach((button) => {
+        button.style.pointerEvents = 'none';
+        button.style.disabled = true;
+        button.style.cursor = "not-allowed";
+      });
+      continueUpdateButton.hidden = true;
+      startingButtonUpdate.hidden = false;
+    });
+    </script>
+  {% endif %}
+
   {% if AreYouSure %}
     <script>
       const continueButton = document.getElementById("continue-button");
       const cancelButtons = document.querySelectorAll(".cancel-generate");
-      const startingButton = document.getElementById("starting-update");
+      const startingButton = document.getElementById("creating-refinement");
 
-      cancelButtons.forEach(btn => btn.addEventListener("click", (e) => {
+      cancelButtonsUpdate.forEach(btn => btn.addEventListener("click", (e) => {
         const nameInput = document.querySelector("#name-refinement");
         nameInput.removeAttribute("required");
       }))
@@ -686,25 +892,25 @@
       const inputRefName = document.getElementById("name-refinement");
 
       // Execute a function when the user presses a key on the keyboard
-      inputRefName.addEventListener("keypress", function(event) {
+      inputRefUpdateName.addEventListener("keypress", function(event) {
         // If the user presses the "Enter" key on the keyboard
         if (event.key === "Enter") {
           // Cancel the default action, if needed
           event.preventDefault();
           // Trigger the button element with a click
-          continueButton.click();
+          continueUpdateButton.click();
         }
       });
 
-    continueButton.addEventListener("click", () => {
-      continueButton.style.pointerEvents = "none";
-      cancelButtons.forEach((button) => {
+    continueUpdateButton.addEventListener("click", () => {
+      continueUpdateButton.style.pointerEvents = "none";
+      cancelButtonsUpdate.forEach((button) => {
         button.style.pointerEvents = 'none';
         button.style.disabled = true;
         button.style.cursor = "not-allowed";
       });
-      continueButton.hidden = true;
-      startingButton.hidden = false;
+      continueUpdateButton.hidden = true;
+      startingButtonUpdate.hidden = false;
     });
     </script>
   {% endif %}

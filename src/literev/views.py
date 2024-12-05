@@ -45,6 +45,10 @@ from literev.libs.table_choice import (
     update_checked_document_page,
     update_new_table_choice,
 )
+from literev.libs.update_project import (
+    estimate_new_documents,
+    get_actual_number_documents,
+)
 from literev.libs.utils import (
     get_number_documents,
 )
@@ -62,6 +66,7 @@ from literev.task_plotting import get_color_map
 from literev.tasks import (
     get_shared_projects_ids,
     launch_process,
+    launch_update_process,
     remove_all_finished_projects,
     running_delete,
 )
@@ -335,6 +340,8 @@ def projectpage(
     context["AreYouSure"] = False
     context["confirm_delete_project"] = False
     context["refinement_limit_exceeded"] = False
+    context["update_message"] = False
+    context["errors"] = []
 
     actual_user = request.user
     project_exist = (
@@ -398,6 +405,40 @@ def projectpage(
                 )
                 context["number_document"] = len(document_pk_list)
                 context["AreYouSure"] = True
+
+        elif submit == "update":
+            context["confirm_update_project"] = True
+            estimated_new_documents = estimate_new_documents(project)
+            context["estimated_new_documents"] = estimated_new_documents
+            actual_number_documents = get_actual_number_documents(project)
+            context["new_total_documents"] = (
+                estimated_new_documents + actual_number_documents
+            )
+            context["begin_date"] = project.range_begin_date
+            context["new_end_date"] = datetime.date.today()
+            context["new_project_name"] = project.name + " (updated)"
+
+        elif submit == "confirm-update":
+            new_project_name = request.POST.get("update-name", "")
+            created = False
+
+            new_total_documents = int(request.POST.get("new_total_documents"))
+
+            created = launch_update_process(
+                project, new_project_name, new_total_documents
+            )
+
+            if created:
+                context["update_message"] = True
+                context["project_name"] = new_project_name
+            else:
+                context["errors"].append("An error ocurred while updating")
+
+        elif submit == "accept-update":
+            return redirect(reverse("running"))
+
+        elif submit == "cancel":
+            pass
 
         elif submit == "delete":
             context["confirm_delete_project"] = True
