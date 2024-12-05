@@ -884,7 +884,7 @@
       const cancelButtons = document.querySelectorAll(".cancel-generate");
       const startingButton = document.getElementById("creating-refinement");
 
-      cancelButtonsUpdate.forEach(btn => btn.addEventListener("click", (e) => {
+      cancelButtons.forEach(btn => btn.addEventListener("click", (e) => {
         const nameInput = document.querySelector("#name-refinement");
         nameInput.removeAttribute("required");
       }))
@@ -892,25 +892,25 @@
       const inputRefName = document.getElementById("name-refinement");
 
       // Execute a function when the user presses a key on the keyboard
-      inputRefUpdateName.addEventListener("keypress", function(event) {
+      inputRefName.addEventListener("keypress", function(event) {
         // If the user presses the "Enter" key on the keyboard
         if (event.key === "Enter") {
           // Cancel the default action, if needed
           event.preventDefault();
           // Trigger the button element with a click
-          continueUpdateButton.click();
+          continueButton.click();
         }
       });
 
-    continueUpdateButton.addEventListener("click", () => {
-      continueUpdateButton.style.pointerEvents = "none";
-      cancelButtonsUpdate.forEach((button) => {
+    continueButton.addEventListener("click", () => {
+      continueButton.style.pointerEvents = "none";
+      cancelButtons.forEach((button) => {
         button.style.pointerEvents = 'none';
         button.style.disabled = true;
         button.style.cursor = "not-allowed";
       });
-      continueUpdateButton.hidden = true;
-      startingButtonUpdate.hidden = false;
+      continueButton.hidden = true;
+      startingButton.hidden = false;
     });
     </script>
   {% endif %}

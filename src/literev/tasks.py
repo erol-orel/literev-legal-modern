@@ -17,7 +17,11 @@ from literev.libs.pipeline import (
     update_pp_document,
 )
 from literev.libs.rag_pdf import PDFRAG
-from literev.libs.utils import save_documents_to_db, update_task_code
+from literev.libs.utils import (
+    save_documents_to_db,
+    update_es_scores_file,
+    update_task_code,
+)
 from literev.models import Document, Project, ProjectRAG, User
 from literev.task_clustering import back_clustering_documents
 from literev.task_plotting import back_plotting_documents
@@ -342,15 +346,21 @@ def task_rag_result_table(
 
 @app.task(bind=True)
 def back_get_update_documents(
-    self, old_project_id: int, new_project_id: int
+    self,
+    old_project_id: int,
+    new_project_id: int,
+    pair_document_ids: list[tuple[int, int]],
 ) -> bool:
     """
     Fetches documents based on the project's criteria for each selected index and saves them into the database.
 
     Parameters
     ----------
-    project_id : int
-        The ID of the project for which documents are fetched.
+    old_project_id : int
+        The ID of the project for which documents are being updated.
+    new_project_id : int
+        The ID of the project which will be the updated version for old project
+        and will fetch new documents.
 
     Returns
     -------
@@ -398,6 +408,8 @@ def back_get_update_documents(
             f"Document collection failed for indices: {', '.join(failed_indices)}"
         )
         return False
+
+    update_es_scores_file(old_project_id, new_project_id, pair_document_ids)
 
     new_project.step = "preparing"
     new_project.save()
@@ -467,6 +479,7 @@ def launch_update_process(
 
     documents = Document.objects.filter(project=old_project)
 
+    pair_document_ids = []
     # Copy documents from the old project to the new project
     for documents_list in divide_in_chunks_query(documents):
         new_documents_obj = []
@@ -487,7 +500,10 @@ def launch_update_process(
                 )
             )
 
-        Document.objects.bulk_create(new_documents_obj)
+        new_documents = Document.objects.bulk_create(new_documents_obj)
+
+        for new_document, old_document in zip(new_documents, documents_list):
+            pair_document_ids.append((old_document.id, new_document.id))
 
     with transaction.atomic():
         if new_project.is_finish or new_project.is_running:
@@ -495,7 +511,9 @@ def launch_update_process(
 
         # Pass the selected_indices as an argument to the first task
         task_chain = chain(
-            back_get_update_documents.si(old_project.id, new_project.id),
+            back_get_update_documents.si(
+                old_project.id, new_project.id, pair_document_ids
+            ),
             back_preparing_documents.si(new_project.id),
             back_preprocess_documents.si(new_project.id),
             back_clustering_documents.si(new_project.id),

@@ -429,7 +429,8 @@
 {% block jscode %}
   <script src="{% static 'js/select_functions.js' %}"></script>
   <script src="{% static 'js/checkbox_counter.js' %}"></script>
-  <script>
+  {% if not processing_filters %}
+    <script>
     async function updateFormDataAndOpenPageRAG() {
       let selectedDocuments = [];
       let deselectedDocuments = [];
@@ -472,7 +473,8 @@
       const url = "{% url 'project-rag-page' project_id=project_id %}";
       window.location.href = url;
     }
-  </script>
+    </script>
+  {% endif %}
   {% if processing_filters %}
     <script>
     setTimeout(function(){

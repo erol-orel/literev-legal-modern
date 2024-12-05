@@ -126,3 +126,65 @@ def save_documents_to_db(project: Project, documents: list[MetaData]) -> None:
         es_scores_dict,
         settings.ARTICLE_DATA / f"es_scores_project_{project.id}.pkl",
     )
+
+
+def get_es_scores_id(project_id: int) -> dict[int, str]:
+    """
+    Loads saved elasticsearch scores.
+    Parameters
+    ----------
+    project_id : int
+        A project id related with the elasticsearch scores.
+
+    Returns
+    -------
+    dict[int, str]
+        Dictionary with document_id as key and elasticsearch
+        score as value for the project.
+    """
+    path = settings.ARTICLE_DATA / f"es_scores_project_{project_id}.pkl"
+
+    if not path.exists():
+        return {}
+
+    scores = joblib.load(path)
+
+    return scores
+
+
+def update_es_scores_file(
+    old_project_id: int,
+    new_project_id: int,
+    pair_document_id: list[tuple[int, int]],
+) -> None:
+    """
+    Updates the elastic search scores for the new project taking scores from the old project
+    which are being updated in the new project.
+
+    Parameters
+    ----------
+    old_project_id : int
+        The ID of the project for which documents are being updated.
+    new_project_id : int
+        The ID of the project which will be the updated version for old project
+        and will fetch new documents.
+    pair_document_id : list[tuple[int, int]]
+        list of tuples containing the old document ids and new document ids
+        
+    """
+
+    old_scores_dict = get_es_scores_id(old_project_id)
+    new_scores_dict = get_es_scores_id(new_project_id)
+
+    if old_scores_dict and new_scores_dict:
+        copy_scores_dict = {}
+
+        for pair in pair_document_id:
+            copy_scores_dict[pair[1]] = old_scores_dict[pair[0]]
+
+        new_scores_dict.update(copy_scores_dict)
+
+    joblib.dump(
+        new_scores_dict,
+        settings.ARTICLE_DATA / f"es_scores_project_{new_project_id}.pkl",
+    )
