@@ -2,6 +2,21 @@ Release Notes
 ---
 
 
+## [0.10.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.9.0...0.10.0) (2024-12-06)
+
+### Features
+
+* add refinement criteria in table select ([#159](https://github.com/thegraphnetwork-literev/literev-legal/issues/159)) ([662dfab](https://github.com/thegraphnetwork-literev/literev-legal/commit/662dfabcb761f732f7282b6282a6bbf8bc747845))
+* add update projects workflow  ([#160](https://github.com/thegraphnetwork-literev/literev-legal/issues/160)) ([48451ea](https://github.com/thegraphnetwork-literev/literev-legal/commit/48451eaab5d9b69981788a7c58264dedc02030bd))
+* **branding:** Add tagline and new LiteRev logo ([#156](https://github.com/thegraphnetwork-literev/literev-legal/issues/156)) ([ce0aa05](https://github.com/thegraphnetwork-literev/literev-legal/commit/ce0aa052235186823d93da1644aa876784c8f9d8))
+* **django-template:** Refactor templates, enhance navigation, and implement team page prototype   ([#164](https://github.com/thegraphnetwork-literev/literev-legal/issues/164)) ([b61fa59](https://github.com/thegraphnetwork-literev/literev-legal/commit/b61fa59d03c1a9b09e8c291082a368615686fd80))
+* **plot:** Display cluster numbers in black, bold text inside circles ([#158](https://github.com/thegraphnetwork-literev/literev-legal/issues/158)) ([d9446d0](https://github.com/thegraphnetwork-literev/literev-legal/commit/d9446d00370d0ed3efc43c2fef75a36e9b8bca04))
+
+### Bug Fixes
+
+* make compatible update workflow with old projects ([#162](https://github.com/thegraphnetwork-literev/literev-legal/issues/162)) ([4fbf6c0](https://github.com/thegraphnetwork-literev/literev-legal/commit/4fbf6c07e5ae5d5ff00088cbb6db0a423d061111))
+* solve iteration bug ([#161](https://github.com/thegraphnetwork-literev/literev-legal/issues/161)) ([689d78a](https://github.com/thegraphnetwork-literev/literev-legal/commit/689d78a98e288a312bd516c81a83df53482dbb9b))
+
 ## [0.9.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.8.1...0.9.0) (2024-11-26)
 
 ### Features
