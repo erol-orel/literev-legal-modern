@@ -262,10 +262,6 @@ def plot_clusters(
         color={"field": "topic", "transform": color_map},
     )
 
-    fig.add_layout(number_label)
-    # Now create the hover tool, and make sure it is only active with
-    # the series plotted in the previous line
-
     tooltips = """
     <div style="width: 400px;">
 
@@ -323,6 +319,10 @@ def plot_clusters(
     hover = HoverTool(name=name, tooltips=tooltips)
 
     fig.add_tools(hover)
+    fig.add_layout(number_label)
+    # Now create the hover tool, and make sure it is only active with
+    # the series plotted in the previous line
+
     fig.axis.visible = False
 
     # removes grid lines from both axis (x, y)

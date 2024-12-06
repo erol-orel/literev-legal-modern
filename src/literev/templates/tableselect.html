@@ -4,424 +4,434 @@
 
 {% load filtering_functions %}
 
+{% block sidebar %}
+
+  {% include "components/sidebar.html" %}
+
+{% endblock sidebar %}
+
 {% block content %}
-  <div class="d-flex flex-column flex-grow-1">
-    <div class="container mt-4">
-      <h2 class="text-center mb-4">
-        <i class="fa-solid fa-table me-2"></i>Results Table
-      </h2>
-      {% if iterations_limit_exceeded %}
-        <div class="row text-center">
-          <div class="alert alert-warning">
-            <span> You have reached the limit of iterations.</span>
-          </div>
-        </div>
-      {% endif %}
-      <div class="container">
-
-        <div class="row">
-          <div class="mx-auto col-lg-8 col-md-12 col-sm-12">
-            <hr />
-            <div class="fw-bold fs-3">
-              Details
+  <div class="container justify-content-center">
+    <div class="col-sm-12 col-md-12 col-xl-11 mx-auto">
+      <div class="container py-8"
+           style="padding-top: 125px">
+        <h1 class="text-center col-12 mb-5">
+          <i class="fa-regular fa-rectangle-list me-3"></i>
+          Results Table
+        </h1>
+        {% if iterations_limit_exceeded %}
+          <div class="row text-center">
+            <div class="alert alert-warning">
+              <span> You have reached the limit of iterations.</span>
             </div>
-            <table class="table">
-              <tbody>
-                <tr>
-                  <th scope="row">
-                    Project name
-                  </th>
-                  <td>
-                    {{ project.name }}
-                  </td>
-                </tr>
-                <tr>
-                  <th scope="row">
-                    Creation date
-                  </th>
-                  <td>
-                    {{ project.creation_date }}
-                  </td>
-                </tr>
-                <tr>
-                  <th scope="row">
-                    Query
-                  </th>
-                  <td>
-                    {{ project.query }}
-                  </td>
-                </tr>
-                <tr>
-                  <th scope="row">
-                    Range date project
-                  </th>
-                  <td>
-                    <div>
-                      From: {{ project.range_begin_date }}
-                    </div>
-                    <div>
-                      To: {{ project.range_end_date }}
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <th scope="row">
-                    Number of Documents
-                  </th>
-                  <td class="align-middle">
-                    {{ project | count_processed_documents }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
           </div>
+        {% endif %}
+        <div class="container">
 
+          <div class="row">
+            <div class="mx-auto col-lg-8 col-md-12 col-sm-12">
+              <hr />
+              <div class="fw-bold fs-3">
+                Details
+              </div>
+              <table class="table">
+                <tbody>
+                  <tr>
+                    <th scope="row">
+                      Project name
+                    </th>
+                    <td>
+                      {{ project.name }}
+                    </td>
+                  </tr>
+                  <tr>
+                    <th scope="row">
+                      Creation date
+                    </th>
+                    <td>
+                      {{ project.creation_date }}
+                    </td>
+                  </tr>
+                  <tr>
+                    <th scope="row">
+                      Query
+                    </th>
+                    <td>
+                      {{ project.query }}
+                    </td>
+                  </tr>
+                  <tr>
+                    <th scope="row">
+                      Range date project
+                    </th>
+                    <td>
+                      <div>
+                        From: {{ project.range_begin_date }}
+                      </div>
+                      <div>
+                        To: {{ project.range_end_date }}
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th scope="row">
+                      Number of Documents
+                    </th>
+                    <td class="align-middle">
+                      {{ project | count_processed_documents }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+          </div>
         </div>
-      </div>
-      <form class="row mt-4"
-            id="frmArticles"
-            action=""
-            method="POST">
-        {% csrf_token %}
-        <div class="row col-12">
-          <div class="fs-5 mx-auto col-lg-8 col-md-12 col-sm-12">
-            <div class="p-4 bg-light">
-              <div class="row text-center mb-4 mt-3">
-                <div class="col-12">
-                  Initial documents number in Refinement: <span class="fw-bold">{{ number_Article_initial }}</span>
-                </div>
-
-              </div>
-
-              <div class="row ps-3 mb-4">
-                {% if filters_list %}
-                  <b>Refinement Criteria</b>
-                  <div class="col-12 mb-3">
-                    <table class="table">
-                      <tbody>
-                        {% for filter in filters_list %}
-                          <tr>
-                            <th scope="row">
-                              {{ filter.0 }}
-                            </th>
-                            <td>
-                              {{ filter.1|safe }}
-                            </td>
-                          </tr>
-                        {% endfor %}
-                      </tbody>
-                    </table>
-
+        <form class="row mt-4"
+              id="frmArticles"
+              action=""
+              method="POST">
+          {% csrf_token %}
+          <div class="row col-12">
+            <div class="fs-5 mx-auto col-lg-8 col-md-12 col-sm-12">
+              <div class="p-4 bg-light">
+                <div class="row text-center mb-4 mt-3">
+                  <div class="col-12">
+                    Initial documents number in Refinement: <span class="fw-bold">{{ number_Article_initial }}</span>
                   </div>
-                {% endif %}
-                <div class="col">
-                  k neighbour: <span class="fw-bold">10</span>
+
                 </div>
-                <div class="col">
-                  New documents: <span class="fw-bold">{{ number_Article_neighbour }}</span>
+
+                <div class="row ps-3 mb-4">
+                  {% if filters_list %}
+                    <b>Refinement Criteria</b>
+                    <div class="col-12 mb-3">
+                      <table class="table">
+                        <tbody>
+                          {% for filter in filters_list %}
+                            <tr>
+                              <th scope="row">
+                                {{ filter.0 }}
+                              </th>
+                              <td>
+                                {{ filter.1|safe }}
+                              </td>
+                            </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+
+                    </div>
+                  {% endif %}
+                  <div class="col">
+                    k neighbour: <span class="fw-bold">10</span>
+                  </div>
+                  <div class="col">
+                    New documents: <span class="fw-bold">{{ number_Article_neighbour }}</span>
+                  </div>
+                </div>
+                <div class="ps-3 row mb-4">
+                  <div class="col">
+                    Document checked: <span class="article-counter fw-bold">{{ number_Article_chosen }}</span>
+                  </div>
+                  <div class="col">
+                    Check/Uncheck all
+                    <input class="form-check-input ms-3"
+                           type="checkbox"
+                           onclick="toggle(this)" />
+                  </div>
                 </div>
               </div>
-              <div class="ps-3 row mb-4">
-                <div class="col">
-                  Document checked: <span class="article-counter fw-bold">{{ number_Article_chosen }}</span>
+              <div class="col-10 mx-auto">
+                <div class="row justify-content-center mt-3 gap-md-3 gap-sm-2 gap-lg-5">
+                  <button type="submit"
+                          name="submit"
+                          value="iterate"
+                          class="col-md-3 col-sm-12 btn btn-secondary mb-2">
+                    Iterate
+                  </button>
+                  <button type="submit"
+                          name="submit"
+                          value="reset"
+                          class="col-md-3 col-sm-12 btn btn-secondary mb-2">
+                    Reset
+                  </button>
+                  <button type="submit"
+                          name="submit"
+                          value="finish"
+                          class="col-md-3 col-sm-12 btn btn-primary mb-2">
+                    Export Selected
+                  </button>
+                  {% if project_id %}
+                    <button type="button"
+                            id="btnRAG"
+                            onclick="updateFormDataAndOpenPageRAG();"
+                            value="rag"
+                            class="col-md-3 col-sm-12 btn btn-primary mb-2"
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="bottom"
+                            data-bs-title="Ask questions to selected documents">
+                      Ask Selected
+                    </button>
+                  {% endif %}
                 </div>
-                <div class="col">
-                  Check/Uncheck all
-                  <input class="form-check-input ms-3"
-                         type="checkbox"
-                         onclick="toggle(this)" />
+              </div>
+              <hr class="mb-5" />
+            </div>
+            {% if not processing_filters %}
+              <div class="container">
+                {% for iteration in iterations %}
+                  <div class="btn-group"
+                       role="group"
+                       aria-label="Iterations">
+                    {% if iteration.is_active %}
+                      <button type="button"
+                              class="btn btn-secondary mb-3">
+                        Current: {{ iteration.name }}
+                      </button>
+                    {% else %}
+                      <button type="submit"
+                              name="get-iteration"
+                              value="{{ iteration.id }}"
+                              class="btn mb-3 btn-outline-secondary">
+                        {{ iteration.name }}
+                      </button>
+                    {% endif %}
+                    {% if iteration.is_parent is False and iteration.is_root is False %}
+                      <button type="submit"
+                              name="remove-iteration"
+                              value="{{ iteration.id }}"
+                              class="me-3 mb-3 btn btn-outline-danger">
+                        X
+                      </button>
+                    {% endif %}
+                  </div>
+                  {% if iteration.is_parent %}
+                    <span class="fs-3 text-secondary"><i class="fa-solid fa-chevron-right"></i></span>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+          {% if processing_filters %}
+            <div class="mt-5 d-flex justify-content-center">
+              <div class="spinner-border text-primary"
+                   role="status">
+                <span class="visually-hidden">Processing new results...</span>
+              </div>
+              <span class="ms-3 fs-4 text-secondary">Processing new results ...</span>
+            </div>
+          {% else %}
+            <div class="container text-center mt-4">
+              <div class="row justify-content-center">
+                <div class="col-3 d-flex align-items-center">
+                  <div class="d-flex align-items-center">
+                    <label for="update_order_by"
+                           class="form-label me-2 mb-0">
+                      <b>Sort by:</b>
+                    </label>
+                    <select name="update_order_by"
+                            id="update_order_by"
+                            class="form-select"
+                            aria-label="Select order">
+                      <option value="decision_date"
+                              {% if sort_by == "decision_date" %}
+                                selected
+                              {% endif %}>
+                        Decision Date (Ascending)
+                      </option>
+                      <option value="-decision_date"
+                              {% if sort_by == "-decision_date" %}
+                                selected
+                              {% endif %}>
+                        Decision Date (Descending)
+                      </option>
+                      {% if has_es_scores %}
+                        <option value="es_score"
+                                {% if sort_by == "es_score" %}
+                                  selected
+                                {% endif %}>
+                          Query relevance score
+                        </option>
+                      {% endif %}
+                      <!-- Disable sorting by similar keywords -->
+                      <!-- {% for keyword in keywords %}
+                      <option value="{{ keyword }}" {% if sort_by == keyword %} selected {% endif %}>
+                        keyword: {{ keyword }}
+                      </option>
+                    {% endfor %} -->
+                    </select>
+                  </div>
+                  <button type="submit"
+                          name="submit"
+                          id="apply_order_button"
+                          value="update_order"
+                          class="btn btn-primary mt-2"
+                          hidden>
+                    Apply Order
+                  </button>
                 </div>
+                <div class="col-9 text-end">
+                  page: <span class="fw-bold">{{ current_page }}/{{ total_page }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 mb-3 mx-auto mt-4">
+              {% if not processing_filters %}
+                <div class="d-flex justify-content-between">
+                  <div class="col-4 text-start">
+                    {% if not first_page %}
+                      <input class="btn btn-outline-dark"
+                             type="submit"
+                             name="submit"
+                             value="previous" />
+                    {% endif %}
+                  </div>
+                  <div class="col-4 mb-2 text-end">
+                    {% if not last_page %}
+                      <input class="btn btn-outline-dark"
+                             type="submit"
+                             name="submit"
+                             value="next" />
+                    {% endif %}
+                  </div>
+                </div>
+              {% endif %}
+            </div>
+            <div class="container">
+              <hr />
+              <div class="row">
+                {% for tablechoice in tablechoice_list %}
+                  <div class="col-1 mb-2 d-grid justify-content-center">
+                    {% if tablechoice.is_check %}
+                      <input style="width: 30px;
+                                    height: 30px"
+                             type='checkbox'
+                             id="{{ tablechoice.id }}"
+                             name='check_row'
+                             value="{{ tablechoice.id }}"
+                             checked />
+                    {% else %}
+                      <input style="width: 30px;
+                                    height: 30px"
+                             type='checkbox'
+                             id="{{ tablechoice.id }}"
+                             name='check_row'
+                             value="{{ tablechoice.id }}" />
+                    {% endif %}
+                  </div>
+                  <div class="col-11">
+                    <div class="d-flex justify-content-between">
+                      <div class="fs-5 align-self-center">
+                        <span class="badge bg-score-query text-dark">Query relevance score: {{ tablechoice.es_score }} </span>
+                      </div>
+                      <h3>
+                        <span class="badge text-bg-dark">
+                          <a class="text-white"
+                             href="{% url 'contentdocument' document_id=tablechoice.document_pk %}">{{ tablechoice.procedure_type }}</a>
+                        </span>
+                      </h3>
+                    </div>
+                    <div class="ms-auto mt-3 text-start mb-3">
+                      <div>
+                        <b>{{ tablechoice.decision_type }}</b>, du {{ tablechoice.decision_date }}
+                        <b>Result:</b> {{ tablechoice.result }}
+                      </div>
+                    </div>
+                    <div class="mb-3 ms-auto">
+                      <div>
+                        <b>Normes:</b> {{ tablechoice.standards }}
+                      </div>
+                    </div>
+                    <div class="mb-3 ms-auto">
+                      <div>
+                        <b>Extraits:</b> {{ tablechoice.sample_document | safe }} ...
+                      </div>
+                    </div>
+                  </div>
+                  {% if hdbscan_scores %}
+                    <div class="col-1">
+                    </div>
+                    <div class="col-12 text-center fs-5 mb-3">
+                      <span class="badge text-dark"
+                            style="background-color: {{ tablechoice.color }}80"> {{ tablechoice.topic }}</span>
+                      <span class="badge bg-light text-dark"> Topic score : {{ tablechoice.hdbscan_score | floatformat:"1" }} %</span>
+                    </div>
+                  {% endif %}
+                  <hr />
+                {% endfor %}
+              </div>
+            </div>
+            <div class="col-12 mb-3 mx-auto mt-4">
+              {% if not processing_filters %}
+                <div class="d-flex justify-content-between">
+                  <div class="col-4 text-start">
+                    {% if not first_page %}
+                      <input class="btn btn-outline-dark"
+                             type="submit"
+                             name="submit"
+                             value="previous" />
+                    {% endif %}
+                  </div>
+
+                  <div class="col-4 mb-2 text-end">
+                    {% if not last_page %}
+                      <input class="btn btn-outline-dark"
+                             type="submit"
+                             name="submit"
+                             value="next" />
+                    {% endif %}
+                  </div>
+                </div>
+              {% endif %}
+            </div>
+            <div class="col-12">
+              <div class="col-4 mx-auto text-center mb-4">
+                page:
+                <span class="fw-bold">{{ current_page }}/{{ total_page }}</span>
               </div>
             </div>
             <div class="col-10 mx-auto">
+              <div class="p-4 bg-light">
+                <div class="row text-center">
+                  <div class="col">
+                    Documents checked: <span class="article-counter-bottom fw-bold">{{ number_Article_chosen }}</span>
+                  </div>
+                  <div class="col">
+                    Check/Uncheck all
+                    <input class="form-check-input ms-3"
+                           type="checkbox"
+                           onclick="toggle(this)" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-8 mx-auto mb-5">
               <div class="row justify-content-center mt-3 gap-md-3 gap-sm-2 gap-lg-5">
                 <button type="submit"
                         name="submit"
                         value="iterate"
-                        class="col-md-3 col-sm-12 btn btn-secondary mb-2">
+                        class="col-md-3 col-sm-12 btn btn-secondary mb-2 btn-lg">
                   Iterate
                 </button>
                 <button type="submit"
                         name="submit"
                         value="reset"
-                        class="col-md-3 col-sm-12 btn btn-secondary mb-2">
+                        class="col-md-3 col-sm-12 btn btn-secondary mb-2 btn-lg">
                   Reset
                 </button>
                 <button type="submit"
                         name="submit"
                         value="finish"
-                        class="col-md-3 col-sm-12 btn btn-primary mb-2">
+                        class="col-md-3 col-sm-12 btn btn-primary mb-2 btn-lg">
                   Export Selected
                 </button>
-                {% if project_id %}
-                  <button type="button"
-                          id="btnRAG"
-                          onclick="updateFormDataAndOpenPageRAG();"
-                          value="rag"
-                          class="col-md-3 col-sm-12 btn btn-primary mb-2"
-                          data-bs-toggle="tooltip"
-                          data-bs-placement="bottom"
-                          data-bs-title="Ask questions to selected documents">
-                    Ask Selected
-                  </button>
-                {% endif %}
               </div>
             </div>
             <hr class="mb-5" />
-          </div>
-          {% if not processing_filters %}
-            <div class="container">
-              {% for iteration in iterations %}
-                <div class="btn-group"
-                     role="group"
-                     aria-label="Iterations">
-                  {% if iteration.is_active %}
-                    <button type="button"
-                            class="btn btn-secondary mb-3">
-                      Current: {{ iteration.name }}
-                    </button>
-                  {% else %}
-                    <button type="submit"
-                            name="get-iteration"
-                            value="{{ iteration.id }}"
-                            class="btn mb-3 btn-outline-secondary">
-                      {{ iteration.name }}
-                    </button>
-                  {% endif %}
-                  {% if iteration.is_parent is False and iteration.is_root is False %}
-                    <button type="submit"
-                            name="remove-iteration"
-                            value="{{ iteration.id }}"
-                            class="me-3 mb-3 btn btn-outline-danger">
-                      X
-                    </button>
-                  {% endif %}
-                </div>
-                {% if iteration.is_parent %}
-                  <span class="fs-3 text-secondary"><i class="fa-solid fa-chevron-right"></i></span>
-                {% endif %}
-              {% endfor %}
-            </div>
           {% endif %}
-        </div>
-        {% if processing_filters %}
-          <div class="mt-5 d-flex justify-content-center">
-            <div class="spinner-border text-primary"
-                 role="status">
-              <span class="visually-hidden">Processing new results...</span>
-            </div>
-            <span class="ms-3 fs-4 text-secondary">Processing new results ...</span>
-          </div>
-        {% else %}
-          <div class="container text-center mt-4">
-            <div class="row justify-content-center">
-              <div class="col-3 d-flex align-items-center">
-                <div class="d-flex align-items-center">
-                  <label for="update_order_by"
-                         class="form-label me-2 mb-0">
-                    <b>Sort by:</b>
-                  </label>
-                  <select name="update_order_by"
-                          id="update_order_by"
-                          class="form-select"
-                          aria-label="Select order">
-                    <option value="decision_date"
-                            {% if sort_by == "decision_date" %}
-                              selected
-                            {% endif %}>
-                      Decision Date (Ascending)
-                    </option>
-                    <option value="-decision_date"
-                            {% if sort_by == "-decision_date" %}
-                              selected
-                            {% endif %}>
-                      Decision Date (Descending)
-                    </option>
-                    {% if has_es_scores %}
-                      <option value="es_score"
-                              {% if sort_by == "es_score" %}
-                                selected
-                              {% endif %}>
-                        Query relevance score
-                      </option>
-                    {% endif %}
-                    <!-- Disable sorting by similar keywords -->
-                    <!-- {% for keyword in keywords %}
-                      <option value="{{ keyword }}" {% if sort_by == keyword %} selected {% endif %}>
-                        keyword: {{ keyword }}
-                      </option>
-                    {% endfor %} -->
-                  </select>
-                </div>
-                <button type="submit"
-                        name="submit"
-                        id="apply_order_button"
-                        value="update_order"
-                        class="btn btn-primary mt-2"
-                        hidden>
-                  Apply Order
-                </button>
-              </div>
-              <div class="col-9 text-end">
-                page: <span class="fw-bold">{{ current_page }}/{{ total_page }}</span>
-              </div>
-            </div>
-          </div>
-          <div class="col-12 mb-3 mx-auto mt-4">
-            {% if not processing_filters %}
-              <div class="d-flex justify-content-between">
-                <div class="col-4 text-start">
-                  {% if not first_page %}
-                    <input class="btn btn-outline-dark"
-                           type="submit"
-                           name="submit"
-                           value="previous" />
-                  {% endif %}
-                </div>
-                <div class="col-4 mb-2 text-end">
-                  {% if not last_page %}
-                    <input class="btn btn-outline-dark"
-                           type="submit"
-                           name="submit"
-                           value="next" />
-                  {% endif %}
-                </div>
-              </div>
-            {% endif %}
-          </div>
-          <div class="container">
-            <hr />
-            <div class="row">
-              {% for tablechoice in tablechoice_list %}
-                <div class="col-1 mb-2 d-grid justify-content-center">
-                  {% if tablechoice.is_check %}
-                    <input style="width: 30px;
-                                  height: 30px"
-                           type='checkbox'
-                           id="{{ tablechoice.id }}"
-                           name='check_row'
-                           value="{{ tablechoice.id }}"
-                           checked />
-                  {% else %}
-                    <input style="width: 30px;
-                                  height: 30px"
-                           type='checkbox'
-                           id="{{ tablechoice.id }}"
-                           name='check_row'
-                           value="{{ tablechoice.id }}" />
-                  {% endif %}
-                </div>
-                <div class="col-11">
-                  <div class="d-flex justify-content-between">
-                    <div class="fs-5 align-self-center">
-                      <span class="badge bg-score-query text-dark">Query relevance score: {{ tablechoice.es_score }} </span>
-                    </div>
-                    <h3>
-                      <span class="badge text-bg-dark">
-                        <a class="text-white"
-                           href="{% url 'contentdocument' document_id=tablechoice.document_pk %}">{{ tablechoice.procedure_type }}</a>
-                      </span>
-                    </h3>
-                  </div>
-                  <div class="ms-auto mt-3 text-start mb-3">
-                    <div>
-                      <b>{{ tablechoice.decision_type }}</b>, du {{ tablechoice.decision_date }}
-                      <b>Result:</b> {{ tablechoice.result }}
-                    </div>
-                  </div>
-                  <div class="mb-3 ms-auto">
-                    <div>
-                      <b>Normes:</b> {{ tablechoice.standards }}
-                    </div>
-                  </div>
-                  <div class="mb-3 ms-auto">
-                    <div>
-                      <b>Extraits:</b> {{ tablechoice.sample_document | safe }} ...
-                    </div>
-                  </div>
-                </div>
-                {% if hdbscan_scores %}
-                  <div class="col-1">
-                  </div>
-                  <div class="col-12 text-center fs-5 mb-3">
-                    <span class="badge text-dark"
-                          style="background-color: {{ tablechoice.color }}80"> {{ tablechoice.topic }}</span>
-                    <span class="badge bg-light text-dark"> Topic score : {{ tablechoice.hdbscan_score | floatformat:"1" }} %</span>
-                  </div>
-                {% endif %}
-                <hr />
-              {% endfor %}
-            </div>
-          </div>
-          <div class="col-12 mb-3 mx-auto mt-4">
-            {% if not processing_filters %}
-              <div class="d-flex justify-content-between">
-                <div class="col-4 text-start">
-                  {% if not first_page %}
-                    <input class="btn btn-outline-dark"
-                           type="submit"
-                           name="submit"
-                           value="previous" />
-                  {% endif %}
-                </div>
-
-                <div class="col-4 mb-2 text-end">
-                  {% if not last_page %}
-                    <input class="btn btn-outline-dark"
-                           type="submit"
-                           name="submit"
-                           value="next" />
-                  {% endif %}
-                </div>
-              </div>
-            {% endif %}
-          </div>
-          <div class="col-12">
-            <div class="col-4 mx-auto text-center mb-4">
-              page:
-              <span class="fw-bold">{{ current_page }}/{{ total_page }}</span>
-            </div>
-          </div>
-          <div class="col-10 mx-auto">
-            <div class="p-4 bg-light">
-              <div class="row text-center">
-                <div class="col">
-                  Documents checked: <span class="article-counter-bottom fw-bold">{{ number_Article_chosen }}</span>
-                </div>
-                <div class="col">
-                  Check/Uncheck all
-                  <input class="form-check-input ms-3"
-                         type="checkbox"
-                         onclick="toggle(this)" />
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="col-8 mx-auto mb-5">
-            <div class="row justify-content-center mt-3 gap-md-3 gap-sm-2 gap-lg-5">
-              <button type="submit"
-                      name="submit"
-                      value="iterate"
-                      class="col-md-3 col-sm-12 btn btn-secondary mb-2 btn-lg">
-                Iterate
-              </button>
-              <button type="submit"
-                      name="submit"
-                      value="reset"
-                      class="col-md-3 col-sm-12 btn btn-secondary mb-2 btn-lg">
-                Reset
-              </button>
-              <button type="submit"
-                      name="submit"
-                      value="finish"
-                      class="col-md-3 col-sm-12 btn btn-primary mb-2 btn-lg">
-                Export Selected
-              </button>
-            </div>
-          </div>
-          <hr class="mb-5" />
-        {% endif %}
-      </form>
+        </form>
+      </div>
     </div>
   </div>
 {% endblock content %}

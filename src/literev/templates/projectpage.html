@@ -332,11 +332,12 @@
 
 {% block content %}
   <div class="d-flex flex-grow-1 overflow-scroll">
-    <div class="flex-grow-1 justify-content-center">
-      <h2 class="text-center my-4 py-4">
+    <div class="container py-8"
+         style="padding-top: 125px">
+      <h1 class="text-center col-12 mb-5">
         <i class="text-dark fa-solid fa-book-open-reader me-2"></i>
         <a class="text-dark">Project: </a> {{ project.name }}
-      </h2>
+      </h1>
       {% if refinement_limit_exceeded %}
         <div class="row text-center">
           <div class="alert alert-warning">
