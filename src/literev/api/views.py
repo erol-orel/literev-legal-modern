@@ -135,6 +135,7 @@ class UpdateTableChoiceAPIView(APIView):
         request,
         project_id: int,
         iteration_id: int = -1,
+        page: int = 1,
     ):
         """
         Update TableChoice selections for a specific page.

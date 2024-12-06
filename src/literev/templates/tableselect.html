@@ -321,10 +321,17 @@
                     {% endif %}
                   </div>
                   <div class="col-11">
-                    <div class="d-flex justify-content-between">
-                      <div class="fs-5 align-self-center">
-                        <span class="badge bg-score-query text-dark">Query relevance score: {{ tablechoice.es_score }} </span>
-                      </div>
+                    <div class="d-flex
+                                {% if has_es_scores %}
+                                  justify-content-between
+                                {% else %}
+                                  justify-content-end
+                                {% endif %}">
+                      {% if has_es_scores %}
+                        <div class="fs-5 align-self-center">
+                          <span class="badge bg-score-query text-dark">Query relevance score: {{ tablechoice.es_score }} </span>
+                        </div>
+                      {% endif %}
                       <h3>
                         <span class="badge text-bg-dark">
                           <a class="text-white"
