@@ -1,5 +1,6 @@
 import datetime
 import logging
+import os
 
 from typing import cast
 
@@ -184,7 +185,15 @@ def update_es_scores_file(
 
         new_scores_dict.update(copy_scores_dict)
 
-    joblib.dump(
-        new_scores_dict,
-        settings.ARTICLE_DATA / f"es_scores_project_{new_project_id}.pkl",
-    )
+        joblib.dump(
+            new_scores_dict,
+            settings.ARTICLE_DATA / f"es_scores_project_{new_project_id}.pkl",
+        )
+
+    else:
+        path = (
+            settings.ARTICLE_DATA / f"es_scores_project_{new_project_id}.pkl"
+        )
+
+        if os.path.isfile(path):
+            os.remove(path)

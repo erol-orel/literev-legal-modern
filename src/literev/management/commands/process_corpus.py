@@ -166,7 +166,7 @@ class Command(BaseCommand):
             help="The ending date for filtering documents in YYYY-MM-DD format.",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, **options):  # removed ` *args,` because linter
         index_name = options["index_name"]
         search_term = options["search_term"]
         username = options["username"]

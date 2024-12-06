@@ -65,8 +65,12 @@ class DataReader:
                     raise e
 
     def read_data(self) -> Generator[tuple[int, dict[str, Any]], None, None]:
-        if self.file_path.suffix == ".jsonl" or "json":
+        if (
+            self.file_path.suffix == ".jsonl"
+            or self.file_path.suffix == ".json"
+        ):
             return self._read_json_lines()
+
         else:
             raise NotImplementedError(
                 f"DataReader doesn't support {self.file_path.suffix} file extension. "
@@ -131,7 +135,7 @@ class DataNormalizer:
         date = datetime.strptime(raw_date, "%d.%m.%Y")
         return date.strftime("%Y-%m-%d")
 
-    def _normalize_date_timestamp(sef, raw_date_timestamp: str) -> str:
+    def _normalize_date_timestamp(self, raw_date_timestamp: str) -> str:
         """Normalizes the date timestamp format."""
         timestamp = datetime.strptime(
             raw_date_timestamp, "%d/%m/%y %H:%M:%S.%f"

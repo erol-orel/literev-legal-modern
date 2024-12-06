@@ -59,7 +59,7 @@ def get_data(project_id: int) -> list:
 class Command(BaseCommand):
     help = "Check access to DB and check permissions for writing in volume"
 
-    def handle(self, *args, **options):
+    def handle(self):
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s - %(levelname)s - %(message)s",

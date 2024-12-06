@@ -1,7 +1,5 @@
 import logging
 
-from typing import Any
-
 from django.core.management.base import BaseCommand, CommandError
 from django.db.models import Count
 
@@ -11,7 +9,9 @@ from literev.models import Cluster, Project
 class Command(BaseCommand):
     help = "Fill order cluster in existing clusters"
 
-    def handle(self, *args: Any, **options: Any) -> None:
+    def handle(
+        self,
+    ) -> None:  # removed *args: Any, **options: Any because linter
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s - %(levelname)s - %(message)s",

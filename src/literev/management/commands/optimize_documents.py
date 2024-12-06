@@ -22,7 +22,7 @@ PKL_DATA = settings.PKL_DATA
 class Command(BaseCommand):
     help = "Optimizes document clustering using advanced text analysis techniques."
 
-    def handle(self, *args, **options):
+    def handle(self):  # removed *args, **options because linter
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s - %(levelname)s - %(message)s",

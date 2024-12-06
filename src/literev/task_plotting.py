@@ -10,7 +10,7 @@ import bokeh.plotting
 import distinctipy
 
 from bokeh.embed import components
-from bokeh.io import save
+from bokeh.io import output_file, save
 
 # https://github.com/bokeh/bokeh/issues/12960
 from bokeh.models import (  # type: ignore
@@ -332,6 +332,7 @@ def plot_clusters(
     # removes logo
     fig.toolbar.logo = None  # type: ignore
 
+    output_file(filename=path)
     save(fig, path)
 
     # separate in components to embed in the previous graph
