@@ -1173,3 +1173,20 @@ def rag(
     context["number_documents"] = len(documents_ids)
 
     return render(request, "rag.html", context)
+
+
+# Menu section
+def product(request: HttpRequest) -> HttpResponse:
+    return render(request, "product.html")
+
+
+def company(request: HttpRequest) -> HttpResponse:
+    return render(request, "company.html")
+
+
+def blog(request: HttpRequest) -> HttpResponse:
+    return render(request, "blog.html")
+
+
+def team(request: HttpRequest) -> HttpResponse:
+    return render(request, "team.html")

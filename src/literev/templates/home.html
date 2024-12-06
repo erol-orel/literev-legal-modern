@@ -1,4 +1,4 @@
-{% extends "main.html" %}
+{% extends "base.html" %}
 
 {% load static %}
 
@@ -50,7 +50,9 @@
           How it works
         </h1>
         <div class="col-md-12 justify-content-center">
-          <img src="{% static "./images/about-image.png" %}" width="100%" alt="" />
+          <img src="{% static 'images/about-image.png' %}"
+               width="100%"
+               alt="" />
         </div>
       </div>
     </div>
@@ -62,43 +64,9 @@
     <h3 class="text-center mb-5">
       We are part of a great community
     </h3>
-    <div class="col-8 mx-auto">
-      <div class="row row-cols-1 row-cols-lg-4 g-5 py-2">
-        <div class="col my-2">
-          <a href="https://unige.ch/"
-             target="_blank">
-            <div class="py-5 d-grid align-items-center  h-100 overflow-hidden rounded-4">
-              <img class="mx-auto" width="50%" src="{% static "./images/ug.png" %}" alt="" />
-            </div>
-          </a>
-        </div>
-        <div class="col my-2">
-          <a href="https://thegraphnetwork.org/"
-             target="_blank">
-            <div class="py-5 d-grid align-items-center h-100 overflow-hidden  rounded-4">
-              <img class="mx-auto" width="50%" src="{% static "./images/tgn.png" %}" alt="" />
-            </div>
-          </a>
-        </div>
-        <div class="col my-2">
-          <a href="https://www.hug.ch/"
-             target="_blank">
-            <div class="py-5 d-grid align-items-center  h-100 overflow-hidden rounded-4">
-              <img class="mx-auto" width="50%" src="{% static "./images/logoHUG.jpg" %}" alt="" />
-            </div>
-          </a>
-        </div>
 
-        <div class="col my-2">
-          <a href="https://www.opensciencelabs.org/"
-             target="_blank">
-            <div class="py-5 d-grid align-items-center  h-100 overflow-hidden rounded-4">
-              <img class="mx-auto" width="50%" src="{% static "./images/partners/osl.png" %}" alt="" />
-            </div>
-          </a>
-        </div>
+    {% include "components/partners.html" %}
 
-      </div>
-    </div>
   </div>
+
 {% endblock content %}

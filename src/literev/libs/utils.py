@@ -170,7 +170,7 @@ def update_es_scores_file(
         and will fetch new documents.
     pair_document_id : list[tuple[int, int]]
         list of tuples containing the old document ids and new document ids
-        
+
     """
 
     old_scores_dict = get_es_scores_id(old_project_id)

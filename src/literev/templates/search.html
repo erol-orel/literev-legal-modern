@@ -91,6 +91,14 @@
   {% endif %}
 {% endblock modal %}
 
+<!-- search.html -->
+
+{% block sidebar %}
+
+  {% include "components/sidebar.html" %}
+
+{% endblock sidebar %}
+
 {% block content %}
   <!-- help button -->
   <div class="dropup position-absolute bottom-0 end-0 rounded-circle m-5">
@@ -132,7 +140,8 @@
 
   <!-- Search Form -->
   <div class="d-flex flex-grow-1 justify-content-center">
-    <div class="search-block col-xl-8 mx-auto">
+    <div class="container py-8"
+         style="padding-top: 115px">
       <form id="formResearch"
             class="px-5"
             action=""
@@ -140,181 +149,183 @@
             enctype="multipart/form-data">
         {% csrf_token %}
         <h1 class="text-center mb-4 text-dark">
-          <i class="fa-solid fa-magnifying-glass me-2"></i> Project
+          <i class="fa-solid fa-magnifying-glass me-3"></i> Project
         </h1>
-        <div class="col-12 input-group">
-          <span class="input-group-text d-none d-lg-block">Project Name</span>
-          {{ search_form.project_name }}
-        </div>
-        <!-- Accordion Panel for Sources and Query -->
-        <div class="accordion py-3"
-             id="accordionPanelsStayOpenExample">
-          <div class="accordion-item">
-            <h2 class="accordion-header"
-                id="panelsStayOpen-headingOne">
-              <button class="accordion-button text-center"
-                      type="button"
-                      data-bs-toggle="collapse"
-                      data-bs-target="#panelsStayOpen-collapseOne"
-                      aria-expanded="true"
-                      aria-controls="panelsStayOpen-collapseOne">
-                Source and Search Terms
-              </button>
-            </h2>
-            <div id="panelsStayOpen-collapseOne"
-                 class="accordion-collapse collapse show"
-                 aria-labelledby="panelsStayOpen-headingOne">
-              <div class="accordion-body row col-11 mx-auto py-3">
-                <!-- Radio Selection for Jurisprudence Sources -->
-                <div class="col-6 text-start py-2">
-                  <h6 class="text-dark d-none d-lg-block">
-                    Source:
-                  </h6>
-                  <!-- Radio Inputs for Jurisprudence Sources -->
-                  <div class="form-check ps-sm-5 text-start">
-                    <div class="form-check">
-                      <input class="form-check-input index-radio"
-                             type="radio"
-                             name="index_names"
-                             value="administrative_court"
-                             id="adminCourtRadio"
-                             {% if "administrative_court" in selected_indices %}
-                               checked
-                             {% endif %}
-                             required />
-                      <label class="form-check-label"
-                             for="adminCourtRadio">
-                        Administrative Court
-                      </label>
-                    </div>
-                    <div class="form-check">
-                      <input class="form-check-input index-radio"
-                             type="radio"
-                             name="index_names"
-                             value="civil_court"
-                             id="civilCourtRadio"
-                             {% if "civil_court" in selected_indices %}
-                               checked
-                             {% endif %}
-                             required />
-                      <label class="form-check-label"
-                             for="civilCourtRadio">
-                        Civil Court
-                      </label>
-                    </div>
-                    <div class="form-check">
-                      <input class="form-check-input index-radio"
-                             type="radio"
-                             name="index_names"
-                             value="penal_court"
-                             id="penalCourtRadio"
-                             {% if "penal_court" in selected_indices %}
-                               checked
-                             {% endif %}
-                             required />
-                      <label class="form-check-label"
-                             for="penalCourtRadio">
-                        Penal Court
-                      </label>
+        <div class="row align-items-center fs-5 mb-3 g-2"
+             style="padding-top: 80px">
+          <div class="col-12 input-group">
+            <span class="input-group-text d-none d-lg-block">Project Name</span>
+            {{ search_form.project_name }}
+          </div>
+          <!-- Accordion Panel for Sources and Query -->
+          <div class="accordion py-3"
+               id="accordionPanelsStayOpenExample">
+            <div class="accordion-item">
+              <h2 class="accordion-header"
+                  id="panelsStayOpen-headingOne">
+                <button class="accordion-button text-center"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#panelsStayOpen-collapseOne"
+                        aria-expanded="true"
+                        aria-controls="panelsStayOpen-collapseOne">
+                  Source and Search Terms
+                </button>
+              </h2>
+              <div id="panelsStayOpen-collapseOne"
+                   class="accordion-collapse collapse show"
+                   aria-labelledby="panelsStayOpen-headingOne">
+                <div class="accordion-body row col-11 mx-auto py-3">
+                  <!-- Radio Selection for Jurisprudence Sources -->
+                  <div class="col-6 text-start py-2">
+                    <h6 class="text-dark d-none d-lg-block">
+                      Source:
+                    </h6>
+                    <!-- Radio Inputs for Jurisprudence Sources -->
+                    <div class="form-check ps-sm-5 text-start">
+                      <div class="form-check">
+                        <input class="form-check-input index-radio"
+                               type="radio"
+                               name="index_names"
+                               value="administrative_court"
+                               id="adminCourtRadio"
+                               {% if "administrative_court" in selected_indices %}
+                                 checked
+                               {% endif %}
+                               required />
+                        <label class="form-check-label"
+                               for="adminCourtRadio">
+                          Administrative Court
+                        </label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input index-radio"
+                               type="radio"
+                               name="index_names"
+                               value="civil_court"
+                               id="civilCourtRadio"
+                               {% if "civil_court" in selected_indices %}
+                                 checked
+                               {% endif %}
+                               required />
+                        <label class="form-check-label"
+                               for="civilCourtRadio">
+                          Civil Court
+                        </label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input index-radio"
+                               type="radio"
+                               name="index_names"
+                               value="penal_court"
+                               id="penalCourtRadio"
+                               {% if "penal_court" in selected_indices %}
+                                 checked
+                               {% endif %}
+                               required />
+                        <label class="form-check-label"
+                               for="penalCourtRadio">
+                          Penal Court
+                        </label>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <!-- Hidden Field to Store Selected Index -->
-                <input type="hidden"
-                       name="selected_indices"
-                       id="selectedIndicesField"
-                       value="" />
+                  <!-- Hidden Field to Store Selected Index -->
+                  <input type="hidden"
+                         name="selected_indices"
+                         id="selectedIndicesField"
+                         value="" />
 
-                <!-- Query Inputs -->
-                <div class="row text-center mb-3">
-                  <div class="col-12 input-group mb-3">
-                    <span class="input-group-text d-none d-lg-block">Search Terms:</span>
-                    {{ search_form.query }}
-                  </div>
-                  <div class="col-12 col-sm-6 mb-2">
-                    <div class="input-group">
-                      <span class="input-group-text">Decision Date From:</span>
-                      {{ search_form.range_begin_date }}
+                  <!-- Query Inputs -->
+                  <div class="row text-center mb-3">
+                    <div class="col-12 input-group mb-3">
+                      <span class="input-group-text d-none d-lg-block">Search Terms:</span>
+                      {{ search_form.query }}
                     </div>
-                  </div>
-                  <div class="col-12 col-sm-6 mb-2">
-                    <div class="input-group">
-                      <span class="input-group-text">To:</span>
-                      {{ search_form.range_end_date }}
+                    <div class="col-12 col-sm-6 mb-2">
+                      <div class="input-group">
+                        <span class="input-group-text">Decision Date From:</span>
+                        {{ search_form.range_begin_date }}
+                      </div>
+                    </div>
+                    <div class="col-12 col-sm-6 mb-2">
+                      <div class="input-group">
+                        <span class="input-group-text">To:</span>
+                        {{ search_form.range_end_date }}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-        <!-- Display Total Documents -->
-        {% if total_documents == 0 %}
-          <div class="row text-center">
-            <div class="alert alert-primary">
-              <span> Zero documents.</span>
+          <!-- Display Total Documents -->
+          {% if total_documents == 0 %}
+            <div class="row text-center">
+              <div class="alert alert-primary">
+                <span> Zero documents.</span>
+              </div>
             </div>
-          </div>
-        {% elif total_documents > 0 %}
-          <div class="row text-center">
-            <div class="alert alert-primary">
-              <span> {{ total_documents }} documents.</span>
+          {% elif total_documents > 0 %}
+            <div class="row text-center">
+              <div class="alert alert-primary">
+                <span> {{ total_documents }} documents.</span>
+              </div>
             </div>
-          </div>
-        {% endif %}
+          {% endif %}
 
-        <!-- Display Project Creation Message -->
-        {% if project_created_message %}
-          <div class="row text-center">
-            <div class="alert alert-primary">
-              <span> {{ project_created_message }} </span>
+          <!-- Display Project Creation Message -->
+          {% if project_created_message %}
+            <div class="row text-center">
+              <div class="alert alert-primary">
+                <span> {{ project_created_message }} </span>
+              </div>
             </div>
-          </div>
-        {% endif %}
+          {% endif %}
 
-        <!-- Display Form Errors -->
-        <div class="row text-center">
-          {% for error in errors %}
-            <div class="alert alert-danger">
-              <strong>{{ error|escape }}</strong>
-            </div>
-          {% endfor %}
-          {% for error in search_form.non_field_errors %}
-            <div class="alert alert-danger">
-              <strong>{{ error|escape }}</strong>
-            </div>
-          {% endfor %}
-          {% for field in search_form %}
-            {% for error in field.errors %}
+          <!-- Display Form Errors -->
+          <div class="row text-center">
+            {% for error in errors %}
               <div class="alert alert-danger">
                 <strong>{{ error|escape }}</strong>
               </div>
             {% endfor %}
-          {% endfor %}
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="row mt-3 mb-5 text-center">
-          <div class="col-6">
-            <button class="btn btn-outline-secondary"
-                    type='submit'
-                    name='submit'
-                    value='evaluate'
-                    id="evaluate-button">
-              Evaluate
-            </button>
+            {% for error in search_form.non_field_errors %}
+              <div class="alert alert-danger">
+                <strong>{{ error|escape }}</strong>
+              </div>
+            {% endfor %}
+            {% for field in search_form %}
+              {% for error in field.errors %}
+                <div class="alert alert-danger">
+                  <strong>{{ error|escape }}</strong>
+                </div>
+              {% endfor %}
+            {% endfor %}
           </div>
-          <div class="col-6">
-            <button class="btn btn-primary"
-                    type='submit'
-                    name="submit"
-                    value="search">
-              Create Project
-            </button>
+
+          <!-- Action Buttons -->
+          <div class="row mt-3 mb-5 text-center">
+            <div class="col-6">
+              <button class="btn btn-outline-secondary"
+                      type='submit'
+                      name='submit'
+                      value='evaluate'
+                      id="evaluate-button">
+                Evaluate
+              </button>
+            </div>
+            <div class="col-6">
+              <button class="btn btn-primary"
+                      type='submit'
+                      name="submit"
+                      value="search">
+                Create Project
+              </button>
+            </div>
           </div>
         </div>
-
       </form>
     </div>
   </div>

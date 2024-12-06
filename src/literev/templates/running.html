@@ -82,14 +82,22 @@
   {% endif %}
 {% endblock modal %}
 
+{% block sidebar %}
+
+  {% include "components/sidebar.html" %}
+
+{% endblock sidebar %}
+
 {% block content %}
   <div class="d-flex flex-grow-1">
-    <div class="container running-box px-4">
-      <h2 class="text-center mb-4 pb-4">
+    <div class="container py-8"
+         style="padding-top: 115px">
+      <h1 class="text-center mb-4 text-dark">
         <i class="fa-solid fa-gears me-3"></i>
         Project status
-      </h2>
-      <div class="row align-items-center fs-5 mb-3 g-2 fw-bold">
+      </h1>
+      <div class="row align-items-center fs-5 mb-3 g-2 fw-bold"
+           style="padding-top: 80px">
         <div class="col-2">
           Project Name
         </div>

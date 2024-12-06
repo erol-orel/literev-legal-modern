@@ -77,66 +77,75 @@
   {% endif %}
 {% endblock modal %}
 
+{% block sidebar %}
+
+  {% include "components/sidebar.html" %}
+
+{% endblock sidebar %}
+
 {% block content %}
   <div class="d-flex">
     <div class="container">
       <div class="col-sm-12 col-md-12 col-xl-12">
 
-        <div class="mt-4 p-4">
-          <h2 class="text-center col-12 mb-5">
+        <div class="container py-8"
+             style="padding-top: 115px">
+          <h1 class="text-center mb-4 text-dark">
             <i class="fa-regular fa-rectangle-list me-3"></i>
             Historical Search
-          </h2>
-          <form class="row"
-                action=""
-                method="POST">
-            {% csrf_token %}
+          </h1>
+          <div class="row align-items-center fs-5 mb-3 g-2 fw-bold"
+               style="padding-top: 80px">
+            <form class="row"
+                  action=""
+                  method="POST">
+              {% csrf_token %}
 
-            <div class="col-sm-12 col-lg-5 mb-3">
-              <div class="input-group">
-                <span class="bg-white input-group-text"
-                      for="input_search">Search:</span>
-                {{ historical_form.search }}
+              <div class="col-sm-12 col-lg-5 mb-3">
+                <div class="input-group">
+                  <span class="bg-white input-group-text"
+                        for="input_search">Search:</span>
+                  {{ historical_form.search }}
+                </div>
               </div>
-            </div>
-            <div class="col-sm-12 col-lg-4 mb-3">
-              <div class="input-group">
-                <label class="bg-white  input-group-text"
-                       for="sort_type">
-                  Sorting type
-                </label>
-                <select class="form-select"
-                        id="sort_type"
-                        name="sort_type"
-                        default="pertinence">
-                  <option value="more_documents_first"
-                          selected>
-                    More Documents first
-                  </option>
-                  <option value="less_documents_first">
-                    Less Documents first
-                  </option>
-                </select>
+              <div class="col-sm-12 col-lg-4 mb-3">
+                <div class="input-group">
+                  <label class="bg-white  input-group-text"
+                         for="sort_type">
+                    Sorting type
+                  </label>
+                  <select class="form-select"
+                          id="sort_type"
+                          name="sort_type"
+                          default="pertinence">
+                    <option value="more_documents_first"
+                            selected>
+                      More Documents first
+                    </option>
+                    <option value="less_documents_first">
+                      Less Documents first
+                    </option>
+                  </select>
+                </div>
               </div>
-            </div>
-            <div class="col-sm-12 col-lg-1 text-center">
-              <button class="btn btn-primary mb-3"
-                      type="submit"
-                      name="submit"
-                      value="historical">
-                Search
-              </button>
-            </div>
-            <div class="col-sm-12 col-lg-1 text-center">
-              <button class="btn btn-dark mb-3"
-                      type="submit"
-                      name="submit"
-                      value="no_filter">
-                Clear
-              </button>
-            </div>
-          </form>
-
+              <div class="col-sm-12 col-lg-1 text-center">
+                <button class="btn btn-primary mb-3"
+                        type="submit"
+                        name="submit"
+                        value="historical">
+                  Search
+                </button>
+              </div>
+              <div class="col-sm-12 col-lg-1 text-center">
+                <button class="btn btn-dark mb-3"
+                        type="submit"
+                        name="submit"
+                        value="no_filter">
+                  Clear
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>

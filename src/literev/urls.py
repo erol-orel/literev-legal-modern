@@ -10,6 +10,10 @@ from literev.views import (
     contentdocument,
     historicalpage,
     rag,
+    product,
+    company,
+    blog,
+    team,
 )
 
 from rest_framework.routers import DefaultRouter
@@ -76,4 +80,8 @@ urlpatterns = [
         views_api.UpdateTableChoiceAPIView.as_view(),
         name="update-table-choice",
     ),
+    path("product/", product, name="product"),
+    path("company/", company, name="company"),
+    path("blog/", blog, name="blog"),
+    path("team/", team, name="team"),
 ]

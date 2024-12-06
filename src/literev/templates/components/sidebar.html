@@ -1,0 +1,147 @@
+{% load static %}
+
+<!-- Sidebar -->
+<div class="d-flex flex-column flex-shrink-0 p-3 text-bg-dark"
+     id="side_nav">
+  <div class="d-flex justify-content-between d-block">
+    <a class="navbar-brand ms-2 fs-2"
+       href="{% url 'home' %}">
+      Lite<span class="text-primary">Rev</span>
+    </a>
+    <button class="close-btn navbar-toggler d-md-none"
+            type="button">
+      <i class="fs-2 fa-solid fa-bars-staggered"></i>
+    </button>
+  </div>
+  <hr />
+  <ul class="nav nav-pills flex-column fs-5 mb-auto">
+    {% if DEBUG %}
+      <div class="alert alert-danger"
+           role="alert">
+        Debug Mode ON
+      </div>
+    {% endif %}
+    {% with actual_url=request.resolver_match.url_name %}
+      <li class="nav-item
+                 {% if actual_url == 'search' %}
+                   active
+                 {% endif %}">
+        <a href="{% url 'search' %}"
+           class="nav-link
+                  {% if actual_url == 'search' %}
+                    text-black active rounded-pill
+                  {% else %}
+                    text-white
+                  {% endif %}">
+          <i class="fa-solid fa-magnifying-glass me-3"></i> New Project
+        </a>
+      </li>
+      <hr />
+      <li class="nav-item
+                 {% if actual_url == 'running' %}
+                   active
+                 {% endif %}">
+        <a href="{% url 'running' %}"
+           class="nav-link
+                  {% if actual_url == 'running' %}
+                    text-black active rounded-pill
+                  {% else %}
+                    text-white
+                  {% endif %}">
+          <i class="fa-solid fa-gears me-3"></i> Running
+        </a>
+      </li>
+      <hr />
+      <li class="nav-item
+                 {% if actual_url == 'historicalpage' %}
+                   active
+                 {% endif %}">
+        <a href="{% url 'historicalpage' %}"
+           class="nav-link
+                  {% if actual_url == 'historicalpage' %}
+                    text-black active rounded-pill
+                  {% else %}
+                    text-white
+                  {% endif %}">
+          <i class="fa-solid fa-database me-3"></i> Historical Project
+        </a>
+      </li>
+      <hr />
+    {% endwith %}
+  </ul>
+  <hr />
+</div>
+
+<!-- Mobile Sidebar -->
+<div class="offcanvas offcanvas-start bg-dark text-white"
+     id="mobile_side_menubar"
+     tabindex="-1">
+  <div class="offcanvas-header">
+    <a class="navbar-brand d-flex align-items-center"
+       href="{% url 'home' %}">
+      <img src="{% static 'images/logo_sans_fond.png' %}"
+           alt="Logo"
+           class="img-fluid"
+           style="max-height: 40px" />
+      <span class="fs-4 ms-2">
+        Lite<span class="text-primary">Rev</span>
+      </span>
+    </a>
+    <button type="button"
+            class="btn-close btn-close-white"
+            data-bs-dismiss="offcanvas"
+            aria-label="Close">
+    </button>
+  </div>
+  <div class="offcanvas-body">
+    <ul class="nav nav-pills flex-column fs-5 mb-auto">
+      {% with actual_url=request.resolver_match.url_name %}
+        <li class="nav-item
+                   {% if actual_url == 'search' %}
+                     active
+                   {% endif %}">
+          <a href="{% url 'search' %}"
+             class="nav-link
+                    {% if actual_url == 'search' %}
+                      text-black active rounded-pill
+                    {% else %}
+                      text-white
+                    {% endif %}">
+            <i class="fa-solid fa-magnifying-glass me-3"></i> New Project
+          </a>
+        </li>
+        <hr />
+        <li class="nav-item
+                   {% if actual_url == 'running' %}
+                     active
+                   {% endif %}">
+          <a href="{% url 'running' %}"
+             class="nav-link
+                    {% if actual_url == 'running' %}
+                      text-black active rounded-pill
+                    {% else %}
+                      text-white
+                    {% endif %}">
+            <i class="fa-solid fa-gears me-3"></i> Running
+          </a>
+        </li>
+        <hr />
+        <li class="nav-item
+                   {% if actual_url == 'historicalpage' %}
+                     active
+                   {% endif %}">
+          <a href="{% url 'historicalpage' %}"
+             class="nav-link
+                    {% if actual_url == 'historicalpage' %}
+                      text-black active rounded-pill
+                    {% else %}
+                      text-white
+                    {% endif %}">
+            <i class="fa-solid fa-database me-3"></i> Historical Project
+          </a>
+        </li>
+        <hr />
+      {% endwith %}
+    </ul>
+  </div>
+</div>

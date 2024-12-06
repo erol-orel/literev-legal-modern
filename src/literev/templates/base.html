@@ -8,169 +8,80 @@
           content="IE=edge" />
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0" />
-    <title>LiteRev</title>
-    <link rel="stylesheet" href="{% static "./css/bootstrap.min.css" %}" />
-    <link href="{% static "./css/main.css" %}" rel="stylesheet" />
-    <link href="{% static "./css/fontawesome.min.css" %}" rel="stylesheet" />
-    <link href="{% static "./css/brands.min.css" %}" rel="stylesheet" />
-    <link href="{% static "./css/solid.min.css" %}" rel="stylesheet" />
 
-    <link rel="apple-touch-icon" sizes="180x180" href="{% static "/images/apple-touch-icon.png" %}" />
-    <link rel="icon" type="image/png" sizes="32x32" href="{% static "/images/favicon-32x32.png" %}" />
-    <link rel="icon" type="image/png" sizes="16x16" href="{% static "/images/favicon-16x16.png" %}" />
+    <title>
+
+      {% block title %}
+      {% endblock title %}
+    </title>
+
+    <link rel="stylesheet"
+          href="{% static 'css/bootstrap.min.css' %}" />
+    <link href="{% static 'css/main.css' %}"
+          rel="stylesheet" />
+    <link href="{% static 'css/fontawesome.min.css' %}"
+          rel="stylesheet" />
+    <link href="{% static 'css/brands.min.css' %}"
+          rel="stylesheet" />
+    <link href="{% static 'css/solid.min.css' %}"
+          rel="stylesheet" />
+
+    <link rel="apple-touch-icon"
+          sizes="180x180"
+          href="{% static 'images/apple-touch-icon.png' %}" />
+    <link rel="icon"
+          type="image/png"
+          sizes="32x32"
+          href="{% static 'images/favicon-32x32.png' %}" />
+    <link rel="icon"
+          type="image/png"
+          sizes="16x16"
+          href="{% static 'images/favicon-16x16.png' %}" />
 
     <link rel="manifest"
           href="/site.webmanifest" />
     <link rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css" />
+
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
   </head>
+
   <body>
 
     {% block modal %}
+
     {% endblock modal %}
+
     <div class="d-flex">
+
       <!-- sidebar -->
-      <div class="sidebar d-flex flex-column flex-shrink-0 p-3 text-bg-dark"
-           id="side_nav">
-        <div class="d-none d-md-flex justify-content-between align-items-center">
-          <a class="navbar-brand d-flex align-items-center"
-             href="{% url 'home' %}">
-            <img src="{% static 'images/logo_sans_fond.png' %}"
-                 alt="Logo"
-                 class="img-fluid"
-                 style="max-height: 40px" />
-            <span class="fs-4 ms-2">
-              Lite<span class="text-primary">Rev</span>
-            </span>
-          </a>
-          <button class="close-btn navbar-toggler d-md-none"
-                  type="button">
-            <i class="fs-2 fa-solid fa-bars-staggered"></i>
-          </button>
-        </div>
-        <hr />
-        <ul class="nav nav-pills flex-column fs-5 mb-auto">
-          {% if DEBUG %}
-            <div class="alert alert-danger"
-                 role="alert">
-              Debug Mode ON
-            </div>
-          {% endif %}
-          {% with actual_url=request.resolver_match.url_name %}
-            <li {% if actual_url == "search" %}
-                  class="nav-item"
-                {% endif %}>
-              <a href="{% url "search" %}"
-                 class="nav-link
-                        {% if actual_url == "search" %}
-                          text-black active rounded-pill
-                        {% else %}
-                          text-white
-                        {% endif %}">
-                <i class="fa-solid fa-magnifying-glass me-3"></i>
-                New Project
-              </a>
-            </li>
-            <hr />
-            <li {% if actual_url == "running" %}
-                  class="nav-item"
-                {% endif %}>
-              <a href="{% url "running" %}"
-                 class="nav-link
-                        {% if actual_url == "running" %}
-                          text-black active rounded-pill
-                        {% else %}
-                          text-white
-                        {% endif %}">
-                <i class="fa-solid fa-gears me-3"></i>
-                Running
-              </a>
-            </li>
-            <hr />
-            <li {% if actual_url == "historicalpage" %}
-                  class="nav-item"
-                {% endif %}>
-              <a href="{% url "historicalpage" %}"
-                 class="nav-link
-                        {% if actual_url == "historicalpage" %}
-                          text-black active rounded-pill
-                        {% else %}
-                          text-white
-                        {% endif %}">
-                <i class="fa-solid fa-database me-3"></i>
-                Historical Project
-              </a>
-            </li>
-            <hr />
-          {% endwith %}
-        </ul>
-        <hr />
-      </div>
+
+      {% block sidebar %}
+
+      {% endblock sidebar %}
       <!-- ----   -->
+
       <div class="content d-flex flex-column">
+
         <!-- header -->
-        <header class="bg-dark">
-          <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-            <div class="container-fluid">
-              <div class="d-flex justify-content-between align-items-center d-md-none">
-                <a class="navbar-brand d-flex align-items-center"
-                   href="{% url 'home' %}">
-                  <img src="{% static 'images/logo_sans_fond.png' %}"
-                       alt="Logo"
-                       class="img-fluid"
-                       style="max-height: 40px" />
-                  <span class="fs-4 ms-2">
-                    Lite<span class="text-primary">Rev</span>
-                  </span>
-                </a>
-                <button class="open-btn navbar-toggler"
-                        type="button">
-                  <i class="fa-solid fa-bars-staggered"></i>
-                </button>
-              </div>
-              <button class="navbar-toggler"
-                      type="button"
-                      data-bs-toggle="collapse"
-                      data-bs-target="#navbarNav"
-                      aria-controls="navbarNav"
-                      aria-expanded="false"
-                      aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-              </button>
-              <div class="collapse navbar-collapse"
-                   id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                  <!-- Future links can be added here -->
-                  <li class="nav-item">
-                    <span class="fs-5 nav-link active me-3">
-                      <i class="fa-regular fa-user me-2"></i>User: {{ user.username }}
-                    </span>
-                  </li>
-                  <li class="nav-item">
-                    <form method="post"
-                          action="{% url 'logout' %}">
-                      {% csrf_token %}
-                      <button type="submit"
-                              class="btn nav-link fs-5">
-                        <i class="fa-solid fa-right-from-bracket me-2"></i>
-                        Log Out
-                      </button>
-                    </form>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </nav>
+        <header class="bg-dark fixed-top">
+
+          {% include "components/navbar.html" %}
+
         </header>
         <!-- ---- -->
 
         {% block content %}
+
         {% endblock content %}
+
       </div>
+
     </div>
+
     <script type="text/javascript">
     // Code for the side bar
     $(".open-btn").on("click", function () {
@@ -183,6 +94,8 @@
     <script src="{% static "./js/bootstrap.bundle.min.js" %}"></script>
 
     {% block jscode %}
+
     {% endblock jscode %}
+
   </body>
 </html>

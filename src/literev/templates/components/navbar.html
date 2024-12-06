@@ -1,0 +1,102 @@
+{% load static %}
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <div class="container-fluid">
+    <!-- Logo -->
+    <a class="navbar-brand d-flex align-items-center"
+       href="{% url 'home' %}">
+      <img src="{% static 'images/logo_sans_fond.png' %}"
+           alt="Logo"
+           class="img-fluid"
+           style="max-height: 40px" />
+      <span class="fs-4 ms-2">Lite<span class="text-primary">Rev</span></span>
+    </a>
+
+    {% with actual_url=request.resolver_match.url_name %}
+      {% if actual_url != "home" and actual_url != "team" %}
+        <!-- Mobile Sidebar Toggle - Hidden on Home Page -->
+        <button class="navbar-toggler me-3 d-lg-none"
+                type="button"
+                data-bs-toggle="offcanvas"
+                data-bs-target="#mobile_side_menubar"
+                aria-controls="mobile_side_menubar"
+                aria-expanded="false"
+                aria-label="Toggle sidebar menu"
+                style="font-size: 0.9rem">
+          <span class="navbar-toggler-icon"
+                style="font-size: 1rem;
+                       transform: scale(0.9)"></span>
+          <span class="ms-2"
+                style="font-size: 0.9rem">Research Menu</span>
+        </button>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Mobile Main Menubar Toggle -->
+    <button class="navbar-toggler"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#mobile_main_menubar"
+            aria-controls="mobile_main_menubar"
+            aria-expanded="false"
+            aria-label="Toggle main menu"
+            style="font-size: 0.9rem">
+      <span class="navbar-toggler-icon"
+            style="font-size: 1rem;
+                   transform: scale(0.9)"></span>
+      <span class="ms-2"
+            style="font-size: 0.9rem">Main Menu</span>
+    </button>
+
+    <!-- Main Menubar Content -->
+    <div class="collapse navbar-collapse"
+         id="mobile_main_menubar">
+      <ul class="navbar-nav ms-auto">
+        <!-- <li class="nav-item">
+          <a class="nav-link fs-5 me-3 disabled" href="{% url 'product' %}">
+            <i class="fa-solid fa-box me-2"></i>Product
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link fs-5 me-3 disabled" href="{% url 'company' %}">
+            <i class="fa-solid fa-building me-2"></i>Company
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link fs-5 me-3 disabled" href="{% url 'blog' %}">
+            <i class="fa-solid fa-blog me-2"></i>Blog & Updates
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link fs-5 me-3" href="{% url 'team' %}">
+            <i class="fa-solid fa-users me-2"></i>Team
+          </a>
+        </li> -->
+        {% if user.is_authenticated %}
+          <li class="nav-item">
+            <span class="fs-5 nav-link active">
+              <i class="fa-regular fa-user me-2"></i>User: {{ user.username }}
+            </span>
+          </li>
+          <li class="nav-item">
+            <form method="post"
+                  action="{% url 'logout' %}">
+              {% csrf_token %}
+              <button type="submit"
+                      class="btn nav-link">
+                <i class="fa-solid fa-right-from-bracket me-2"></i>Log Out
+              </button>
+            </form>
+          </li>
+        {% else %}
+          <li class="nav-item">
+            <a class="nav-link fs-5"
+               href="{% url 'login' %}">
+              <i class="fa-solid fa-right-to-bracket me-2"></i>Login
+            </a>
+          </li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
