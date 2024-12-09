@@ -192,8 +192,9 @@ def plot_clusters(
         y="y",
         size=38,
         fill_color="white",
-        line_color="black",
+        line_color="#807876",
         source=cluster_number_source,
+        level="overlay",
     )
 
     number_label = LabelSet(
@@ -202,11 +203,14 @@ def plot_clusters(
         text="number",
         source=cluster_number_source,
         text_font_size="36px",
-        text_color="black",
+        text_color="#807876",
         text_font_style="bold",
         text_align="center",
         text_baseline="middle",
+        level="overlay",
     )
+
+    fig.add_layout(number_label)
 
     for point in clusters_points:
         config["x"].append(point.pos_x)
@@ -252,74 +256,52 @@ def plot_clusters(
     else:
         size = 5
 
-    fig.scatter(
+    main_renderer = fig.scatter(
         "x",
         "y",
         size=size,
         source=source,
-        name=name,
         marker=marker,
         color={"field": "topic", "transform": color_map},
     )
 
     tooltips = """
-    <div style="width: 400px;">
+				<div style="width: 400px;">
+						<div>
+								<span style="font-size: 12px; color: blue;">Decision type:</span>
+								<span style="font-size: 12px; font-weight: bold;">@decision_type</span>
+						</div>
+						<div>
+								<span style="font-size: 12px; color: blue;">Decision Date:</span>
+								<span style="font-size: 12px; font-weight: bold;">@decision_date</span>
+						</div>
+						<div>
+								<span style="font-size: 12px; color: blue;">Descriptors:</span>
+								<span style="font-size: 12px; font-weight: bold;">@descriptors</span>
+						</div>
+						<div>
+								<span style="font-size: 12px; color: blue;">Standards:</span>
+								<span style="font-size: 12px; font-weight: bold;">@standards</span>
+						</div>
+						<div>
+								<span style="font-size: 12px; color: blue;">Result:</span>
+								<span style="font-size: 12px; font-weight: bold;">@result</span>
+						</div>
+						<div>
+								<span style="font-size: 12px; color: blue;">Topic:</span>
+								<span style="font-size: 12px; font-weight: bold;">@topic_10</span>
+						</div>
+						<div>
+								<span style="font-size: 12px; color: blue;">Topic number:</span>
+								<span style="font-size: 12px; font-weight: bold;">@cluster_order</span>
+						</div>
+				</div>
+		"""
 
-    <div>
-    <span style="font-size: 12px; color: blue;">
-    Decision type:</span>
-    <span style="font-size: 12px; font-weight: bold;">
-    @decision_type</span>
-    </div>
-
-    <div>
-    <span style="font-size: 12px; color: blue;">
-    Decision Date: </span>
-    <span style="font-size: 12px; font-weight: bold; ">
-    @decision_date</span>
-    </div>
-
-    <div>
-    <span style="font-size: 12px; color: blue;">
-    Descriptors:</span>
-    <span style="font-size: 12px; font-weight: bold;">
-    @descriptors</span>
-    </div>
-
-    <div>
-    <span style="font-size: 12px; color: blue;">
-    Standards:</span>
-    <span style="font-size: 12px; font-weight: bold;">
-    @standards</span>
-    </div>
-
-    <div>
-    <span style="font-size: 12px; color: blue;">
-    Result: </span>
-    <span style="font-size: 12px; font-weight: bold; ">
-    @result</span>
-    </div>
-
-    <div>
-    <span style="font-size: 12px; color: blue;">
-    Topic:</span>
-    <span style="font-size: 12px; font-weight: bold;">
-    @topic_10</span>
-    </div>
-
-    <div>
-    <span style="font-size: 12px; color: blue;">
-    Topic number:</span>
-    <span style="font-size: 12px; font-weight: bold;">
-    @cluster_order</span>
-    </div>
-    </div>
-
-    """
-    hover = HoverTool(name=name, tooltips=tooltips)
+    hover = HoverTool(tooltips=tooltips, renderers=[main_renderer])
 
     fig.add_tools(hover)
-    fig.add_layout(number_label)
+
     # Now create the hover tool, and make sure it is only active with
     # the series plotted in the previous line
 
