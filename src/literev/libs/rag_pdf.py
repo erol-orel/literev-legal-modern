@@ -79,6 +79,7 @@ class PDFRAG:
                     api_key=settings.OPENAI_API_KEY,
                     model_name="gpt-4o-mini",
                     prompt_template=template_prompt,
+                    temperature=0,
                 )
 
                 rag = Rago(
