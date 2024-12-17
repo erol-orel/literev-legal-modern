@@ -227,6 +227,38 @@ def search_evaluate(
     return context
 
 
+def projectpage_load_final_results(project: Project):
+    context = {}
+
+    cluster_list = (
+        Cluster.objects.filter(project=project)
+        .values_list("topic", flat=True)
+        .order_by("order")
+    )
+
+    context["list_topics"] = list(cluster_list)
+
+    grouped_clusters = get_grouped_clusters(project)
+
+    context["list_number_topic10"] = format_grouped_clusters(grouped_clusters)
+
+    topics, palette = get_color_map(context["list_topics"])
+
+    context["topic_colors"] = dict(zip(topics, palette))
+
+    context["standard_list"] = extract_refined_list(project)
+
+    context["descriptors_list"] = extract_refined_list(
+        project, is_descriptor=True
+    )
+
+    return context
+
+
+def load_refinements(user: User, project: Project) -> RefinementIteration:
+    return ProjectRefinement.objects.filter(owner=user, project=project)
+
+
 @login_required(login_url="/accounts/login/")
 def search(request: HttpRequest) -> HttpResponse:
     context: dict[str, Any] = {}
@@ -354,8 +386,14 @@ def projectpage(
         return redirect(reverse("search"))
 
     project = Project.objects.filter(id=project_id).first()
-    if not project or not project.is_finish:
+
+    if not project:
         return redirect(reverse("search"))
+
+    if not (project.is_finish or project.step in ["clustering", "plotting"]):
+        return redirect(reverse("search"))
+
+    context["is_finish"] = project.is_finish
 
     if request.method == "POST":
         if request.POST.get("get-refinement"):
@@ -493,29 +531,9 @@ def projectpage(
         }
     )
 
-    context.update(load_plot_data(project.pk))
-
-    cluster_list = (
-        Cluster.objects.filter(project=project)
-        .values_list("topic", flat=True)
-        .order_by("order")
-    )
-
-    context["list_topics"] = list(cluster_list)
-
-    grouped_clusters = get_grouped_clusters(project)
-
-    context["list_number_topic10"] = format_grouped_clusters(grouped_clusters)
-
-    topics, palette = get_color_map(context["list_topics"])
-
-    context["topic_colors"] = dict(zip(topics, palette))
-
-    context["standard_list"] = extract_refined_list(project)
-
-    context["descriptors_list"] = extract_refined_list(
-        project, is_descriptor=True
-    )
+    if project.is_finish:
+        context.update(load_plot_data(project.pk))
+        context.update(projectpage_load_final_results(project))
 
     context["result_list"] = [
         "REJETE",
@@ -529,10 +547,7 @@ def projectpage(
         "NO RESULT",
     ]
 
-    refinements = ProjectRefinement.objects.filter(
-        owner=actual_user, project=project
-    )
-    context["refinements"] = refinements
+    context["refinements"] = load_refinements(actual_user, project)
 
     return render(request, "projectpage.html", context)
 

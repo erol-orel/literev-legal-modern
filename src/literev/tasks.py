@@ -4,11 +4,14 @@ import os
 from datetime import date
 from typing import Iterator
 
+import pandas as pd
+
 from celery import chain
 from celery.result import AsyncResult
 from django.conf import settings
 from django.db import transaction
 from django.db.models.query import QuerySet
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 # Local imports
 from config.celery import app
@@ -22,9 +25,17 @@ from literev.libs.utils import (
     update_es_scores_file,
     update_task_code,
 )
-from literev.models import Document, Project, ProjectRAG, User
+from literev.models import (
+    Cluster,
+    ClusterElement,
+    Document,
+    Project,
+    ProjectRAG,
+    User,
+)
 from literev.task_clustering import back_clustering_documents
 from literev.task_plotting import back_plotting_documents
+from literev_core.clustering import pacmap_default
 from literev_core.preprocessing import (
     create_ngrams,
     prepare_document,
@@ -128,6 +139,7 @@ def launch_process(project: Project) -> bool:
             back_get_documents.si(project.id),
             back_preparing_documents.si(project.id),
             back_preprocess_documents.si(project.id),
+            back_get_early_results.si(project.id),
             back_clustering_documents.si(project.id),
             back_plotting_documents.si(project.id),
         )
@@ -200,12 +212,56 @@ def back_get_documents(self, project_id: int) -> bool:
         )
         return False
 
-    project.step = "preparing"
-    project.save()
     logger.info(
         f"Document collection and saving completed successfully for project {project_id}"
     )
     return True
+
+
+@app.task(bind=True)
+def back_get_early_results(self, project_id: int):
+    """
+    Generates early reduction of dimensionality and create early 2d map in
+    cluster and cluster elements objects
+    """
+    project = Project.objects.get(id=project_id)
+    update_task_code(project, self.request.id)
+
+    documents = (
+        Document.objects.filter(project=project)
+        .exclude(preprocessed_document__isnull=True)
+        .exclude(preprocessed_document="")
+    )
+
+    pp_documents = [
+        pp_doc
+        for pp_doc in documents.values_list("preprocessed_document", flat=True)
+    ]
+
+    list_doc_ids = [
+        id_doc for id_doc in documents.values_list("id", flat=True)
+    ]
+
+    cluster = Cluster.objects.create(
+        project=project, topic="Cluster from early results"
+    )
+
+    tfidfVectorizer = TfidfVectorizer()
+    tf_idf = tfidfVectorizer.fit_transform(pp_documents)
+
+    embedding_2d_array = pacmap_default(tf_idf)
+
+    embedding_df = pd.DataFrame(embedding_2d_array)
+
+    for i, doc_id in enumerate(list_doc_ids):
+        ClusterElement.objects.create(
+            document_id=doc_id,
+            cluster=cluster,
+            pos_x=embedding_df[0][i],
+            pos_y=embedding_df[1][i],
+        )
+
+    logger.info("Success preparing early results")
 
 
 @app.task(bind=True)
@@ -220,6 +276,8 @@ def back_preparing_documents(self, project_id: int):
     """
 
     project = Project.objects.get(id=project_id)
+    project.step = "preparing"
+    project.save()
 
     update_task_code(project, self.request.id)
 
@@ -249,8 +307,6 @@ def back_preparing_documents(self, project_id: int):
             )
 
     logger.info("Success preparing Documents")
-    project.step = "preprocessing"
-    project.save()
 
 
 @app.task(bind=True)
@@ -265,6 +321,8 @@ def back_preprocess_documents(self, project_id: int):
     """
 
     project = Project.objects.get(id=project_id)
+    project.step = "preprocessing"
+    project.save()
 
     update_task_code(project, self.request.id)
 
@@ -312,8 +370,7 @@ def back_preprocess_documents(self, project_id: int):
             logger.error(f"Adding preprocessed Document failed. Doc ID: {pk}")
             logger.error(e)
             continue
-    project.step = "clustering"
-    project.save()
+
     logger.info("Success preprocessing Documents")
 
 
@@ -516,6 +573,7 @@ def launch_update_process(
             ),
             back_preparing_documents.si(new_project.id),
             back_preprocess_documents.si(new_project.id),
+            back_get_early_results.si(new_project.id),
             back_clustering_documents.si(new_project.id),
             back_plotting_documents.si(new_project.id),
         )

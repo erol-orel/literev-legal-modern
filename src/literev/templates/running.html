@@ -89,160 +89,168 @@
 {% endblock sidebar %}
 
 {% block content %}
-  <div class="d-flex flex-grow-1">
-    <div class="container py-8"
-         style="padding-top: 115px">
-      <h1 class="text-center mb-4 text-dark">
-        <i class="fa-solid fa-gears me-3"></i>
-        Project status
-      </h1>
-      <div class="row align-items-center fs-5 mb-3 g-2 fw-bold"
-           style="padding-top: 80px">
-        <div class="col-2">
-          Project Name
-        </div>
-        <div class="col-2">
-          Query
-        </div>
-        <div class="col-3">
-          Status
-        </div>
-        <div class="col-3 text-center">
-          Progress
-        </div>
-        <div class="text-center col-2">
-          Actions
+  <div class="d-flex">
+    <div class="container">
+      <div class="col-sm-12 col-md-12 col-xl-12">
+        <div class="container py-8"
+             style="padding-top: 115px">
+          <h1 class="text-center mb-4 text-dark">
+            <i class="fa-solid fa-gears me-3"></i>
+            Project status
+          </h1>
         </div>
       </div>
-      <div class="row">
-        <hr />
-      </div>
+    </div>
+  </div>
 
-      {% for project in projects %}
-        <form action=""
+  <div class="container mt-5 pb-5">
+    <div class="row"
+         style="overflow:auto">
+      <div class="col-12">
+        <div class="row align-items-center fs-5 mb-3 g-2 fw-bold">
+          <div class="col-4">
+            Project Name
+          </div>
+          <div class="col-2">
+            Query
+          </div>
+          <div class="col-2">
+            Status
+          </div>
+          <div class="col-3 text-center">
+            Progress
+          </div>
+          <div class="col-1 text-center">
+            Actions
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <hr />
+    </div>
+    {% for project in projects %}
+      <div class="project-search-metadata row align-items-center fs-5 g-3 mb-2">
+        <div class="col-4 d-flex">
+          <div style="cursor:pointer"
+               data-bs-toggle="collapse"
+               data-bs-target="#collapse-step-finished-{{ forloop.counter }}">
+            <div>
+              <i class="fa-sharp fa-solid fa-chevron-right fa-sm"></i>
+            </div>
+          </div>
+          <div>
+            <a class="ms-2 fw-bold"
+               href="/project/{{ project.id }}">{{ project.name }}</a>
+          </div>
+        </div>
+        <div class="col-2">
+          {{ project.query }}
+        </div>
+        <div class="col-2">
+          {{ project.step }}
+        </div>
+        {% if project.step == "getting_documents" %}
+          <div class="col-1">
+            {{ project|created_documents }}
+          </div>
+          {% with percentage=project|created_percentage %}
+            <div class="pe-5 col-2">
+              <div class="progress"
+                   role="progressbar"
+                   aria-label=""
+                   aria-valuenow="{{ percentage }}"
+                   aria-valuemin="0"
+                   aria-valuemax="100"
+                   style="height: 30px">
+                <div class="progress-bar bg-success fs-6"
+                     style="width: {{ percentage }}%">
+                  {{ percentage }}%
+                </div>
+              </div>
+            </div>
+          {% endwith %}
+        {% elif project.step == "preparing" %}
+          <div class="col-1">
+            {{ project|prepared_progress }}
+          </div>
+          {% with percentage=project|prepared_percentage %}
+            <div class="pe-5 col-2">
+              <div class="progress"
+                   role="progressbar"
+                   aria-label=""
+                   aria-valuenow="{{ percentage }}"
+                   aria-valuemin="0"
+                   aria-valuemax="100"
+                   style="height: 30px">
+                <div class="progress-bar bg-warning fs-6"
+                     style="width: {{ percentage }}%">
+                  {{ percentage }}%
+                </div>
+              </div>
+            </div>
+          {% endwith %}
+        {% elif project.step == "preprocessing" %}
+          <div class="col-1">
+          </div>
+          <div class="pe-5 col-2">
+            Creating n-grams
+          </div>
+        {% elif project.step == "clustering" %}
+          <div class="col-1">
+            Trial: {{ project|clustering_progress }}
+          </div>
+          {% with percentage=project|clustering_percentage %}
+            <div class="pe-5 col-2">
+              <div class="progress"
+                   role="progressbar"
+                   aria-label=""
+                   aria-valuenow="{{ percentage }}"
+                   aria-valuemin="0"
+                   aria-valuemax="100"
+                   style="height: 30px">
+                <div class="progress-bar bg-warning fs-6"
+                     style="width: {{ percentage }}%">
+                  {{ percentage }}%
+                </div>
+              </div>
+            </div>
+          {% endwith %}
+        {% elif project.step == "plotting" %}
+          <div class="col-1">
+            Plotting
+          </div>
+          <div class="pe-5 col-2">
+            Creating plot results
+          </div>
+        {% endif %}
+        <form class="col-1 d-flex justify-content-xl-center gap-lg-1"
               method="POST">
           {% csrf_token %}
-          <div class="research-search-metadata row fs-5 g-2 mb-2">
-            <div class="col-2 d-grid align-items-center"
-                 style="cursor:pointer"
-                 data-bs-toggle="collapse"
-                 data-bs-target="#collapse-step-article-{{ forloop.counter }}">
-              <div>
-                <i class="fa-sharp fa-solid fa-chevron-right fa-sm"></i>
-                {{ project.name }}
-              </div>
-            </div>
-            <div class="col-2 d-grid align-items-center">
-              {{ project.query }}
-            </div>
-            <div class="col-3 d-grid align-items-center">
-              {{ project.step }}
-            </div>
-            {% if project.step == "getting_documents" %}
-              <div class="col-1">
-                {{ project|created_documents }}
-              </div>
-              {% with percentage=project|created_percentage %}
-                <div class="pe-5 col-2">
-                  <div class="progress"
-                       role="progressbar"
-                       aria-label=""
-                       aria-valuenow="{{ percentage }}"
-                       aria-valuemin="0"
-                       aria-valuemax="100"
-                       style="height: 30px">
-                    <div class="progress-bar bg-success fs-6"
-                         style="width: {{ percentage }}%">
-                      {{ percentage }}%
-                    </div>
-                  </div>
-                </div>
-              {% endwith %}
-            {% elif project.step == "preparing" %}
-              <div class="col-1">
-                {{ project|prepared_progress }}
-              </div>
-              {% with percentage=project|prepared_percentage %}
-                <div class="pe-5 col-2">
-                  <div class="progress"
-                       role="progressbar"
-                       aria-label=""
-                       aria-valuenow="{{ percentage }}"
-                       aria-valuemin="0"
-                       aria-valuemax="100"
-                       style="height: 30px">
-                    <div class="progress-bar bg-warning fs-6"
-                         style="width: {{ percentage }}%">
-                      {{ percentage }}%
-                    </div>
-                  </div>
-                </div>
-              {% endwith %}
-            {% elif project.step == "preprocessing" %}
-              <div class="col-1">
-              </div>
-              <div class="pe-5 col-2">
-                Creating n-grams
-              </div>
-            {% elif project.step == "clustering" %}
-              <div class="col-1">
-                Trial: {{ project|clustering_progress }}
-              </div>
-              {% with percentage=project|clustering_percentage %}
-                <div class="pe-5 col-2">
-                  <div class="progress"
-                       role="progressbar"
-                       aria-label=""
-                       aria-valuenow="{{ percentage }}"
-                       aria-valuemin="0"
-                       aria-valuemax="100"
-                       style="height: 30px">
-                    <div class="progress-bar bg-warning fs-6"
-                         style="width: {{ percentage }}%">
-                      {{ percentage }}%
-                    </div>
-                  </div>
-                </div>
-              {% endwith %}
-            {% elif project.step == "plotting" %}
-              <div class="col-1">
-                Plotting
-              </div>
-              <div class="pe-5 col-2">
-                Creating plot results
-              </div>
 
+          <!-- Button trigger modal -->
+          <div>
+            <input type="hidden"
+                   name="project_id"
+                   value="{{ project.id }}" />
+            <input type="hidden"
+                   name="project_name"
+                   value="{{ project.name }}" />
+            <input type="hidden"
+                   name="project_query"
+                   value="{{ project.query }}" />
+            {% if not project.id|check_shared_project %}
+              <button type="submit"
+                      name="submit"
+                      value="delete"
+                      class="btn btn-danger text-white">
+                <i class="fa-regular fa-trash-can"></i>
+              </button>
             {% endif %}
-            <div class="text-center col-2">
-              <div class="row gap-2 gap-lg-1 justify-content-xl-center">
-                <div class="col-sm-12 col-xxl-4">
-                  <input type="hidden"
-                         name="project_id"
-                         value="{{ project.id }}" />
-                  <button type="submit"
-                          name="submit"
-                          value="restart"
-                          class="btn btn-secondary"
-                          style="display: none">
-                    Restart
-                  </button>
-                </div>
-                {% if not project.id|check_shared_project %}
-                  <div class="ms-2 col-sm-12 col-xxl-4">
-                    <button type="submit"
-                            name="submit"
-                            value="delete"
-                            class="btn btn-danger text-white">
-                      <i class="fa-regular fa-trash-can"></i>
-                    </button>
-                  </div>
-                {% endif %}
-              </div>
-            </div>
           </div>
         </form>
         <div class="collapse row align-items-start pt-4 mb-3 text-muted fs-6"
-             id="collapse-step-article-{{ forloop.counter }}">
+             id="collapse-step-finished-{{ forloop.counter }}">
           <div class="col-2">
             <div>
               <p>
@@ -269,54 +277,51 @@
           <div class="col-3">
             <div>
               <p>
-                Initial total documents:
+                Sources
               </p>
               <p>
-                {{ project.total_documents }}
+                {{ project.selected_indices.0|slice:":-6"|capfirst }}
               </p>
+
             </div>
           </div>
           <div class="col-3">
+          </div>
+          <div class="col-2">
             <div>
               {% if project.is_finish %}
                 <p>
                   Best DBCV:
                 </p>
                 <p>
-                  {{ project.best_dbcv }}
+                  {{ project.best_dbcv |floatformat:"3" }}
                 </p>
               {% endif %}
             </div>
           </div>
-          <div class="col-2">
-          </div>
-        </div>
-        <div class="row">
-          <hr />
-        </div>
-      {% endfor %}
-
-      <div class="mt-4 row justify-content-center justify-content-xl-end">
-        <div class="col-12 col-md-10 col-xl-6">
-          <div class="row justify-content-center justify-content-xl-end">
-            <div class="col-12 d-flex justify-content-end gap-5">
-              <form action=""
-                    method="POST">
-                {% csrf_token %}
-                <button type="submit"
-                        id="check-status"
-                        name="submit"
-                        value="reload"
-                        class="btn btn-md btn-primary">
-                  Check status
-                </button>
-              </form>
-            </div>
-          </div>
         </div>
       </div>
+      <div class="row">
+        <hr />
+      </div>
+    {% endfor %}
+
+    <div class="row text-end">
+      <form action=""
+            method="POST">
+        {% csrf_token %}
+        <button type="submit"
+                id="check-status"
+                name="submit"
+                value="reload"
+                class="btn btn-md btn-primary">
+          Check status
+        </button>
+      </form>
     </div>
+
   </div>
+
 {% endblock content %}
 
 {% block jscode %}

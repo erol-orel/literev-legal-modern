@@ -35,6 +35,8 @@ def back_clustering_documents(self, project_id: int):
     """
 
     project = Project.objects.get(id=project_id)
+    project.step = "clustering"
+    project.save()
 
     update_task_code(project, self.request.id)
 
@@ -210,5 +212,3 @@ def back_clustering_documents(self, project_id: int):
     )
 
     project.step_number = 0
-    project.step = "plotting"
-    project.save()

@@ -21,6 +21,11 @@ UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
 
 
 @register.filter
+def has_early_results(project: Project) -> bool:
+    return project.step in ["clustering", "plotting"]
+
+
+@register.filter
 def check_shared_project(project_id: int):
     return project_id in get_shared_projects_ids()
 

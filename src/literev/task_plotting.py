@@ -339,6 +339,8 @@ def back_plotting_documents(self, project_id: int):
         The ID of the project for which plots are generated.
     """
     project = Project.objects.get(id=project_id)
+    project.step = "plotting"
+    project.save()
 
     update_task_code(project, self.request.id)
 

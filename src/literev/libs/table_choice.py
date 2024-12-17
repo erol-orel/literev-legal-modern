@@ -845,7 +845,7 @@ def iterate_check_list(
     """
     # Check if the project has another step in progress,
     # if there is any this do nothing
-    if project.step != "":
+    if project.step not in ["", "clustering", "plotting"]:
         return
 
     filter_thread_dict[project.id] = Thread(

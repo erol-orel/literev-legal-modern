@@ -56,7 +56,7 @@ groups:
           CMD="pytest ${{ args.app or args.module }} \
             --ds=${{ args.settings or env.DJANGO_SETTINGS_MODULE }} ${{ args.params }}"
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
-            sugar compose exec --service literev --cmd $CMD
+            sugar compose exec --service literev --cmd "$CMD"
           else
             cd src/
             export POSTGRES_HOST=localhost

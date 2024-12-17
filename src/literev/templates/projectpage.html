@@ -403,9 +403,15 @@
                   </td>
                 </tr>
                 <tr>
-                  <th scope="row">
-                    Number of Documents
-                  </th>
+                  {% if is_finish %}
+                    <th scope="row">
+                      Number of Documents
+                    </th>
+                  {% else %}
+                    <th scope="row">
+                      Estimated Documents
+                    </th>
+                  {% endif %}
                   <td class="align-middle">
                     {{ project | count_processed_documents }}
                   </td>
@@ -413,12 +419,23 @@
               </tbody>
             </table>
           </div>
-
+          <form action=""
+                method="POST">
+            {% csrf_token %}
+            <div class="d-grid gap-2 col-4 mx-auto">
+              <button type="submit"
+                      name="submit"
+                      value="filters"
+                      class="btn btn-primary btn-lg mt-2 mb-5">
+                <i class="fa-regular fa-file-alt me-2"></i>See All Documents
+              </button>
+            </div>
+          </form>
         </div>
         {% if not project_id|check_shared_project %}
           <div class="row">
             <div class="mx-auto col-lg-8 col-md-12 col-sm-12"">
-              <div class="fw-bold fs-5 mb-2">
+              <div class="fw-bold fs-3 mb-2 mt-3">
                 Management
               </div>
               <form action=""
@@ -428,16 +445,8 @@
                   <div class="d-grid gap-2 col-4 mx-auto">
                     <button type="submit"
                             name="submit"
-                            value="filters"
-                            class="btn btn-primary btn-lg mt-2 mb-5">
-                      <i class="fa-regular fa-file-alt me-2"></i>See All Documents
-                    </button>
-                  </div>
-                  <div class="d-grid gap-2 col-4 mx-auto">
-                    <button type="submit"
-                            name="submit"
                             value="update"
-                            class="btn btn-primary btn-lg mt-2 mb-5">
+                            class="btn btn-primary mt-2 mb-5">
                       <i class="fa-solid fa-arrow-up-wide-short me-2"></i>Update
                     </button>
                   </div>
@@ -445,7 +454,7 @@
                     <button type="submit"
                             name="submit"
                             value="delete"
-                            class="btn btn-danger btn-lg mt-2 mb-5 text-white">
+                            class="btn btn-danger mt-2 mb-5 text-white">
                       <i class="fa-regular fa-trash-can me-2"></i>Delete
                     </button>
                   </div>
@@ -455,124 +464,133 @@
           </div>
         {% endif %}
       </div>
-      <div class="container my-2">
-        <div class="text-center">
-          <div class="fw-bold fs-3 d-inline-block me-3 mt-5">
-            Clusters plot
+      {% if is_finish %}
+        <div class="container my-2">
+          <div class="text-center">
+            <div class="fw-bold fs-3 d-inline-block me-3 mt-5">
+              Clusters plot
+            </div>
           </div>
         </div>
-      </div>
-      <div class="d-flex justify-content-center mt-3 mb-5">
-        <div class="d-flex container">
-          {% if div_plot %}
-            {{ div_plot | safe }}
-          {% endif %}
+        <div class="d-flex justify-content-center mt-3 mb-5">
+          <div class="d-flex container">
+            {% if div_plot %}
+              {{ div_plot | safe }}
+            {% endif %}
+          </div>
         </div>
-      </div>
-
-      {% with project|clusters_summary as summaries %}
-
-        {% if summaries %}
-          <div class="container mb-5">
-            <h3 class="text-center mb-3">
-              Cluster Summary Table
-            </h3>
-            <table class="table">
-              <thead>
-                <tr>
-                  <th scope="col">
-                    Cluster Number
-                  </th>
-                  <th scope="col">
-                  </th>
-                  <th scope="col">
-                    Topic
-                  </th>
-                  <th scope="col">
-                    Summary
-                  </th>
-                  <th scope="col">
-                    Total Documents
-                  </th>
-                  <th scope="col">
-                    Representative Document
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for summary in summaries %}
-                  <tr style="background-color: {{ topic_colors|get_dict_value:summary.topic }}15">
-                    <td class="align-middle py-4 fs-2">
-                      <h2 class="text-center">
-                        {% if summary.cluster_order != -1 %}
-                          {{ summary.cluster_order }}
-                        {% endif %}
-                      </h2>
-                    </td>
-                    <td class="align-middle px-4">
-                      <span class="d-inline-block rounded-circle"
-                            style="background-color: {{ topic_colors|get_dict_value:summary.topic }};
-                                   width: 30px;
-                                   height: 30px"></span>
-                    </td>
-                    <td class="align-middle py-4">
-                      {{ summary.topic_10 }}
-                    </td>
-                    <td class="py-4">
-                      {% if not summary.summary_text %}
-                        <div>
-                          <div class="alert alert-light shadow-sm"
-                               role="alert">
-                            We couldn't generate a summary at the moment. Please try again by clicking the generate button below.
-                          </div>
-                          <div class="text-end">
-                            <button type="button"
-                                    class="btn btn-secondary generate-summary-button"
-                                    data-generate-summary-url="{% url "generate-summary" summary.cluster_id %}"
-                                    data-cluster-id="{{ summary.cluster_id }}"
-                                    data-csrf-token="{{ csrf_token }}">
-                              Generate <i class="fa-regular fa-pen-to-square"></i>
-                            </button>
-                          </div>
-
-                        </div>
-                      </div>
-                    {% else %}
-                      {{ summary.summary_text }}
-                    {% endif %}
-                  </td>
-                  <td class="py-4">
-                    <p class="px-2">
-                      {{ summary.total_documents }}
-                    </p>
-                  </td>
-                  <td class="py-4">
-                    {% if summary.document_id %}
-                      <div class="px-2">
-                        <i>Document ID: </i> <b>{{ summary.document_id }}</b>
-                      </div>
-                      <div class="px-2">
-                        <i>Procedure Type: </i> <b>{{ summary.procedure_type }}</b>
-                      </div>
-                      <div class="px-2">
-                        <i>Decision Type: </i> <b>{{ summary.decision_type }}</b>
-                      </div>
-                      <div class="px-2">
-                        <i>Result: </i> <b>{{ summary.result }}</b>
-                      </div>
-                    {% else %}
-                      <p class="px-2">
-                        N/A
-                      </p>
-                    {% endif %}
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+      {% else %}
+        <div class="row text-center mt-5 mb-5">
+          <div class="fs-5 alert alert-info">
+            <strong>Project documents are being classified into clusters.
+            Results will be displayed here when they are ready.</strong>
+          </div>
         </div>
       {% endif %}
-    {% endwith %}
+
+      {% if is_finish %}
+        {% with project|clusters_summary as summaries %}
+          {% if summaries %}
+            <div class="container mb-5">
+              <h3 class="text-center mb-3">
+                Cluster Summary Table
+              </h3>
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th scope="col">
+                      Cluster Number
+                    </th>
+                    <th scope="col">
+                    </th>
+                    <th scope="col">
+                      Topic
+                    </th>
+                    <th scope="col">
+                      Summary
+                    </th>
+                    <th scope="col">
+                      Total Documents
+                    </th>
+                    <th scope="col">
+                      Representative Document
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for summary in summaries %}
+                    <tr style="background-color: {{ topic_colors|get_dict_value:summary.topic }}15">
+                      <td class="align-middle py-4 fs-2">
+                        <h2 class="text-center">
+                          {% if summary.cluster_order != -1 %}
+                            {{ summary.cluster_order }}
+                          {% endif %}
+                        </h2>
+                      </td>
+                      <td class="align-middle px-4">
+                        <span class="d-inline-block rounded-circle"
+                              style="background-color: {{ topic_colors|get_dict_value:summary.topic }};
+                                     width: 30px;
+                                     height: 30px"></span>
+                      </td>
+                      <td class="align-middle py-4">
+                        {{ summary.topic_10 }}
+                      </td>
+                      <td class="py-4">
+                        {% if not summary.summary_text %}
+                          <div>
+                            <div class="alert alert-light shadow-sm"
+                                 role="alert">
+                              We couldn't generate a summary at the moment. Please try again by clicking the generate button below.
+                            </div>
+                            <div class="text-end">
+                              <button type="button"
+                                      class="btn btn-secondary generate-summary-button"
+                                      data-generate-summary-url="{% url "generate-summary" summary.cluster_id %}"
+                                      data-cluster-id="{{ summary.cluster_id }}"
+                                      data-csrf-token="{{ csrf_token }}">
+                                Generate <i class="fa-regular fa-pen-to-square"></i>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      {% else %}
+                        {{ summary.summary_text }}
+                      {% endif %}
+                    </td>
+                    <td class="py-4">
+                      <p class="px-2">
+                        {{ summary.total_documents }}
+                      </p>
+                    </td>
+                    <td class="py-4">
+                      {% if summary.document_id %}
+                        <div class="px-2">
+                          <i>Document ID: </i> <b>{{ summary.document_id }}</b>
+                        </div>
+                        <div class="px-2">
+                          <i>Procedure Type: </i> <b>{{ summary.procedure_type }}</b>
+                        </div>
+                        <div class="px-2">
+                          <i>Decision Type: </i> <b>{{ summary.decision_type }}</b>
+                        </div>
+                        <div class="px-2">
+                          <i>Result: </i> <b>{{ summary.result }}</b>
+                        </div>
+                      {% else %}
+                        <p class="px-2">
+                          N/A
+                        </p>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+      {% endwith %}
+    {% endif %}
 
     <div class="container">
       <div class="row">
@@ -591,9 +609,11 @@
                         name="type-filter"
                         id="type-filter"
                         value="Topic">
-                  <option value="Topic">
-                    Topic
-                  </option>
+                  {% if is_finish %}
+                    <option value="Topic">
+                      Topic
+                    </option>
+                  {% endif %}
                   <option value="Norm">
                     Norms
                   </option>
