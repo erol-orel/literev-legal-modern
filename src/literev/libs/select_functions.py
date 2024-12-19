@@ -12,14 +12,12 @@ from django.conf import settings
 from django.db.models import Count, Q
 from django.http import HttpResponse
 
-from literev.libs.table_choice import get_iteration
 from literev.models import (
     Cluster,
     ClusterElement,
     Document,
     Project,
     ProjectRefinement,
-    RefinementIteration,
     TableChoice,
     User,
 )
@@ -149,42 +147,7 @@ def download_finalcsv(project: Project) -> HttpResponse:
         )
     )
 
-    # Return the response value
     return response
-
-
-def get_raw_filters(post_data: dict[str, str]) -> str:
-    """
-    Return a raw filter dictionary from the post_data
-
-    Use the post_data (request.POST) as a argument to extract
-    the key, values where key start with "filter.." and convert its
-    str value to python object, then is converted to and str value
-    to store in session.
-    This generates the value will be stored in request.sessions
-    and will help to keep the filters selected by the user.
-
-    Parameters
-    ----------
-    post_data : a request.POST dictionary dict [str, str]
-        A dictionary obtained from the frontend has the filters sent by
-        the user
-
-    Returns
-    -------
-    raw_filters : str
-        Store the selected filters in a string, this string has
-        json format.
-    """
-    filters: dict[str, Any] = {}
-
-    for key, value in post_data.items():
-        if "filter" in key and value != "{}":
-            filters[key] = json.loads(value)
-
-    raw_filters = json.dumps(filters)
-
-    return raw_filters
 
 
 def get_render_filter_list(filters: dict[str, str]) -> list[tuple[str, str]]:
@@ -285,6 +248,7 @@ def get_filtered_document(
         )
 
     filtered_documents = union_documents - excluded_documents
+    logging.info(f"Filtered documents: {len(filtered_documents)}")
     return list(filtered_documents)
 
 
@@ -293,6 +257,9 @@ def apply_filters(
 ) -> set[int]:
     """
     Apply filters to retrieve document IDs based on filter type (union or exclude).
+
+    For "filter-union" filters, combine results using AND (intersection logic).
+    For "filter-exclude" filters, combine results using OR (union logic).
 
     Parameters
     ----------
@@ -308,10 +275,12 @@ def apply_filters(
     set[int]
         A set of document IDs that match the applied filters.
     """
-    document_set = set()
-    filter_list = [v for k, v in filters.items() if filter_type in k]
-    for filter_dict in filter_list:
-        filter_sets = [
+
+    def _combine_filter_results(
+        filter_dict: dict[str, list[str]],
+    ) -> list[set[int]]:
+        """Run all individual filter functions and collect results."""
+        return [
             get_documents_by_topic(project, filter_dict.get("Topic", [])),
             get_documents_by_norm(project, filter_dict.get("Norm", [])),
             get_documents_by_descriptor(
@@ -326,8 +295,23 @@ def apply_filters(
                 project, filter_dict.get("year_range", [])
             ),
         ]
-        intersection_set = get_intersection_of_non_empty_sets(filter_sets)
-        document_set |= intersection_set
+
+    document_set = set()
+    filter_list = [v for k, v in filters.items() if filter_type in k]
+
+    for filter_dict in filter_list:
+        filter_results = _combine_filter_results(filter_dict)
+
+        if filter_type == "filter-exclude":
+            document_set |= (
+                set.union(*filter_results) if filter_results else set()
+            )
+        else:
+            non_empty_sets = [result for result in filter_results if result]
+            intersection_set = (
+                set.intersection(*non_empty_sets) if non_empty_sets else set()
+            )
+            document_set |= intersection_set
 
     return document_set
 
@@ -343,12 +327,11 @@ def get_documents_by_topic(project: Project, topics: list[str]) -> set[int]:
                 cluster__topic=UNCLASSIFIED_PAPERS_TOPIC,
             ).values_list("document__pk", flat=True)
             result.update(cluster_elements)
-
         else:
-            prepared_topic = topic.split(": ")[1]
+            prepared_topic = topic.split(": ")[-1]
             cluster_elements = ClusterElement.objects.filter(
                 cluster__project=project,
-                cluster__topic__startswith=prepared_topic,
+                cluster__topic__icontains=prepared_topic,
             ).values_list("document__pk", flat=True)
             result.update(cluster_elements)
 
@@ -413,7 +396,7 @@ def get_documents_by_no_decis(
     result = set()
     for no_d in no_decis:
         documents = Document.objects.filter(
-            project=project, raw_document_id=no_d
+            project=project, decision_type=no_d
         ).exclude(clusterelement__isnull=True)
         result.update(documents.values_list("pk", flat=True))
 
@@ -455,18 +438,6 @@ def get_documents_by_year_range(
         result.update(documents.values_list("pk", flat=True))
 
     return result
-
-
-def get_intersection_of_non_empty_sets(sets: list[set[int]]) -> set[int]:
-    """Return the intersection of non-empty sets."""
-    non_empty_sets = [s for s in sets if s]
-    if non_empty_sets:
-        intersection_set = non_empty_sets[0]
-        for s in non_empty_sets[1:]:
-            intersection_set &= s
-        return intersection_set
-
-    return set()
 
 
 def remove_refinement(
@@ -512,26 +483,3 @@ def create_refinement(
     )
 
     return refinement.id
-
-
-def load_last_iteration(
-    user: User, project: Project, refinement_id: int
-) -> None:
-    """Loads the last iteration from the given refinement id
-
-    Parameters
-    ----------
-    user : User
-        Refinement owner.
-    research : Research object Model database
-        The research object model where is used to store
-        search query, status and related data.
-    refinement_id : int
-        Refinement object id which is related with the iterations.
-    """
-    last_iteration = RefinementIteration.objects.filter(
-        refinement_id=refinement_id
-    ).last()
-
-    if last_iteration:
-        get_iteration(user, project, refinement_id, last_iteration.id)

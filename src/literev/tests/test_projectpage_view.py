@@ -1,13 +1,13 @@
 from django.test import TransactionTestCase
 
-from literev.models import Cluster, Document, Project
-from literev.templatetags.filtering_functions import has_early_results
-from literev.views import (
+from literev.libs.project_workflows import (
     extract_refined_list,
     format_grouped_clusters,
     get_color_map,
     get_grouped_clusters,
 )
+from literev.models import Cluster, Document, Project
+from literev.templatetags.filtering_functions import has_early_results
 
 
 class TestProjectPageView(TransactionTestCase):

@@ -694,6 +694,22 @@
               </div>
             </div>
 
+            <div id="nodecision-selector-container"
+                 class="col-7">
+              <div class="input-group input-group-lg">
+                <input id="nodecision-filter"
+                       class="form-control"
+                       list="datalistNodecis"
+                       placeholder="No decision to search" />
+                <datalist id="datalistNodecis">
+                  {% for nodecis in no_decision_list %}
+                    <option value="{{ nodecis }}">
+                    </option>
+                  {% endfor %}
+                </datalist>
+              </div>
+            </div>
+
             <div id="result-selector-container"
                  class="col-7">
               <div class="input-group input-group-lg">

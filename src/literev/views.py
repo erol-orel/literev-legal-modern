@@ -9,7 +9,7 @@ from typing import Any, cast
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q
+from django.db.models import Q
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -24,10 +24,15 @@ from literev.libs.nlp import nlp_topic_description
 from literev.libs.pipeline import (
     running_restart,
 )
+from literev.libs.project_workflows import (
+    handle_filters_submission,
+    prepare_update_context,
+    projectpage_load_final_results,
+    validate_project_access,
+)
 from literev.libs.select_functions import (
     create_refinement,
     download_finalcsv,
-    get_filtered_document,
     get_filters,
     get_render_filter_list,
     remove_refinement,
@@ -45,10 +50,6 @@ from literev.libs.table_choice import (
     update_checked_document_page,
     update_new_table_choice,
 )
-from literev.libs.update_project import (
-    estimate_new_documents,
-    get_actual_number_documents,
-)
 from literev.libs.utils import (
     get_number_documents,
 )
@@ -62,19 +63,14 @@ from literev.models import (
     TableChoice,
     User,
 )
-from literev.task_plotting import get_color_map
 from literev.tasks import (
     get_shared_projects_ids,
     launch_process,
-    launch_update_process,
     remove_all_finished_projects,
     running_delete,
 )
 
 logging.basicConfig(level=logging.INFO)
-UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
-
-# get the list of shared project id
 
 
 class HomePageView(TemplateView):
@@ -227,38 +223,6 @@ def search_evaluate(
     return context
 
 
-def projectpage_load_final_results(project: Project):
-    context = {}
-
-    cluster_list = (
-        Cluster.objects.filter(project=project)
-        .values_list("topic", flat=True)
-        .order_by("order")
-    )
-
-    context["list_topics"] = list(cluster_list)
-
-    grouped_clusters = get_grouped_clusters(project)
-
-    context["list_number_topic10"] = format_grouped_clusters(grouped_clusters)
-
-    topics, palette = get_color_map(context["list_topics"])
-
-    context["topic_colors"] = dict(zip(topics, palette))
-
-    context["standard_list"] = extract_refined_list(project)
-
-    context["descriptors_list"] = extract_refined_list(
-        project, is_descriptor=True
-    )
-
-    return context
-
-
-def load_refinements(user: User, project: Project) -> RefinementIteration:
-    return ProjectRefinement.objects.filter(owner=user, project=project)
-
-
 @login_required(login_url="/accounts/login/")
 def search(request: HttpRequest) -> HttpResponse:
     context: dict[str, Any] = {}
@@ -352,42 +316,28 @@ def projectpage(
     """
     Display the Refine project page.
 
-    This view displays the Refine project page. It shows the list of clusters
-    and documents, and allows the user to select a subset of documents to
-    continue with the project. It also displays the graph of the project.
+    This view handles project refinement operations, including filtering,
+    updates, and deletion.
 
     Parameters
     ----------
     request : HttpRequest
-        The request object.
-    project_id : int
-        identifier id of the project
+        The HTTP request object.
+    project_id : int | None
+        The ID of the project.
 
     Returns
     -------
     HttpResponse
-        The response object.
+        Rendered response for the project page.
     """
-    context: dict[str, Any] = {}
-    context["AreYouSure"] = False
-    context["confirm_delete_project"] = False
-    context["refinement_limit_exceeded"] = False
-    context["update_message"] = False
-    context["errors"] = []
-
+    user = request.user
+    context = {"errors": []}
     actual_user = request.user
-    project_exist = (
-        Project.objects.filter(id=project_id).exists()
-        if project_id in get_shared_projects_ids()
-        else Project.objects.filter(user=actual_user, id=project_id).exists()
-    )
 
-    if not project_exist:
-        return redirect(reverse("search"))
-
-    project = Project.objects.filter(id=project_id).first()
-
+    project = validate_project_access(user, project_id)
     if not project:
+        context["errors"].append("Project not found or access denied.")
         return redirect(reverse("search"))
 
     if not (project.is_finish or project.step in ["clustering", "plotting"]):
@@ -420,71 +370,19 @@ def projectpage(
         submit = request.POST.get("submit")
 
         if submit == "filters":
-            # check refinements limit
-            refinement_limit = settings.LIMIT_NUMBER_REFINEMENTS
-            refinement_number = ProjectRefinement.objects.filter(
-                owner=actual_user, project=project
-            ).count()
-
-            if refinement_number >= refinement_limit:
-                context["refinement_limit_exceeded"] = True
-            else:
-                filters = get_filters(request.POST)
-                filters_json = json.dumps(
-                    filters
-                )  # get_raw_filters(request.POST)
-
-                document_pk_list = get_filtered_document(
-                    project=project, filters=filters
-                )
-                context["filters"] = filters_json
-                context["document_pk_list"] = " ".join(
-                    str(pk) for pk in document_pk_list
-                )
-                context["number_document"] = len(document_pk_list)
-                context["AreYouSure"] = True
+            filters = get_filters(request.POST)
+            context.update(handle_filters_submission(user, project, filters))
 
         elif submit == "update":
-            context["confirm_update_project"] = True
-            estimated_new_documents = estimate_new_documents(project)
-            context["estimated_new_documents"] = estimated_new_documents
-            actual_number_documents = get_actual_number_documents(project)
-            context["new_total_documents"] = (
-                estimated_new_documents + actual_number_documents
-            )
-            context["begin_date"] = project.range_begin_date
-            context["new_end_date"] = datetime.date.today()
-            context["new_project_name"] = project.name + " (updated)"
+            context.update(prepare_update_context(project))
 
-        elif submit == "confirm-update":
-            new_project_name = request.POST.get("update-name", "")
-            created = False
-
-            new_total_documents = int(request.POST.get("new_total_documents"))
-
-            created = launch_update_process(
-                project, new_project_name, new_total_documents
-            )
-
-            if created:
-                context["update_message"] = True
-                context["project_name"] = new_project_name
-            else:
-                context["errors"].append("An error ocurred while updating")
-
-        elif submit == "accept-update":
-            return redirect(reverse("running"))
-
-        elif submit == "cancel":
-            pass
-
-        elif submit == "delete":
-            context["confirm_delete_project"] = True
+        elif submit == "remove-refinement":
+            refinement_id = request.POST.get("remove-refinement")
+            if refinement_id:
+                remove_refinement(user, project, int(refinement_id))
 
         elif submit == "confirm_delete_project":
-            project_id = request.POST["project_id"]
-            running_delete(project_id)
-
+            running_delete(request.POST["project_id"])
             return redirect(reverse("running"))
 
         elif submit == "continue":
@@ -511,7 +409,6 @@ def projectpage(
                 filters_json,
             )
 
-            # create iteration
             create_iteration(actual_user, project, new_refinement_id)
 
             return redirect(
@@ -524,171 +421,9 @@ def projectpage(
                 )
             )
 
-    context.update(
-        {
-            "project": project,
-            "project_id": project_id,
-        }
-    )
-
-    if project.is_finish:
-        context.update(load_plot_data(project.pk))
-        context.update(projectpage_load_final_results(project))
-
-    context["result_list"] = [
-        "REJETE",
-        "ADMIS",
-        "PARTIELMNT ADMIS",
-        "IRRECEVABLE",
-        "REFUSE",
-        "ACCORDE",
-        "RETIRE",
-        "SANS OBJECT",
-        "NO RESULT",
-    ]
-
-    context["refinements"] = load_refinements(actual_user, project)
+    context.update(projectpage_load_final_results(user, project))
 
     return render(request, "projectpage.html", context)
-
-
-def load_plot_data(project_pk: int) -> dict[str, str]:
-    """
-    Load and return the div and script plot data.
-
-    This function reads the div and script plot data from the files
-    generated by the clustering and plotting task. It returns a dictionary
-    with two keys: "div_plot" and "script_plot". The values associated with
-    these keys are the contents of the files.
-
-    Parameters
-    ----------
-    project_pk : int
-        The primary key of the project for which to load the plot data.
-
-    Returns
-    -------
-    dict[str, str]
-        A dictionary with two keys: "div_plot" and "script_plot".
-        The values associated with these keys are the contents of the
-        files generated by the clustering and plotting task.
-    """
-    fname_project_div_plot = settings.PLOT_DATA / f"{project_pk}_div.html"
-    fname_project_script_plot = (
-        settings.PLOT_DATA / f"{project_pk}_script.html"
-    )
-
-    with open(fname_project_div_plot, "r") as f:
-        div_plot = f.read()
-
-    with open(fname_project_script_plot, "r") as f:
-        script_plot = f.read()
-
-    return {"div_plot": div_plot, "script_plot": script_plot}
-
-
-def get_grouped_clusters(project: Project) -> list[dict]:
-    """
-    Return grouped clusters with total documents.
-
-    This function returns a list of dictionaries, each with a "topic" key
-    and a "total_documents" key. The list is ordered by "total_documents"
-    in descending order.
-
-    Parameters
-    ----------
-    project : Project
-        The project for which to retrieve grouped clusters.
-
-    Returns
-    -------
-    list[dict]
-        A list of dictionaries, each with a "topic" key and a
-        "total_documents" key.
-    """
-    return (
-        Cluster.objects.filter(project=project)
-        .values("topic")
-        .annotate(total_documents=Count("clusterelement__document"))
-        .order_by("order")
-    )
-
-
-def format_grouped_clusters(grouped_clusters: list[dict]) -> list[str]:
-    """
-    Format the grouped clusters for display.
-
-    This function takes the grouped clusters and formats them for display
-    by creating a list of strings with the index and the first 10 topics
-    separated by commas. The unclassified papers cluster is excluded.
-
-    Parameters
-    ----------
-    grouped_clusters : list[dict]
-        The grouped clusters with total documents.
-
-    Returns
-    -------
-    list[str]
-        The formatted list of strings.
-    """
-    index = 0
-    list_topic_10 = []
-    exists_unclassified = False
-
-    for cluster in grouped_clusters:
-        if cluster["topic"] == UNCLASSIFIED_PAPERS_TOPIC:
-            exists_unclassified = True
-            continue
-        index += 1
-        number__topic10_cluster = (
-            f"{index}: {', '.join(cluster['topic'].split(', ')[:10])}"
-        )
-        list_topic_10.append(number__topic10_cluster)
-
-    if exists_unclassified:
-        list_topic_10.append(UNCLASSIFIED_PAPERS_TOPIC)
-
-    return list_topic_10
-
-
-def extract_refined_list(
-    project: Project, is_descriptor: bool = False
-) -> list[str]:
-    """
-    Extract a refined list of standards or descriptors from the project documents.
-
-    This function takes a project and a boolean flag indicating whether to extract
-    descriptors or standards and returns a list of unique standards or descriptors
-    from all the project documents, ordered by the result field.
-
-    Parameters
-    ----------
-    project : Project
-        The project from which the standards or descriptors are extracted.
-    is_descriptor : bool
-        A boolean flag indicating whether to extract descriptors or standards.
-        Defaults to `False`, which means standards are extracted.
-
-    Returns
-    -------
-    list[str]
-        A list of unique standards or descriptors from all the project documents, ordered by the result field.
-    """
-    filter_field = "descriptors" if is_descriptor else "standards"
-
-    filtered_list_raw = (
-        Document.objects.filter(project=project)
-        .order_by("result")
-        .values_list(f"{filter_field}", flat=True)
-    )
-
-    filtered_list = set()
-    for filter_value in filtered_list_raw:
-        for value in filter_value.split(";"):
-            filtered_list.add(value.strip())
-
-    return sorted(filtered_list)
 
 
 def generate_summary(request: HttpRequest, cluster_id: int) -> HttpResponse:
