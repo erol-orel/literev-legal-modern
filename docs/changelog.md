@@ -2,6 +2,20 @@ Release Notes
 ---
 
 
+## [0.11.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.10.0...0.11.0) (2024-12-19)
+
+### Features
+
+* add early results ([#178](https://github.com/thegraphnetwork-literev/literev-legal/issues/178)) ([7de8546](https://github.com/thegraphnetwork-literev/literev-legal/commit/7de85466dd9dd41df783785428dc65feb87ee3bb))
+* **project-page:** Improve refinement filter  ([#179](https://github.com/thegraphnetwork-literev/literev-legal/issues/179)) ([763a934](https://github.com/thegraphnetwork-literev/literev-legal/commit/763a934755ab1824369ce3c68c6a1fad2060809b))
+* **ui:** add 'See All Documents' button ([#177](https://github.com/thegraphnetwork-literev/literev-legal/issues/177)) ([2853dd8](https://github.com/thegraphnetwork-literev/literev-legal/commit/2853dd84d23b073d15c6a62e905f2e55335f3c61))
+
+### Bug Fixes
+
+* **plot:** hide tooltips for cluster number circles and improve circle rendering ([#172](https://github.com/thegraphnetwork-literev/literev-legal/issues/172)) ([91b0a9c](https://github.com/thegraphnetwork-literev/literev-legal/commit/91b0a9ce51cbbf35f216e10f4740831291e59744))
+* **rag:** set temperature parameter to 0 in OpenAIGen ([#182](https://github.com/thegraphnetwork-literev/literev-legal/issues/182)) ([c992418](https://github.com/thegraphnetwork-literev/literev-legal/commit/c9924189ec26debf07ca3268e667ad50c583bbd3))
+* **tableselect:** update tableupdate functions api ([#168](https://github.com/thegraphnetwork-literev/literev-legal/issues/168)) ([6adf0c4](https://github.com/thegraphnetwork-literev/literev-legal/commit/6adf0c4f086d07a4749984b1e6c29498dbc6a005))
+
 ## [0.10.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.9.0...0.10.0) (2024-12-06)
 
 ### Features
