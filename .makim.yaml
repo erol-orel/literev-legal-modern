@@ -33,6 +33,22 @@ groups:
           pre-commit install
           pre-commit run --all-files --verbose
 
+      coverage-report:
+        help: Generate coverage report
+        env-file: ./.env
+        env:
+          POSTGRES_HOST: localhost
+        run: |
+          CMD="coverage report -m --skip-empty --omit=*/config/*,*/migrations/*,*/tests/*,manage.py"
+
+          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
+            sugar compose exec --service literev --cmd "$CMD"
+          else
+            cd src/
+            export POSTGRES_HOST=localhost
+            $CMD
+          fi
+
       unittest:
         help: Run tests
         args:
@@ -51,9 +67,15 @@ groups:
             help: Specify parameters to be used for tests
             type: string
             default: "-vvv"
+          clean-cov:
+            help: Coverage append flag
+            type: bool
+            action: store_true
+            default: ""
         env-file: ./.env
         run: |
-          CMD="pytest ${{ args.app or args.module }} \
+          COVERAGE_FLAG=${{ "--cov-append" if not args.clean_cov else "" }}
+          CMD="pytest --cov=. $COVERAGE_FLAG ${{ args.app or args.module }} \
             --ds=${{ args.settings or env.DJANGO_SETTINGS_MODULE }} ${{ args.params }}"
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
             sugar compose exec --service literev --cmd "$CMD"
