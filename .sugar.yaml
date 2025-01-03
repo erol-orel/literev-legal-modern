@@ -47,3 +47,14 @@ groups:
         - name: literev-postgres
         - name: literev-redis
         - name: literev-celery
+
+  test:
+    config-path:
+      - containers/compose.base.yaml
+      - containers/compose.dev.yaml
+    env-file: .env
+    services:
+      default: literev-postgres,literev-redis
+      available:
+        - name: literev-postgres
+        - name: literev-redis

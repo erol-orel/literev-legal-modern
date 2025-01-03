@@ -49,10 +49,10 @@ langchain = "^0.3.6"
 django-filter = "^24.3"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.0.2"
+pytest = "^8.3.3"
 jupyterlab = "^4.1.4"
-pytest-cov = "^4.1.0"
-pytest-django = "^4.8.0"
+pytest-cov = ">=5"
+pytest-django = "^4.9.0"
 pre-commit = ">=3.0.0"
 bandit = ">=1.7.5"
 compose-go = ">=2.23.0"
@@ -64,13 +64,14 @@ django-extensions = ">=3.2.3"
 djlint = ">=1.32.1"
 ipython = ">=8.14.0"
 jupyter = ">=1"
-makim = "1.19.0"
+makim = "1.20.0"
 mccabe = ">=0.7.0"
 mypy = ">=1.8" # issue: https://github.com/typeddjango/django-stubs/issues/1802
 notebook = ">=6.5.4"
 pdbpp = ">=0.10.3"
 ruff = ">=0.1.5"
 vulture = ">=2.7"
+django-coverage-plugin = ">=3.1"
 
 [[tool.poetry.source]]
 name = "pytorch-cpu"
@@ -83,11 +84,26 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-addopts = "-v -ra --cov=src"
+minversion = "6.0"
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+addopts = "--ds=config.settings.test -v -ra --cov=src --reuse-db --import-mode=importlib"
 pythonpath = "src"
-testpaths = [
-    "tests",
+python_files = [
+  "tests.py",
+  "test_*.py",
 ]
+
+[tool.coverage.run]
+include = ["src/**"]
+omit = [
+  "*/migrations/*",
+  "*/tests/*",
+  "scripts/*",
+  "manage.py",
+  "*/src/conftest.py",
+  "*.txt",
+]
+plugins = ["django_coverage_plugin"]
 
 [tool.bandit]
 exclude_dirs = ["tests", "migrations"]

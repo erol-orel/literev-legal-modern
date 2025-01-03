@@ -44,7 +44,11 @@ env:
   PUBMED_REQUEST_TIME_INTERVAL: 0.5
   PUBMEDCENTRAL_REQUEST_TIME_INTERVAL: 0.5
   CONTAINER_VOLUME_DATA_DIR: /opt/data/literev
-  USE_CONTAINER: True
+  USE_CONTAINER: False
+  SUGAR_ENV: test
+  REDIS_PORT: 6379
+  REDIS_HOST: localhost
+  REDIS_DB: 0
 
 jobs:
   check_branch:
@@ -52,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Git checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         if: ${{ github.event_name == 'pull_request' }}
         with:
           fetch-depth: 0
@@ -79,7 +83,7 @@ jobs:
         shell: bash -l {0}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - uses: conda-incubator/setup-miniconda@v3
       with:
@@ -97,7 +101,6 @@ jobs:
         export DOCKER_PROJECT_NAME=$RANDOM
         export HOST_UID=${HOST_UID}
         export HOST_GID=${HOST_GID}
-        export USE_CONTAINER=True
         cd /home/runner/work/literev-legal/literev-legal/
         envsubst < .env.tpl > .env
 
@@ -106,10 +109,6 @@ jobs:
 
     - name: Install dependencies
       run: poetry install
-
-    - name: Run linter
-      if: ${{ success() || failure() }}
-      run: makim tests.lint
 
     - name: Create volumes
       run: |
@@ -128,7 +127,7 @@ jobs:
       run: sugar compose build --services literev-postgres
 
     - name: Start literev-postgres container
-      run: sugar compose-ext start --services literev-postgres --options -d
+      run: sugar compose-ext start --options -d
 
     - name: Migrate containers
       run: makim django.migrate
@@ -139,7 +138,7 @@ jobs:
 
     - name: Run tests
       if: ${{ success() || failure() }}
-      run: makim tests.unittest --module literev/tests
+      run: makim tests.unit --clean-cov
 
     - name: Set coverage report
       id: parse-coverage-report
@@ -175,3 +174,118 @@ jobs:
       if: ${{ success() || failure() }}
       with:
         convention-name: conventionalcommits
+
+  linter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        python_version: ["3.10"]
+    concurrency:
+      group: ci-linter-${{ github.ref }}
+      cancel-in-progress: true
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: conda-incubator/setup-miniconda@v3
+      with:
+        miniconda-version: "latest"
+        environment-file: conda/base.yaml
+        channels: conda-forge,nodefaults
+        activate-environment: literev-legal
+        auto-update-conda: true
+        conda-solver: libmamba
+
+    - name: Create environment variables files
+      run: |
+        export FRONTEND_HOST_PORT=${FRONTEND_HOST_PORT}
+        export POSTGRES_PORT=${POSTGRES_PORT}
+        export DOCKER_PROJECT_NAME=$RANDOM
+        export HOST_UID=${HOST_UID}
+        export HOST_GID=${HOST_GID}
+        export USE_CONTAINER=True
+        cd /home/runner/work/literev-legal/literev-legal/
+        envsubst < .env.tpl > .env
+
+    - name: Install dependencies
+      run: poetry install
+
+    - name: Run linter
+      run: makim tests.lint
+
+  containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        python_version: ["3.10"]
+    concurrency:
+      group: ci-containers-${{ github.ref }}
+      cancel-in-progress: true
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    env:
+      USE_CONTAINER: True
+      SUGAR_ENV: dev
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: conda-incubator/setup-miniconda@v3
+      with:
+        miniconda-version: "latest"
+        environment-file: conda/base.yaml
+        channels: conda-forge,nodefaults
+        activate-environment: literev-legal
+        auto-update-conda: true
+        conda-solver: libmamba
+
+    - name: Create environment variables files
+      run: |
+        export FRONTEND_HOST_PORT=${FRONTEND_HOST_PORT}
+        export POSTGRES_PORT=${POSTGRES_PORT}
+        export DOCKER_PROJECT_NAME=$RANDOM
+        export HOST_UID=${HOST_UID}
+        export HOST_GID=${HOST_GID}
+        cd /home/runner/work/literev-legal/literev-legal/
+        envsubst < .env.tpl > .env
+
+    - name: Install dependencies
+      run: poetry install
+
+    - name: Create volumes
+      run: |
+        mkdir -p ${CONTAINER_VOLUME_DATA_DIR}
+        mkdir -p ${POSTGRES_HOST_BACKUP}
+
+    - name: Clean-up and Setup
+      run: |
+        makim clean.all
+        makim containers.host-setup
+
+    - name: Remove old database
+      run: sugar compose down --options --volumes || true
+
+    - name: Build images
+      run: sugar compose build
+
+    - name: Start containers
+      run: sugar compose-ext restart --options -d
+
+    - name: Containers' info
+      run: |
+        sleep 30
+        sugar compose ps
+
+    - name: Stop services
+      run: |
+        sugar compose stop
+        sugar compose down --options "--volumes"

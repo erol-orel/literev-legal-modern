@@ -182,9 +182,15 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# REDIS
+REDIS_HOST = os.environ.get("REDIS_HOST", default="literev-redis")
+REDIS_PORT = os.environ.get("REDIS_PORT", default="6379")
+REDIS_DB = os.environ.get("REDIS_DB", default="0")
+REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+
 # CELERY SETTINGS
-CELERY_BROKER_URL = os.environ.get("CELERY_BROKER", default="")
-CELERY_RESULT_BACKEND = os.environ.get("CELERY_BROKER", default="")
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_TASK_SERIALIZER = "pickle"
 CELERY_RESULT_SERIALIZER = "pickle"

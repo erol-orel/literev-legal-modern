@@ -9,7 +9,8 @@ class IsProjectRAGOwner(BasePermission):
     """
 
     def has_object_permission(self, request, view, obj):
-        # For ProjectRAG and ProjectDocumentRAG, check if the user is the owner of the project
+        # For ProjectRAG and ProjectDocumentRAG, check if the user is the owner
+        # of the project
         return (
             obj.project.id in get_shared_projects_ids()
             or obj.project.user == request.user

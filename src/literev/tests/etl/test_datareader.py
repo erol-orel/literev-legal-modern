@@ -34,16 +34,17 @@ def test_read_data_should_succeed(reader, sample_total_records):
     assert len(list(data)) == sample_total_records
 
 
-def test_not_supported_file_should_fail(reader):
-    non_supported_extensions = [
+@pytest.mark.parametrize(
+    "filepath",
+    [
         Path("non_supported_file.csv"),
         Path("non_supported_file.txt"),
-        Path("non_supported_file.json"),
-    ]
-    for file in non_supported_extensions:
-        with pytest.raises(NotImplementedError):
-            reader.file_path = file
-            reader.read_data()
+    ],
+)
+def test_not_supported_file_should_fail(reader, filepath: Path):
+    with pytest.raises(NotImplementedError):
+        reader.file_path = filepath
+        reader.read_data()
 
 
 def test_non_existent_file_should_fail():

@@ -104,6 +104,8 @@ services:
     hostname: literev-redis
     networks:
       - literev
+    ports:
+      - ${REDIS_PORT:-6379}:${REDIS_PORT:-6379}
     deploy:
       resources:
         limits:

@@ -38,29 +38,16 @@ groups:
         env-file: ./.env
         env:
           POSTGRES_HOST: localhost
+          REDIS_HOST: localhost
+          SUGAR_ENV: test
         run: |
-          CMD="coverage report -m --skip-empty --omit=*/config/*,*/migrations/*,*/tests/*,manage.py"
+          coverage report -m --skip-empty
 
-          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
-            sugar compose exec --service literev --cmd "$CMD"
-          else
-            cd src/
-            export POSTGRES_HOST=localhost
-            $CMD
-          fi
-
-      unittest:
+      unit:
         help: Run tests
         args:
-          app:
-            help: The name of the app (literev)
-            type: string
-          module:
+          path:
             help: Specify the python module used for the test
-            type: string
-            default: ""
-          settings:
-            help: Specify the django settings module
             type: string
             default: ""
           params:
@@ -71,41 +58,22 @@ groups:
             help: Coverage append flag
             type: bool
             action: store_true
-            default: ""
         env-file: ./.env
+        env:
+          POSTGRES_HOST: localhost
+          REDIS_HOST: localhost
+          SUGAR_ENV: test
         run: |
-          COVERAGE_FLAG=${{ "--cov-append" if not args.clean_cov else "" }}
-          CMD="pytest --cov=. $COVERAGE_FLAG ${{ args.app or args.module }} \
-            --ds=${{ args.settings or env.DJANGO_SETTINGS_MODULE }} ${{ args.params }}"
-          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
-            sugar compose exec --service literev --cmd "$CMD"
-          else
-            cd src/
-            export POSTGRES_HOST=localhost
-            $CMD
-          fi
+          sugar compose-ext start --options -d
 
-      unit-local:
-        help: Run unit tests locally (host) with pytest
-        args:
-          app:
-            help: The name of the app (workflow, literev, research)
-            type: string
-          module:
-            help: Specify the python module used for the test
-            type: string
-            default: ""
-          params:
-            help: Specify additional parameters to be used for pytest
-            type: string
-            default: "-v"
-        env-file: ./.env
-        dir: src
-        run: |
-          CMD="pytest ${{ args.app or args.module }} \
-            --ds=config.settings.dev ${{ args.params }}"
-          export POSTGRES_HOST=localhost
-          $CMD
+          COVERAGE_FLAG=${{ "--cov-append" if not args.clean_cov else "" }}
+          # note: we should increase cov-fail-under to 85!
+          COVERAGE_FLAG="${COVERAGE_FLAG} --cov-fail-under=20"
+          COVERAGE_FLAG="${COVERAGE_FLAG} --cov-report term-missing"
+          COVERAGE_FLAG="${COVERAGE_FLAG} --no-cov-on-fail"
+
+          pytest --cov=. $COVERAGE_FLAG \
+            --ds=config.settings.test ${{ args.params }} ${{ args.path }}
 
   django:
     tasks:
