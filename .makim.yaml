@@ -320,7 +320,7 @@ groups:
         env-file: .env
         run: |
           mkdir -p ${LITEREV_CACHE_DIR}
-          mkdir -p ${DOCKER_VOLUME_CONTAINER_PATH}
+          mkdir -p ${CONTAINER_VOLUME_DATA_DIR}
           mkdir -p ${POSTGRES_DATA}
           mkdir -p ${POSTGRES_HOST_BACKUP}
           mkdir -p ${STATIC_ROOT}

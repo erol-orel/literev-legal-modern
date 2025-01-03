@@ -7,6 +7,13 @@ services:
     environment:
       DEBUG: 0
 
+  literev-postgres:
+    environment:
+      DEBUG: 1
+    volumes:
+      - ${POSTGRES_DATA}:/var/lib/postgresql/data
+      - ${POSTGRES_HOST_BACKUP}:${CONTAINER_VOLUME_DATA_DIR}/backup
+
   literev-nginx:
     hostname: literev-nginx
     image: nginx:1.25.3

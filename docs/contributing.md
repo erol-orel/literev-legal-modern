@@ -156,7 +156,7 @@ POSTGRES_DATA=/opt/data/literev/postgres
 FRONTEND_HOST_PORT=8000
 DJANGO_SECRET_KEY='django-testeforq09uh20(^i4sdxqh3n_v#d-$o=**7zrri&k-j3@f10hm88)django-insecure-96*'
 
-DOCKER_VOLUME_CONTAINER_PATH=/opt/data/literev
+CONTAINER_VOLUME_DATA_DIR=/opt/data/literev
 STATIC_ROOT=/opt/data/literev/static
 
 OPENAI_API_KEY=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

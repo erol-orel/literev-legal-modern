@@ -43,7 +43,7 @@ env:
   ACTIONS_RUNNER_DEBUG: true
   PUBMED_REQUEST_TIME_INTERVAL: 0.5
   PUBMEDCENTRAL_REQUEST_TIME_INTERVAL: 0.5
-  DOCKER_VOLUME_CONTAINER_PATH: /opt/data/literev
+  CONTAINER_VOLUME_DATA_DIR: /opt/data/literev
   USE_CONTAINER: True
 
 jobs:
@@ -113,7 +113,7 @@ jobs:
 
     - name: Create volumes
       run: |
-        mkdir -p ${DOCKER_VOLUME_CONTAINER_PATH}
+        mkdir -p ${CONTAINER_VOLUME_DATA_DIR}
         mkdir -p ${POSTGRES_HOST_BACKUP}
 
     - name: Clean-up and Setup

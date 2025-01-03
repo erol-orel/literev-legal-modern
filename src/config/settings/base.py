@@ -217,17 +217,17 @@ MEDIA_URL = "/media/"
 # ------------------------------------------------------------------------------
 MEDIA_ROOT = env("MEDIA_ROOT", default="/opt/data/literev/static/media")
 
-DOCKER_VOLUME_CONTAINER_PATH = Path(
-    env("DOCKER_VOLUME_CONTAINER_PATH", default="/opt/data/literev")
+CONTAINER_VOLUME_DATA_DIR = Path(
+    env("CONTAINER_VOLUME_DATA_DIR", default="/opt/data/literev")
 )
 
-ARTICLE_DATA = DOCKER_VOLUME_CONTAINER_PATH / "articles"
-PLOT_DATA = DOCKER_VOLUME_CONTAINER_PATH / "plot"
-PKL_DATA = DOCKER_VOLUME_CONTAINER_PATH / "pkl"
+ARTICLE_DATA = CONTAINER_VOLUME_DATA_DIR / "articles"
+PLOT_DATA = CONTAINER_VOLUME_DATA_DIR / "plot"
+PKL_DATA = CONTAINER_VOLUME_DATA_DIR / "pkl"
 
 for dir in [
     MEDIA_ROOT,
-    DOCKER_VOLUME_CONTAINER_PATH,
+    CONTAINER_VOLUME_DATA_DIR,
     ARTICLE_DATA,
     PLOT_DATA,
     PKL_DATA,

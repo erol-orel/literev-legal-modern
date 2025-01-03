@@ -13,3 +13,15 @@ services:
       DEBUG: 1
     volumes:
       - ../src/:/opt/services/literev/src/
+
+  literev-postgres:
+    environment:
+      DEBUG: 1
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - pgdata_volume:/var/lib/postgresql/data
+
+volumes:
+  container_data_dir:
+  pgdata_volume:
+    external: false
