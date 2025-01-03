@@ -174,6 +174,7 @@ def render_table_choice(
             "result": tablechoice_e.document.result,
             "standards": tablechoice_e.document.standards,
             "sample_document": rendered_sample,
+            "is_initial": tablechoice_e.is_initial,
         }
 
         if has_hdbscan_scores:
@@ -326,7 +327,7 @@ def create_iteration(
 
     no_display = [
         tc.document.id for tc in table_choice.filter(to_display=False)
-    ]
+    ]  # it could be valid to use as well `is_check=False`
 
     new_neighbors_ids = [
         tc.document.id for tc in table_choice.filter(is_initial=False)
@@ -343,7 +344,7 @@ def create_iteration(
         parent_iteration=parent_iteration,
         number_documents=number_documents,
         checked_documents_ids=checked_documents_ids,
-        excluded_documents_ids=no_display,  # take a look for this value
+        excluded_documents_ids=no_display,
         new_neighbors_ids=new_neighbors_ids,
         result_documents_ids=result_documents_ids,
     )
@@ -473,8 +474,8 @@ def get_iteration(
     checked_ids = iteration.checked_documents_ids
 
     TableChoice.objects.filter(user=user, project=project).delete()
-    # create tablechoice with different documents id
 
+    # create tablechoice with different documents id
     batch_size = 1000
 
     for document_id_list in divide_in_chunks(all_documents_ids, batch_size):
@@ -491,12 +492,19 @@ def get_iteration(
 
         TableChoice.objects.bulk_create(table_choice_objs)
 
+    # There is no need to set maybe documents selection because is created by default
+
+    # set excluded ids
     TableChoice.objects.filter(document_id__in=no_display_ids).update(
         to_display=False
     )
+
+    # set no initial documents
     TableChoice.objects.filter(document_id__in=no_initial_ids).update(
         is_initial=False
     )
+
+    # set checked(yes) documents
     TableChoice.objects.filter(document_id__in=checked_ids).update(
         is_check=True
     )
@@ -585,14 +593,18 @@ def update_neighbour_table_choice(
         project=project,
     )
 
-    for row in table_choice.filter(to_display=True):
+    for row in table_choice.filter(is_check=True):
         neighbours = neighbour_document(row.document, project)
-        # add these document. We check if the document is already in a row
+
         for document in neighbours:
+            # Check if the document id is in the excluded set
             if document.id in excluded_set:
                 continue
+
+            # check if a tablechoice with the documente has been created before
             if table_choice.filter(document=document).first():
                 continue
+
             TableChoice.objects.create(
                 user=user,
                 project=project,
@@ -638,40 +650,39 @@ def update_document_to_display_table_choice(
     project: Project,
 ) -> bool:
     """
-    The function take a list of id object of TableChoice row and user.
-    All row who is not in list_id,
-    the boolean 'to_display' will be put to False. The function take
-    user id by security. We check if all id
-    in 'list_id' is owned by user because, the list of id come from
-    the front-end by the user
+    Sets `to_display=False` to all no checked (no selected) documents.
     """
 
-    # update the boolean 'to_display' if the document is in the
-    # list or is checked, put to True
     table_choice = TableChoice.objects.filter(user=user, project=project)
 
     if not table_choice.count():
         return
 
-    table_choice.exclude(is_check=True).update(to_display=False)
+    table_choice.filter(is_check=False).update(to_display=False)
 
 
 def update_checked_document_page(
     user: User,
     project: Project,
-    list_id: list[int],
-    tablechoice_page: list[TableChoice],
+    check_list_yes: list[int],
+    check_list_no: list[int],
+    check_list_maybe: list[int],
 ) -> None:
-    page_ids = [tc.id for tc in tablechoice_page]
+    """
+    Updates tablechoice according to checked lists
+    """
+    all_table_ids = check_list_yes + check_list_no + check_list_maybe
+
     table_choice = TableChoice.objects.filter(
-        user=user, project=project, id__in=page_ids
+        user=user, project=project, id__in=all_table_ids
     )
 
     if not table_choice.count():
         return
 
-    table_choice.filter(id__in=list_id).update(is_check=True)
-    table_choice.exclude(id__in=list_id).update(is_check=False)
+    table_choice.filter(id__in=check_list_yes).update(is_check=True)
+    table_choice.filter(id__in=check_list_no).update(is_check=False)
+    table_choice.filter(id__in=check_list_maybe).update(is_check=None)
 
 
 def update_document_is_check_table_choice(
@@ -707,7 +718,6 @@ def back_process_iterate(
     user: User,
     project: Project,
     refinement_id: int,
-    check_list: list[int],
     parent_iteration_id: int,
 ) -> None:
     """
@@ -722,9 +732,7 @@ def back_process_iterate(
         search query, status and related data.
     refinement_id : int
         Refinement object id which is related with the iterations.
-    check_list : list[int]
-        A list of table_choices ids that will be used for
-        filtering
+
     Notes
     -----
     This function modifies the project.step status to
@@ -732,7 +740,8 @@ def back_process_iterate(
     process is happening.
     At the end of the process removes that status.
     """
-    project.step = "processing_filters"
+    # TODO: update this step to not crush with clustering , plotting step
+    project.step_number = 50
     project.save()
 
     update_document_to_display_table_choice(
@@ -767,7 +776,7 @@ def back_process_iterate(
 
     # update exluded documents id set
     table_choices_not_selected = TableChoice.objects.filter(
-        user=user, project=project, to_display=False
+        user=user, project=project, is_check=False
     )
     excluded_document_ids_set = set(parent_iteration.excluded_documents_ids)
 
@@ -787,7 +796,7 @@ def back_process_iterate(
         parent_iteration=parent_iteration,
     )
 
-    project.step = ""
+    project.step_number = 0
     project.save()
 
     del filter_thread_dict[project.id]
@@ -826,7 +835,6 @@ def iterate_check_list(
     user: User,
     project: Project,
     refinement_id: int,
-    check_list: list[int],
     active_iteration_id: int,
 ) -> None:
     """
@@ -839,18 +847,16 @@ def iterate_check_list(
     project : project object Model database
         The project object model where is used to store
         search query, status and related data.
-    check_list : list[int]
-        A list of table_choices ids that will be used for
-        filtering
     """
-    # Check if the project has another step in progress,
+
+    # TODO:  Check if the project has another step in progress,
     # if there is any this do nothing
     if project.step not in ["", "clustering", "plotting"]:
         return
 
     filter_thread_dict[project.id] = Thread(
         target=back_process_iterate,
-        args=[user, project, refinement_id, check_list, active_iteration_id],
+        args=[user, project, refinement_id, active_iteration_id],
         daemon=True,
     )
 

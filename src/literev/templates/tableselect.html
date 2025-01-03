@@ -135,31 +135,38 @@
                     Document checked: <span class="article-counter fw-bold">{{ number_Article_chosen }}</span>
                   </div>
                   <div class="col">
-                    Check/Uncheck all
-                    <input class="form-check-input ms-3"
-                           type="checkbox"
-                           onclick="toggle(this)" />
+                    <button type="button"
+                            class="all-yes-button btn btn-outline-dark col-8 mb-3">
+                      Check All to Yes
+                    </button>
+                    <button type="button"
+                            class="all-maybe-button btn btn-outline-dark col-8">
+                      Check All to Maybe
+                    </button>
                   </div>
                 </div>
               </div>
-              <div class="col-10 mx-auto">
-                <div class="row justify-content-center mt-3 gap-md-3 gap-sm-2 gap-lg-5">
+              <div class="mx-auto">
+                <div class="row justify-content-center mt-3 gap-md-3 gap-sm-2 gap-lg-3">
                   <button type="submit"
                           name="submit"
                           value="iterate"
-                          class="col-md-3 col-sm-12 btn btn-secondary mb-2">
+                          class="col-md-2 col-sm-12 btn btn-secondary mb-2">
                     Iterate
                   </button>
                   <button type="submit"
                           name="submit"
                           value="reset"
-                          class="col-md-3 col-sm-12 btn btn-secondary mb-2">
-                    Reset
+                          class="col-md-2 col-sm-12 btn btn-secondary mb-2"
+                          data-bs-toggle="tooltip"
+                          data-bs-placement="bottom"
+                          data-bs-title="Loads first iteration and removes iteration childs">
+                    Reset Iterations
                   </button>
                   <button type="submit"
                           name="submit"
                           value="finish"
-                          class="col-md-3 col-sm-12 btn btn-primary mb-2">
+                          class="col-md-2 col-sm-12 btn btn-primary mb-2">
                     Export Selected
                   </button>
                   {% if project_id %}
@@ -167,7 +174,7 @@
                             id="btnRAG"
                             onclick="updateFormDataAndOpenPageRAG();"
                             value="rag"
-                            class="col-md-3 col-sm-12 btn btn-primary mb-2"
+                            class="col-md-2 col-sm-12 btn btn-primary mb-2"
                             data-bs-toggle="tooltip"
                             data-bs-placement="bottom"
                             data-bs-title="Ask questions to selected documents">
@@ -302,25 +309,56 @@
               <hr />
               <div class="row">
                 {% for tablechoice in tablechoice_list %}
-                  <div class="col-1 mb-2 d-grid justify-content-center">
-                    {% if tablechoice.is_check %}
-                      <input style="width: 30px;
-                                    height: 30px"
-                             type='checkbox'
-                             id="{{ tablechoice.id }}"
-                             name='check_row'
-                             value="{{ tablechoice.id }}"
-                             checked />
-                    {% else %}
-                      <input style="width: 30px;
-                                    height: 30px"
-                             type='checkbox'
-                             id="{{ tablechoice.id }}"
-                             name='check_row'
-                             value="{{ tablechoice.id }}" />
-                    {% endif %}
+                  <div class="col-2 mb-2 d-grid justify-content-center">
+                    <div class="checkbox-group fs-3 gap-3">
+
+                      <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="yes-{{ tablechoice.id }}"
+                               name="yes_row"
+                               value="{{ tablechoice.id }}"
+                               autocomplete="off"
+                               {% if tablechoice.is_check == True %}
+                                 checked
+                               {% endif %} />
+                        <label class="form-check-label"
+                               for="yes-{{ tablechoice.id }}">
+                          <i class="fa-solid fa-check"></i>
+                        </label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="maybe-{{ tablechoice.id }}"
+                               name="maybe_row"
+                               value="{{ tablechoice.id }}"
+                               {% if tablechoice.is_check == None %}
+                                 checked
+                               {% endif %} />
+                        <label class="form-check-label"
+                               for="maybe-{{ tablechoice.id }}">
+                          <i class="fa-solid fa-question"></i>
+                        </label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="no-{{ tablechoice.id }}"
+                               name="no_row"
+                               value="{{ tablechoice.id }}"
+                               {% if tablechoice.is_check == False %}
+                                 checked
+                               {% endif %} />
+                        <label class="form-check-label"
+                               for="no-{{ tablechoice.id }}">
+                          <i class="fa-solid fa-xmark"></i>
+                        </label>
+                      </div>
+                    </div>
+
                   </div>
-                  <div class="col-11">
+                  <div class="col-10">
                     <div class="d-flex
                                 {% if has_es_scores %}
                                   justify-content-between
@@ -329,9 +367,15 @@
                                 {% endif %}">
                       {% if has_es_scores %}
                         <div class="fs-5 align-self-center">
-                          <span class="badge bg-score-query text-dark">Query relevance score: {{ tablechoice.es_score }} </span>
+                          <span class="badge bg-score-query text-dark">Query relevance score: {{ tablechoice.es_score | floatformat:"2" }} </span>
                         </div>
                       {% endif %}
+                      {% if tablechoice.is_initial == False %}
+                        <div class="fs-5 align-self-center">
+                          <span class="badge text-bg-dark"><i class="fa-solid fa-file-circle-plus me-2"></i> New neighbor document</span>
+                        </div>
+                      {% endif %}
+
                       <h3>
                         <span class="badge text-bg-dark">
                           <a class="text-white"
@@ -357,9 +401,9 @@
                     </div>
                   </div>
                   {% if hdbscan_scores %}
-                    <div class="col-1">
+                    <div class="col-2">
                     </div>
-                    <div class="col-12 text-center fs-5 mb-3">
+                    <div class="col-10 text-center fs-5 mb-3">
                       <span class="badge text-dark"
                             style="background-color: {{ tablechoice.color }}80"> {{ tablechoice.topic }}</span>
                       <span class="badge bg-light text-dark"> Topic score : {{ tablechoice.hdbscan_score | floatformat:"1" }} %</span>
@@ -405,11 +449,19 @@
                     Documents checked: <span class="article-counter-bottom fw-bold">{{ number_Article_chosen }}</span>
                   </div>
                   <div class="col">
-                    Check/Uncheck all
-                    <input class="form-check-input ms-3"
-                           type="checkbox"
-                           onclick="toggle(this)" />
+                    <button type="button"
+                            class="all-yes-button btn btn-outline-dark col-8 mb-3">
+                      Check All to Yes
+                    </button>
+                    <button type="button"
+                            class="all-maybe-button btn btn-outline-dark col-8">
+                      Check All to Maybe
+                    </button>
                   </div>
+                  <!-- <div class="col">
+                    Check/Uncheck all
+                    <input class="form-check-input ms-3" type="checkbox" onclick="toggle(this)" />
+                  </div> -->
                 </div>
               </div>
             </div>
@@ -430,7 +482,10 @@
                 <button type="submit"
                         name="submit"
                         value="finish"
-                        class="col-md-3 col-sm-12 btn btn-primary mb-2 btn-lg">
+                        class="col-md-3 col-sm-12 btn btn-primary mb-2 btn-lg"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="bottom"
+                        data-bs-title="Export checked (Yes) documents to csv file">
                   Export Selected
                 </button>
               </div>
@@ -508,5 +563,40 @@
       applyOrderButton.click();
     });
 
+  </script>
+  <script>
+    // To handle unique selection in 'yes', 'maybe', 'no' options
+    const checkInputs = document.querySelectorAll(".form-check-input");
+    checkInputs.forEach((checkbox) => {
+      checkbox.addEventListener("click",(e) =>{
+
+        targetCodeId = e.target.getAttribute('id');
+
+        // get child
+        const parent = e.target.parentElement.parentElement
+        isTargetChecked = e.target.checked;
+
+        const childsElements = parent.querySelectorAll(".form-check-input")
+        childsElements.forEach((checkbox) => {
+
+          if(isTargetChecked){
+            if(targetCodeId!=checkbox.getAttribute('id')){
+              checkbox.checked=false;
+            }
+          }
+          else {
+            if(targetCodeId==checkbox.getAttribute('id')){
+              checkbox.checked=true;
+            }
+          }
+
+        })
+      })
+    })
+  </script>
+  <script>
+    // Enable tooltips
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+    const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
   </script>
 {% endblock jscode %}

@@ -509,7 +509,11 @@ def tableselect(
         return redirect(reverse("search"))
     context["project"] = project
     # enable processing message if needed
-    if project.step == "processing_filters":
+    # To check if it is running iteration process (for unfinished and finished projects)
+    # here is using project.step_number instead of project.step field
+    # project.step is could be being used in clustering step or plotting step
+    # as flag. The number 50 is just a selected number for iteration process
+    if project.step_number == 50:
         context["processing_filters"] = True
         return render(request, "tableselect.html", context)
 
@@ -576,12 +580,15 @@ def tableselect(
         # for k, v in request.POST.items():
         #     print(k, v)
 
-        check_list = []
-
-        if "check_row" in request.POST:
-            check_list = [
-                int(table_id) for table_id in request.POST.getlist("check_row")
-            ]
+        check_list_yes = [
+            int(table_id) for table_id in request.POST.getlist("yes_row", [])
+        ]
+        check_list_no = [
+            int(table_id) for table_id in request.POST.getlist("no_row", [])
+        ]
+        check_list_maybe = [
+            int(table_id) for table_id in request.POST.getlist("maybe_row", [])
+        ]
 
         if request.POST.get("get-iteration") is not None:
             dest_iteration_id = request.POST.get("get-iteration")
@@ -649,8 +656,9 @@ def tableselect(
                 update_checked_document_page(
                     user=actual_user,
                     project=project,
-                    list_id=check_list,
-                    tablechoice_page=sorted_page_table_choice,
+                    check_list_yes=check_list_yes,
+                    check_list_no=check_list_no,
+                    check_list_maybe=check_list_maybe,
                 )
 
                 update_check_list_iteration(actual_user, project, iteration_id)
@@ -659,7 +667,6 @@ def tableselect(
                     actual_user,
                     project,
                     refinement_id,
-                    check_list,
                     iteration_id,
                 )
 
@@ -692,8 +699,9 @@ def tableselect(
             update_checked_document_page(
                 user=actual_user,
                 project=project,
-                list_id=check_list,
-                tablechoice_page=sorted_page_table_choice,
+                check_list_yes=check_list_yes,
+                check_list_no=check_list_no,
+                check_list_maybe=check_list_maybe,
             )
 
             return download_finalcsv(project=project)
@@ -703,8 +711,9 @@ def tableselect(
             update_checked_document_page(
                 user=actual_user,
                 project=project,
-                list_id=check_list,
-                tablechoice_page=sorted_page_table_choice,
+                check_list_yes=check_list_yes,
+                check_list_no=check_list_no,
+                check_list_maybe=check_list_maybe,
             )
             return redirect(
                 reverse(
@@ -723,8 +732,9 @@ def tableselect(
             update_checked_document_page(
                 user=actual_user,
                 project=project,
-                list_id=check_list,
-                tablechoice_page=sorted_page_table_choice,
+                check_list_yes=check_list_yes,
+                check_list_no=check_list_no,
+                check_list_maybe=check_list_maybe,
             )
 
             return redirect(
@@ -744,8 +754,9 @@ def tableselect(
             update_checked_document_page(
                 user=actual_user,
                 project=project,
-                list_id=check_list,
-                tablechoice_page=sorted_page_table_choice,
+                check_list_yes=check_list_yes,
+                check_list_no=check_list_no,
+                check_list_maybe=check_list_maybe,
             )
             return redirect(
                 reverse(

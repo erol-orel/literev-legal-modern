@@ -75,7 +75,7 @@ class TableChoice(models.Model):
     document = models.ForeignKey(Document, on_delete=models.CASCADE)
     to_display = models.BooleanField(default=True)
     is_initial = models.BooleanField(default=True)
-    is_check = models.BooleanField(default=False)
+    is_check = models.BooleanField(null=True)
 
 
 class ProjectRefinement(models.Model):

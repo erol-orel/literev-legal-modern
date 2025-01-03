@@ -1,95 +1,77 @@
-let id_article_shown = '0';
+// Code for checking all checkboxes
 
-function escapeHtml(unsafe)
-{
-    return unsafe
-         .replace(/&/g, "&amp;")
-         .replace(/</g, "&lt;")
-         .replace(/>/g, "&gt;")
-         .replace(/"/g, "&quot;")
-         .replace(/'/g, "&#039;");
- }
-
-// show the article when click on cluster
-function article_show(article_id)
-{
-    document.getElementById("article_details").style.visibility = 'visible';
-    // hide the previous article
-    if(id_article_shown != '0')
-    {
-        document.getElementById(id_article_shown).style.visibility='hidden';
+function countYesChecked() {
+  const checkboxesYes = document.getElementsByName("yes_row");
+  let counter = 0;
+  checkboxesYes.forEach((checkbox) => {
+    if (checkbox.checked == true) {
+      counter = counter + 1
     }
-    // display the article
-    document.getElementById(article_id).style.visibility='visible';
-    id_article_shown = article_id
-    // make the scroll to top
-    document.getElementById("article_details").scrollTop = 0;
+  })
+
+  return counter
 }
 
+function all2Yes() {
+  const checkboxesYes = document.getElementsByName("yes_row");
+  const checkboxesNo = document.getElementsByName("no_row");
+  const checkboxesMaybe = document.getElementsByName("maybe_row");
 
-function light(element)
-{
-    element.style.filter= "brightness(4000000)";
-    element.style.width ="20px"
-    element.style.height ="20px"
-    element.style.zIndex = "1";
+  actualCheckedYes = countYesChecked();
+
+  checkboxesYes.forEach((checkbox) =>{
+    checkbox.checked = true;
+  })
+  checkboxesNo.forEach((checkbox) =>{
+    checkbox.checked = false;
+  })
+  checkboxesMaybe.forEach((checkbox) =>{
+    checkbox.checked = false;
+  })
+
+  new_total_checked = countYesChecked();
+
+  let counter = document.querySelector(".article-counter");
+  let counterBottom = document.querySelector(".article-counter-bottom");
+  let previousValue = parseInt(counter.textContent);
+  counter.textContent = previousValue - actualCheckedYes + new_total_checked;
+  counterBottom.textContent = previousValue - actualCheckedYes + new_total_checked;
 }
 
-function dark(element)
-{
-    element.style.width ="10px"
-    element.style.height ="15px"
-    element.style.filter= "brightness(1)"
-    element.style.zIndex = "0";
+function all2Maybe() {
+  const checkboxesYes = document.getElementsByName("yes_row");
+  const checkboxesNo = document.getElementsByName("no_row");
+  const checkboxesMaybe = document.getElementsByName("maybe_row");
+
+  actualCheckedYes = countYesChecked();
+
+  checkboxesYes.forEach((checkbox) =>{
+    checkbox.checked = false;
+  })
+  checkboxesNo.forEach((checkbox) =>{
+    checkbox.checked = false;
+  })
+  checkboxesMaybe.forEach((checkbox) =>{
+    checkbox.checked = true;
+  })
+
+  new_total_checked = countYesChecked();
+
+  let counter = document.querySelector(".article-counter");
+  let counterBottom = document.querySelector(".article-counter-bottom");
+  let previousValue = parseInt(counter.textContent);
+  counter.textContent = previousValue - actualCheckedYes + new_total_checked;
+  counterBottom.textContent = previousValue - actualCheckedYes + new_total_checked;
 }
 
-function light_cluster(topic)
-{
-    var graphic = document.getElementById("cluster_display")
-    var points = graphic.getElementsByClassName(topic)
-    for (let i = 0; i< points.length;i++)
-    {
-        light(points[i])
-    }
+all2YesButtons = document.querySelectorAll(".all-yes-button");
 
-}
+all2YesButtons.forEach((button) => {
+  button.addEventListener("click", all2Yes)
+})
 
-function dark_cluster(topic)
-{
-    let graphic = document.getElementById("cluster_display")
-    let points = graphic.getElementsByClassName("topic_"+topic)
-    for (let i = 0; i< points.length;i++)
-    {
-        dark(points[i])
-    }
+all2MaybeButtons = document.querySelectorAll(".all-maybe-button");
 
-}
-
-
-
-
-//check, uncheck all
-function toggle(source) {
-   /*
-+   * Toggle the checkboxes based on the state of the source checkbox.
-+   * Update the counter based on the number of checkboxes toggled.
-+   */
-
-    const checkboxes = document.getElementsByName('check_row');
-    let addValue = -1;
-    if(source.checked){
-        addValue = 1
-    }
-    let c = 0;
-    for(var i=0, n=checkboxes.length;i<n;i++) {
-      if (!(checkboxes[i].checked == source.checked)){
-        checkboxes[i].checked = source.checked;
-        c = c + addValue;
-      }
-    }
-    let counter = document.querySelector(".article-counter");
-    let counterBottom = document.querySelector(".article-counter-bottom");
-    let p = parseInt(counter.textContent);
-    counter.textContent = p + c;
-    counterBottom.textContent = p + c;
-  }
+all2MaybeButtons.forEach((button) => {
+  button.addEventListener("click", all2Maybe)
+})
