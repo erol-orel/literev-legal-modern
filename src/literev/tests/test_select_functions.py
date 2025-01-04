@@ -3,8 +3,10 @@ import json
 from django.test import TestCase
 
 from literev.libs.select_functions import (
+    add_tooltips_topic,
     get_filtered_document,
     get_filters,
+    get_rendered_filters,
 )
 from literev.models import (
     Cluster,
@@ -206,3 +208,59 @@ class RefinementFilterTests(TestCase):
         result_docs = get_filtered_document(self.project, filters)
         expected_docs = [self.doc2.id]
         self.assertEqual(result_docs, expected_docs)
+
+
+class TableRenderFilters(TestCase):
+    """Tests correct rendering filters in table select page."""
+
+    def test_render_filters(self):
+        """Check if render filters correctly"""
+        input = {
+            "filter-union-0": {"Topic": ["1: water, soil"]},
+            "filter-union-1": {"Norm": ["ALCP", "CDI"]},
+            "filter-exclude": {
+                "Topic": ["2: energy"],
+            },
+        }
+        expected_union_filter = (
+            '(<span data-toggle="tooltip" data-placement="bottom" '
+            'title="water, soil">Topic 1</span>)'
+            "<b> OR </b>(Norm: ALCP<b> AND </b>Norm: CDI)"
+        )
+        result_union, result_excluded = get_rendered_filters(input)
+        expected_excluded = (
+            '(<span data-toggle="tooltip" data-placement="bottom" '
+            'title="energy">Topic 2</span>)'
+        )
+        self.assertEqual(expected_union_filter, result_union)
+        self.assertEqual(expected_excluded, result_excluded)
+
+    def test_render_filter_w_unclassified(self):
+        """Check if render filters correctly"""
+        input = {
+            "filter-union-0": {"Topic": ["unclassified papers"]},
+            "filter-union-1": {"Norm": ["ALCP", "CDI"]},
+            "filter-exclude": {
+                "Keyword": ["france"],
+                "No_decis": ["ATA/1013/2017"],
+            },
+        }
+        expected_union_filter = (
+            '(<span data-toggle="tooltip" data-placement="bottom" '
+            'title="unclassified papers">unclassified papers</span>)'
+            "<b> OR </b>(Norm: ALCP<b> AND </b>Norm: CDI)"
+        )
+        result_union, result_excluded = get_rendered_filters(input)
+        expected_excluded = (
+            "(Keyword: france<b> OR </b>No_decis: ATA/1013/2017)"
+        )
+        self.assertEqual(expected_union_filter, result_union)
+        self.assertEqual(expected_excluded, result_excluded)
+
+    def test_add_tooltip_topic(self):
+        """Checks if add the tooltip correctly"""
+        topic_dict = {"Topic 1": "conjugal, réintégration"}
+        input = "(Topic 1)"
+        expected = '(<span data-toggle="tooltip" data-placement="bottom" title="conjugal, réintégration">Topic 1</span>)'
+        result = add_tooltips_topic(input, topic_dict)
+        self.assertEqual(expected, result)

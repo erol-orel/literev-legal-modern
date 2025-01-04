@@ -103,26 +103,34 @@
                 </div>
 
                 <div class="row ps-3 mb-4">
-                  {% if filters_list %}
-                    <b>Refinement Criteria</b>
+                  {% if union_sets_str or excluded_set_str %}
                     <div class="col-12 mb-3">
                       <table class="table">
                         <tbody>
-                          {% for filter in filters_list %}
+                          {% if union_sets_str %}
                             <tr>
                               <th scope="row">
-                                {{ filter.0 }}
+                                Refinement criteria
                               </th>
                               <td>
-                                {{ filter.1|safe }}
+                                {{ union_sets_str|safe }}
                               </td>
                             </tr>
-                          {% endfor %}
+                          {% endif %}
+                          {% if excluded_set_str %}
+                            <tr>
+                              <th scope="row">
+                                Excluded set
+                              </th>
+                              <td>
+                                {{ excluded_set_str|safe }}
+                              </td>
+                            </tr>
+                          {% endif %}
                         </tbody>
                       </table>
-
-                    </div>
-                  {% endif %}
+                    {% endif %}
+                  </div>
                   <div class="col">
                     k neighbour: <span class="fw-bold">10</span>
                   </div>

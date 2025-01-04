@@ -34,7 +34,7 @@ from literev.libs.select_functions import (
     create_refinement,
     download_finalcsv,
     get_filters,
-    get_render_filter_list,
+    get_rendered_filters,
     remove_refinement,
 )
 from literev.libs.table_choice import (
@@ -804,19 +804,24 @@ def tableselect(
     context["iterations"] = iterations_render
 
     _refinement = ProjectRefinement.objects.filter(id=refinement_id).first()
-    rendered_filters = []
+
+    union_sets_str = ""
+    excluded_set_str = ""
 
     if _refinement:
         try:
             raw_filter = json.loads(_refinement.filters)
             if raw_filter and not isinstance(raw_filter, str):
-                rendered_filters = get_render_filter_list(raw_filter)
+                union_sets_str, excluded_set_str = get_rendered_filters(
+                    raw_filter
+                )
         except Exception as e:
             logging.warning(
                 f"An error ocurred: {e}, refinement id:{refinement_id}"
             )
 
-    context["filters_list"] = rendered_filters
+    context["union_sets_str"] = union_sets_str
+    context["excluded_set_str"] = excluded_set_str
     context["project_id"] = project_id
     context["iteration_id"] = iteration_id
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 
 from typing import Any
 
@@ -150,30 +151,115 @@ def download_finalcsv(project: Project) -> HttpResponse:
     return response
 
 
-def get_render_filter_list(filters: dict[str, str]) -> list[tuple[str, str]]:
-    filter_list = []
+def add_tooltips_topic(text: str, topic_dict: dict[str, str]) -> str:
+    """
+    Adds html tooltips tags for rendering filters
+
+    Parameters
+    ----------
+    text : str
+        Initial text to be formatted.
+    topic_dict: dict[str, str]
+        Has topic+number as a keys and topic keywords as values
+    Returns
+    -------
+    text : str
+        A text containing topic words with tooltips html tags.
+    """
+    for word in topic_dict.keys():
+        # Regular expression pattern to match the whole word in a case-insensitive manner
+        pattern = r'\b(?<!["\'<>])(' + re.escape(word) + r")(?![^<>]*>)\b"
+
+        # Use a lambda function to replace and retain the matched word's original case
+        # The `re.sub` will handle all matches of the pattern in the text
+        text = re.sub(
+            pattern,
+            lambda match: f'<span data-toggle="tooltip" data-placement="bottom" title="{topic_dict[word]}">{match.group(1)}</span>',
+            text,
+            flags=re.IGNORECASE,
+        )
+    return text
+
+
+def get_rendered_filters(
+    filters: dict[str, str],
+) -> tuple[str, str]:
+    """
+    Returns a formatted filter for refinements.
+
+    Parameters
+    ----------
+    filters : str
+        raw filters
+
+    Returns
+    -------
+    union_filters_str : str
+        Formatted union set filters.
+    excluded_filter_str : str
+        Formatted excluded set filter.
+    """
+    union_filters_str = ""
+    excluded_filter_str = ""
+    tooltip_dict = {}
+
+    union_filter_list = []
     for filter_type, filter_content in filters.items():
-        row = ""
         if "union" in filter_type:
-            row_key = "Union Set:"
+            row = ""
             set_items = []
             for k, v in filter_content.items():
                 for val in v:
-                    set_item = k + ": " + val
+                    if k == "Topic":
+                        set_item = (
+                            "Topic " + val.split(": ")[0]
+                            if val != "unclassified papers"
+                            else val
+                        )
+                        tooltip_dict[set_item] = (
+                            val.split(": ")[1]
+                            if val != "unclassified papers"
+                            else val
+                        )
+                    else:
+                        set_item = k + ": " + val
                     set_items.append(set_item)
+
             row += "<b> AND </b>".join(set_items)
+            union_filter_str = "(" + row + ")"
+            union_filter_list.append(union_filter_str)
+
         elif "exclude" in filter_type:
-            row_key = "Excluded Set:"
+            excluded_filter_str = "("
             set_items = []
             for k, v in filter_content.items():
                 for val in v:
-                    set_item = k + ": " + val
+                    if k == "Topic":
+                        set_item = (
+                            "Topic " + val.split(": ")[0]
+                            if val != "unclassified papers"
+                            else val
+                        )
+                        tooltip_dict[set_item] = (
+                            val.split(": ")[1]
+                            if val != "unclassified papers"
+                            else val
+                        )
+                    else:
+                        set_item = k + ": " + val
                     set_items.append(set_item)
-            row += "<b> OR </b>".join(set_items)
 
-        filter_list.append((row_key, row))
+            excluded_filter_str += "<b> OR </b>".join(set_items)
+            excluded_filter_str += ")"
 
-    return filter_list
+        union_filters_str = "<b> OR </b>".join(union_filter_list)
+
+        union_filters_str = add_tooltips_topic(union_filters_str, tooltip_dict)
+        excluded_filter_str = add_tooltips_topic(
+            excluded_filter_str, tooltip_dict
+        )
+
+    return union_filters_str, excluded_filter_str
 
 
 def get_filters(post_data: dict[str, str]) -> dict[str, dict[str, Any]]:
