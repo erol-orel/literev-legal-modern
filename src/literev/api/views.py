@@ -184,11 +184,15 @@ class UpdateTableChoiceAPIView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        selected_documents = request.data.get("selected_documents", [])
-        deselected_documents = request.data.get("deselected_documents", [])
+        check_list_yes = request.data.get("selected_documents", [])
+        check_list_no = request.data.get("deselected_documents", [])
 
-        if not isinstance(selected_documents, list) or not isinstance(
-            deselected_documents, list
+        check_list_maybe = request.data.get("maybe_documents", [])
+
+        if (
+            not isinstance(check_list_yes, list)
+            or not isinstance(check_list_no, list)
+            or not isinstance(check_list_maybe, list)
         ):
             return Response(
                 {
@@ -200,17 +204,18 @@ class UpdateTableChoiceAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        TableChoice.objects.filter(
-            user=user,
-            project=project,
-            id__in=selected_documents,
-        ).update(is_check=True)
+        all_table_ids = check_list_yes + check_list_no + check_list_maybe
 
-        TableChoice.objects.filter(
-            user=user,
-            project=project,
-            id__in=deselected_documents,
-        ).update(is_check=False)
+        table_choice = TableChoice.objects.filter(
+            user=user, project=project, id__in=all_table_ids
+        )
+
+        if not table_choice.count():
+            return
+
+        table_choice.filter(id__in=check_list_yes).update(is_check=True)
+        table_choice.filter(id__in=check_list_no).update(is_check=False)
+        table_choice.filter(id__in=check_list_maybe).update(is_check=None)
 
         update_check_list_iteration(
             project=project, user=user, iteration_id=iteration_id

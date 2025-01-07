@@ -512,21 +512,38 @@
   {% if not processing_filters %}
     <script>
     async function updateFormDataAndOpenPageRAG() {
-      let selectedDocuments = [];
-      let deselectedDocuments = [];
+      let yesDocuments = [];
+      let noDocuments = [];
+      let maybeDocuments = []
 
-      document.querySelectorAll('input[name="check_row"]').forEach((checkbox) => {
+      document.querySelectorAll('input[name="yes_row"]').forEach((checkbox) => {
         const documentId = parseInt(checkbox.value, 10);
-        if (checkbox.checked) {
-          selectedDocuments.push(documentId);
-        } else {
-          deselectedDocuments.push(documentId);
+        if (checkbox.checked == true) {
+          yesDocuments.push(documentId);
+          }
         }
-      });
+      );
+      document.querySelectorAll('input[name="no_row"]').forEach((checkbox) => {
+        const documentId = parseInt(checkbox.value, 10);
+        if (checkbox.checked == true) {
+          noDocuments.push(documentId);
+          }
+        }
+      );
+      document.querySelectorAll('input[name="maybe_row"]').forEach((checkbox) => {
+        const documentId = parseInt(checkbox.value, 10);
+        if (checkbox.checked == true) {
+          maybeDocuments.push(documentId);
+          }
+        }
+      );
+
+
 
       const data = {
-        selected_documents: selectedDocuments,
-        deselected_documents: deselectedDocuments
+        selected_documents: yesDocuments,
+        deselected_documents: noDocuments,
+        maybe_documents: maybeDocuments,
       };
 
       const endpointUrl = "{% url 'update-table-choice' project_id=project_id page=current_page iteration_id=iteration_id %}";
