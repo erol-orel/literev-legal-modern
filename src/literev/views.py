@@ -7,7 +7,6 @@ import logging
 from http import HTTPStatus
 from typing import Any, cast
 
-from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import HttpRequest, HttpResponse, JsonResponse
@@ -32,24 +31,15 @@ from literev.libs.project_workflows import (
 )
 from literev.libs.select_functions import (
     create_refinement,
-    download_finalcsv,
     get_filters,
     get_rendered_filters,
     remove_refinement,
 )
 from literev.libs.table_choice import (
     create_iteration,
-    get_iteration,
-    get_json_iterations_render,
-    iterate_check_list,
-    remove_iteration_get_parent,
-    render_table_choice,
-    reset_table_choice,
-    sort_table_choice,
-    update_check_list_iteration,
-    update_checked_document_page,
     update_new_table_choice,
 )
+from literev.libs.tableselect_workflows import TableSelectHandler
 from literev.libs.utils import (
     get_number_documents,
 )
@@ -59,7 +49,6 @@ from literev.models import (
     Project,
     ProjectRAG,
     ProjectRefinement,
-    RefinementIteration,
     TableChoice,
     User,
 )
@@ -492,339 +481,82 @@ def tableselect(
     num: int = 1,
     order_by: str = "decision_date",
 ) -> HttpResponse:
-    context: dict[str, Any] = {}
-    context["iterations_limit_exceeded"] = False
-    context["processing_filters"] = False
-    context["has_es_scores"] = False
+    """
+    Handles table selection for a given project, refinement, and iteration.
 
-    actual_user = request.user
-
-    # Fetch the project ensuring access control for non-admin projects
+    Parameters
+    ----------
+    request : HttpRequest
+        The HTTP request object.
+    project_id : int
+        The project ID.
+    refinement_id : int
+        The refinement ID.
+    iteration_id : int, optional
+        The iteration ID (default is -1 for the latest iteration).
+    num : int, optional
+        Page number for pagination (default is 1).
+    order_by : str, optional
+        Sorting criteria (default is "decision_date").
+    """
     project = Project.objects.filter(
         Q(id=project_id)
-        & (Q(user=actual_user) | Q(id__in=get_shared_projects_ids()))
+        & (Q(user=request.user) | Q(id__in=get_shared_projects_ids()))
     ).first()
 
     if not project:
+        logging.warning(
+            f"Project not found or unauthorized access: {project_id}"
+        )
         return redirect(reverse("search"))
-    context["project"] = project
-    # enable processing message if needed
-    # To check if it is running iteration process (for unfinished and finished projects)
-    # here is using project.step_number instead of project.step field
-    # project.step is could be being used in clustering step or plotting step
-    # as flag. The number 50 is just a selected number for iteration process
+
     if project.step_number == 50:
-        context["processing_filters"] = True
-        return render(request, "tableselect.html", context)
+        return render(
+            request,
+            "tableselect.html",
+            {"processing_filters": True, "project": project},
+        )
 
-    # get iteration_id if not given
-    if iteration_id == -1:
-        last_iteration = RefinementIteration.objects.filter(
-            refinement_id=refinement_id
-        ).last()
-        if last_iteration:
-            iteration_id = last_iteration.id
-            get_iteration(actual_user, project, refinement_id, iteration_id)
-            return redirect(
-                reverse(
-                    "tableselect",
-                    kwargs={
-                        "project_id": project_id,
-                        "refinement_id": refinement_id,
-                        "iteration_id": iteration_id,
-                        "num": 1,
-                        "order_by": "decision_date",
-                    },
-                )
-            )
+    handler = TableSelectHandler(
+        request, project_id, refinement_id, iteration_id, num, order_by
+    )
+
+    context = handler.get_context()
 
     if iteration_id == -1:
-        return redirect(reverse("search"))
+        iteration_redirect = handler.get_iteration_redirect()
+        if iteration_redirect:
+            return iteration_redirect
 
-    # validate page number
-    # Handle pagination: Ensure current page is valid and falls within the allowed range
-    current_page = max(1, num)
-
-    tablechoice = TableChoice.objects.filter(user=actual_user, project=project)
-    tablechoice_to_display = tablechoice.filter(to_display=True)
-    total_documents = tablechoice_to_display.count()
-
-    total_pages = max(
-        1,
-        (total_documents + settings.NUMBER_ARTICLE_BY_PAGE - 1)
-        // settings.NUMBER_ARTICLE_BY_PAGE,
-    )
-
-    if current_page > total_pages:
-        current_page = total_pages
-
-    context["sort_by"] = order_by
-
-    # Pagination: calculate the correct slice of documents
-    first_document = (current_page - 1) * settings.NUMBER_ARTICLE_BY_PAGE
-    last_document = min(
-        current_page * settings.NUMBER_ARTICLE_BY_PAGE, total_documents
-    )
-
-    sorted_table_choice = sort_table_choice(
-        project, tablechoice_to_display, order_by
-    )
-
-    sorted_page_table_choice = sorted_table_choice[
-        first_document:last_document
-    ]
-
-    # Handle POST request for action buttons (iterate, reset, finish, navigation)
     if request.method == "POST":
-        # Used for debbuging
-        # for k, v in request.POST.items():
-        #     print(k, v)
+        response = handler.handle_post_actions()
+        if response:
+            return response
 
-        check_list_yes = [
-            int(table_id) for table_id in request.POST.getlist("yes_row", [])
-        ]
-        check_list_no = [
-            int(table_id) for table_id in request.POST.getlist("no_row", [])
-        ]
-        check_list_maybe = [
-            int(table_id) for table_id in request.POST.getlist("maybe_row", [])
-        ]
-
-        if request.POST.get("get-iteration") is not None:
-            dest_iteration_id = request.POST.get("get-iteration")
-
-            if dest_iteration_id is not None:
-                get_iteration(
-                    actual_user, project, refinement_id, int(dest_iteration_id)
-                )
-                # add a redirect tableselect
-                return redirect(
-                    reverse(
-                        "tableselect",
-                        kwargs={
-                            "project_id": project_id,
-                            "refinement_id": refinement_id,
-                            "iteration_id": int(dest_iteration_id),
-                            "num": 1,
-                            "order_by": "decision_date",
-                        },
-                    )
-                )
-
-        if request.POST.get("remove-iteration") is not None:
-            removed_iteration_id = request.POST.get("remove-iteration")
-
-            if removed_iteration_id is not None:
-                parent_id = remove_iteration_get_parent(
-                    actual_user,
-                    project,
-                    refinement_id,
-                    int(removed_iteration_id),
-                )
-
-                if parent_id and iteration_id == int(removed_iteration_id):
-                    get_iteration(
-                        actual_user, project, refinement_id, parent_id
-                    )
-
-                    return redirect(
-                        reverse(
-                            "tableselect",
-                            kwargs={
-                                "project_id": project_id,
-                                "refinement_id": refinement_id,
-                                "iteration_id": parent_id,
-                                "num": 1,
-                                "order_by": "decision_date",
-                            },
-                        )
-                    )
-
-        submit = request.POST.get("submit")
-
-        if submit == "iterate":
-            # Check iteration limit
-            iterations_limit = settings.LIMIT_NUMBER_ITERATIONS
-            iterations_number = RefinementIteration.objects.filter(
-                refinement_id=refinement_id
-            ).count()
-
-            if iterations_number >= iterations_limit:
-                context["iterations_limit_exceeded"] = True
-
-            else:
-                update_checked_document_page(
-                    user=actual_user,
-                    project=project,
-                    check_list_yes=check_list_yes,
-                    check_list_no=check_list_no,
-                    check_list_maybe=check_list_maybe,
-                )
-
-                update_check_list_iteration(actual_user, project, iteration_id)
-
-                iterate_check_list(
-                    actual_user,
-                    project,
-                    refinement_id,
-                    iteration_id,
-                )
-
-                return redirect(
-                    reverse(
-                        "tableselect-default",
-                        kwargs={
-                            "project_id": project_id,
-                            "refinement_id": refinement_id,
-                        },
-                    )
-                )
-
-        elif submit == "reset":
-            reset_table_choice(
-                user=actual_user, project=project, refinement_id=refinement_id
-            )
-
-            return redirect(
-                reverse(
-                    "tableselect-default",
-                    kwargs={
-                        "project_id": project_id,
-                        "refinement_id": refinement_id,
-                    },
-                )
-            )
-
-        elif submit == "finish":
-            update_checked_document_page(
-                user=actual_user,
-                project=project,
-                check_list_yes=check_list_yes,
-                check_list_no=check_list_no,
-                check_list_maybe=check_list_maybe,
-            )
-
-            return download_finalcsv(project=project)
-
-        elif submit == "update_order":
-            order_by = request.POST.get("update_order_by")
-            update_checked_document_page(
-                user=actual_user,
-                project=project,
-                check_list_yes=check_list_yes,
-                check_list_no=check_list_no,
-                check_list_maybe=check_list_maybe,
-            )
-            return redirect(
-                reverse(
-                    "tableselect",
-                    kwargs={
-                        "project_id": project_id,
-                        "refinement_id": refinement_id,
-                        "iteration_id": iteration_id,
-                        "num": 1,
-                        "order_by": order_by,
-                    },
-                )
-            )
-
-        elif submit == "previous" and current_page > 1:
-            update_checked_document_page(
-                user=actual_user,
-                project=project,
-                check_list_yes=check_list_yes,
-                check_list_no=check_list_no,
-                check_list_maybe=check_list_maybe,
-            )
-
-            return redirect(
-                reverse(
-                    "tableselect",
-                    kwargs={
-                        "project_id": project_id,
-                        "refinement_id": refinement_id,
-                        "iteration_id": iteration_id,
-                        "num": current_page - 1,
-                        "order_by": order_by,
-                    },
-                )
-            )
-
-        elif submit == "next" and current_page < total_pages:
-            update_checked_document_page(
-                user=actual_user,
-                project=project,
-                check_list_yes=check_list_yes,
-                check_list_no=check_list_no,
-                check_list_maybe=check_list_maybe,
-            )
-            return redirect(
-                reverse(
-                    "tableselect",
-                    kwargs={
-                        "project_id": project_id,
-                        "refinement_id": refinement_id,
-                        "iteration_id": iteration_id,
-                        "num": current_page + 1,
-                        "order_by": order_by,
-                    },
-                )
-            )
-
-    tablechoice_list, has_hdbscan_scores, has_es_scores = render_table_choice(
-        project, sorted_page_table_choice
-    )
-
-    context["hdbscan_scores"] = has_hdbscan_scores
-    context["has_es_scores"] = has_es_scores
-
-    # Disable sorting by similar keywords
-    # WORKAROUND to enable check why is taking long time
-    # keywords = load_tfidf_keywords(project)
-    # context["keywords"] = keywords
-
-    context["tablechoice_list"] = tablechoice_list
-    context["first_page"] = current_page == 1
-    context["last_page"] = current_page == total_pages
-    context["current_page"] = current_page
-    context["total_page"] = total_pages
-
-    # Count the initial documents, neighbors, and checked documents
-    context["number_Article_initial"] = tablechoice.filter(
-        is_initial=True
-    ).count()
-    context["number_Article_neighbour"] = tablechoice.filter(
-        is_initial=False, to_display=True, is_check=False
-    ).count()
-    context["number_Article_chosen"] = tablechoice.filter(
-        is_check=True
-    ).count()
-
-    iterations_render = get_json_iterations_render(refinement_id, iteration_id)
-    context["iterations"] = iterations_render
-
-    _refinement = ProjectRefinement.objects.filter(id=refinement_id).first()
-
-    union_sets_str = ""
-    excluded_set_str = ""
-
-    if _refinement:
+    # Process refinement filters
+    refinement = ProjectRefinement.objects.filter(id=refinement_id).first()
+    if refinement:
         try:
-            raw_filter = json.loads(_refinement.filters)
+            raw_filter = json.loads(refinement.filters)
             if raw_filter and not isinstance(raw_filter, str):
-                union_sets_str, excluded_set_str = get_rendered_filters(
-                    raw_filter
+                context["union_sets_str"], context["excluded_set_str"] = (
+                    get_rendered_filters(raw_filter)
                 )
         except Exception as e:
-            logging.warning(
-                f"An error ocurred: {e}, refinement id:{refinement_id}"
+            logging.error(f"Error processing refinement filters: {e}")
+            context["error_message"] = (
+                "An error occurred while processing filters. Please try again later."
             )
 
-    context["union_sets_str"] = union_sets_str
-    context["excluded_set_str"] = excluded_set_str
-    context["project_id"] = project_id
-    context["iteration_id"] = iteration_id
-
+    # Add project details to the context
+    context.update(
+        {
+            "project_id": project_id,
+            "iteration_id": iteration_id,
+            "project": project,
+            "sort_by": order_by,
+        }
+    )
     return render(request, "tableselect.html", context)
 
 

@@ -249,6 +249,14 @@
                             id="update_order_by"
                             class="form-select"
                             aria-label="Select order">
+                      {% if has_es_scores %}
+                        <option value="-es_score"
+                                {% if sort_by == "-es_score" %}
+                                  selected
+                                {% endif %}>
+                          Query relevance score
+                        </option>
+                      {% endif %}
                       <option value="decision_date"
                               {% if sort_by == "decision_date" %}
                                 selected
@@ -261,21 +269,8 @@
                               {% endif %}>
                         Decision Date (Descending)
                       </option>
-                      {% if has_es_scores %}
-                        <option value="es_score"
-                                {% if sort_by == "es_score" %}
-                                  selected
-                                {% endif %}>
-                          Query relevance score
-                        </option>
-                      {% endif %}
-                      <!-- Disable sorting by similar keywords -->
-                      <!-- {% for keyword in keywords %}
-                      <option value="{{ keyword }}" {% if sort_by == keyword %} selected {% endif %}>
-                        keyword: {{ keyword }}
-                      </option>
-                    {% endfor %} -->
                     </select>
+
                   </div>
                   <button type="submit"
                           name="submit"
@@ -580,13 +575,26 @@
     </script>
   {% endif %}
   <script>
+document.addEventListener("DOMContentLoaded", () => {
     const selectOrderBy = document.getElementById('update_order_by');
     const applyOrderButton = document.getElementById('apply_order_button');
 
+    // Update dropdown value dynamically based on `sort_by`
+    const currentSortBy = "{{ sort_by|default:'' }}";
+    if (selectOrderBy) {
+        [...selectOrderBy.options].forEach(option => {
+            if (option.value === currentSortBy) {
+                option.selected = true;
+            }
+        });
+    }
+
+    // Handle dropdown change
     selectOrderBy.addEventListener('change', () => {
-      console.log('Order selected:', selectOrderBy.value);
-      applyOrderButton.click();
+        console.log('Order selected:', selectOrderBy.value);
+        applyOrderButton.click();
     });
+});
 
   </script>
   <script>

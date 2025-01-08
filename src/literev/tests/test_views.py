@@ -3,10 +3,19 @@ from unittest import skip
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.test import Client, TestCase
+from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 
-from literev.models import Cluster, ClusterElement, Document, Project
+from literev.models import (
+    Cluster,
+    ClusterElement,
+    Document,
+    Project,
+    ProjectRefinement,
+    RefinementIteration,
+    TableChoice,
+)
+from literev.views import tableselect
 
 
 @skip("update test for table select and new project pages")
@@ -163,3 +172,179 @@ class TestPreviousGraphView(TestCase):
         self.assertContains(response, "LPA.59")
         self.assertContains(response, "MATERNITÉ")
         self.assertContains(response, "MARIAGE")
+
+
+class TableSelectViewTests(TestCase):
+    def setUp(self):
+        """Set up test data for the tests."""
+        self.user = User.objects.create_user(
+            username="testuser", password="password"
+        )
+        self.project = Project.objects.create(
+            user=self.user,
+            name="Test Project",
+            step_number=0,
+            is_finish=False,
+        )
+        self.document_1 = Document.objects.create(
+            project=self.project,
+            decision_type="Decision 1",
+            decision_date="2025-01-01",
+        )
+        self.document_2 = Document.objects.create(
+            project=self.project,
+            decision_type="Decision 2",
+            decision_date="2025-02-01",
+        )
+        self.refinement = ProjectRefinement.objects.create(
+            project=self.project,
+            owner=self.user,
+            name="Test Refinement",
+        )
+        self.refinement_iteration = RefinementIteration.objects.create(
+            refinement=self.refinement,
+            number_documents=5,
+        )
+        self.table_choice_1 = TableChoice.objects.create(
+            user=self.user,
+            project=self.project,
+            document=self.document_1,
+        )
+        self.table_choice_2 = TableChoice.objects.create(
+            user=self.user,
+            project=self.project,
+            document=self.document_2,
+        )
+        self.factory = RequestFactory()
+
+    def test_iteration_redirect(self):
+        """Test redirect to the latest iteration."""
+        self.client.login(username="testuser", password="password")
+        url = reverse(
+            "tableselect",
+            kwargs={
+                "project_id": self.project.id,
+                "refinement_id": self.refinement.id,
+                "iteration_id": self.refinement_iteration.id,
+                "num": 1,
+                "order_by": "decision_date",
+            },
+        )
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertIn("tablechoice_list", response.context)
+        self.assertEqual(len(response.context["tablechoice_list"]), 2)
+
+    def test_post_iterate_action(self):
+        """Test POST handling for iterate action."""
+        url = reverse(
+            "tableselect",
+            kwargs={
+                "project_id": self.project.id,
+                "refinement_id": self.refinement.id,
+                "iteration_id": self.refinement_iteration.id,
+                "num": 1,
+                "order_by": "decision_date",
+            },
+        )
+        data = {"submit": "iterate", "yes_row": [self.table_choice_1.id]}
+        request = self.factory.post(url, data)
+        request.user = self.user
+
+        response = tableselect(
+            request,
+            project_id=self.project.id,
+            refinement_id=self.refinement.id,
+            iteration_id=self.refinement_iteration.id,
+            num=1,
+            order_by="decision_date",
+        )
+        self.assertEqual(response.status_code, 302)
+
+    def test_post_update_order(self):
+        """Test POST handling for updating order."""
+        url = reverse(
+            "tableselect",
+            kwargs={
+                "project_id": self.project.id,
+                "refinement_id": self.refinement.id,
+                "iteration_id": self.refinement_iteration.id,
+                "num": 1,
+                "order_by": "decision_date",
+            },
+        )
+        data = {"submit": "update_order", "update_order_by": "-es_score"}
+        request = self.factory.post(url, data)
+        request.user = self.user
+
+        response = tableselect(
+            request,
+            project_id=self.project.id,
+            refinement_id=self.refinement.id,
+            iteration_id=self.refinement_iteration.id,
+            num=1,
+            order_by="decision_date",
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("order_by=-es_score", response.url)
+
+    def test_processing_filters_context(self):
+        """Test processing filters context."""
+        self.project.step_number = 50
+        self.project.save()
+
+        url = reverse(
+            "tableselect",
+            kwargs={
+                "project_id": self.project.id,
+                "refinement_id": self.refinement.id,
+                "iteration_id": self.refinement_iteration.id,
+                "num": 1,
+                "order_by": "decision_date",
+            },
+        )
+        request = self.factory.get(url)
+        request.user = self.user
+
+        response = tableselect(
+            request,
+            project_id=self.project.id,
+            refinement_id=self.refinement.id,
+            iteration_id=self.refinement_iteration.id,
+            num=1,
+            order_by="decision_date",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Processing new results ...", response.content)
+
+    def test_unauthorized_access(self):
+        """Test unauthorized access."""
+        unauthorized_user = User.objects.create_user(
+            username="unauthorized", password="password"
+        )
+        url = reverse(
+            "tableselect",
+            kwargs={
+                "project_id": self.project.id,
+                "refinement_id": self.refinement.id,
+                "iteration_id": self.refinement_iteration.id,
+                "num": 1,
+                "order_by": "decision_date",
+            },
+        )
+        request = self.factory.get(url)
+        request.user = unauthorized_user
+
+        response = tableselect(
+            request,
+            project_id=self.project.id,
+            refinement_id=self.refinement.id,
+            iteration_id=self.refinement_iteration.id,
+            num=1,
+            order_by="decision_date",
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("search"), response.url)
