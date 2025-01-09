@@ -175,75 +175,96 @@
     });
 
     function renderResults(ragData) {
-      const answersContainer = document.getElementById("ragAnswers");
-      answersContainer.innerHTML = "";
+  const answersContainer = document.getElementById("ragAnswers");
+  answersContainer.innerHTML = "";
 
-      ragData.forEach(documentRag => {
-          let documentHeader = `
-            <div class="project-search-metadata col-12">
-                <div class="d-flex justify-content-between mb-2">
-                    <h3>
-                        <span class="badge text-bg-dark">
-                            <a class="text-white" href="${documentRag.document.url_document}" target="_blank">${documentRag.document.procedure_type}</a>
-                        </span>
-                    </h3>
-                </div>
-                <div class="ms-auto mt-3 text-start mb-3">
-                    <div>
-                        <b>${documentRag.document.decision_type}</b>, du ${documentRag.document.decision_date}
-                        <b>Result:</b> ${documentRag.document.result}
-                    </div>
-                </div>
-            </div>
-          `;
+  // Sort ragData by decision_date (most recent first) and specific answers at the end
+  ragData.sort((a, b) => {
+    const priorityAnswers = [
+      "No content available.",
+      "Error generating response.",
+      "Réponse non disponible.",
+    ];
 
-          let documentStandards = `
-            <div class="mb-2">
-              <b>Normes:</b> ${documentRag.document.standards}
-            </div>
-          `
-          let documentAns = `
-          <div class="mb-2">
-                <b>Answer: </b>
-                ${documentRag.answer}
+    const aPriority = priorityAnswers.includes(a.answer) ? 1 : 0;
+    const bPriority = priorityAnswers.includes(b.answer) ? 1 : 0;
+
+    if (aPriority !== bPriority) {
+      return aPriority - bPriority; // Push priority answers to the end
+    }
+
+    // If both have the same priority, sort by decision_date (most recent first)
+    const aDate = new Date(a.document.decision_date);
+    const bDate = new Date(b.document.decision_date);
+
+    return bDate - aDate; // Descending order
+  });
+
+  // Render the sorted results
+  ragData.forEach((documentRag) => {
+    let documentHeader = `
+      <div class="project-search-metadata col-12">
+          <div class="d-flex justify-content-between mb-2">
+              <h3>
+                  <span class="badge text-bg-dark">
+                      <a class="text-white" href="${documentRag.document.url_document}" target="_blank">${documentRag.document.procedure_type}</a>
+                  </span>
+              </h3>
           </div>
-          `
-          let documentCitation = `
-            <div class="mb-5 ms-auto">
-                <div>
-                    <b>Highlighted in document: </b>
-                    ${documentRag.citation}
-                </div>
-            </div>
-          `
-          const documentDivisor = `
-             <div class="row mb-2">
-                <hr />
-            </div>
-          `
-          let documentRow = documentHeader
+          <div class="ms-auto mt-3 text-start mb-3">
+              <div>
+                  <b>${documentRag.document.decision_type}</b>, du ${documentRag.document.decision_date}
+                  <b>Result:</b> ${documentRag.document.result}
+              </div>
+          </div>
+      </div>
+    `;
 
-          if(documentRag.document.standards != ""){
-            documentRow += documentStandards;
-          }
+    let documentStandards = `
+      <div class="mb-2">
+        <b>Normes:</b> ${documentRag.document.standards}
+      </div>
+    `;
+    let documentAns = `
+    <div class="mb-2">
+          <b>Answer: </b>
+          ${documentRag.answer}
+    </div>
+    `;
+    let documentCitation = `
+      <div class="mb-5 ms-auto">
+          <div>
+              <b>Highlighted in document: </b>
+              ${documentRag.citation}
+          </div>
+      </div>
+    `;
+    const documentDivisor = `
+       <div class="row mb-2">
+          <hr />
+      </div>
+    `;
+    let documentRow = documentHeader;
 
-          if (
-              documentRag.answer === "No content available." ||
-              documentRag.answer === "Error generating response." ||
-              documentRag.answer === "Réponse non disponible."
-          )
-          {
-              documentRow += documentAns + documentDivisor;
-          } else {
-              documentRow += documentAns + documentCitation + documentDivisor;
-          }
+    if (documentRag.document.standards != "") {
+      documentRow += documentStandards;
+    }
 
+    if (
+      documentRag.answer === "No content available." ||
+      documentRag.answer === "Error generating response." ||
+      documentRag.answer === "Réponse non disponible."
+    ) {
+      documentRow += documentAns + documentDivisor;
+    } else {
+      documentRow += documentAns + documentCitation + documentDivisor;
+    }
 
-          answersContainer.insertAdjacentHTML("beforeend", documentRow);
-      });
+    answersContainer.insertAdjacentHTML("beforeend", documentRow);
+  });
 
-      show_table();
-  }
+  show_table();
+}
 
   document.addEventListener("DOMContentLoaded", function() {
     checkStatus();
