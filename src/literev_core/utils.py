@@ -223,14 +223,28 @@ def remove_common_and_unique(list_trigrams: list[list[str]]) -> list[str]:
     #    " ".join(list(set(doc))) for doc in list_trigrams
     # )
 
+    # TODO: Test if is working as expected vocabulary_ attribute
+
+    # Old code
+    # list_temporary = [
+    #     [
+    #         word
+    #         for word in doc
+    #         if word not in common_and_unique_words.stop_words_
+    #     ]
+    #     for doc in list_trigrams
+    # ]
+
     list_temporary = [
         [
             word
             for word in doc
-            if word not in common_and_unique_words.stop_words_
+            if word
+            in common_and_unique_words.vocabulary_  # or vocabulary.keys() or  set(get_feature_names_out())
         ]
         for doc in list_trigrams
     ]
+
     list_final = [" ".join(doc) for doc in list_temporary]
 
     return list_final
