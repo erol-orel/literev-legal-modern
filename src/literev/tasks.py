@@ -359,7 +359,7 @@ def back_preprocess_documents(self, project_id: int):
         return
 
     logger.info(
-        f"Equal number of Documents: {len(document_pk_list)==len(preprocessed_corpus_list)}"
+        f"Equal number of Documents: {len(document_pk_list) == len(preprocessed_corpus_list)}"
     )
 
     for pk, pp_corpus in zip(document_pk_list, preprocessed_corpus_list):

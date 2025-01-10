@@ -96,7 +96,7 @@ def highlight_words_topic(
         # The `re.sub` will handle all matches of the pattern in the text
         text = re.sub(
             pattern,
-            lambda match: f'<span style="background-color: { color_code }40">{match.group(1)}</span>',
+            lambda match: f'<span style="background-color: {color_code}40">{match.group(1)}</span>',
             text,
             flags=re.IGNORECASE,
         )
@@ -401,7 +401,7 @@ def get_json_iterations_render(
                 "is_root": True
                 if iteration.parent_iteration is None
                 else False,
-                "name": f"Iteration {c+1}: ({iteration.number_documents} documents)",
+                "name": f"Iteration {c + 1}: ({iteration.number_documents} documents)",
                 "is_active": True
                 if iteration.id == active_iteration_id
                 else False,
