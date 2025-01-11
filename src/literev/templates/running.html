@@ -140,8 +140,15 @@
             </div>
           </div>
           <div>
-            <a class="ms-2 fw-bold"
-               href="/project/{{ project.id }}">{{ project.name }}</a>
+            {% if project.step == 'clustering' %}
+              <a class="ms-2 fw-bold"
+                 href="/project/{{ project.id }}">{{ project.name }}
+              </a>
+            {% else %}
+              <span class="ms-2 fw-bold">
+                {{ project.name }}
+              </span>
+            {% endif %}
           </div>
         </div>
         <div class="col-2">

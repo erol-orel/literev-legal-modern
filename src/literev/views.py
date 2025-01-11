@@ -15,6 +15,7 @@ from django.urls import reverse
 from django.views.generic import TemplateView
 
 from literev.forms import HistoricalForm, SearchForm
+from literev.libs.data_files import get_es_scores
 from literev.libs.historical_functions import (
     filter_and_sort_projects,
     sort_all_projects,
@@ -479,7 +480,7 @@ def tableselect(
     refinement_id: int,
     iteration_id: int = -1,
     num: int = 1,
-    order_by: str = "decision_date",
+    order_by: str = "es_score",
 ) -> HttpResponse:
     """
     Handles table selection for a given project, refinement, and iteration.
@@ -497,7 +498,7 @@ def tableselect(
     num : int, optional
         Page number for pagination (default is 1).
     order_by : str, optional
-        Sorting criteria (default is "decision_date").
+        Sorting criteria (default is "es_score").
     """
     project = Project.objects.filter(
         Q(id=project_id)
@@ -517,6 +518,20 @@ def tableselect(
             {"processing_filters": True, "project": project},
         )
 
+    if order_by == "es_scores" and not get_es_scores(project):
+        return redirect(
+            reverse(
+                "tableselect",
+                kwargs={
+                    "project_id": project_id,
+                    "refinement_id": refinement_id,
+                    "iteration_id": iteration_id,
+                    "num": 1,
+                    "order_by": "-decision_date",
+                },
+            )
+        )
+
     handler = TableSelectHandler(
         request, project_id, refinement_id, iteration_id, num, order_by
     )
@@ -530,6 +545,7 @@ def tableselect(
 
     if request.method == "POST":
         response = handler.handle_post_actions()
+
         if response:
             return response
 

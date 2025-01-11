@@ -99,9 +99,7 @@
                   <div class="col-12">
                     Initial documents number in Refinement: <span class="fw-bold">{{ number_Article_initial }}</span>
                   </div>
-
                 </div>
-
                 <div class="row ps-3 mb-4">
                   {% if union_sets_str or excluded_set_str %}
                     <div class="col-12 mb-3">
@@ -129,8 +127,8 @@
                           {% endif %}
                         </tbody>
                       </table>
-                    {% endif %}
-                  </div>
+                    </div>
+                  {% endif %}
                   <div class="col">
                     k neighbour: <span class="fw-bold">10</span>
                   </div>
@@ -461,10 +459,6 @@
                       Check All to Maybe
                     </button>
                   </div>
-                  <!-- <div class="col">
-                    Check/Uncheck all
-                    <input class="form-check-input ms-3" type="checkbox" onclick="toggle(this)" />
-                  </div> -->
                 </div>
               </div>
             </div>
@@ -533,8 +527,6 @@
         }
       );
 
-
-
       const data = {
         selected_documents: yesDocuments,
         deselected_documents: noDocuments,
@@ -576,6 +568,10 @@
   {% endif %}
   <script>
 document.addEventListener("DOMContentLoaded", () => {
+    if (performance.navigation.type === performance.navigation.TYPE_BACK_FORWARD) {
+      console.log("reloading page");
+      window.location.reload();
+    }
     const selectOrderBy = document.getElementById('update_order_by');
     const applyOrderButton = document.getElementById('apply_order_button');
 
@@ -602,9 +598,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const checkInputs = document.querySelectorAll(".form-check-input");
     checkInputs.forEach((checkbox) => {
       checkbox.addEventListener("click",(e) =>{
-
+        actualCheckedYes = countYesChecked();
         targetCodeId = e.target.getAttribute('id');
-
         // get child
         const parent = e.target.parentElement.parentElement
         isTargetChecked = e.target.checked;
@@ -624,6 +619,14 @@ document.addEventListener("DOMContentLoaded", () => {
           }
 
         })
+
+        new_total_checked = countYesChecked();
+
+        let counter = document.querySelector(".article-counter");
+        let counterBottom = document.querySelector(".article-counter-bottom");
+        let previousValue = parseInt(counter.textContent, 10);
+        counter.textContent = previousValue - actualCheckedYes + new_total_checked;
+        counterBottom.textContent = previousValue - actualCheckedYes + new_total_checked;
       })
     })
   </script>

@@ -6,3 +6,6 @@ dependencies:
   - python 3.10.*
   - poetry 2.0.0
   - gunicorn 21.*
+  - pip
+  - pip:
+    - jsbeautifier
