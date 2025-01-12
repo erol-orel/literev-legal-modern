@@ -496,6 +496,9 @@
 {% endblock content %}
 
 {% block jscode %}
+  <script>
+    let initialCheckedYes = 0;
+  </script>
   <script src="{% static 'js/select_functions.js' %}"></script>
   <script src="{% static 'js/checkbox_counter.js' %}"></script>
   {% if not processing_filters %}
@@ -567,38 +570,38 @@
     </script>
   {% endif %}
   <script>
-document.addEventListener("DOMContentLoaded", () => {
-    if (performance.navigation.type === performance.navigation.TYPE_BACK_FORWARD) {
-      console.log("reloading page");
-      window.location.reload();
-    }
-    const selectOrderBy = document.getElementById('update_order_by');
-    const applyOrderButton = document.getElementById('apply_order_button');
+    document.addEventListener("DOMContentLoaded", () => {
+        if (performance.navigation.type === performance.navigation.TYPE_BACK_FORWARD) {
+          window.location.reload();
+        }
+        const selectOrderBy = document.getElementById('update_order_by');
+        const applyOrderButton = document.getElementById('apply_order_button');
 
-    // Update dropdown value dynamically based on `sort_by`
-    const currentSortBy = "{{ sort_by|default:'' }}";
-    if (selectOrderBy) {
-        [...selectOrderBy.options].forEach(option => {
-            if (option.value === currentSortBy) {
-                option.selected = true;
-            }
+        // Update dropdown value dynamically based on `sort_by`
+        const currentSortBy = "{{ sort_by|default:'' }}";
+        if (selectOrderBy) {
+            [...selectOrderBy.options].forEach(option => {
+                if (option.value === currentSortBy) {
+                    option.selected = true;
+                }
+            });
+        }
+        // Handle dropdown change
+        selectOrderBy.addEventListener('change', () => {
+            console.log('Order selected:', selectOrderBy.value);
+            applyOrderButton.click();
         });
-    }
-
-    // Handle dropdown change
-    selectOrderBy.addEventListener('change', () => {
-        console.log('Order selected:', selectOrderBy.value);
-        applyOrderButton.click();
     });
-});
-
   </script>
+
   <script>
     // To handle unique selection in 'yes', 'maybe', 'no' options
+    initialCheckedYes = countYesChecked();
+
     const checkInputs = document.querySelectorAll(".form-check-input");
     checkInputs.forEach((checkbox) => {
-      checkbox.addEventListener("click",(e) =>{
-        actualCheckedYes = countYesChecked();
+      checkbox.addEventListener("click", (e) =>{
+
         targetCodeId = e.target.getAttribute('id');
         // get child
         const parent = e.target.parentElement.parentElement
@@ -617,16 +620,17 @@ document.addEventListener("DOMContentLoaded", () => {
               checkbox.checked=true;
             }
           }
-
         })
-
-        new_total_checked = countYesChecked();
+        let new_total_checked = countYesChecked();
 
         let counter = document.querySelector(".article-counter");
         let counterBottom = document.querySelector(".article-counter-bottom");
-        let previousValue = parseInt(counter.textContent, 10);
-        counter.textContent = previousValue - actualCheckedYes + new_total_checked;
-        counterBottom.textContent = previousValue - actualCheckedYes + new_total_checked;
+        let previousValue = parseInt(counter.textContent);
+        counter.textContent = previousValue - initialCheckedYes + new_total_checked;
+        counterBottom.textContent = previousValue - initialCheckedYes + new_total_checked;
+
+        // storing the value of actual checked docs
+        initialCheckedYes = new_total_checked
       })
     })
   </script>

@@ -17,7 +17,7 @@ function all2Yes() {
   const checkboxesNo = document.getElementsByName("no_row");
   const checkboxesMaybe = document.getElementsByName("maybe_row");
 
-  actualCheckedYes = countYesChecked();
+  let actualCheckedYes = countYesChecked();
 
   checkboxesYes.forEach((checkbox) =>{
     checkbox.checked = true;
@@ -36,6 +36,7 @@ function all2Yes() {
   let previousValue = parseInt(counter.textContent);
   counter.textContent = previousValue - actualCheckedYes + new_total_checked;
   counterBottom.textContent = previousValue - actualCheckedYes + new_total_checked;
+  initialCheckedYes = countYesChecked();
 }
 
 function all2Maybe() {
@@ -62,6 +63,8 @@ function all2Maybe() {
   let previousValue = parseInt(counter.textContent);
   counter.textContent = previousValue - actualCheckedYes + new_total_checked;
   counterBottom.textContent = previousValue - actualCheckedYes + new_total_checked;
+
+  initialCheckedYes = countYesChecked();
 }
 
 all2YesButtons = document.querySelectorAll(".all-yes-button");
