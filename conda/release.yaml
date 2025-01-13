@@ -11,4 +11,4 @@ dependencies:
     # fix issues with distlib
     - paginate
     # fix issues with distlib
-    - jsbeautifier
+    - jsbeautifier==1.15.1

@@ -26,6 +26,9 @@ class Project(models.Model):
 
 class Document(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    chamber = models.CharField(
+        max_length=256, default="", null=True, blank=True
+    )
     decision_type = models.CharField(
         max_length=256, default="", null=True, blank=True
     )

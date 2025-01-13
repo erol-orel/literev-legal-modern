@@ -617,14 +617,11 @@
                   <option value="Norm">
                     Norms
                   </option>
-                  <option value="Keyword">
-                    Keyword search
-                  </option>
                   <option value="No_decis">
-                    No_decis
+                    No Decision
                   </option>
-                  <option value="Result">
-                    Result
+                  <option value="Keyword">
+                    Keyword Search
                   </option>
                   <option value="year_range">
                     Decision Year
@@ -632,6 +629,14 @@
                   <option value="descriptors">
                     Descriptor
                   </option>
+                  <option value="Result">
+                    Result
+                  </option>
+                  {% if is_civil_court %}
+                    <option value="chamber">
+                      Chamber
+                    </option>
+                  {% endif %}
                 </select>
               </div>
             </div>
@@ -646,6 +651,22 @@
               </div>
             </div>
 
+            <div id="chamber-selector-container"
+                 class="col-7">
+              <div class="input-group input-group-lg">
+                <input id="chamber-filter"
+                       class="form-control"
+                       list="datalistChamber"
+                       placeholder="Court Division" />
+                <datalist id="datalistChamber">
+                  {% for chamber in chambers_list %}
+                    <option value="{{ chamber }}">
+                    </option>
+                  {% endfor %}
+                </datalist>
+              </div>
+            </div>
+
             <div id="year-selector-container"
                  class="col-7">
               <div class="input-group input-group-lg">
@@ -655,23 +676,38 @@
                        placeholder="Enter a year as YYYY or a range as YYYY-YYYY (e.g., 2020 or 2017-2022)."
                        aria-describedby="validation-error-message" />
               </div>
-              <!-- Placeholder for validation error -->
               <small id="validation-error-message"
                      class="text-danger"
                      style="display:none">
               </small>
             </div>
 
-            <div id="descriptor-selector-container"
+            <div id="topic-selector-container"
+                 class="col-7">
+              <div class="dropdown">
+                <select class="form-select form-select-lg"
+                        name="topic-value"
+                        id="topic-value"
+                        value="Topic">
+                  {% for topic in list_number_topic10 %}
+                    <option value="{{ topic }}">
+                      {{ topic }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <div id="result-selector-container"
                  class="col-7">
               <div class="input-group input-group-lg">
-                <input id="descriptor-filter"
+                <input id="result-filter"
                        class="form-control"
-                       list="datalistDesc"
-                       placeholder="Descriptors to search" />
-                <datalist id="datalistDesc">
-                  {% for desc in descriptors_list %}
-                    <option value="{{ desc }}">
+                       list="datalistResult"
+                       placeholder="Result to search" />
+                <datalist id="datalistResult">
+                  {% for result in result_list %}
+                    <option value="{{ result }}">
                     </option>
                   {% endfor %}
                 </datalist>
@@ -700,7 +736,7 @@
                 <input id="nodecision-filter"
                        class="form-control"
                        list="datalistNodecis"
-                       placeholder="No decision to search" />
+                       placeholder="No Decision to search" />
                 <datalist id="datalistNodecis">
                   {% for nodecis in no_decision_list %}
                     <option value="{{ nodecis }}">
@@ -710,37 +746,22 @@
               </div>
             </div>
 
-            <div id="result-selector-container"
+            <div id="descriptor-selector-container"
                  class="col-7">
               <div class="input-group input-group-lg">
-                <input id="result-filter"
+                <input id="descriptor-filter"
                        class="form-control"
-                       list="datalistResult"
-                       placeholder="Result to search" />
-                <datalist id="datalistResult">
-                  {% for result in result_list %}
-                    <option value="{{ result }}">
+                       list="datalistDesc"
+                       placeholder="Descriptors to search" />
+                <datalist id="datalistDesc">
+                  {% for desc in descriptors_list %}
+                    <option value="{{ desc }}">
                     </option>
                   {% endfor %}
                 </datalist>
               </div>
             </div>
 
-            <div id="topic-selector-container"
-                 class="col-7">
-              <div class="dropdown">
-                <select class="form-select form-select-lg"
-                        name="topic-value"
-                        id="topic-value"
-                        value="Topic">
-                  {% for topic in list_number_topic10 %}
-                    <option value="{{ topic }}">
-                      {{ topic }}
-                    </option>
-                  {% endfor %}
-                </select>
-              </div>
-            </div>
             <div class="col-3 d-flex justify-content-around">
               <div>
                 <button id="add-button"

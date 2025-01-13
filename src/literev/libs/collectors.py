@@ -42,6 +42,7 @@ class MetaData:
     """
 
     doc_id: str  # id
+    chamber: str  # coll_nom
     document_text: str  # document_text
     procedure_type: str  # procedure
     decision_type: str  # decision
@@ -174,6 +175,7 @@ class ElasticSearchCollector:
         """
 
         doc_id = document.get("id")
+        chamber = document.get("collector_name", "")
         document_text = document.get("document_text", "")
         procedure_type = document.get("procedure_type", "")
         decision_type = document.get("decision_type", "")
@@ -187,6 +189,7 @@ class ElasticSearchCollector:
         if document_text:
             metadata = MetaData(
                 doc_id=doc_id,
+                chamber=chamber,
                 document_text=document_text,
                 procedure_type=procedure_type,
                 decision_type=decision_type,

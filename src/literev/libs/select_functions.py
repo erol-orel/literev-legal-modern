@@ -373,6 +373,7 @@ def apply_filters(
                 project, filter_dict.get("descriptors", [])
             ),
             get_documents_by_keyword(project, filter_dict.get("Keyword", [])),
+            get_documents_by_chamber(project, filter_dict.get("chamber", [])),
             get_documents_by_no_decis(
                 project, filter_dict.get("No_decis", [])
             ),
@@ -483,6 +484,20 @@ def get_documents_by_no_decis(
     for no_d in no_decis:
         documents = Document.objects.filter(
             project=project, decision_type=no_d
+        ).exclude(clusterelement__isnull=True)
+        result.update(documents.values_list("pk", flat=True))
+
+    return result
+
+
+def get_documents_by_chamber(
+    project: Project, chambers: list[str]
+) -> set[int]:
+    """Retrieve document IDs filtered by 'chamber'."""
+    result = set()
+    for chamb in chambers:
+        documents = Document.objects.filter(
+            project=project, chamber=chamb
         ).exclude(clusterelement__isnull=True)
         result.update(documents.values_list("pk", flat=True))
 

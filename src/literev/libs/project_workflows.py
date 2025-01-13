@@ -86,7 +86,6 @@ def extract_refined_list(
         .order_by("result")
         .values_list(f"{filter_field}", flat=True)
     )
-
     flattened_values = chain.from_iterable(
         filter_value.split(";")
         for filter_value in filtered_list_raw
@@ -283,6 +282,9 @@ def projectpage_load_final_results(user, project: Project) -> dict[str, Any]:
         "standard_list": extract_refined_list(project, "standards"),
         "descriptors_list": extract_refined_list(project, "descriptors"),
         "no_decision_list": extract_refined_list(project, "decision_type"),
+        "chambers_list": extract_refined_list(
+            project, "chamber"
+        ),  # Enabled only for civil_court
         "result_list": [
             "REJETE",
             "ADMIS",
@@ -296,6 +298,9 @@ def projectpage_load_final_results(user, project: Project) -> dict[str, Any]:
         ],
         "refinements": refinements,
     }
+
+    if project.selected_indices == ["civil_court"]:
+        context_data["is_civil_court"] = True
 
     if project.is_finish:
         topics, palette = get_color_map(list(cluster_list))

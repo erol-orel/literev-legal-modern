@@ -3,6 +3,7 @@ const valueSelectorContainer = document.querySelector("#value-selector-container
 const yearSelectorContainer = document.querySelector("#year-selector-container");
 const normSelectorContainer = document.querySelector("#norm-selector-container");
 const descriptorSelectorContainer = document.querySelector("#descriptor-selector-container");
+const chamberSelectorContainer = document.querySelector("#chamber-selector-container");
 const nodecisionSelectorContainer = document.querySelector("#nodecision-selector-container");
 const resultSelectorContainer = document.querySelector("#result-selector-container");
 const typeFilter = document.querySelector("#type-filter");
@@ -14,6 +15,7 @@ function checkKeySelector() {
     yearSelectorContainer.hidden = true;
     normSelectorContainer.hidden = true;
     descriptorSelectorContainer.hidden = true;
+    chamberSelectorContainer.hidden = true;
     nodecisionSelectorContainer.hidden = true;
     resultSelectorContainer.hidden = true;
   }
@@ -24,6 +26,7 @@ function checkKeySelector() {
     yearSelectorContainer.hidden = true;
     normSelectorContainer.hidden = false;
     descriptorSelectorContainer.hidden = true;
+    chamberSelectorContainer.hidden = true;
     nodecisionSelectorContainer.hidden = true;
     resultSelectorContainer.hidden = true;
   }
@@ -34,6 +37,7 @@ function checkKeySelector() {
     yearSelectorContainer.hidden = true;
     normSelectorContainer.hidden = true;
     descriptorSelectorContainer.hidden = true;
+    chamberSelectorContainer.hidden = true;
     nodecisionSelectorContainer.hidden = false;
     resultSelectorContainer.hidden = true;
   }
@@ -44,6 +48,7 @@ function checkKeySelector() {
     yearSelectorContainer.hidden = true;
     normSelectorContainer.hidden = true;
     descriptorSelectorContainer.hidden = true;
+    chamberSelectorContainer.hidden = true;
     nodecisionSelectorContainer.hidden = true;
     resultSelectorContainer.hidden = false;
   }
@@ -54,6 +59,7 @@ function checkKeySelector() {
     yearSelectorContainer.hidden = false;
     normSelectorContainer.hidden = true;
     descriptorSelectorContainer.hidden = true;
+    chamberSelectorContainer.hidden = true;
     nodecisionSelectorContainer.hidden = true;
     resultSelectorContainer.hidden = true;
   }
@@ -64,9 +70,22 @@ function checkKeySelector() {
     yearSelectorContainer.hidden = true;
     normSelectorContainer.hidden = true;
     descriptorSelectorContainer.hidden = false;
+    chamberSelectorContainer.hidden = true;
     nodecisionSelectorContainer.hidden = true;
     resultSelectorContainer.hidden = true;
   }
+
+  else if (typeFilter.value == "chamber") {
+    topicSelectorContainer.hidden = true;
+    valueSelectorContainer.hidden = true;
+    yearSelectorContainer.hidden = true;
+    normSelectorContainer.hidden = true;
+    descriptorSelectorContainer.hidden = true;
+    chamberSelectorContainer.hidden = false;
+    nodecisionSelectorContainer.hidden = true;
+    resultSelectorContainer.hidden = true;
+  }
+
 
   else {
     topicSelectorContainer.hidden = true;
@@ -74,6 +93,7 @@ function checkKeySelector() {
     yearSelectorContainer.hidden = true;
     normSelectorContainer.hidden = true;
     descriptorSelectorContainer.hidden = true;
+    chamberSelectorContainer.hidden = true;
     nodecisionSelectorContainer.hidden = true;
     resultSelectorContainer.hidden = true;
   }
@@ -320,6 +340,7 @@ buttonExclude.addEventListener("click", () => {
   const topicValue = document.querySelector("#topic-value");
   const normValue = document.querySelector("#norm-filter");
   const descriptorValue = document.querySelector("#descriptor-filter");
+  const chamberValue = document.querySelector("#chamber-filter");
   const nodecisionValue = document.querySelector("#nodecision-filter");
   const resultValue = document.querySelector("#result-filter");
 
@@ -334,6 +355,9 @@ buttonExclude.addEventListener("click", () => {
   }
   else if (contentType == "descriptors") {
     content = descriptorValue.value;
+  }
+  else if (contentType == "chamber") {
+    content = chamberValue.value;
   }
   else if (contentType == "No_decis") {
     content = nodecisionValue.value;
@@ -390,6 +414,7 @@ buttonAdd.addEventListener("click", () => {
   const topicValue = document.querySelector("#topic-value");
   const normValue = document.querySelector("#norm-filter");
   const descriptorValue = document.querySelector("#descriptor-filter");
+  const chamberValue = document.querySelector("#chamber-filter");
   const container = document.querySelector(`#filter-container-${activeFilter}`);
   const nodecisionValue = document.querySelector("#nodecision-filter");
   const resultValue = document.querySelector("#result-filter");
@@ -410,6 +435,9 @@ buttonAdd.addEventListener("click", () => {
     content = descriptorValue.value;
   }
 
+  else if (contentType == "chamber") {
+    content = chamberValue.value;
+  }
   else if (contentType == "No_decis") {
     content = nodecisionValue.value;
   }
@@ -616,6 +644,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const textFilter = document.getElementById('text-filter');
   const normFilter = document.getElementById('norm-filter');
   const descriptorFilter = document.getElementById('descriptor-filter');
+  const chamberFilter = document.getElementById('chamber-filter');
   const nodecisionFilter = document.getElementById('nodecision-filter');
   const resultFilter = document.getElementById('result-filter');
   const topicValue = document.getElementById('topic-value');
@@ -623,27 +652,37 @@ document.addEventListener('DOMContentLoaded', function () {
   const excludeButton = document.getElementById('exclude-button');
   const errorMessage = document.getElementById('validation-error-message');
 
+  // Hide all filters initially
   textFilter.style.display = 'none';
-  yearFilter.style.display = 'block';
-  normFilter.style.display = 'block';
-  descriptorFilter.style.display = 'block';
-  nodecisionFilter.style.display = 'block';
-  resultFilter.style.display = 'block';
-  topicValue.style.display = 'block';
+  yearFilter.style.display = 'none';
+  normFilter.style.display = 'none';
+  descriptorFilter.style.display = 'none';
+  chamberFilter.style.display = 'none';
+  nodecisionFilter.style.display = 'none';
+  resultFilter.style.display = 'none';
+  topicValue.style.display = 'none';
+
+  // Initialize buttons as enabled
   addButton.disabled = false;
   excludeButton.disabled = false;
 
+  // Function to handle filter visibility based on the selected filter type
   function handleFilterChange() {
     const selectedFilter = typeFilter.value;
 
+    // Hide all filters first
+    textFilter.style.display = 'none';
+    yearFilter.style.display = 'none';
+    normFilter.style.display = 'none';
+    descriptorFilter.style.display = 'none';
+    chamberFilter.style.display = 'none';
+    nodecisionFilter.style.display = 'none';
+    resultFilter.style.display = 'none';
+    topicValue.style.display = 'none';
+
+    // Show the appropriate filter based on the selected type
     if (selectedFilter === 'year_range') {
       yearFilter.style.display = 'block';
-      textFilter.style.display = 'none';
-      normFilter.style.display = 'none';
-      descriptorFilter.style.display = 'none';
-      nodecisionFilter.style.display = 'none';
-      resultFilter.style.display = 'none';
-      topicValue.style.display = 'none';
 
       yearFilter.addEventListener('input', function () {
         const yearRange = this.value;
@@ -672,16 +711,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
       });
     } else {
-      // If another filter is selected, show its input field and enable the buttons
-      yearFilter.style.display = 'none';
-      textFilter.style.display = 'block';
-      normFilter.style.display = selectedFilter === 'Norm' ? 'block' : 'none';
-      descriptorFilter.style.display = selectedFilter === 'descriptors' ? 'block' : 'none';
-      nodecisionFilter.style.display = selectedFilter === 'No_decis' ? 'block' : 'none';
-      resultFilter.style.display = selectedFilter === 'Result' ? 'block' : 'none';
-      topicValue.style.display = selectedFilter === 'Topic' ? 'block' : 'none';
-      addButton.disabled = false;
-      excludeButton.disabled = false;
+      // Show the appropriate filter based on the selected type
+      if (selectedFilter === 'Norm') normFilter.style.display = 'block';
+      if (selectedFilter === 'descriptors') descriptorFilter.style.display = 'block';
+      if (selectedFilter === 'chamber') chamberFilter.style.display = 'block';
+      if (selectedFilter === 'No_decis') nodecisionFilter.style.display = 'block';
+      if (selectedFilter === 'Result') resultFilter.style.display = 'block';
+      if (selectedFilter === 'Topic') topicValue.style.display = 'block';
+      if (selectedFilter === 'Keyword') textFilter.style.display = 'block';
     }
   }
 
