@@ -5,7 +5,7 @@
 {% block modal %}
   <!-- modal -->
   {% if continue_message_box %}
-    <div class="div modal-backdrop fade show">
+    <div class="modal-backdrop fade show">
     </div>
     <div class="modal fade show"
          style="display: block"
@@ -16,7 +16,7 @@
       <form action=""
             method="POST">
         {% csrf_token %}
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
           <div class="modal-content">
             <div class="modal-header">
               <button class="btn-close"
@@ -29,51 +29,39 @@
             <div class="modal-body">
               <ul class="list-group">
                 {% if total_documents == 0 %}
-                  <!-- Red alert for no articles -->
-                  <li class="list-group-item mx-4 ps-4"
-                      style="background-color: #FF8989">
-                    There are no estimated documents for this query.
-                    Please specify a different one.
+                  <li class="list-group-item bg-danger text-white">
+                    There are no estimated documents for this query. Please specify a different one.
                   </li>
                 {% elif total_documents < 20 %}
-                  <!-- Orange alert for less than 20 articles -->
-                  <li class="list-group-item mx-4 ps-4"
-                      style="background-color: #FFBE98">
-                    The number of estimated documents is {{ total_documents }}.
-                    This number is less than the minimum required (20) to proceed.
-                    Please specify a different query.
+                  <li class="list-group-item bg-warning">
+                    The number of estimated documents is {{ total_documents }}. This number is less than the minimum required (20) to proceed. Please specify a different query.
                   </li>
                 {% else %}
-                  <!-- Green alert for acceptable number of articles -->
-                  <li class="list-group-item mx-4 ps-4"
-                      style="background-color: #D5F0C1">
-                    The number of estimated documents are {{ total_documents }}.
-                    Would you like to continue with this query?
+                  <li class="list-group-item bg-success text-white">
+                    The number of estimated documents is {{ total_documents }}. Would you like to continue with this query?
                   </li>
                 {% endif %}
-                <li class="list-group-item mx-4 ps-4">
-                  Project name : {{ project_name }}
+                <li class="list-group-item">
+                  Project name: {{ project_name }}
                 </li>
-                <li class="list-group-item mx-4 ps-4">
-                  Search : {{ query }}
+                <li class="list-group-item">
+                  Search: {{ query }}
                 </li>
-                <li class="list-group-item mx-4 ps-4">
-                  From : {{ range_begin_date }}
+                <li class="list-group-item">
+                  From: {{ range_begin_date }}
                 </li>
-                <li class="list-group-item mx-4 ps-4">
-                  To : {{ range_end_date }}
+                <li class="list-group-item">
+                  To: {{ range_end_date }}
                 </li>
               </ul>
             </div>
             <div class="modal-footer">
-              <span>
-                <button class="btn btn-secondary"
-                        type='submit'
-                        name='submit'
-                        value='cancel'>
-                  Cancel
-                </button>
-              </span>
+              <button class="btn btn-secondary"
+                      type='submit'
+                      name='submit'
+                      value='cancel'>
+                Cancel
+              </button>
               <button class="btn btn-primary"
                       type='submit'
                       name='submit'
@@ -91,8 +79,6 @@
   {% endif %}
 {% endblock modal %}
 
-<!-- search.html -->
-
 {% block sidebar %}
 
   {% include "components/sidebar.html" %}
@@ -100,238 +86,209 @@
 {% endblock sidebar %}
 
 {% block content %}
-  <!-- help button -->
-  <div class="dropup position-absolute bottom-0 end-0 rounded-circle m-5">
-    <button type="button"
-            class="btn btn-dark btn-lg dropdown-toggle hide-toggle rounded-pill"
-            data-bs-toggle="dropdown"
-            aria-expanded="false"
-            aria-haspopup="true">
-      <i class="fa-solid fa-question"></i>
-      <span class="visually-hidden">How to make a query?</span>
-    </button>
-    <ul class="dropdown-menu">
-      <li>
-        <a class="dropdown-item"
-           href="#">Queries use the Boolean operators AND, OR, and NOT.</a>
-      </li>
-      <li>
-        <a class="dropdown-item"
-           href="#">Example: water AND contamination NOT cholera</a>
-      </li>
-      <li>
-        <a class="dropdown-item"
-           href="#">Use quotes to combine two separate terms into one.</a>
-      </li>
-      <li>
-        <a class="dropdown-item"
-           href="#">Example: "water contamination" AND cholera</a>
-      </li>
-      <li>
-        <a class="dropdown-item"
-           href="#">Parenthesis can also be used to combine search terms.</a>
-      </li>
-      <li>
-        <a class="dropdown-item"
-           href="#">Example: ("water contamination" OR cholera) AND health</a>
-      </li>
-    </ul>
-  </div>
+  <br />
+  <br />
+  <br />
+  <br />
+  <div class="container py-5">
+    <form id="formResearch"
+          action=""
+          method="POST"
+          enctype="multipart/form-data">
+      {% csrf_token %}
+      <h1 class="text-center mb-4 text-dark">
+        <i class="fa-solid fa-magnifying-glass me-3"></i> Project
+      </h1>
 
-  <!-- Search Form -->
-  <div class="d-flex flex-grow-1 justify-content-center">
-    <div class="container py-8"
-         style="padding-top: 115px">
-      <form id="formResearch"
-            class="px-5"
-            action=""
-            method="POST"
-            enctype="multipart/form-data">
-        {% csrf_token %}
-        <h1 class="text-center mb-4 text-dark">
-          <i class="fa-solid fa-magnifying-glass me-3"></i> Project
-        </h1>
-        <div class="row align-items-center fs-5 mb-3 g-2"
-             style="padding-top: 80px">
-          <div class="col-12 input-group">
-            <span class="input-group-text d-none d-lg-block">Project Name</span>
+      <!-- Project Name -->
+      <div class="row mb-4">
+        <div class="col-12">
+          <div class="input-group">
+            <span class="input-group-text">Project Name</span>
             {{ search_form.project_name }}
           </div>
-          <!-- Accordion Panel for Sources and Query -->
-          <div class="accordion py-3"
-               id="accordionPanelsStayOpenExample">
-            <div class="accordion-item">
-              <h2 class="accordion-header"
-                  id="panelsStayOpen-headingOne">
-                <button class="accordion-button text-center"
-                        type="button"
-                        data-bs-toggle="collapse"
-                        data-bs-target="#panelsStayOpen-collapseOne"
-                        aria-expanded="true"
-                        aria-controls="panelsStayOpen-collapseOne">
-                  Source and Search Terms
-                </button>
-              </h2>
-              <div id="panelsStayOpen-collapseOne"
-                   class="accordion-collapse collapse show"
-                   aria-labelledby="panelsStayOpen-headingOne">
-                <div class="accordion-body row col-11 mx-auto py-3">
-                  <!-- Radio Selection for Jurisprudence Sources -->
-                  <div class="col-6 text-start py-2">
-                    <h6 class="text-dark d-none d-lg-block">
-                      Source:
-                    </h6>
-                    <!-- Radio Inputs for Jurisprudence Sources -->
-                    <div class="form-check ps-sm-5 text-start">
-                      <div class="form-check">
-                        <input class="form-check-input index-radio"
-                               type="radio"
-                               name="index_names"
-                               value="administrative_court"
-                               id="adminCourtRadio"
-                               {% if "administrative_court" in selected_indices %}
-                                 checked
-                               {% endif %}
-                               required />
-                        <label class="form-check-label"
-                               for="adminCourtRadio">
-                          Administrative Court
-                        </label>
-                      </div>
-                      <div class="form-check">
-                        <input class="form-check-input index-radio"
-                               type="radio"
-                               name="index_names"
-                               value="civil_court"
-                               id="civilCourtRadio"
-                               {% if "civil_court" in selected_indices %}
-                                 checked
-                               {% endif %}
-                               required />
-                        <label class="form-check-label"
-                               for="civilCourtRadio">
-                          Civil Court
-                        </label>
-                      </div>
-                      <div class="form-check">
-                        <input class="form-check-input index-radio"
-                               type="radio"
-                               name="index_names"
-                               value="penal_court"
-                               id="penalCourtRadio"
-                               {% if "penal_court" in selected_indices %}
-                                 checked
-                               {% endif %}
-                               required />
-                        <label class="form-check-label"
-                               for="penalCourtRadio">
-                          Penal Court
-                        </label>
-                      </div>
+        </div>
+      </div>
+
+      <!-- Accordion for Sources and Query -->
+      <div class="accordion"
+           id="searchAccordion">
+        <div class="accordion-item">
+          <h2 class="accordion-header"
+              id="headingSource">
+            <button class="accordion-button"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#collapseSource"
+                    aria-expanded="true"
+                    aria-controls="collapseSource">
+              Source and Search Terms
+            </button>
+          </h2>
+          <div id="collapseSource"
+               class="accordion-collapse collapse show"
+               aria-labelledby="headingSource">
+            <div class="accordion-body">
+              <div class="row g-4">
+                <!-- Sources -->
+                <div class="col-md-6">
+                  <h6>
+                    Source
+                  </h6>
+                  <div class="form-check">
+                    <input class="form-check-input"
+                           type="radio"
+                           name="index_names"
+                           value="administrative_court"
+                           id="adminCourtRadio"
+                           {% if "administrative_court" in selected_indices %}
+                             checked
+                           {% endif %} />
+                    <label class="form-check-label"
+                           for="adminCourtRadio">
+                      Administrative Court
+                    </label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input"
+                           type="radio"
+                           name="index_names"
+                           value="civil_court"
+                           id="civilCourtRadio"
+                           {% if "civil_court" in selected_indices %}
+                             checked
+                           {% endif %} />
+                    <label class="form-check-label"
+                           for="civilCourtRadio">
+                      Civil Court
+                    </label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input"
+                           type="radio"
+                           name="index_names"
+                           value="penal_court"
+                           id="penalCourtRadio"
+                           {% if "penal_court" in selected_indices %}
+                             checked
+                           {% endif %} />
+                    <label class="form-check-label"
+                           for="penalCourtRadio">
+                      Penal Court
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Natural Language Query -->
+                <div class="row mt-3 justify-content-center">
+                  <div class="col-md-12">
+                    <label for="naturalLanguageQuery">
+                      Natural Language Query:
+                    </label>
+                    <div class="input-group">
+                      {{ search_form.natural_language_query }}
                     </div>
                   </div>
+                </div>
+                <div class="row mt-3 justify-content-center">
+                  <div class="col-4 justify-content-center">
+                    <button type="button"
+                            class="btn btn-primary w-100 mt-2"
+                            id="translate-button">
+                      Build Boolean Query
+                    </button>
+                  </div>
+                </div>
 
-                  <!-- Hidden Field to Store Selected Index -->
-                  <input type="hidden"
-                         name="selected_indices"
-                         id="selectedIndicesField"
-                         value="" />
-
-                  <!-- Query Inputs -->
-                  <div class="row text-center mb-3">
-                    <div class="col-12 input-group mb-3">
-                      <span class="input-group-text d-none d-lg-block">Search Terms:</span>
+                <!-- Boolean Query -->
+                <div class="row mt-3 justify-content-center">
+                  <div class="col-12">
+                    <label for="booleanQuery">
+                      Boolean Query:
+                    </label>
+                    <div class="input-group">
                       {{ search_form.query }}
                     </div>
-                    <div class="col-12 col-sm-6 mb-2">
-                      <div class="input-group">
-                        <span class="input-group-text">Decision Date From:</span>
-                        {{ search_form.range_begin_date }}
-                      </div>
-                    </div>
-                    <div class="col-12 col-sm-6 mb-2">
-                      <div class="input-group">
-                        <span class="input-group-text">To:</span>
-                        {{ search_form.range_end_date }}
-                      </div>
-                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-          <!-- Display Total Documents -->
-          {% if total_documents == 0 %}
-            <div class="row text-center">
-              <div class="alert alert-primary">
-                <span> Zero documents.</span>
-              </div>
-            </div>
-          {% elif total_documents > 0 %}
-            <div class="row text-center">
-              <div class="alert alert-primary">
-                <span> {{ total_documents }} documents.</span>
-              </div>
-            </div>
-          {% endif %}
 
-          <!-- Display Project Creation Message -->
-          {% if project_created_message %}
-            <div class="row text-center">
-              <div class="alert alert-primary">
-                <span> {{ project_created_message }} </span>
-              </div>
-            </div>
-          {% endif %}
-
-          <!-- Display Form Errors -->
-          <div class="row text-center">
-            {% for error in errors %}
-              <div class="alert alert-danger">
-                <strong>{{ error|escape }}</strong>
-              </div>
-            {% endfor %}
-            {% for error in search_form.non_field_errors %}
-              <div class="alert alert-danger">
-                <strong>{{ error|escape }}</strong>
-              </div>
-            {% endfor %}
-            {% for field in search_form %}
-              {% for error in field.errors %}
-                <div class="alert alert-danger">
-                  <strong>{{ error|escape }}</strong>
+                <!-- Date Range -->
+                <div class="col-md-6">
+                  <label for="rangeBeginDate">
+                    Decision Date From:
+                  </label>
+                  {{ search_form.range_begin_date }}
                 </div>
-              {% endfor %}
-            {% endfor %}
-          </div>
-
-          <!-- Action Buttons -->
-          <div class="row mt-3 mb-5 text-center">
-            <div class="col-6">
-              <button class="btn btn-outline-secondary"
-                      type='submit'
-                      name='submit'
-                      value='evaluate'
-                      id="evaluate-button">
-                Evaluate
-              </button>
-            </div>
-            <div class="col-6">
-              <button class="btn btn-primary"
-                      type='submit'
-                      name="submit"
-                      value="search">
-                Create Project
-              </button>
+                <div class="col-md-6">
+                  <label for="rangeEndDate">
+                    Decision Date To:
+                  </label>
+                  {{ search_form.range_end_date }}
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </form>
-    </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="row mt-4 g-3 justify-content-center">
+        <div class="col-3">
+          <button class="btn btn-outline-secondary w-100"
+                  type="submit"
+                  name="submit"
+                  value="evaluate">
+            Evaluate
+          </button>
+        </div>
+        <div class="col-3">
+          <button class="btn btn-primary w-100"
+                  type="submit"
+                  name="submit"
+                  value="search">
+            Create Project
+          </button>
+        </div>
+      </div>
+    </form>
   </div>
 {% endblock content %}
 
 {% block jscode %}
+
+  <script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const translateButton = document.getElementById("translate-button");
+    const naturalLanguageQueryInput = document.querySelector("input[name='natural_language_query']");
+    const booleanQueryInput = document.querySelector("input[name='query']");
+
+    translateButton.addEventListener("click", async function (event) {
+      event.preventDefault();
+      if (!naturalLanguageQueryInput.value.trim()) {
+        alert("Please enter a natural language query to translate.");
+        return;
+      }
+
+      translateButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Translating...`;
+      translateButton.disabled = true;
+
+      try {
+        const response = await axios.get(`/api/nl-to-bool-query/${encodeURIComponent(naturalLanguageQueryInput.value)}/`);
+        if (response.status === 200 && response.data.query) {
+          booleanQueryInput.value = response.data.query;
+        } else {
+          alert("Error translating the natural language query.");
+        }
+      } catch (error) {
+        alert("Failed to connect to the translation service.");
+      } finally {
+        translateButton.innerHTML = "Translate";
+        translateButton.disabled = false;
+      }
+    });
+  });
+  </script>
+
   <script>
 document.addEventListener("DOMContentLoaded", function() {
   // Select necessary DOM elements

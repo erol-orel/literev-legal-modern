@@ -74,6 +74,11 @@ urlpatterns = [
         name="projectrag-by-project",
     ),
     path(
+        "api/nl-to-bool-query/<str:natural_lenguage>/",
+        views_api.ConvertToBooleanQueryAPIView.as_view(),
+        name="nl-to-bool-query",
+    ),
+    path(
         (
             "project/<int:project_id>/tablechoice/iteration/<int:iteration_id>/page/<int:page>/"
         ),

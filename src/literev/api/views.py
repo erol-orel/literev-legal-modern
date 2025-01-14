@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import logging
+
+from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
+from rago.generation import OpenAIGen
 from rest_framework import status, viewsets
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
@@ -18,6 +22,83 @@ from literev.api.serializers import (
 from literev.libs.table_choice import update_check_list_iteration
 from literev.models import Project, ProjectDocumentRAG, ProjectRAG, TableChoice
 from literev.tasks import get_shared_projects_ids, task_rag_result_table
+
+
+class ConvertToBooleanQueryAPIView(APIView):
+    """
+    Convert natural language queries to boolean queries for jurisprudence.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(
+        self,
+        request: Request,
+        natural_lenguage: str,
+        api_key: str = settings.OPENAI_API_KEY,
+    ) -> Response:
+        """
+        Handles GET requests to translate a natural language query
+        into a boolean query.
+
+        Parameters
+        ----------
+        request : Request
+            The HTTP request object.
+        natural_lenguage : str
+            The natural language query string to convert.
+        api_key : str
+            OpenAI API key for the language model.
+
+        Returns
+        -------
+        Response
+            A JSON response containing the translated boolean query.
+        """
+        PROMPT_TEMPLATE = """
+        Translate the following question into a boolean query suitable for jurisprudence.
+        Adhere to the following rules:
+        - Ensure all key concepts and terms from the question are included in the query.
+        - Use "AND" to combine distinct concepts.
+        - Use "OR" to include synonyms or related terms for a concept.
+        - Use "NOT" to exclude terms, where negations such as "sans" should exclude the associated terms.
+        - "NOT" must directly precede the term it excludes, and avoid using "AND NOT".
+        - Wrap multi-word terms (composed words) in double quotes.
+        - Use parentheses to group terms where appropriate.
+        - Ensure the boolean query is valid and includes all relevant terms from the question, properly handling negations like "sans."
+        - Return only the boolean query, without any explanation or extra text.
+
+        Question:
+        {context}
+
+        Boolean Query:
+        """
+
+        try:
+            gen = OpenAIGen(
+                prompt_template=PROMPT_TEMPLATE,
+                model_name="gpt-4o-mini",
+                api_key=api_key,
+                output_max_length=2048,
+            )
+
+            result = gen.generate(query="", context=[natural_lenguage])
+
+            boolean_query = result.strip()
+
+            return Response(
+                {"query": boolean_query}, status=status.HTTP_200_OK
+            )
+
+        except Exception as e:
+            logging.error(f"Error generating boolean query: {e!s}")
+
+            return Response(
+                {
+                    "error": "An error occurred while processing the request. Please try again later."
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class ProjectRAGbyProjectIdAPIView(APIView):

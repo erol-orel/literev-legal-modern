@@ -71,34 +71,38 @@ def search_search(
     request: HttpRequest, context: dict[str, Any]
 ) -> dict[str, Any]:
     """
-    Handles the search functionality and initiates project creation based on the selected indices.
+    Evaluate the search form and update the context with the total number of
+    documents and selected indices. If the search form is valid, the function
+    will also update the session with the new data.
 
     Parameters
     ----------
     request : HttpRequest
-        The request object containing form data.
+        The request object.
     context : dict[str, Any]
-        The context dictionary to be passed to the template.
+        The context dictionary.
 
     Returns
     -------
     dict[str, Any]
-        The updated context dictionary.
+        The updated context.
     """
     search_form = SearchForm(request.POST)
     context["search_form"] = search_form
 
-    # Capture the selected indices from the POST request
     selected_indices = request.POST.get("selected_indices", "").split(",")
     context["selected_indices"] = selected_indices
 
     if search_form.is_valid():
         project_name = search_form.cleaned_data["project_name"]
         query = search_form.cleaned_data["query"]
+        natural_language_query = search_form.cleaned_data[
+            "natural_language_query"
+        ]
+
         range_begin_date = search_form.cleaned_data["range_begin_date"]
         range_end_date = search_form.cleaned_data["range_end_date"]
 
-        # Calculate total documents for each selected index
         total_documents = sum(
             get_number_documents(
                 index_name, query, range_begin_date, range_end_date
@@ -106,17 +110,16 @@ def search_search(
             for index_name in selected_indices
         )
 
-        # Enable the continue message box if criteria are met
         context["continue_message_box"] = True
 
-        # Update context and session with the new data
         new_data = {
             "project_name": project_name,
             "query": query,
+            "natural_language_query": natural_language_query,
             "range_begin_date": range_begin_date.strftime("%Y/%m/%d"),
             "range_end_date": range_end_date.strftime("%Y/%m/%d"),
             "total_documents": total_documents,
-            "selected_indices": selected_indices,  # Store selected indices in session
+            "selected_indices": selected_indices,
         }
 
         logging.info(

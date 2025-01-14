@@ -23,8 +23,20 @@ class SearchForm(forms.Form):
         required=True,
     )
 
+    natural_language_query = forms.CharField(
+        max_length=4096,  # 2**12
+        widget=forms.TextInput(
+            attrs={
+                "class": "fs-5 form-control",
+                "placeholder": "Write your question (e.g., 'What is the legal precedent for X?')",
+            }
+        ),
+        label="",
+        required=True,
+    )
     # creation date is automatically given when the Research Object is created
     # and corresponds to the current date
+
     query = forms.CharField(
         max_length=4096,  # 2**12
         widget=forms.TextInput(
