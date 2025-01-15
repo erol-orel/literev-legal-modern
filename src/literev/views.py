@@ -114,12 +114,12 @@ def search_search(
 
         new_data = {
             "project_name": project_name,
+            "selected_indices": selected_indices,
             "query": query,
             "natural_language_query": natural_language_query,
             "range_begin_date": range_begin_date.strftime("%Y/%m/%d"),
             "range_end_date": range_end_date.strftime("%Y/%m/%d"),
             "total_documents": total_documents,
-            "selected_indices": selected_indices,
         }
 
         logging.info(

@@ -63,52 +63,61 @@
                       <i class="bi bi-database me-2"></i> Select Source
                     </h6>
                   </div>
-
+                  <!-- Radio Inputs for Jurisprudence Sources -->
                   <div class="form-check ps-sm-5 text-start">
-                    <input class="form-check-input"
-                           type="radio"
-                           name="index_names"
-                           value="administrative_court"
-                           id="adminCourtRadio"
-                           {% if search_form.data.index_names == "administrative_court" %}
-                             checked
-                           {% endif %} />
-                    <label class="form-check-label"
-                           for="adminCourtRadio">
-                      Administrative Court
-                    </label>
-                  </div>
-
-                  <div class="form-check ps-sm-5 text-start">
-                    <input class="form-check-input"
-                           type="radio"
-                           name="index_names"
-                           value="civil_court"
-                           id="civilCourtRadio"
-                           {% if search_form.data.index_names == "civil_court" %}
-                             checked
-                           {% endif %} />
-                    <label class="form-check-label"
-                           for="civilCourtRadio">
-                      Civil Court
-                    </label>
-                  </div>
-
-                  <div class="form-check ps-sm-5 text-start">
-                    <input class="form-check-input"
-                           type="radio"
-                           name="index_names"
-                           value="penal_court"
-                           id="penalCourtRadio"
-                           {% if search_form.data.index_names == "penal_court" %}
-                             checked
-                           {% endif %} />
-                    <label class="form-check-label"
-                           for="penalCourtRadio">
-                      Penal Court
-                    </label>
+                    <div class="form-check">
+                      <input class="form-check-input index-radio"
+                             type="radio"
+                             name="index_names"
+                             value="administrative_court"
+                             id="adminCourtRadio"
+                             {% if "administrative_court" in selected_indices %}
+                               checked
+                             {% endif %}
+                             required />
+                      <label class="form-check-label"
+                             for="adminCourtRadio">
+                        Administrative Court
+                      </label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input index-radio"
+                             type="radio"
+                             name="index_names"
+                             value="civil_court"
+                             id="civilCourtRadio"
+                             {% if "civil_court" in selected_indices %}
+                               checked
+                             {% endif %}
+                             required />
+                      <label class="form-check-label"
+                             for="civilCourtRadio">
+                        Civil Court
+                      </label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input index-radio"
+                             type="radio"
+                             name="index_names"
+                             value="penal_court"
+                             id="penalCourtRadio"
+                             {% if "penal_court" in selected_indices %}
+                               checked
+                             {% endif %}
+                             required />
+                      <label class="form-check-label"
+                             for="penalCourtRadio">
+                        Penal Court
+                      </label>
+                    </div>
                   </div>
                 </div>
+
+                <!-- Hidden Field to Store Selected Index -->
+                <input type="hidden"
+                       name="selected_indices"
+                       id="selectedIndicesField"
+                       value="" />
 
                 <!-- Natural Language Query -->
                 <div class="row mt-3 justify-content-center">
@@ -142,7 +151,6 @@
                     </div>
                   </div>
                 </div>
-
                 <!-- Date Range -->
                 <div class="row mt-4 justify-content-center">
                   <div class="col-md-5">
@@ -153,8 +161,7 @@
                            class="form-control datepicker"
                            id="rangeBeginDate"
                            name="range_begin_date"
-                           value="{{ search_form.data.range_begin_date|default:'' }}"
-                           placeholder="YYYY-MM-DD" />
+                           value="{{ search_form.data.range_begin_date|default:search_form.fields.range_begin_date.initial }}" />
                   </div>
                   <div class="col-md-2">
                   </div>
@@ -166,63 +173,62 @@
                            class="form-control datepicker"
                            id="rangeEndDate"
                            name="range_end_date"
-                           value="{{ search_form.data.range_end_date|default:'' }}"
-                           placeholder="YYYY-MM-DD" />
+                           value="{{ search_form.data.range_end_date|default:search_form.fields.range_end_date.initial }}" />
                   </div>
                 </div>
+
               </div>
 
             </div>
+            <div class="row mt-2 justify-content-center">
+              <div class="col-md-12">
 
-          </div>
-          <div class="row mt-2 justify-content-center">
-            <div class="col-md-12">
+                {% include "components/documents_display_search.html" %}
 
-              {% include "components/documents_display_search.html" %}
-
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Action Buttons -->
-        <div class="row mt-4 g-3 justify-content-center">
-          <div class="col-3">
-            <button class="btn btn-outline-secondary w-100"
-                    type="submit"
-                    name="submit"
-                    value="evaluate">
-              <i class="bi bi-clipboard-check me-2"></i> Evaluate
-            </button>
+          <!-- Action Buttons -->
+          <div class="row mt-4 g-3 justify-content-center">
+            <div class="col-3">
+              <button class="btn btn-outline-secondary w-100"
+                      type="submit"
+                      name="submit"
+                      value="evaluate">
+                <i class="bi bi-clipboard-check me-2"></i> Evaluate
+              </button>
+            </div>
+            <div class="col-3">
+              <button class="btn btn-primary w-100"
+                      type="submit"
+                      name="submit"
+                      value="search">
+                <i class="bi bi-folder-plus me-2"></i> Create Project
+              </button>
+            </div>
           </div>
-          <div class="col-3">
-            <button class="btn btn-primary w-100"
-                    type="submit"
-                    name="submit"
-                    value="search">
-              <i class="bi bi-folder-plus me-2"></i> Create Project
-            </button>
-          </div>
-        </div>
 
-        {% include "components/help_button.html" %}
+          {% include "components/help_button.html" %}
 
-      </form>
+        </form>
+      </div>
     </div>
   </div>
-
 {% endblock content %}
 
 {% block jscode %}
   <script src="{% static 'js/search_functions.js' %}"></script>
 
   <script>
+
       $(document).ready(function () {
         $('.datepicker').datepicker({
           format: 'yyyy-mm-dd',
-          autoclose: true,
-          todayHighlight: true
+
         });
       });
+
   </script>
 
 {% endblock jscode %}

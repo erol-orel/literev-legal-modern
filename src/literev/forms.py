@@ -23,12 +23,19 @@ class SearchForm(forms.Form):
         required=True,
     )
 
+    selected_indices = forms.CharField(
+        max_length=4096,
+        widget=forms.HiddenInput(),
+        label="",
+        required=True,
+    )
+
     natural_language_query = forms.CharField(
-        max_length=4096,  # 2**12
+        max_length=4096,
         widget=forms.TextInput(
             attrs={
                 "class": "fs-5 form-control",
-                "placeholder": "Write your question (ex. : 'Quels sont les droits du locataire en cas d'expulsion ?')",
+                "placeholder": "Write your question (e.g., 'Quels sont les droits du locataire en cas d'expulsion ?')",
             }
         ),
         label="",
@@ -36,11 +43,11 @@ class SearchForm(forms.Form):
     )
 
     query = forms.CharField(
-        max_length=4096,  # 2**12
+        max_length=4096,
         widget=forms.TextInput(
             attrs={
-                "class": "fs-5 form-control ",
-                "placeholder": 'Enter your boolean query (ex. : "contrat" AND "résiliation" NOT "litige")',
+                "class": "fs-5 form-control",
+                "placeholder": 'Enter your boolean query (e.g., "contrat" AND "résiliation" NOT "litige")',
             }
         ),
         label="",
@@ -49,18 +56,18 @@ class SearchForm(forms.Form):
 
     range_begin_date = forms.DateField(
         input_formats=["%Y/%m/%d", "%Y-%m-%d"],
+        initial="2000-01-01",
         widget=forms.TextInput(
-            attrs={"class": "form-control", "value": "2000-01-01"}
+            attrs={"class": "form-control", "placeholder": "YYYY-MM-DD"}
         ),
         label="",
     )
 
-    today = datetime.date.today().strftime("%Y-%m-%d")
-
     range_end_date = forms.DateField(
         input_formats=["%Y/%m/%d", "%Y-%m-%d"],
+        initial=datetime.date.today().strftime("%Y-%m-%d"),
         widget=forms.TextInput(
-            attrs={"class": "form-control", "value": f"{today}"}
+            attrs={"class": "form-control", "placeholder": "YYYY-MM-DD"}
         ),
         label="",
     )
@@ -70,6 +77,12 @@ class SearchForm(forms.Form):
 
         if not data:
             raise ValidationError("Form is empty.")
+
+        if not data.get("selected_indices"):
+            self.add_error(
+                "selected_indices",
+                "The 'Select Source' field is required and cannot be empty. Please ensure a valid selection is made.",
+            )
 
         if not data.get("range_begin_date"):
             self.add_error(
