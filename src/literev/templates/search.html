@@ -3,80 +3,9 @@
 {% load static %}
 
 {% block modal %}
-  <!-- modal -->
-  {% if continue_message_box %}
-    <div class="modal-backdrop fade show">
-    </div>
-    <div class="modal fade show"
-         style="display: block"
-         data-bs-keyboard="false"
-         tabindex="-1"
-         aria-labelledby="staticBackdropLabel"
-         aria-modal="true">
-      <form action=""
-            method="POST">
-        {% csrf_token %}
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-          <div class="modal-content">
-            <div class="modal-header">
-              <button class="btn-close"
-                      type='submit'
-                      name='submit'
-                      value='cancel'
-                      aria-label="Close">
-              </button>
-            </div>
-            <div class="modal-body">
-              <ul class="list-group">
-                {% if total_documents == 0 %}
-                  <li class="list-group-item bg-danger text-white">
-                    There are no estimated documents for this query. Please specify a different one.
-                  </li>
-                {% elif total_documents < 20 %}
-                  <li class="list-group-item bg-warning">
-                    The number of estimated documents is {{ total_documents }}. This number is less than the minimum required (20) to proceed. Please specify a different query.
-                  </li>
-                {% else %}
-                  <li class="list-group-item bg-success text-white">
-                    The number of estimated documents is {{ total_documents }}. Would you like to continue with this query?
-                  </li>
-                {% endif %}
-                <li class="list-group-item">
-                  Project name: {{ project_name }}
-                </li>
-                <li class="list-group-item">
-                  Search: {{ query }}
-                </li>
-                <li class="list-group-item">
-                  From: {{ range_begin_date }}
-                </li>
-                <li class="list-group-item">
-                  To: {{ range_end_date }}
-                </li>
-              </ul>
-            </div>
-            <div class="modal-footer">
-              <button class="btn btn-secondary"
-                      type='submit'
-                      name='submit'
-                      value='cancel'>
-                Cancel
-              </button>
-              <button class="btn btn-primary"
-                      type='submit'
-                      name='submit'
-                      value='continue'
-                      {% if number_articles < 20 %}
-                        disabled
-                      {% endif %}>
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      </form>
-    </div>
-  {% endif %}
+
+  {% include "components/continue_message.html" %}
+
 {% endblock modal %}
 
 {% block sidebar %}
@@ -86,62 +15,62 @@
 {% endblock sidebar %}
 
 {% block content %}
-  <br />
-  <br />
-  <br />
-  <br />
-  <div class="container py-5">
-    <form id="formResearch"
-          action=""
-          method="POST"
-          enctype="multipart/form-data">
-      {% csrf_token %}
-      <h1 class="text-center mb-4 text-dark">
-        <i class="fa-solid fa-magnifying-glass me-3"></i> Project
-      </h1>
+  <div class="container d-flex flex-grow-1 py-4 mt-4 justify-content-center">
+    <div class="search-block col-xl-8 mx-auto">
 
-      <!-- Project Name -->
-      <div class="row mb-4">
-        <div class="col-12">
-          <div class="input-group">
-            <span class="input-group-text">Project Name</span>
-            {{ search_form.project_name }}
+      <form id="formResearch"
+            action=""
+            method="POST"
+            enctype="multipart/form-data">
+        {% csrf_token %}
+        <h1 class="text-center mb-4 text-dark">
+          <i class="fa-solid fa-magnifying-glass me-3"></i> Project
+        </h1>
+
+        <!-- Project Name -->
+        <div class="row mb-4">
+          <div class="col-12">
+            <div class="input-group">
+              <span class="input-group-text">Project Name</span>
+              {{ search_form.project_name }}
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Accordion for Sources and Query -->
-      <div class="accordion"
-           id="searchAccordion">
-        <div class="accordion-item">
-          <h2 class="accordion-header"
-              id="headingSource">
-            <button class="accordion-button"
-                    type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target="#collapseSource"
-                    aria-expanded="true"
-                    aria-controls="collapseSource">
-              Source and Search Terms
-            </button>
-          </h2>
-          <div id="collapseSource"
-               class="accordion-collapse collapse show"
-               aria-labelledby="headingSource">
-            <div class="accordion-body">
-              <div class="row g-4">
-                <!-- Sources -->
-                <div class="col-md-6">
-                  <h6>
-                    Source
-                  </h6>
-                  <div class="form-check">
+        <!-- Accordion for Sources and Query -->
+        <div class="accordion py-3"
+             id="accordionPanelsStayOpenExample">
+          <div class="accordion-item">
+            <h2 class="accordion-header"
+                id="panelsStayOpen-headingOne">
+              <button class="accordion-button text-center"
+                      type="button"
+                      data-bs-toggle="collapse"
+                      data-bs-target="#panelsStayOpen-collapseOne"
+                      aria-expanded="true"
+                      aria-controls="panelsStayOpen-collapseOne">
+                Source and Search Terms
+              </button>
+            </h2>
+            <div id="panelsStayOpen-collapseOne"
+                 class="accordion-collapse collapse show"
+                 aria-labelledby="panelsStayOpen-headingOne">
+
+              <div class="accordion-body row col-11 mx-auto py-3">
+                <div class="col-6 text-start py-2">
+                  <div class="col-md-6">
+                    <h6>
+                      <i class="bi bi-database me-2"></i> Select Source
+                    </h6>
+                  </div>
+
+                  <div class="form-check ps-sm-5 text-start">
                     <input class="form-check-input"
                            type="radio"
                            name="index_names"
                            value="administrative_court"
                            id="adminCourtRadio"
-                           {% if "administrative_court" in selected_indices %}
+                           {% if search_form.data.index_names == "administrative_court" %}
                              checked
                            {% endif %} />
                     <label class="form-check-label"
@@ -149,13 +78,14 @@
                       Administrative Court
                     </label>
                   </div>
-                  <div class="form-check">
+
+                  <div class="form-check ps-sm-5 text-start">
                     <input class="form-check-input"
                            type="radio"
                            name="index_names"
                            value="civil_court"
                            id="civilCourtRadio"
-                           {% if "civil_court" in selected_indices %}
+                           {% if search_form.data.index_names == "civil_court" %}
                              checked
                            {% endif %} />
                     <label class="form-check-label"
@@ -163,13 +93,14 @@
                       Civil Court
                     </label>
                   </div>
-                  <div class="form-check">
+
+                  <div class="form-check ps-sm-5 text-start">
                     <input class="form-check-input"
                            type="radio"
                            name="index_names"
                            value="penal_court"
                            id="penalCourtRadio"
-                           {% if "penal_court" in selected_indices %}
+                           {% if search_form.data.index_names == "penal_court" %}
                              checked
                            {% endif %} />
                     <label class="form-check-label"
@@ -183,7 +114,7 @@
                 <div class="row mt-3 justify-content-center">
                   <div class="col-md-12">
                     <label for="naturalLanguageQuery">
-                      Natural Language Query:
+                      Natural Language Query
                     </label>
                     <div class="input-group">
                       {{ search_form.natural_language_query }}
@@ -191,11 +122,11 @@
                   </div>
                 </div>
                 <div class="row mt-3 justify-content-center">
-                  <div class="col-4 justify-content-center">
+                  <div class="col-5 mb-2 m-2 me-2 justify-content-center">
                     <button type="button"
                             class="btn btn-primary w-100 mt-2"
                             id="translate-button">
-                      Build Boolean Query
+                      <i class="bi bi-gear-fill me-2"></i> Build Boolean Query
                     </button>
                   </div>
                 </div>
@@ -204,7 +135,7 @@
                 <div class="row mt-3 justify-content-center">
                   <div class="col-12">
                     <label for="booleanQuery">
-                      Boolean Query:
+                      Boolean Query
                     </label>
                     <div class="input-group">
                       {{ search_form.query }}
@@ -213,176 +144,85 @@
                 </div>
 
                 <!-- Date Range -->
-                <div class="col-md-6">
-                  <label for="rangeBeginDate">
-                    Decision Date From:
-                  </label>
-                  {{ search_form.range_begin_date }}
-                </div>
-                <div class="col-md-6">
-                  <label for="rangeEndDate">
-                    Decision Date To:
-                  </label>
-                  {{ search_form.range_end_date }}
+                <div class="row mt-4 justify-content-center">
+                  <div class="col-md-5">
+                    <label for="rangeBeginDate">
+                      Decision Date From
+                    </label>
+                    <input type="text"
+                           class="form-control datepicker"
+                           id="rangeBeginDate"
+                           name="range_begin_date"
+                           value="{{ search_form.data.range_begin_date|default:'' }}"
+                           placeholder="YYYY-MM-DD" />
+                  </div>
+                  <div class="col-md-2">
+                  </div>
+                  <div class="col-md-5">
+                    <label for="rangeEndDate">
+                      Decision Date To
+                    </label>
+                    <input type="text"
+                           class="form-control datepicker"
+                           id="rangeEndDate"
+                           name="range_end_date"
+                           value="{{ search_form.data.range_end_date|default:'' }}"
+                           placeholder="YYYY-MM-DD" />
+                  </div>
                 </div>
               </div>
+
+            </div>
+
+          </div>
+          <div class="row mt-2 justify-content-center">
+            <div class="col-md-12">
+
+              {% include "components/documents_display_search.html" %}
+
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Action Buttons -->
-      <div class="row mt-4 g-3 justify-content-center">
-        <div class="col-3">
-          <button class="btn btn-outline-secondary w-100"
-                  type="submit"
-                  name="submit"
-                  value="evaluate">
-            Evaluate
-          </button>
+        <!-- Action Buttons -->
+        <div class="row mt-4 g-3 justify-content-center">
+          <div class="col-3">
+            <button class="btn btn-outline-secondary w-100"
+                    type="submit"
+                    name="submit"
+                    value="evaluate">
+              <i class="bi bi-clipboard-check me-2"></i> Evaluate
+            </button>
+          </div>
+          <div class="col-3">
+            <button class="btn btn-primary w-100"
+                    type="submit"
+                    name="submit"
+                    value="search">
+              <i class="bi bi-folder-plus me-2"></i> Create Project
+            </button>
+          </div>
         </div>
-        <div class="col-3">
-          <button class="btn btn-primary w-100"
-                  type="submit"
-                  name="submit"
-                  value="search">
-            Create Project
-          </button>
-        </div>
-      </div>
-    </form>
+
+        {% include "components/help_button.html" %}
+
+      </form>
+    </div>
   </div>
+
 {% endblock content %}
 
 {% block jscode %}
+  <script src="{% static 'js/search_functions.js' %}"></script>
 
   <script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const translateButton = document.getElementById("translate-button");
-    const naturalLanguageQueryInput = document.querySelector("input[name='natural_language_query']");
-    const booleanQueryInput = document.querySelector("input[name='query']");
-
-    translateButton.addEventListener("click", async function (event) {
-      event.preventDefault();
-      if (!naturalLanguageQueryInput.value.trim()) {
-        alert("Please enter a natural language query to translate.");
-        return;
-      }
-
-      translateButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Translating...`;
-      translateButton.disabled = true;
-
-      try {
-        const response = await axios.get(`/api/nl-to-bool-query/${encodeURIComponent(naturalLanguageQueryInput.value)}/`);
-        if (response.status === 200 && response.data.query) {
-          booleanQueryInput.value = response.data.query;
-        } else {
-          alert("Error translating the natural language query.");
-        }
-      } catch (error) {
-        alert("Failed to connect to the translation service.");
-      } finally {
-        translateButton.innerHTML = "Translate";
-        translateButton.disabled = false;
-      }
-    });
-  });
+      $(document).ready(function () {
+        $('.datepicker').datepicker({
+          format: 'yyyy-mm-dd',
+          autoclose: true,
+          todayHighlight: true
+        });
+      });
   </script>
 
-  <script>
-document.addEventListener("DOMContentLoaded", function() {
-  // Select necessary DOM elements
-  const evaluateButton = document.querySelector("button[name='submit'][value='evaluate']");
-  const createProjectButton = document.querySelector("button[name='submit'][value='search']");
-  const selectedIndicesField = document.querySelector("#selectedIndicesField");
-  const radioButtons = document.querySelectorAll(".index-radio");
-
-  /**
-   * Updates the hidden field with the selected radio value.
-   */
-  function updateSelectedIndicesField() {
-    const selectedRadio = Array.from(radioButtons).find(radio => radio.checked);
-    if (selectedRadio) {
-      selectedIndicesField.value = selectedRadio.value;
-    }
-  }
-
-  // Attach change event listeners to radio buttons to update the hidden field dynamically
-  radioButtons.forEach(radio => {
-    radio.addEventListener("change", updateSelectedIndicesField);
-  });
-
-  // Attach event listeners for Evaluate and Create Project buttons to update selected indices
-  evaluateButton.addEventListener("click", function(event) {
-    updateSelectedIndicesField();  // Update hidden field with selected index
-  });
-
-  createProjectButton.addEventListener("click", function(event) {
-    updateSelectedIndicesField();  // Update hidden field with selected index
-  });
-
-  // Initial setup for updating the hidden field when page loads
-  updateSelectedIndicesField();
-
-  // Original JavaScript functionality for modal and other UI components
-  const projectNameInput = document.querySelector("input[name='name']");
-  const uploadFilesButton = document.querySelector("button[data-bs-target='#staticBackdrop']");
-  const removeFilesButton = document.querySelector("button[value='remove_uploaded']");
-  const modalCancelButton = document.querySelector(".modal-footer button[value='cancel']");
-  const modalCloseButton = document.querySelector(".modal-header button[value='cancel']");
-  const modalContinueButton = document.querySelector("button[value='continue']");
-
-  function makeSpinnerHTML(message = "") {
-    return (`<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ${message}`);
-  };
-
-  function handleButtonClick(clickedButton, otherButton, spinnerHtml, callback) {
-    if (projectNameInput.value) {
-      clickedButton.style.pointerEvents = "none";
-      clickedButton.classList.add("disabled");
-      clickedButton.innerHTML = spinnerHtml;
-
-      otherButton.style.pointerEvents = "none";
-      otherButton.classList.add("disabled");
-      otherButton.parentElement.style.cursor = "not-allowed";
-
-      uploadFilesButton.style.pointerEvents = "none";
-      uploadFilesButton.classList.add("disabled");
-      removeFilesButton.style.pointerEvents = "none";
-      removeFilesButton.classList.add("disabled");
-
-      if (typeof callback === 'function') {
-        callback();
-      }
-    }
-  }
-
-  // Functions to handle button clicks
-  function handleEvaluateButtonClick() {
-    const evaluateSpinner = makeSpinnerHTML("Evaluating...");
-    handleButtonClick(evaluateButton, createProjectButton, evaluateSpinner);
-  }
-
-  function handleCreateProjectButtonClick() {
-    const createProjectSpinner = makeSpinnerHTML("Creating...");
-    handleButtonClick(createProjectButton, evaluateButton, createProjectSpinner);
-  }
-
-  function handleContinueButtonClick() {
-    const continueSpinner = makeSpinnerHTML("Starting...");
-    handleButtonClick(modalContinueButton, modalCancelButton, continueSpinner, function() {
-      modalCloseButton.classList.add("disabled");
-      modalCloseButton.style.pointerEvents = "none";
-    });
-  }
-
-  // Attach event listeners to the buttons
-  evaluateButton.addEventListener('click', handleEvaluateButtonClick);
-  createProjectButton.addEventListener('click', handleCreateProjectButtonClick);
-
-  if (modalContinueButton) {
-    modalContinueButton.addEventListener('click', handleContinueButtonClick);
-  }
-});
-  </script>
 {% endblock jscode %}

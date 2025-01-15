@@ -1,0 +1,87 @@
+<!-- modal -->
+{% if continue_message_box %}
+  <div class="div modal-backdrop fade show">
+  </div>
+  <div class="modal fade show"
+       style="display: block"
+       data-bs-keyboard="false"
+       tabindex="-1"
+       aria-labelledby="staticBackdropLabel"
+       aria-modal="true">
+    <form action=""
+          method="POST">
+      {% csrf_token %}
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button class="btn-close"
+                    type='submit'
+                    name='submit'
+                    value='cancel'
+                    aria-label="Close">
+            </button>
+          </div>
+          <div class="modal-body">
+            <ul class="list-group">
+              {% if total_documents == 0 %}
+                <!-- Red alert for no articles -->
+                <li class="list-group-item mx-4 ps-4"
+                    style="background-color: #FF8989">
+                  There are no estimated documents for this query.
+                  Please specify a different one.
+                </li>
+              {% elif total_documents < 20 %}
+                <!-- Orange alert for less than 20 articles -->
+                <li class="list-group-item mx-4 ps-4"
+                    style="background-color: #FFBE98">
+                  The number of estimated documents is {{ total_documents }}.
+                  This number is less than the minimum required (20) to proceed.
+                  Please specify a different query.
+                </li>
+              {% else %}
+                <!-- Green alert for acceptable number of articles -->
+                <li class="list-group-item mx-4 ps-4"
+                    style="background-color: #D5F0C1">
+                  The number of estimated documents are {{ total_documents }}.
+                  Would you like to continue with this query?
+                </li>
+              {% endif %}
+              <li class="list-group-item mx-4 ps-4">
+                Project name : {{ project_name }}
+              </li>
+              <li class="list-group-item mx-4 ps-4">
+                Search : {{ query }}
+              </li>
+              <li class="list-group-item mx-4 ps-4">
+                From : {{ range_begin_date }}
+              </li>
+              <li class="list-group-item mx-4 ps-4">
+                To : {{ range_end_date }}
+              </li>
+            </ul>
+          </div>
+          <div class="modal-footer">
+            <span> <!-- adds cursor 'not -allowed' when button is disabled -->
+              <button class="btn btn-secondary"
+                      type='submit'
+                      name='submit'
+                      value='cancel'>
+                Cancel
+              </button>
+            </span>
+            <button class="btn btn-primary"
+                    type='submit'
+                    name='submit'
+                    value='continue'
+                    {% if number_articles < 20 %}
+                      disabled
+                    {% endif %}>
+              Continue
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+{% endif %}
+<!-- ---- -->
