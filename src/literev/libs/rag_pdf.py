@@ -73,7 +73,7 @@ class PDFRAG:
                     )
                     continue
 
-                augmented = SpaCyAug(top_k=5, model_name="fr_core_news_md")
+                augmented = SpaCyAug(top_k=5, model_name="fr_core_news_lg")
 
                 generation = OpenAIGen(
                     api_key=settings.OPENAI_API_KEY,
