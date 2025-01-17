@@ -20,13 +20,10 @@
             <i class="fa-regular fa-search me-3"></i>
             Ask the documents
           </h1>
-          <div class="mb-3">
-            <button type="button"
-                    class="btn btn-primary"
-                    onclick="window.history.back();">
-              <i class="bi bi-arrow-left"></i> Back
-            </button>
-          </div>
+          <a href="{% url 'tableselect' project_id=project.id refinement_id=refinement_id iteration_id=iteration_id num=1 order_by='es_score' %}"
+             class="btn btn-primary">
+            <i class="bi bi-arrow-left"></i> Back To Select New Documents
+          </a>
 
           <form class="row"
                 id="ragForm"
@@ -94,7 +91,53 @@
         </div>
       </div>
     </div>
+
+    <h3 class="text-center"
+        style="padding-top: 55px">
+      Asked Questions
+    </h3>
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th scope="col">
+            Query
+          </th>
+          <th scope="col">
+            Documents Retrieved
+          </th>
+          <th scope="col">
+            Created At
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rag in project_rags %}
+          <tr>
+            <td>
+              <a href="{% url 'project-rag-id-page' project_id=project_id rag_id=rag.id %}"
+                 class="text-decoration-none fw-bold">
+                {{ rag.query }}
+              </a>
+            </td>
+            <td>
+              <span class="text-dark">{{ rag.num_documents }}</span>
+            </td>
+            <td>
+              {{ rag.created_at|date:"Y-m-d H:i:s" }}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="3"
+                class="text-center text-muted">
+              No RAG entries found.
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
+
 {% endblock content %}
 
 {% block jscode %}
@@ -126,7 +169,7 @@
 
     const checkStatus = async () => {
       const getResponse = await axios.get(
-        "{% url 'projectrag-by-project' project_id=project_id %}"
+        "{% url 'projectrag-by-project-rag-id' project_id=project_id rag_id=project_rag_id %}"
       );
       const ragStatus = getResponse.data.status;
 

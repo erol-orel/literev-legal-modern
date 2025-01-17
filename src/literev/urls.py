@@ -68,6 +68,12 @@ urlpatterns = [
         name="generate-summary",
     ),
     path("rag/<int:project_id>/", rag, name="project-rag-page"),
+    path("rag/<int:project_id>/<int:rag_id>", rag, name="project-rag-id-page"),
+    path(
+        "api/project-rags-by-project/<int:project_id>/<int:rag_id>/",
+        views_api.ProjectRAGbyProjectIdAPIView.as_view(),
+        name="projectrag-by-project-rag-id",
+    ),
     path(
         "api/project-rags-by-project/<int:project_id>/",
         views_api.ProjectRAGbyProjectIdAPIView.as_view(),

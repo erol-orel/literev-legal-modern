@@ -8,7 +8,7 @@ from http import HTTPStatus
 from typing import Any, cast
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -50,6 +50,7 @@ from literev.models import (
     Project,
     ProjectRAG,
     ProjectRefinement,
+    RefinementIteration,
     TableChoice,
     User,
 )
@@ -665,6 +666,7 @@ def historicalpage(request: HttpRequest) -> HttpResponse:
 def rag(
     request: HttpRequest,
     project_id: int,
+    rag_id: int = 0,
 ) -> HttpResponse:
     context: dict[str, Any] = dict(
         project_id=project_id,
@@ -683,11 +685,42 @@ def rag(
 
     documents_ids = list(table_choice.values_list("document_id", flat=True))
 
-    project_rag = ProjectRAG.objects.filter(project=project).last()
+    if rag_id:
+        project_rag = ProjectRAG.objects.get(project=project, id=rag_id)
+    else:
+        project_rag = ProjectRAG.objects.filter(project=project).last()
 
-    context["project_rag_id"] = project_rag.id if project_rag else None
-    context["documents_ids"] = documents_ids
-    context["number_documents"] = len(documents_ids)
+    project_rags = (
+        ProjectRAG.objects.filter(project=project)
+        .annotate(num_documents=Count("documents"))
+        .order_by("-created_at")
+    )
+
+    last_refinement = (
+        ProjectRefinement.objects.filter(project=project)
+        .order_by("-id")
+        .first()
+    )
+    last_iteration = (
+        RefinementIteration.objects.filter(refinement=last_refinement)
+        .order_by("-id")
+        .first()
+        if last_refinement
+        else None
+    )
+
+    refinement_id = last_refinement.id if last_refinement else 0
+    iteration_id = last_iteration.id if last_iteration else 0
+
+    context = {
+        "project": project,
+        "project_rags": project_rags,
+        "project_rag_id": project_rag.id if project_rag else None,
+        "project_id": project_id,
+        "number_documents": len(documents_ids),
+        "refinement_id": refinement_id,
+        "iteration_id": iteration_id,
+    }
 
     return render(request, "rag.html", context)
 

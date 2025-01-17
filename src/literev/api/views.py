@@ -106,7 +106,9 @@ class ProjectRAGbyProjectIdAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request: Request, project_id: int) -> Response:
+    def get(
+        self, request: Request, project_id: int, rag_id: int = 0
+    ) -> Response:
         """
         Handle GET requests to fetch data based on project_id.
 
@@ -126,8 +128,10 @@ class ProjectRAGbyProjectIdAPIView(APIView):
             raise PermissionDenied(
                 "You do not have permission to access this project."
             )
-
-        project_rag = ProjectRAG.objects.filter(project=project).last()
+        if rag_id:
+            project_rag = ProjectRAG.objects.get(project=project, id=rag_id)
+        else:
+            project_rag = ProjectRAG.objects.filter(project=project).last()
 
         serializer = ProjectRAGSerializer(project_rag)
         return Response(serializer.data, status=status.HTTP_200_OK)
