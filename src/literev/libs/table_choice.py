@@ -440,8 +440,13 @@ def create_tablechoice_rag_iteration(user: User, project: Project) -> None:
     TableChoice.objects.filter(user=user, project=project).delete()
     all_documents = Document.objects.filter(project=project)
 
+    max_documents_number = min(10, all_documents.count())
+
     all_documents_ids = [
-        doc.id for doc in sort_documents_by_es_score(project, all_documents)
+        doc.id
+        for doc in sort_documents_by_es_score(project, all_documents)[
+            :max_documents_number
+        ]
     ]
 
     batch_size = 1000

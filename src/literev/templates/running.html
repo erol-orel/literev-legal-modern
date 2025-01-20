@@ -140,7 +140,7 @@
             </div>
           </div>
           <div>
-            {% if project.step == 'clustering' %}
+            {% if project.step == 'clustering' or project.step == 'asking-rag' %}
               <a class="ms-2 fw-bold"
                  href="/project/{{ project.id }}">{{ project.name }}
               </a>
@@ -202,6 +202,12 @@
           </div>
           <div class="pe-5 col-2">
             Creating n-grams
+          </div>
+        {% elif project.step == "asking-rag" %}
+          <div class="col-1">
+          </div>
+          <div class="pe-5 col-2">
+            Question Answering
           </div>
         {% elif project.step == "clustering" %}
           <div class="col-1">

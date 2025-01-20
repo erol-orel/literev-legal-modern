@@ -338,7 +338,10 @@ def projectpage(
         context["errors"].append("Project not found or access denied.")
         return redirect(reverse("search"))
 
-    if not (project.is_finish or project.step in ["clustering", "plotting"]):
+    if not (
+        project.is_finish
+        or project.step in ["asking-rag", "clustering", "plotting"]
+    ):
         return redirect(reverse("search"))
 
     context["is_finish"] = project.is_finish
