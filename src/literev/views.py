@@ -715,8 +715,9 @@ def rag(
     context = {
         "project": project,
         "project_rags": project_rags,
-        "project_rag_id": project_rag.id if project_rag else None,
+        "project_rag_id": project_rag.id if project_rag else 0,
         "project_id": project_id,
+        "documents_ids": documents_ids,
         "number_documents": len(documents_ids),
         "refinement_id": refinement_id,
         "iteration_id": iteration_id,

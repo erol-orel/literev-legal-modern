@@ -5,8 +5,10 @@ from __future__ import annotations
 import datetime
 import logging
 
+from pathlib import Path
 from typing import Any, Generator
 
+import joblib
 import pytest
 
 from celery.contrib.testing.worker import start_worker
@@ -71,6 +73,19 @@ def document(project):
         preprocessed_document="Preprocessed document text.",
         procedure_year=datetime.date(2023, 1, 1),
     )
+
+
+@pytest.fixture
+def document_real(project: Project) -> Document:
+    """Fixture for a sample document."""
+    path_test = (
+        Path(__file__).parent / "literev" / "tests" / "data" / "doc1.pkl"
+    )
+    doc = joblib.load(path_test)
+    doc.pk = None
+    doc.project = project
+    doc.save()
+    return doc
 
 
 @pytest.fixture

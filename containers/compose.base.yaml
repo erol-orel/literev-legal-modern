@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   literev-base:
     # TODO(#113): Consider refactoring the Dockerfile to avoid creating directories
@@ -92,12 +90,6 @@ services:
       - media_root:${DJANGO_MEDIA_ROOT:-/tmp/literev/media}
     networks:
       - literev
-    deploy:
-      resources:
-        limits:
-          cpus: ${DOCKER_CPU_LIMIT}
-        reservations:
-          cpus: ${DOCKER_CPU_RESERVATION}
 
   literev-redis:
     image: redis:7-alpine

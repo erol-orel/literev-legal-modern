@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   literev:
     command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
@@ -19,7 +17,7 @@ services:
       DEBUG: 1
       PGDATA: /var/lib/postgresql/data
     volumes:
-      - pgdata_volume:/var/lib/postgresql/data
+      - pgdata_volume:/var/lib/postgresql/data:wq
 
 volumes:
   container_data_dir:

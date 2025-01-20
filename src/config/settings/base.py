@@ -287,6 +287,7 @@ CACHE_ACTIVE = env.bool("LITEREV_CACHE_ACTIVE", False)
 CACHE_EXPIRATION = 3600  # seconds
 
 # LOGGING
+LOGGING_LEVEL = logging.WARNING
 
 LOGGING = {
     "version": 1,

@@ -53,7 +53,7 @@ env:
 jobs:
   check_branch:
     name: Check if branch is ahead of main
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Git checkout
         uses: actions/checkout@v4
@@ -69,7 +69,7 @@ jobs:
           exit 1; fi
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 30
     strategy:
       matrix:
@@ -84,6 +84,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Install Operating System dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install gettext-base
 
     - uses: conda-incubator/setup-miniconda@v3
       with:
@@ -101,7 +106,6 @@ jobs:
         export DOCKER_PROJECT_NAME=$RANDOM
         export HOST_UID=${HOST_UID}
         export HOST_GID=${HOST_GID}
-        cd /home/runner/work/literev-legal/literev-legal/
         envsubst < .env.tpl > .env
 
     - name: Check if poetry.lock is updated
@@ -176,7 +180,7 @@ jobs:
         convention-name: conventionalcommits
 
   linter:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 10
     strategy:
       matrix:
@@ -191,6 +195,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Install Operating System dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install gettext-base
 
     - uses: conda-incubator/setup-miniconda@v3
       with:
@@ -219,7 +228,7 @@ jobs:
       run: makim tests.lint
 
   containers:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 30
     strategy:
       matrix:
@@ -238,6 +247,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Install Operating System dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install gettext-base
 
     - uses: conda-incubator/setup-miniconda@v3
       with:

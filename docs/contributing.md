@@ -259,9 +259,9 @@ In order to create a django super user, you can run the following command:
 
 ```bash
 $  makim django.create-superuser \
-  --username myusername \
-  --password mypassword \
-  --email my@email.com
+  --username dev \
+  --password dev \
+  --email dev@literev.com
 ```
 
 *Note: Remember to replace the placeholder used in the command.*

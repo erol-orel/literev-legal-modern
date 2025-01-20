@@ -7,7 +7,7 @@ name = "literev"
 version = "0.11.0"  # semantic-release
 description = "scientific tool"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.11"
 authors = [
   {name = "Aziza", email = "FatmaAziza.Merzouki@unige.ch"},
   {name = "Erol", email = "Erol.Orel@unige.ch"},
@@ -20,10 +20,7 @@ dependencies = [
   "celery >=5.3.6",
   "redis >=5.0.3",
   "scikit-learn >=1.4.2",
-  "spacy >=3.8.0",
-  "fr-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/fr_core_news_sm-3.8.0/fr_core_news_sm-3.8.0-py3-none-any.whl",
-  "fr-core-news-md @ https://github.com/explosion/spacy-models/releases/download/fr_core_news_md-3.8.0/fr_core_news_md-3.8.0-py3-none-any.whl",
-  "fr-core-news-lg @ https://github.com/explosion/spacy-models/releases/download/fr_core_news_lg-3.8.0/fr_core_news_lg-3.8.0-py3-none-any.whl",
+  "spacy >=3.8.0,<3.9",
   "gensim>=4.3.2",
   "pip>=24.0",
   "lingua-language-detector>=2.0.2",
@@ -40,10 +37,21 @@ dependencies = [
   "matplotlib>=3.9.2",
   "werkzeug>=3",
   "djangorestframework>=3.15.2",
-  "rago>=0.9.0",
+  "rago>=0.10.1",
   "langchain>=0.3.6",
   "django-filter>=24.3",
   "jsbeautifier (==1.15.1)",
+  "blis <1.2",
+  "numpy <2",
+  "fr-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/fr_core_news_sm-3.8.0/fr_core_news_sm-3.8.0-py3-none-any.whl",
+  "fr-core-news-md @ https://github.com/explosion/spacy-models/releases/download/fr_core_news_md-3.8.0/fr_core_news_md-3.8.0-py3-none-any.whl",
+  "fr-core-news-lg @ https://github.com/explosion/spacy-models/releases/download/fr_core_news_lg-3.8.0/fr_core_news_lg-3.8.0-py3-none-any.whl",
+  "torch >=2.5.1",
+  "torchvision >=0.20.0",
+  # "torch @ https://download.pytorch.org/whl/cpu/torch-2.5.0%2Bcpu-cp310-cp310-linux_x86_64.whl#sha256=7458180f01525424f8015dcb6051b8233fcf65966697b66f7b732c8a9aa0384f ; platform_machine == 'x86_64'",
+  # "torch @ https://download.pytorch.org/whl/cpu/torch-2.5.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl#sha256=50fcff9f5b9c5102f9f8f5cb3d12bd4d9f1266650e4b8c14f50a5ec589e1eea5 ; platform_machine == 'aarch64'",
+  # "torchvision @ https://download.pytorch.org/whl/cpu/torchvision-0.20.0%2Bcpu-cp310-cp310-linux_x86_64.whl#sha256=9b3b6749f9835f599014256706262b29c6e2b7f5be4d6cd071242385c43a3b51 ; platform_machine == 'x86_64'",
+  # "torchvision @ https://download.pytorch.org/whl/cpu/torchvision-0.20.0-cp310-cp310-linux_aarch64.whl#sha256=e084f50ecbdbe7a9cc2fc51ea0367ae35fde46e84a964bf4046cb1c7feb7e3e6 ; platform_machine == 'aarch64'",
 ]
 
 [tool.poetry]
@@ -58,7 +66,9 @@ url = "https://download.pytorch.org/whl/cpu"
 priority = "supplemental"
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.11.dev0"
+python = ">=3.10,<3.11"
+blis = "<1.2"
+numpy = "<2"
 torch = [
   {version = ">=2.5.0", source="pytorch-cpu"},
 ]

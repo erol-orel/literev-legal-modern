@@ -10,6 +10,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 
+import logging
+
 from config.settings.base import *  # noqa: F403
 
 SECURE_SSL_REDIRECT = False
@@ -38,3 +40,5 @@ CSRF_TRUSTED_ORIGINS = [
     "https://localhost",
     "https://127.0.0.1",
 ]
+
+LOGGING_LEVEL = logging.INFO

@@ -4,10 +4,11 @@ channels:
   - conda-forge
 dependencies:
   - python 3.10.*
-  - poetry 2.0.0
+  - poetry >=2
   - gunicorn 21.*
+  - pip
   - pip:
-    - makim==1.10.0
+    - makim==1.20.0
     # fix issues with distlib
     - paginate
     # fix issues with distlib

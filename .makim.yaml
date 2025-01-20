@@ -259,8 +259,11 @@ groups:
       shell:
         help: Run the Django console interpreter inside the container.
         env-file: .env
+        env:
+          POSTGRES_HOST: localhost
+          REDIS_HOST: localhost
         run: |
-          export POSTGRES_HOST=localhost
+          sugar compose-ext start --services literev-postgres --options "-d"
           python src/manage.py shell
 
   containers:

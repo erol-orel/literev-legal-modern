@@ -10,7 +10,7 @@ jobs:
   release:
     if: ${{ !github.event.pull_request.draft }}
     name: Release
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 20
 
     defaults:
