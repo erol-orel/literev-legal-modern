@@ -12,6 +12,9 @@ class Project(models.Model):
     name = models.CharField(max_length=256, default="No name")
     creation_date = models.DateField(default=datetime.date(1900, 1, 1))
     query = models.CharField(max_length=4096)
+    natural_language_query = models.CharField(
+        max_length=4096, default="", blank=True, null=True
+    )
     range_begin_date = models.DateField(default=datetime.date(1900, 1, 1))
     range_end_date = models.DateField(default=datetime.date(1900, 1, 1))
     total_documents = models.IntegerField(default=0)
@@ -117,6 +120,7 @@ class ProjectRAG(models.Model):
     STATUS_CHOICES = [
         ("completed", "Completed"),
         ("in-progress", "In Progress"),
+        ("failed", "Failed"),
     ]
 
     project = models.ForeignKey(

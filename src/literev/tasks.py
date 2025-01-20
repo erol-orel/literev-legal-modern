@@ -16,10 +16,12 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 # Local imports
 from config.celery import app
 from literev.libs.collectors import ElasticSearchCollector
+from literev.libs.data_files import get_es_scores
 from literev.libs.pipeline import (
     update_pp_document,
 )
 from literev.libs.rag_pdf import PDFRAG
+from literev.libs.scoring import sort_documents_by_es_score
 from literev.libs.utils import (
     save_documents_to_db,
     update_es_scores_file,
@@ -140,10 +142,10 @@ def launch_process(project: Project) -> bool:
             back_preparing_documents.si(project.id),
             back_preprocess_documents.si(project.id),
             back_get_early_results.si(project.id),
+            get_nl_rag_ans.si(project.id),
             back_clustering_documents.si(project.id),
             back_plotting_documents.si(project.id),
         )
-
         task_chain.apply_async()
         project.is_running = True
         project.save()
@@ -216,6 +218,46 @@ def back_get_documents(self, project_id: int) -> bool:
         f"Document collection and saving completed successfully for project {project_id}"
     )
     return True
+
+
+def get_top_docs_by_es(
+    project: Project, documents: QuerySet[Document], n: int = 1
+) -> list[Document] | None:
+    scores = get_es_scores(project)
+
+    if scores:
+        sorted_tablechoice = sort_documents_by_es_score(project, documents)
+        top10_docs = sorted_tablechoice[:n]
+        return top10_docs
+
+    return None
+
+
+@app.task(bind=True)
+def get_nl_rag_ans(self, project_id: int) -> int | None:
+    project = Project.objects.get(id=project_id)
+    if not project.natural_language_query:
+        return
+
+    project_rag, _ = ProjectRAG.objects.get_or_create(
+        project=project,
+        query=project.natural_language_query,
+    )
+
+    documents = Document.objects.filter(project=project)
+    number_documents = documents.count()
+
+    upper_limit = min(number_documents, 50)
+
+    top_docs = get_top_docs_by_es(project, documents, upper_limit)
+    docs_ids = [doc.id for doc in top_docs]
+
+    rag = PDFRAG(
+        project_rag_id=project_rag.id,
+        document_ids=docs_ids,
+    )
+
+    rag.run(max_doc_ans=5)
 
 
 @app.task(bind=True)

@@ -17,6 +17,7 @@ from rago.extensions.cache import CacheFile
 from rago.generation import OpenAIGen
 from rago.retrieval import StringRet
 
+from literev.libs.scoring import sort_documents_by_es_score
 from literev.models import Document, ProjectDocumentRAG, ProjectRAG
 
 TMP_DIR = Path("/tmp") / "rago"
@@ -62,7 +63,7 @@ class PDFRAG:
         )
         return text_splitter.split_text(text)
 
-    def run(self) -> None:
+    def run(self, max_doc_ans: int | None = None) -> None:
         """Process a query with RAG on relevant chunks and store results in ProjectDocumentRAG."""
         logger.info("Starting RAG processing for each document.")
         self.status = "in-progress"
@@ -81,6 +82,12 @@ class PDFRAG:
             "dites simplement `Réponse non disponible`."
             "\nQuestion: ```{query}```\nContexte: ```{context}```"
         )
+
+        counter = 0
+        if max_doc_ans:
+            documents = sort_documents_by_es_score(
+                self.project_rag.project, documents
+            )
 
         for document in documents:
             try:
@@ -128,6 +135,12 @@ class PDFRAG:
                     citation=citation[0] if citation else "",
                     answer=result.strip(),
                 )
+
+                if result.strip() != "Réponse non disponible.":
+                    counter += 1
+
+                if max_doc_ans and counter >= max_doc_ans:
+                    break
 
             except Exception as e:
                 logger.error(

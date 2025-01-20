@@ -38,6 +38,7 @@ from literev.libs.select_functions import (
 )
 from literev.libs.table_choice import (
     create_iteration,
+    create_tablechoice_rag_iteration,
     update_new_table_choice,
 )
 from literev.libs.tableselect_workflows import TableSelectHandler
@@ -97,9 +98,9 @@ def search_search(
     if search_form.is_valid():
         project_name = search_form.cleaned_data["project_name"]
         query = search_form.cleaned_data["query"]
-        natural_language_query = search_form.cleaned_data[
-            "natural_language_query"
-        ]
+        natural_language_query = search_form.cleaned_data.get(
+            "natural_language_query", ""
+        )
 
         range_begin_date = search_form.cleaned_data["range_begin_date"]
         range_end_date = search_form.cleaned_data["range_end_date"]
@@ -150,11 +151,14 @@ def search_continue(
 
     selected_indices = request.session["selected_indices"]
 
+    natural_language_query = request.session["natural_language_query"]
+
     project = Project.objects.create(
         user=user,
         name=project_name,
         creation_date=datetime.datetime.now(),
         query=query,
+        natural_language_query=natural_language_query,
         range_begin_date=range_begin_date,
         range_end_date=range_end_date,
         total_documents=total_documents,
@@ -366,6 +370,17 @@ def projectpage(
         if submit == "filters":
             filters = get_filters(request.POST)
             context.update(handle_filters_submission(user, project, filters))
+        elif submit == "ask-top-docs":
+            create_tablechoice_rag_iteration(user, project)
+
+            return redirect(
+                reverse(
+                    "project-rag-page",
+                    kwargs={
+                        "project_id": project.id,
+                    },
+                )
+            )
 
         elif submit == "update":
             context.update(prepare_update_context(project))
@@ -671,6 +686,7 @@ def rag(
     context: dict[str, Any] = dict(
         project_id=project_id,
     )
+    context["natural_language_query"] = ""
 
     project = Project.objects.filter(id=project_id).first()
 
@@ -722,6 +738,9 @@ def rag(
         "refinement_id": refinement_id,
         "iteration_id": iteration_id,
     }
+
+    if project.natural_language_query:
+        context["natural_language_query"] = project.natural_language_query
 
     return render(request, "rag.html", context)
 

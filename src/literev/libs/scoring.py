@@ -8,7 +8,7 @@ from django.conf import settings
 from django.db.models.query import QuerySet
 
 from literev.libs.data_files import get_dataframe_project, get_es_scores
-from literev.models import ClusterElement, Project, TableChoice
+from literev.models import ClusterElement, Document, Project, TableChoice
 
 logging.basicConfig(level=logging.INFO)
 NLP = spacy.load("fr_core_news_md")
@@ -94,6 +94,40 @@ def extract_keywords(expression: str) -> list[str]:
     result = [phrase for phrase in phrases if phrase not in logical_operators]
 
     return result
+
+
+def sort_documents_by_es_score(
+    project: Project, documents: QuerySet[Document]
+) -> list[Document]:
+    """
+    Sort tablechoice object by elasticsearch score.
+
+    Parameters
+    ----------
+    project : Project object
+        A project related with the keywords
+    documents: QuerySet[Documents]
+        A set of document objects.
+
+    Returns
+    -------
+    list[Document]
+        List of sorted document objects.
+    """
+    scores = get_es_scores(project)
+
+    if scores:
+        sorted_list = sorted(
+            list(documents),
+            key=lambda x: scores[x.id],
+            reverse=True,
+        )
+
+        return sorted_list
+
+    logging.warning(f"There is no es scores for project : {project.id}")
+
+    return list(documents)
 
 
 def sort_by_es_score(

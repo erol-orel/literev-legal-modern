@@ -6,6 +6,8 @@ from literev.models import (
     ClusterElement,
     Document,
     Project,
+    ProjectDocumentRAG,
+    ProjectRAG,
     ProjectRefinement,
     RefinementIteration,
     TableChoice,
@@ -18,3 +20,5 @@ admin.site.register(ClusterElement)
 admin.site.register(RefinementIteration)
 admin.site.register(ProjectRefinement)
 admin.site.register(TableChoice)
+admin.site.register(ProjectRAG)
+admin.site.register(ProjectDocumentRAG)

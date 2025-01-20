@@ -37,6 +37,9 @@
                        class="form-control"
                        placeholder="Ask what you want"
                        aria-label="question"
+                       {% if natural_language_query %}
+                         value="{{ natural_language_query }}"
+                       {% endif %}
                        required />
                 <button type="submit"
                         class="btn btn-outline-secondary"
@@ -298,7 +301,11 @@
       documentRag.answer === "Error generating response." ||
       documentRag.answer === "Réponse non disponible."
     ) {
-      documentRow += documentAns + documentDivisor;
+      {% if natural_language_query == "" %}
+        documentRow += documentAns + documentDivisor;
+      {% else %}
+        documentRow = "";
+      {% endif %}
     } else {
       documentRow += documentAns + documentCitation + documentDivisor;
     }

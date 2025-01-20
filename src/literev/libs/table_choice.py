@@ -13,6 +13,7 @@ from literev.libs.scoring import (
     extract_keywords,
     get_topic_and_hdbscan_score,
     sort_by_es_score,
+    sort_documents_by_es_score,
 )
 from literev.models import (
     Cluster,
@@ -432,6 +433,33 @@ def divide_in_chunks(
     """
     for i in range(0, len(id_list), batch_size):
         yield id_list[i : i + batch_size]
+
+
+def create_tablechoice_rag_iteration(user: User, project: Project) -> None:
+    # remove old tablechoices
+    TableChoice.objects.filter(user=user, project=project).delete()
+    all_documents = Document.objects.filter(project=project)
+
+    all_documents_ids = [
+        doc.id for doc in sort_documents_by_es_score(project, all_documents)
+    ]
+
+    batch_size = 1000
+
+    for document_id_list in divide_in_chunks(all_documents_ids, batch_size):
+        table_choice_objs = []
+
+        for document_id in document_id_list:
+            table_choice_objs.append(
+                TableChoice(
+                    user=user,
+                    project=project,
+                    document_id=document_id,
+                    is_check=True,
+                )
+            )
+
+        TableChoice.objects.bulk_create(table_choice_objs)
 
 
 def get_iteration(
