@@ -1,10 +1,10 @@
 import logging
 
-import pandas as pd
+from typing import List, Tuple
+
 import psycopg2
 import tiktoken
 
-from django.conf import settings
 from django.core.management.base import BaseCommand
 from psycopg2 import OperationalError
 
@@ -12,16 +12,13 @@ from psycopg2 import OperationalError
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
-
-DATABASE_URI = settings.DATABASE_URI
-PKL_DATA = settings.PKL_DATA
+logger = logging.getLogger(__name__)
 
 GPT_MODEL = "gpt-4o-mini"
-
 enc = tiktoken.encoding_for_model(GPT_MODEL)
 
 
-def get_data(project_id: int) -> list:
+def get_data(project_id: int) -> List[Tuple[int, int, str]]:
     """
     Retrieve all documents related to a specific project ID from the database.
 
@@ -33,7 +30,7 @@ def get_data(project_id: int) -> list:
     Returns
     -------
     list
-        A list of tuples containing the document data.
+        A list of tuples containing the document data (id, raw_document_id, text).
 
     Raises
     ------
@@ -42,93 +39,95 @@ def get_data(project_id: int) -> list:
     Exception
         For other issues that may arise when executing the query.
     """
+    from django.conf import (
+        settings,
+    )  # Import inside the function for Django settings
+
+    database_uri = settings.DATABASE_URI
     try:
-        conn = psycopg2.connect(DATABASE_URI)
+        conn = psycopg2.connect(database_uri)
         cursor = conn.cursor()
-        cursor.execute(
-            f"SELECT id, raw_document_id, raw_document_text FROM public.literev_document WHERE project_id={project_id};"
-        )
+        query = """
+            SELECT id, raw_document_id, raw_document_text
+            FROM public.literev_document
+            WHERE project_id = %s;
+        """
+        cursor.execute(query, (project_id,))
         data = cursor.fetchall()
         conn.close()
-        logging.info(f"Retrieved {len(data)} records for project {project_id}")
+        logger.info(
+            f"Retrieved {len(data)} documents for project ID {project_id}."
+        )
         return data
     except OperationalError as e:
-        logging.error(f"Database connection failed: {e}")
+        logger.error(f"Database connection failed: {e}")
         raise
     except Exception as e:
-        logging.error(f"Failed to fetch data: {e}")
+        logger.error(f"Error fetching data: {e}")
         raise
 
 
 def count_tokens(text: str) -> int:
+    """
+    Count the number of tokens in a given text using the model's tokenizer.
+
+    Parameters
+    ----------
+    text : str
+        The input text to tokenize.
+
+    Returns
+    -------
+    int
+        The token count of the text.
+    """
     return len(enc.encode(text))
 
 
 class Command(BaseCommand):
-    help = "Count token from documents given project"
+    help = "Analyze documents for a given project ID and display token statistics."
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--project-id",
+            type=int,
+            required=True,
+            help="The ID of the project to analyze.",
+        )
 
     def handle(self, *args, **options):
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s - %(levelname)s - %(message)s",
-        )
-        logging.info("Checking access to db ...")
-
+        project_id = options["project_id"]
         try:
-            # The variable project_id will replace with the actual project ID
-            project_id = 1
+            logger.info("Starting analysis...")
             project_data = get_data(project_id)
-            # logging.info(project_data[:1])  # Logs first record for verification
-            # print("all documents")
-            # print(len(project_data))
 
-            data_dict = {}
-            data_dict["id"] = []
-            data_dict["raw_id"] = []
-            data_dict["number_words"] = []
-            data_dict["tokens"] = []
-
-            for document in project_data:
-                if document[2] == None or document[2] == "":
-                    continue
-                data_dict["id"].append(document[0])
-                data_dict["raw_id"].append(document[1])
-                data_dict["number_words"].append(len(document[2].split()))
-                data_dict["tokens"].append(count_tokens(document[2]))
-
-            print("Max tokens in a document: ", max(data_dict["tokens"]))
-            print(
-                "Average words per document: ",
-                sum(data_dict["number_words"])
-                // len(data_dict["number_words"]),
-            )
-            print(
-                "Average tokens per document: ",
-                sum(data_dict["tokens"]) // len(data_dict["tokens"]),
-            )
-            print("Min tokens in a document: ", min(data_dict["tokens"]))
-
-            with open(f"statistical_data_project_{project_id}.txt", "w") as f:
-                f.write(
-                    "average number words: "
-                    + str(
-                        sum(data_dict["number_words"])
-                        // len(data_dict["number_words"])
+            if not project_data:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"No documents found for project ID {project_id}."
                     )
                 )
-                f.write("\n")
-                f.write("max number tokens: " + str(max(data_dict["tokens"])))
-                f.write("\n")
-                f.write("min number tokens" + str(min(data_dict["tokens"])))
-                f.write("\n")
-                f.write(
-                    "avg number tokens: "
-                    + str(sum(data_dict["tokens"]) // len(data_dict["tokens"]))
-                )
-                f.write("\n")
+                return
 
-            df = pd.DataFrame.from_dict(data_dict)
-            df.to_csv(f"tokens_detailed_project_{project_id}.csv", index=False)
+            # Filter and process data
+            tokens = [
+                count_tokens(doc[2])
+                for doc in project_data
+                if doc[2] and doc[2].strip()
+            ]
+
+            if not tokens:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"No valid documents with text for project ID {project_id}."
+                    )
+                )
+                return
+
+            # Output results
+            self.stdout.write(f"Total Documents Retrieved: {len(tokens)}")
+            self.stdout.write(f"Maximum Tokens Per Document: {max(tokens)}")
 
         except Exception as e:
-            logging.error(f"An error occurred: {e}")
+            logger.error(f"An error occurred during analysis: {e}")
+            self.stderr.write(f"Error: {e}")

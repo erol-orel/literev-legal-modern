@@ -205,13 +205,22 @@ groups:
           echo "[II] Filling order clusters is done."
 
       count-tokens:
-        help: Count tokens
+        help: |
+          Count tokens for the specified project ID.
+          e.g. makim django.count-tokens --project-id 1
         env-file: .env
+        args:
+          project-id:
+            help: |
+              The ID of the project for which to count tokens..
+            type: string
+            default: "1"
+            required: true
         run: |
           sugar compose-ext start \
             --services literev-postgres --options -d
 
-          CMD="python manage.py count_tokens"
+          CMD="python manage.py count_tokens --project-id ${{ args.project_id }}"
 
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
             sugar compose run --service literev --options "--rm" --cmd "$CMD"
@@ -220,7 +229,7 @@ groups:
             export POSTGRES_HOST=localhost
             $CMD
           fi
-          echo "[II] Counting tokens is done."
+          echo "[II] Token counting completed for project ID ${{ args.project_id }}."
 
       optimize-documents:
         help: Run the optimization of the documents
