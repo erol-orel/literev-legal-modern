@@ -704,11 +704,6 @@ def rag(
 
     documents_ids = list(table_choice.values_list("document_id", flat=True))
 
-    if rag_id:
-        project_rag = ProjectRAG.objects.get(project=project, id=rag_id)
-    else:
-        project_rag = ProjectRAG.objects.filter(project=project).last()
-
     project_rags = (
         ProjectRAG.objects.filter(project=project)
         .annotate(num_documents=Count("documents"))
@@ -734,7 +729,7 @@ def rag(
     context = {
         "project": project,
         "project_rags": project_rags,
-        "project_rag_id": project_rag.id if project_rag else 0,
+        "project_rag_id": rag_id or 0,
         "project_id": project_id,
         "documents_ids": documents_ids,
         "number_documents": len(documents_ids),

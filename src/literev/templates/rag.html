@@ -12,58 +12,83 @@
 
 {% block content %}
   <div class="d-flex">
-    <div class="container justify-content-center">
-      <div class="col-sm-12 col-md-12 col-xl-11 mx-auto">
-        <div class="container py-8"
-             style="padding-top: 125px">
-          <h1 class="text-center col-12 mb-5">
-            <i class="fa-regular fa-search me-3"></i>
-            Ask the documents
-          </h1>
-          {% if refinement_id %}
-            <a href="{% url 'tableselect' project_id=project.id refinement_id=refinement_id iteration_id=iteration_id num=1 order_by='es_score' %}"
-               class="btn btn-primary mb-2">
-              <i class="bi bi-arrow-left"></i> Back To Select New Documents
-            </a>
-          {% else %}
-            <a href="{% url 'projectpage' project_id=project.id %}"
-               class="btn btn-primary mb-2">
-              <i class="bi bi-arrow-left"></i> Back To Project page
-            </a>
-          {% endif %}
+    <div class="container justify-content-center"
+         style="padding-top: 125px">
+      {% if refinement_id %}
+        <a href="{% url 'tableselect' project_id=project.id refinement_id=refinement_id iteration_id=iteration_id num=1 order_by='es_score' %}"
+           class="btn btn-primary mb-2">
+          <i class="bi bi-arrow-left"></i> Back To Select New Documents
+        </a>
+      {% else %}
+        <a href="{% url 'projectpage' project_id=project.id %}"
+           class="btn btn-primary mb-2">
+          <i class="bi bi-arrow-left"></i> Back To Project page
+        </a>
+      {% endif %}
+      {% if project_rag_id %}
+        <a href="{% url 'project-rag-page' project_id=project.id %}"
+           class="btn btn-primary mb-2">
+          <i class="fa-regular fa-search me-3"></i>Ask new question
+        </a>
+      {% endif %}
+    </div>
+  </div>
 
-          <form class="row"
-                id="ragForm"
-                method="post">
-            {% csrf_token %}
-            <div class="col-sm-12 col-lg-12 mb-3 text-center">
-              <div class="input-group mb-3">
-                <input type="text"
-                       name="query"
-                       id="queryInput"
-                       class="form-control"
-                       placeholder="Ask what you want"
-                       aria-label="question"
-                       {% if natural_language_query %}
-                         value="{{ natural_language_query }}"
-                       {% endif %}
-                       required />
-                <button type="submit"
-                        class="btn btn-outline-secondary"
-                        id="ask-button"
-                        disabled>
-                  Ask
-                </button>
+  {% if not project_rag_id %}
+    <div class="d-flex mt-3">
+      <div class="container justify-content-center">
+        <div class="col-sm-12 col-md-12 col-xl-11 mx-auto">
+          <div class="container py-8">
+            <h1 class="text-center col-12 mb-5">
+              <i class="fa-regular fa-search me-3"></i>
+              Ask the documents
+            </h1>
+
+            <form class="row"
+                  id="ragForm"
+                  method="post">
+              {% csrf_token %}
+              <div class="col-sm-12 col-lg-12 mb-3 text-center">
+                <div class="input-group mb-3">
+                  <input type="text"
+                         name="query"
+                         id="queryInput"
+                         class="form-control"
+                         placeholder="Ask what you want"
+                         aria-label="question"
+                         {% if natural_language_query %}
+                           value="{{ natural_language_query }}"
+                         {% endif %}
+                         required />
+                  <button type="submit"
+                          class="btn btn-outline-secondary"
+                          id="ask-button">
+                    Ask
+                  </button>
+                </div>
               </div>
+            </form>
+            <div class="text-center mb-2">
+              <b>Number of selected documents: </b> {{ number_documents }}
             </div>
-          </form>
-          <div class="text-center mb-2">
-            <b>Number of selected documents: </b> {{ number_documents }}
           </div>
         </div>
       </div>
     </div>
-  </div>
+  {% else %}
+    <div class="d-flex mt-3">
+      <div class="container justify-content-center">
+        <div class="col-sm-12 col-md-12 col-xl-11 mx-auto">
+          <div class="container py-8">
+            <h1 class="text-center col-12 mb-5">
+              Question:
+              <span id="questionText"></span>
+            </h1>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
 
   <div id="loadingSpinner"
        class="mt-5 d-flex justify-content-center"
@@ -76,32 +101,26 @@
     <span class="ms-3 fs-4 text-secondary">Asking to LiteRev RAG ...</span>
   </div>
 
-  <div class="container pb-5 px-4"
-       id="resultsQuestion"
-       style="display: none">
-    <div class="fs-5 row"
-         style="overflow:auto">
-      <strong>Question:</strong>
-      <span id="questionText"></span>
-    </div>
-  </div>
-
-  <div class="container pb-5 px-4"
-       id="resultsContainer"
-       style="display: none">
-    <div class="fs-5 row"
-         style="overflow:auto">
-      <div class="col-12">
-        <div>
-          <div class="row">
-            <hr />
-          </div>
-          <div id="ragAnswers">
+  {% if project_rag_id %}
+    <div class="container pb-5 px-4"
+         id="resultsContainer">
+      <div class="fs-5 row"
+           style="overflow:auto">
+        <div class="col-12">
+          <div>
+            <div class="row">
+              <hr />
+            </div>
+            <div id="ragAnswers">
+            </div>
           </div>
         </div>
       </div>
     </div>
+  {% endif %}
 
+  <div class="container pb-5 px-4"
+       id="history-questions">
     <h3 class="text-center"
         style="padding-top: 55px">
       Asked Questions
@@ -157,27 +176,26 @@
       // Show the loading spinner and hide results
       document.getElementById("loadingSpinner").style.display = "block";
       document.getElementById("loadingSpinner").style.visibility = "visible";
-      document.getElementById("resultsContainer").style.display = "none";
-      document.getElementById("resultsContainer").style.visibility = "hidden";
-      document.getElementById("resultsQuestion").style.display = "none";
-      document.getElementById("resultsQuestion").style.visibility = "hidden";
-      document.getElementById("ask-button").disabled = true;
+      if (document.getElementById("resultsContainer") !== null) {
+        document.getElementById("resultsContainer").style.display = "none";
+        document.getElementById("resultsContainer").style.visibility = "hidden";
+      }
     }
 
 
     function show_table() {
       document.getElementById("loadingSpinner").style.display = "none";
       document.getElementById("loadingSpinner").style.visibility = "hidden";
-      document.getElementById("resultsContainer").style.display = "block";
-      document.getElementById("resultsContainer").style.visibility = "visible";
-      document.getElementById("resultsQuestion").style.display = "block";
-      document.getElementById("resultsQuestion").style.visibility = "visible";
-      {% if number_documents > 0 %}
-      document.getElementById("ask-button").disabled = false;
-      {% endif %}
+      if (document.getElementById("resultsContainer") !== null) {
+        document.getElementById("resultsContainer").style.display = "block";
+        document.getElementById("resultsContainer").style.visibility = "visible";
+      }
     }
 
     const checkStatus = async () => {
+      if (document.getElementById("questionText") === null) {
+        return;
+      }
       const getResponse = await axios.get(
         "{% url 'projectrag-by-project-rag-id' project_id=project_id rag_id=project_rag_id %}"
       );
@@ -205,127 +223,131 @@
       setTimeout(checkStatus, 1000);
     };
 
-    document.getElementById("ragForm").addEventListener("submit", async function(event) {
-      event.preventDefault();
-      show_loading();
+    if (document.getElementById("ragForm") !== null) {
+      document.getElementById("ragForm").addEventListener("submit", async function(event) {
+        event.preventDefault();
+        show_loading();
 
-      const query = document.getElementById("queryInput").value;
-      const csrftoken = document.getElementsByName("csrfmiddlewaretoken")[0].value;
-      const projectId = {{ project_id }};
-      const scriptTag = document.getElementById("documents_ids");
-      const documentIds = JSON.parse(scriptTag.textContent);
+        const query = document.getElementById("queryInput").value;
+        const csrftoken = document.getElementsByName("csrfmiddlewaretoken")[0].value;
+        const projectId = {{ project_id }};
+        const scriptTag = document.getElementById("documents_ids");
+        const documentIds = JSON.parse(scriptTag.textContent);
 
-      try {
-        await axios.post(
-          "{% url 'projectrag-by-project' project_id=project_id %}",
-          { project_id: projectId, query: query, documents_ids: documentIds },
-          { headers: { "X-CSRFToken": csrftoken }}
-        );
-        checkStatus();
-      } catch (error) {
-        console.error("An error occurred:", error);
-      }
-    });
+        try {
+          const getResponse = await axios.post(
+            "{% url 'projectrag-by-project' project_id=project_id %}",
+            { project_id: projectId, query: query, documents_ids: documentIds },
+            { headers: { "X-CSRFToken": csrftoken }}
+          );
+          url = "{% url 'project-rag-page' project_id=project_id %}";
+          url  = url + getResponse.data.id;
+          window.location = url;
+        } catch (error) {
+          console.error("An error occurred:", error);
+        }
+      });
+    }
 
     function renderResults(ragData) {
-  const answersContainer = document.getElementById("ragAnswers");
-  answersContainer.innerHTML = "";
+      const answersContainer = document.getElementById("ragAnswers");
+      answersContainer.innerHTML = "";
 
-  // Sort ragData by decision_date (most recent first) and specific answers at the end
-  ragData.sort((a, b) => {
-    const priorityAnswers = [
-      "No content available.",
-      "Error generating response.",
-      "Réponse non disponible.",
-    ];
+      // Sort ragData by decision_date (most recent first) and specific answers at the end
+      ragData.sort((a, b) => {
+        const priorityAnswers = [
+          "No content available.",
+          "Error generating response.",
+          "Réponse non disponible.",
+        ];
 
-    const aPriority = priorityAnswers.includes(a.answer) ? 1 : 0;
-    const bPriority = priorityAnswers.includes(b.answer) ? 1 : 0;
+        const aPriority = priorityAnswers.includes(a.answer) ? 1 : 0;
+        const bPriority = priorityAnswers.includes(b.answer) ? 1 : 0;
 
-    if (aPriority !== bPriority) {
-      return aPriority - bPriority; // Push priority answers to the end
-    }
+        if (aPriority !== bPriority) {
+          return aPriority - bPriority; // Push priority answers to the end
+        }
 
-    // If both have the same priority, sort by decision_date (most recent first)
-    const aDate = new Date(a.document.decision_date);
-    const bDate = new Date(b.document.decision_date);
+        // If both have the same priority, sort by decision_date (most recent first)
+        const aDate = new Date(a.document.decision_date);
+        const bDate = new Date(b.document.decision_date);
 
-    return bDate - aDate; // Descending order
-  });
+        return bDate - aDate; // Descending order
+      });
 
-  // Render the sorted results
-  ragData.forEach((documentRag) => {
-    let documentHeader = `
-      <div class="project-search-metadata col-12">
-          <div class="d-flex justify-content-between mb-2">
-              <h3>
-                  <span class="badge text-bg-dark">
-                      <a class="text-white" href="${documentRag.document.url_document}" target="_blank">${documentRag.document.procedure_type}</a>
-                  </span>
-              </h3>
-          </div>
-          <div class="ms-auto mt-3 text-start mb-3">
-              <div>
-                  <b>${documentRag.document.decision_type}</b>, du ${documentRag.document.decision_date}
-                  <b>Result:</b> ${documentRag.document.result}
+      // Render the sorted results
+      ragData.forEach((documentRag) => {
+        let documentHeader = `
+          <div class="project-search-metadata col-12">
+              <div class="d-flex justify-content-between mb-2">
+                  <h3>
+                      <span class="badge text-bg-dark">
+                          <a class="text-white" href="${documentRag.document.url_document}" target="_blank">${documentRag.document.procedure_type}</a>
+                      </span>
+                  </h3>
+              </div>
+              <div class="ms-auto mt-3 text-start mb-3">
+                  <div>
+                      <b>${documentRag.document.decision_type}</b>, du ${documentRag.document.decision_date}
+                      <b>Result:</b> ${documentRag.document.result}
+                  </div>
               </div>
           </div>
-      </div>
-    `;
+        `;
 
-    let documentStandards = `
-      <div class="mb-2">
-        <b>Normes:</b> ${documentRag.document.standards}
-      </div>
-    `;
-    let documentAns = `
-    <div class="mb-2">
-          <b>Answer: </b>
-          ${documentRag.answer}
-    </div>
-    `;
-    let documentCitation = `
-      <div class="mb-5 ms-auto">
-          <div>
-              <b>Highlighted in document: </b>
-              ${documentRag.citation}
+        let documentStandards = `
+          <div class="mb-2">
+            <b>Normes:</b> ${documentRag.document.standards}
           </div>
-      </div>
-    `;
-    const documentDivisor = `
-       <div class="row mb-2">
-          <hr />
-      </div>
-    `;
-    let documentRow = documentHeader;
+        `;
+        let documentAns = `
+        <div class="mb-2">
+              <b>Answer: </b>
+              ${documentRag.answer}
+        </div>
+        `;
+        let documentCitation = `
+          <div class="mb-5 ms-auto">
+              <div>
+                  <b>Highlighted in document: </b>
+                  ${documentRag.citation}
+              </div>
+          </div>
+        `;
+        const documentDivisor = `
+          <div class="row mb-2">
+              <hr />
+          </div>
+        `;
+        let documentRow = documentHeader;
 
-    if (documentRag.document.standards != "") {
-      documentRow += documentStandards;
+        if (documentRag.document.standards != "") {
+          documentRow += documentStandards;
+        }
+
+        if (
+          documentRag.answer === "No content available." ||
+          documentRag.answer === "Error generating response." ||
+          documentRag.answer === "Réponse non disponible."
+        ) {
+          {% if natural_language_query == "" %}
+            documentRow += documentAns + documentDivisor;
+          {% else %}
+            documentRow = "";
+          {% endif %}
+        } else {
+          documentRow += documentAns + documentCitation + documentDivisor;
+        }
+
+        answersContainer.insertAdjacentHTML("beforeend", documentRow);
+      });
+
+      show_table();
     }
 
-    if (
-      documentRag.answer === "No content available." ||
-      documentRag.answer === "Error generating response." ||
-      documentRag.answer === "Réponse non disponible."
-    ) {
-      {% if natural_language_query == "" %}
-        documentRow += documentAns + documentDivisor;
-      {% else %}
-        documentRow = "";
-      {% endif %}
-    } else {
-      documentRow += documentAns + documentCitation + documentDivisor;
-    }
-
-    answersContainer.insertAdjacentHTML("beforeend", documentRow);
-  });
-
-  show_table();
-}
-
-  document.addEventListener("DOMContentLoaded", function() {
-    checkStatus();
-  });
+    document.addEventListener("DOMContentLoaded", function() {
+      checkStatus();
+    });
 
   </script>
 {% endblock jscode %}
