@@ -16,7 +16,13 @@ from literev.libs.update_project import (
     estimate_new_documents,
     get_actual_number_documents,
 )
-from literev.models import Cluster, Document, Project, ProjectRefinement
+from literev.models import (
+    Cluster,
+    Document,
+    Project,
+    ProjectRAG,
+    ProjectRefinement,
+)
 from literev.task_plotting import get_color_map
 from literev.tasks import (
     get_shared_projects_ids,
@@ -318,3 +324,8 @@ def projectpage_load_final_results(user, project: Project) -> dict[str, Any]:
         )
 
     return context_data
+
+
+def remove_rag_history(project: Project, rag_id: int) -> None:
+    """Removes a RAG entry if it belongs to the specified project"""
+    ProjectRAG.objects.filter(project=project, id=rag_id).delete()

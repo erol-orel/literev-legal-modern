@@ -28,6 +28,7 @@ from literev.libs.project_workflows import (
     handle_filters_submission,
     prepare_update_context,
     projectpage_load_final_results,
+    remove_rag_history,
     validate_project_access,
 )
 from literev.libs.select_functions import (
@@ -725,6 +726,13 @@ def rag(
 
     refinement_id = last_refinement.id if last_refinement else 0
     iteration_id = last_iteration.id if last_iteration else 0
+
+    if request.method == "POST" and "remove-rag-id" in request.POST:
+        rag_id = int(request.POST["remove-rag-id"])
+        remove_rag_history(project, rag_id)
+        return redirect(
+            reverse("project-rag-page", kwargs={"project_id": project_id})
+        )
 
     context = {
         "project": project,

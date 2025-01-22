@@ -118,7 +118,6 @@
       </div>
     </div>
   {% endif %}
-
   <div class="container pb-5 px-4"
        id="history-questions">
     <h3 class="text-center"
@@ -137,6 +136,9 @@
           <th scope="col">
             Created At
           </th>
+          <th scope="col">
+            Remove
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -154,10 +156,26 @@
             <td>
               {{ rag.created_at|date:"Y-m-d H:i:s" }}
             </td>
+            <td>
+              <form method="post"
+                    action="{% url 'project-rag-page' project_id=project_id %}"
+                    class="d-inline">
+                {% csrf_token %}
+                <input type="hidden"
+                       name="remove-rag-id"
+                       value="{{ rag.id }}" />
+                <button type="submit"
+                        class="btn btn-danger btn-sm px-2 py-1"
+                        style="font-size: 0.7rem"
+                        onclick="return confirm('Are you sure you want to remove this asked question?')">
+                  X
+                </button>
+              </form>
+            </td>
           </tr>
         {% empty %}
           <tr>
-            <td colspan="3"
+            <td colspan="4"
                 class="text-center text-muted">
               No RAG entries found.
             </td>
