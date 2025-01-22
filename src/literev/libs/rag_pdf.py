@@ -47,6 +47,16 @@ def ret_cache(func: Callable[str, list[str]]) -> Callable[str, list[str]]:
 
 
 class PDFRAG:
+    """Run RAG on documents."""
+
+    template_prompt = (
+        "Based on the given context, answer to this question: `{query}`. "
+        "If no information is available in the context, "
+        "return `Réponse non disponible`, "
+        "otherwise, give your answer in only one sentence in french with "
+        "the most relevant information. Context: `{context}`"
+    )
+
     def __init__(self, project_rag_id: int, document_ids: list[int]) -> None:
         """Initialize the processor with project RAG ID and document IDs."""
         self.project_rag = ProjectRAG.objects.get(id=project_rag_id)
@@ -69,19 +79,6 @@ class PDFRAG:
         self.status = "in-progress"
 
         documents = Document.objects.filter(id__in=self.document_ids)
-
-        template_prompt = (
-            "Vous êtes un assistant de réponse aux questions."
-            "Utilisez le contexte suivant pour répondre à la "
-            "question posée avec précision et concision."
-            "Pour les questions fermées (oui/non), répondez avec un seul mot, "
-            "par exemple `Oui` ou `Non`."
-            "Pour les questions ouvertes, répondez par une seule phrase "
-            "concise expliquant la réponse. Si vous ne connaissez pas la "
-            "réponse ou si elle n'est pas dans le contexte fourni, "
-            "dites simplement `Réponse non disponible`."
-            "\nQuestion: ```{query}```\nContexte: ```{context}```"
-        )
 
         counter = 0
         if max_doc_ans:
@@ -113,8 +110,9 @@ class PDFRAG:
                 generation = OpenAIGen(
                     api_key=settings.OPENAI_API_KEY,
                     model_name="gpt-4o-mini",
-                    prompt_template=template_prompt,
+                    prompt_template=self.template_prompt,
                     temperature=0,
+                    output_max_length=12800,
                     cache=GEN_CACHE,
                 )
 

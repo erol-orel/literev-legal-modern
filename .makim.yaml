@@ -64,6 +64,7 @@ groups:
           REDIS_HOST: localhost
           SUGAR_ENV: test
         run: |
+          rm -rf /tmp/rago
           sugar compose-ext start --options -d
 
           COVERAGE_FLAG=${{ "--cov-append" if not args.clean_cov else "" }}

@@ -6308,14 +6308,14 @@ cffi = {version = "*", markers = "implementation_name == \"pypy\""}
 
 [[package]]
 name = "rago"
-version = "0.10.1"
+version = "0.11.1"
 description = "Rago is a lightweight framework for RAG"
 optional = false
 python-versions = "<4,>=3.9"
 groups = ["main"]
 files = [
-    {file = "rago-0.10.1-py3-none-any.whl", hash = "sha256:014d972328260e4e885e96bd300c7b37425fba3e0e78d582e31cdb86f18d66d6"},
-    {file = "rago-0.10.1.tar.gz", hash = "sha256:6fb2b4f0ea254cc3b7707be5ee1270eac2b2cd528068fb325430a28879b1eb1d"},
+    {file = "rago-0.11.1-py3-none-any.whl", hash = "sha256:738a8580676777cbf23cc7c3cfa5f45a34353dc55b936dea7009fdf0bef478a6"},
+    {file = "rago-0.11.1.tar.gz", hash = "sha256:3a5a5095eb8a936f14312e0563b230073b270081dac0a3d2b64c95b8f7375f22"},
 ]
 
 [package.dependencies]
@@ -8584,4 +8584,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.11"
-content-hash = "292a91d544090cc5a476630f804d76676b85c9fe5f4993e5e0f7459f12fd765f"
+content-hash = "9f93aa72f81eabcaa50ca9033a3a7acbd5470b65042c1f2c9854ae7cc891f738"
