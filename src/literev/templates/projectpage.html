@@ -910,11 +910,10 @@
 {% endblock content %}
 
 {% block jscode %}
-  <script src="{% static "js/generate_summary.js" %}"></script>
-  <script src="{% static "js/utils.js" %}"></script>
-  <script src="{% static "js/select_functions.js" %}" defer> </script>
-
-  <script src="{% static "js/filter_functions.js" %}"> </script>
+  <script src="{% static 'js/generate_summary.js' %}"></script>
+  <script src="{% static 'js/utils.js' %}"></script>
+  <script src="{% static 'js/checkbox_selection.js' %}"></script>
+  <script src="{% static 'js/filter_functions.js' %}"></script>
 
   {% if confirm_update_project %}
     <script>
