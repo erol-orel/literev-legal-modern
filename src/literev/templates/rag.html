@@ -346,9 +346,9 @@
         }
 
         if (
-          documentRag.answer === "No content available." ||
-          documentRag.answer === "Error generating response." ||
-          documentRag.answer === "Réponse non disponible."
+          documentRag.answer.includes("No content available") ||
+          documentRag.answer.includes("Error generating response") ||
+          documentRag.answer.includes("Réponse non disponible")
         ) {
           {% if natural_language_query == "" %}
             documentRow += documentAns + documentDivisor;
