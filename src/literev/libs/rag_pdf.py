@@ -11,8 +11,9 @@ from typing import Callable, cast
 
 from django.conf import settings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from pydantic import BaseModel, Field
 from rago import Rago
-from rago.augmented import SpaCyAug
+from rago.augmented import OpenAIAug
 from rago.extensions.cache import CacheFile
 from rago.generation import OpenAIGen
 from rago.retrieval import StringRet
@@ -30,6 +31,19 @@ GEN_CACHE = CacheFile(target_dir=TMP_DIR / "gen")
 # TODO:update for contenttext instead fo pdf document
 logging.basicConfig(level=settings.LOGGING_LEVEL)
 logger = logging.getLogger(__name__)
+
+
+class RAGAnswer(BaseModel):
+    """Model for RAG Answers."""
+
+    answer: str = Field(
+        ...,
+        description="The answer",
+    )
+    highlight: str = Field(
+        ...,
+        description="The most relevant context.",
+    )
 
 
 @wraps
@@ -53,8 +67,10 @@ class PDFRAG:
         "Based on the given context, answer to this question: `{query}`. "
         "If no information is available in the context, "
         "return `Réponse non disponible`, "
-        "otherwise, give your answer in only one sentence in french with "
-        "the most relevant information. Context: `{context}`"
+        "otherwise, give your answer in only one sentence in french with"
+        "the most relevant information. Context: `{context}`.\n"
+        "Also return an extract of the context, approximately 5 sentences, "
+        "from where in the context the answer was generated as a highlight."
     )
 
     def __init__(self, project_rag_id: int, document_ids: list[int]) -> None:
@@ -63,7 +79,6 @@ class PDFRAG:
         self.project_rag.status = "in-progress"
         self.project_rag.save()
         self.document_ids = document_ids
-        # self.pdf_handler = PDFHandler()
 
     @ret_cache
     def split_text_into_chunks(self, text: str) -> list[str]:
@@ -103,8 +118,11 @@ class PDFRAG:
                     )
                     continue
 
-                augmented = SpaCyAug(
-                    top_k=5, model_name="fr_core_news_lg", cache=AUG_CACHE
+                augmented = OpenAIAug(
+                    api_key=settings.OPENAI_API_KEY,
+                    top_k=5,
+                    model_name="text-embedding-ada-002",
+                    cache=AUG_CACHE,
                 )
 
                 generation = OpenAIGen(
@@ -112,7 +130,13 @@ class PDFRAG:
                     model_name="gpt-4o-mini",
                     prompt_template=self.template_prompt,
                     temperature=0,
-                    output_max_length=12800,
+                    output_max_length=16384,
+                    api_params={
+                        "top_p": 0.0,
+                        "frequency_penalty": 0.0,
+                        "presence_penalty": 0.0,
+                    },
+                    structured_output=RAGAnswer,
                     cache=GEN_CACHE,
                 )
 
@@ -122,19 +146,17 @@ class PDFRAG:
                     generation=generation,
                 )
                 result = rag.prompt(self.project_rag.query)
-
-                citation: list[str] = rag.logs.get("augmented", {}).get(
-                    "result", []
-                )
+                answer = result.answer.strip()
+                highlight = result.highlight.strip()
 
                 ProjectDocumentRAG.objects.create(
                     project_rag=self.project_rag,
                     document=document,
-                    citation=citation[0] if citation else "",
-                    answer=result.strip(),
+                    citation=highlight,
+                    answer=answer,
                 )
 
-                if result.strip() != "Réponse non disponible.":
+                if "réponse non disponible" not in answer.lower():
                     counter += 1
 
                 if max_doc_ans and counter >= max_doc_ans:

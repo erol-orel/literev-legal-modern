@@ -69,7 +69,7 @@ groups:
 
           COVERAGE_FLAG=${{ "--cov-append" if not args.clean_cov else "" }}
           # note: we should increase cov-fail-under to 85!
-          COVERAGE_FLAG="${COVERAGE_FLAG} --cov-fail-under=20"
+          COVERAGE_FLAG="${COVERAGE_FLAG} --cov-fail-under=35"
           COVERAGE_FLAG="${COVERAGE_FLAG} --cov-report term-missing"
           COVERAGE_FLAG="${COVERAGE_FLAG} --no-cov-on-fail"
 

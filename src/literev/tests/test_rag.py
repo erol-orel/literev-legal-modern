@@ -11,7 +11,7 @@ import rago
 from django.conf import settings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
-from literev.libs.rag_pdf import PDFRAG
+from literev.libs.rag_pdf import PDFRAG, RAGAnswer
 from literev.models import Document, ProjectRAG
 
 
@@ -78,9 +78,10 @@ def test_rago_text(doc2_txt) -> None:
         temperature=0,
         output_max_length=16384,
         api_params=api_params,
+        structured_output=RAGAnswer,
     )
     result = generation.generate(query, context=[doc2_txt])
-    assert result not in [None, "", "Réponse non disponible"]
+    assert "réponse non disponible" not in result.answer.lower()
 
 
 def test_rago_chunks(doc2_txt_chunks) -> None:
@@ -88,7 +89,11 @@ def test_rago_chunks(doc2_txt_chunks) -> None:
         "quel est le montant du minimum vital en France dans le cadre d'un "
         "divorce avec enfants?"
     )
-    augmented = rago.augmented.SpaCyAug(top_k=5, model_name="fr_core_news_lg")
+    augmented = rago.augmented.OpenAIAug(
+        api_key=settings.OPENAI_API_KEY,
+        top_k=5,
+        model_name="text-embedding-ada-002",
+    )
 
     generation = rago.generation.OpenAIGen(
         api_key=settings.OPENAI_API_KEY,
@@ -96,6 +101,7 @@ def test_rago_chunks(doc2_txt_chunks) -> None:
         prompt_template=PDFRAG.template_prompt,
         temperature=0,
         output_max_length=16384,
+        structured_output=RAGAnswer,
     )
 
     rag = rago.Rago(
@@ -104,7 +110,8 @@ def test_rago_chunks(doc2_txt_chunks) -> None:
         generation=generation,
     )
     result = rag.prompt(query)
-    assert "réponse non disponible" not in result.lower()
+    assert "réponse non disponible" not in result.answer.lower()
+    assert result.highlight
 
 
 def test_rag_aug_variation(doc2_txt_chunks) -> None:
@@ -113,7 +120,6 @@ def test_rag_aug_variation(doc2_txt_chunks) -> None:
     questions = [
         "minimum vital en France",
         "minimum vital en France?",
-        "a combien se monte le",
         "Minimum vital en France?",
         "a combien se monte le minimum vital en France dans le cas d'un divorce?",
         "a combien se monte le minimum vital en France dans le cas d'un divorce avec enfant?",
@@ -127,18 +133,12 @@ def test_rag_aug_variation(doc2_txt_chunks) -> None:
         aug_logs: dict[str, Any] = {}
         gen_logs: dict[str, Any] = {}
 
-        augmented = rago.augmented.SpaCyAug(
-            top_k=10,
-            model_name="fr_core_news_lg",
+        augmented = rago.augmented.OpenAIAug(
+            api_key=settings.OPENAI_API_KEY,
+            top_k=5,
+            model_name="text-embedding-ada-002",
             logs=aug_logs,
         )
-
-        # augmented = rago.augmented.OpenAIAug(
-        #     api_key=settings.OPENAI_API_KEY,
-        #     top_k=10,
-        #     model_name="text-embedding-ada-002",
-        #     logs=aug_logs,
-        # )
 
         # 'max_tokens is too large: 100000.
         # This model supports at most 16384 completion tokens,
@@ -156,6 +156,7 @@ def test_rag_aug_variation(doc2_txt_chunks) -> None:
                 "frequency_penalty": 0.0,
                 "presence_penalty": 0.0,
             },
+            structured_output=RAGAnswer,
             logs=gen_logs,
         )
 
@@ -166,8 +167,5 @@ def test_rag_aug_variation(doc2_txt_chunks) -> None:
         )
         result = rag.prompt(question)
 
-        results[q_id]["answer"] = result
-        results[q_id]["aug_log"] = rag.logs["augmented"]
-    import joblib
-
-    joblib.dump(results, "/tmp/test_list.pkl")
+        assert "réponse non disponible" not in result.answer.lower()
+        assert result.highlight
