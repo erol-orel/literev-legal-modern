@@ -131,7 +131,7 @@
             Query
           </th>
           <th scope="col">
-            Documents Retrieved
+            Documents
           </th>
           <th scope="col">
             Created At
@@ -165,10 +165,12 @@
                        name="remove-rag-id"
                        value="{{ rag.id }}" />
                 <button type="submit"
-                        class="btn btn-danger btn-sm px-2 py-1"
-                        style="font-size: 0.7rem"
+                        name="submit"
+                        value="delete"
+                        style="font-size: 0.9rem"
+                        class="btn btn-danger text-white"
                         onclick="return confirm('Are you sure you want to remove this asked question?')">
-                  X
+                  <i class="fa-regular fa-trash-can"></i>
                 </button>
               </form>
             </td>
