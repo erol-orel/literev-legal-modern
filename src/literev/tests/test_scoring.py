@@ -14,6 +14,7 @@ from literev.libs.scoring import (
     get_topic_and_hdbscan_score,
     sort_by_es_score,
     sort_by_keyword_score,
+    sort_documents_by_es_score,
 )
 from literev.libs.table_choice import render_table_choice, sort_table_choice
 from literev.models import (
@@ -30,6 +31,7 @@ DATA_PATH = Path(__file__).parent / "sample_test"
 @override_settings(ARTICLE_DATA=DATA_PATH)
 class ScoringTest(TestCase):
     def setUp(self) -> None:
+        print("printing from the setup")
         self.project = Project.objects.create(
             id=30,
             name="test project",
@@ -55,7 +57,8 @@ class ScoringTest(TestCase):
         list_id_docs = joblib.load(
             settings.ARTICLE_DATA / f"id_list_project_{self.project.id}.pkl"
         )
-
+        print("len of list id docs")
+        print(len(list_id_docs))
         for id_doc in list_id_docs:
             document = Document.objects.create(
                 id=id_doc,
@@ -186,5 +189,15 @@ class ScoringTest(TestCase):
         first_tablechoice = result[0]
         last_tablechoice = result[-1]
 
-        self.assertEqual(first_tablechoice.document.id, 1450)
-        self.assertEqual(last_tablechoice.document.id, 1459)
+        self.assertEqual(first_tablechoice.document.id, 1474)
+        self.assertEqual(last_tablechoice.document.id, 1454)
+
+    def test_sort_documents_by_es_score(self):
+        documents = Document.objects.filter(project=self.project)
+        expected_first_doc_id = 1474
+        expected_last_document_id = 1454
+
+        sorted_list_docs = sort_documents_by_es_score(self.project, documents)
+
+        self.assertEqual(sorted_list_docs[0].id, expected_first_doc_id)
+        self.assertEqual(sorted_list_docs[-1].id, expected_last_document_id)

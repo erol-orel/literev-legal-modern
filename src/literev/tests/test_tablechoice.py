@@ -3,6 +3,7 @@ from django.test import TestCase, TransactionTestCase
 
 from literev.libs.select_functions import create_refinement
 from literev.libs.table_choice import (
+    create_tablechoice_rag_iteration,
     highlight_words,
     update_checked_document_page,
     update_new_table_choice,
@@ -109,3 +110,12 @@ class TableSelectCheckButtons(TransactionTestCase):
         self.assertEqual(expected_count_yes, result_count_yes)
         self.assertEqual(expected_count_no, result_count_no)
         self.assertEqual(expected_count_maybe, result_count_maybe)
+
+    def test_create_tablechoice_rag_iteration(self):
+        create_tablechoice_rag_iteration(self.user, self.project)
+
+        number_created_tablechoice = TableChoice.objects.filter(
+            project=self.project
+        ).count()
+
+        self.assertEqual(number_created_tablechoice, 10)
