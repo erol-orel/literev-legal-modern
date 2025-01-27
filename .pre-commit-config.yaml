@@ -86,9 +86,9 @@ repos:
       pass_filenames: true
       types:
         - python
-    # TODO: mypy is having problems with django check why
+
     # - id: mypy
     #   name: mypy
-    #   entry: mypy src
+    #   entry: mypy .
     #   language: system
     #   pass_filenames: false

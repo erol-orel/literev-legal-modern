@@ -23,7 +23,7 @@ env:
   ES_HOST_URL: "http://95.216.201.202:9200"
   ES_PASSWORD: "I39hAE_bvikcbRHNhyvf"
   ES_USERNAME: "elastic"
-  MEDIA_ROOT: /opt/data/literev/static/media
+  MEDIA_ROOT: /tmp/literev/static/media
   FRONTEND_HOST_PORT: 8000
   POSTGRES_PORT: 35432
   POSTGRES_HOST: localhost  # literev-postgres
@@ -33,17 +33,17 @@ env:
   POSTGRES_DB_LITEREV: literev
   POSTGRES_USER_LITEREV: literev
   POSTGRES_PASSWORD_LITEREV: literevqsx3409po
-  POSTGRES_DATA: /opt/data/literev/postgres
-  POSTGRES_HOST_BACKUP: /opt/data/literev/backup
+  POSTGRES_DATA: /tmp/literev/postgres
+  POSTGRES_HOST_BACKUP: /tmp/literev/backup
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   CERTBOT_EMAIL: ci@literev.unige.ch
   CERTBOT_DOMAIN: literev.unige.ch
-  STATIC_ROOT: /opt/data/literev/static
-  LITEREV_CACHE_DIR: /opt/data/literev/cache
+  STATIC_ROOT: /tmp/literev/static
+  LITEREV_CACHE_DIR: /tmp/literev/cache
   ACTIONS_RUNNER_DEBUG: true
   PUBMED_REQUEST_TIME_INTERVAL: 0.5
   PUBMEDCENTRAL_REQUEST_TIME_INTERVAL: 0.5
-  CONTAINER_VOLUME_DATA_DIR: /opt/data/literev
+  CONTAINER_VOLUME_DATA_DIR: /tmp/literev
   USE_CONTAINER: False
   SUGAR_ENV: test
   REDIS_PORT: 6379
@@ -217,8 +217,6 @@ jobs:
         export DOCKER_PROJECT_NAME=$RANDOM
         export HOST_UID=${HOST_UID}
         export HOST_GID=${HOST_GID}
-        export USE_CONTAINER=True
-        cd /home/runner/work/literev-legal/literev-legal/
         envsubst < .env.tpl > .env
 
     - name: Install dependencies
@@ -269,7 +267,6 @@ jobs:
         export DOCKER_PROJECT_NAME=$RANDOM
         export HOST_UID=${HOST_UID}
         export HOST_GID=${HOST_GID}
-        cd /home/runner/work/literev-legal/literev-legal/
         envsubst < .env.tpl > .env
 
     - name: Install dependencies

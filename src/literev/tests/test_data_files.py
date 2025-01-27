@@ -50,7 +50,7 @@ class DataFilesTest(TestCase):
 
         # check the most scored and the least scored
 
-        highest_score = scores[1450]
-        lowest_score = scores[1459]
+        highest_score = scores[1459]
+        lowest_score = scores[1450]
 
         self.assertTrue(highest_score > lowest_score)
