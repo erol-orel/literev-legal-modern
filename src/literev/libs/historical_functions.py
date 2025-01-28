@@ -42,6 +42,24 @@ def get_projects_list(project_id_list: list[int]) -> QuerySet[Project]:
 def filter_and_sort_projects(
     user: User, keywords: list[str], sort_type: str
 ) -> list[Project]:
+    """
+    Filter project by keywords and sort by ClusterElements count.
+
+    Parameters
+    ----------
+    user: User
+        user object owner.
+    keywords : list[str]
+        A list of keywords.
+    sort_type : str
+        A string indicating the way of sorting.
+
+    Returns
+    -------
+    Queryset[Project]
+        A sorted QuerySet that has Project objects
+
+    """
     for keyword in keywords:
         key_regex = r".*" + keyword + r".*"
         projects_queryset = Project.objects.filter(
@@ -76,6 +94,22 @@ def filter_and_sort_projects(
 
 
 def sort_all_projects(user: User, sort_type: str) -> list[Project]:
+    """
+    Sorts project by ClusterElements count.
+
+    Parameters
+    ----------
+    user: User
+        user object owner.
+    sort_type : str
+        A string indicating the way of sorting.
+
+    Returns
+    -------
+     Queryset[Project]
+        A sorted QuerySet that has Project objects
+
+    """
     projects_query_set = Project.objects.filter(user=user, is_finish=True)
 
     project_id_count = {}

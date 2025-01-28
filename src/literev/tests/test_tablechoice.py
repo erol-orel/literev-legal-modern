@@ -5,6 +5,7 @@ from literev.libs.select_functions import create_refinement
 from literev.libs.table_choice import (
     create_tablechoice_rag_iteration,
     highlight_words,
+    highlight_words_topic,
     update_checked_document_page,
     update_new_table_choice,
 )
@@ -18,6 +19,7 @@ from literev.models import (
 
 class HighligthKeywords(TestCase):
     def test_highlight_words(self) -> None:
+        """Tests highlight words function"""
         sample = """The U.S. highlight national government is a presidential
             federal republic and liberal democracy.
             random tags: <b class="highlight">Senate</b>, Liberal,"""
@@ -30,6 +32,14 @@ class HighligthKeywords(TestCase):
 
         result = highlight_words(sample, words_to_highlight, style_class)
 
+        self.assertEqual(expected, result)
+
+    def test_highlight_word_topic(self):
+        """Tests highlight words function"""
+        sample = "French history is large"
+        expected = '<span style="background-color: color-code40">French</span> history is large'
+        result = highlight_words_topic(sample, ["french"], "color-code")
+        print(result)
         self.assertEqual(expected, result)
 
 

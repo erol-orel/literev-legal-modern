@@ -57,8 +57,7 @@ class ScoringTest(TestCase):
         list_id_docs = joblib.load(
             settings.ARTICLE_DATA / f"id_list_project_{self.project.id}.pkl"
         )
-        print("len of list id docs")
-        print(len(list_id_docs))
+
         for id_doc in list_id_docs:
             document = Document.objects.create(
                 id=id_doc,
