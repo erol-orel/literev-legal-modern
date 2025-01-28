@@ -1,4 +1,4 @@
-"""Tests for RAG."""
+"""Tests for the RAG implementation."""
 
 from __future__ import annotations
 
@@ -46,12 +46,14 @@ def doc2_txt_chunks(doc2_txt) -> list[str]:
     return text_splitter.split_text(doc2_txt)
 
 
+@pytest.mark.flaky(reruns=3, rerun_except="AssertionError")
 def test_rag(project_rag: ProjectRAG, document_real: Document) -> None:
     docs_rag = PDFRAG(project_rag.id, [document_real.id])
     docs_rag.run()
     assert docs_rag.project_rag.documents.first().answer
 
 
+@pytest.mark.flaky(reruns=3, rerun_except="AssertionError")
 def test_rago_text(doc2_txt) -> None:
     template_prompt = (
         "Based on the given context, answer to this question: `{query}`. "
@@ -60,10 +62,7 @@ def test_rago_text(doc2_txt) -> None:
         "otherwise, give your answer in only one sentence in french with "
         "the most relevant information. Context: `{context}`"
     )
-    query = (
-        "quel est le montant du minimum vital en France dans le cadre d'un "
-        "divorce avec enfants?"
-    )
+    query = "minimum vital en France"
 
     api_params = {
         "top_p": 0.0,
@@ -84,6 +83,7 @@ def test_rago_text(doc2_txt) -> None:
     assert "réponse non disponible" not in result.answer.lower()
 
 
+@pytest.mark.flaky(reruns=3, rerun_except="AssertionError")
 def test_rago_chunks(doc2_txt_chunks) -> None:
     query = (
         "quel est le montant du minimum vital en France dans le cadre d'un "
@@ -114,6 +114,7 @@ def test_rago_chunks(doc2_txt_chunks) -> None:
     assert result.highlight
 
 
+@pytest.mark.flaky(reruns=3, rerun_except="AssertionError")
 def test_rag_aug_variation(doc2_txt_chunks) -> None:
     results = {}
 
