@@ -45,7 +45,7 @@ def highlight_words(
     words_to_highlight : list[str]
         list of word to be highlighted.
     style_class : str
-        style class to be assined to the word,
+        style class to be assigned to the word,
         this class should exist in the css file.
 
     Returns
@@ -351,7 +351,7 @@ def create_iteration(
     )
 
 
-def get_json_iterations_render(
+def get_iterations_render(
     refinement_id: int,
     active_iteration_id: int,
 ) -> list[dict[str, int | bool | str]]:
@@ -578,7 +578,7 @@ def remove_iteration_get_parent(
 
 
 def update_new_table_choice(
-    user: User, project: Project, document_id_list: list[int]
+    user: User, project: Project, document_ids_list: list[int]
 ) -> None:
     """Removes old TableChoice objects related with project and user
     and create a new TableChoices objects.
@@ -599,7 +599,7 @@ def update_new_table_choice(
 
     batch_size = 1000
 
-    for document_id_list in divide_in_chunks(document_id_list, batch_size):
+    for document_id_list in divide_in_chunks(document_ids_list, batch_size):
         table_choice_objs = []
 
         for document_id in document_id_list:
@@ -681,7 +681,7 @@ def reset_table_choice(
 def update_document_to_display_table_choice(
     user: User,
     project: Project,
-) -> bool:
+) -> None:
     """
     Sets `to_display=False` to all no checked (no selected) documents.
     """

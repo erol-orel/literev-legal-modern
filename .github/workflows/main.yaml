@@ -53,7 +53,7 @@ env:
 jobs:
   check_branch:
     name: Check if branch is ahead of main
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Git checkout
         uses: actions/checkout@v4
@@ -69,7 +69,7 @@ jobs:
           exit 1; fi
 
   test:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       matrix:
@@ -180,7 +180,7 @@ jobs:
         convention-name: conventionalcommits
 
   linter:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
       matrix:
@@ -226,7 +226,7 @@ jobs:
       run: makim tests.lint
 
   containers:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       matrix:

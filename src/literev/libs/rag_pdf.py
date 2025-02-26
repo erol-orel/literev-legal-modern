@@ -27,7 +27,6 @@ RET_CACHE = CacheFile(target_dir=TMP_DIR / "ret")
 AUG_CACHE = CacheFile(target_dir=TMP_DIR / "aug")
 GEN_CACHE = CacheFile(target_dir=TMP_DIR / "gen")
 
-# from workflow.libs.pdf import PDFHandler
 # TODO:update for contenttext instead fo pdf document
 logging.basicConfig(level=settings.LOGGING_LEVEL)
 logger = logging.getLogger(__name__)
@@ -48,7 +47,7 @@ class RAGAnswer(BaseModel):
 
 @wraps
 def ret_cache(func: Callable[str, list[str]]) -> Callable[str, list[str]]:
-    cache = CacheFile(target_dir=RET_CACHE)
+    cache = RET_CACHE
 
     def wrapper(text: str) -> list[str]:
         cached = cache.load(text)
@@ -56,6 +55,7 @@ def ret_cache(func: Callable[str, list[str]]) -> Callable[str, list[str]]:
             return cast(list[str], cached)
         result = func(text)
         cache.save(text, result)
+        return result
 
     return wrapper
 

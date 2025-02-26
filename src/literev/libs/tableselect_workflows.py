@@ -11,7 +11,7 @@ from literev.libs.project_workflows import validate_project_access
 from literev.libs.select_functions import download_finalcsv
 from literev.libs.table_choice import (
     get_iteration,
-    get_json_iterations_render,
+    get_iterations_render,
     iterate_check_list,
     remove_iteration_get_parent,
     render_table_choice,
@@ -171,7 +171,7 @@ class TableSelectHandler:
                 "has_es_scores": has_es_scores,
                 "hdbscan_scores": has_hdbscan_scores,
                 "sort_by": self.order_by,
-                "iterations": get_json_iterations_render(
+                "iterations": get_iterations_render(
                     self.refinement_id, self.iteration_id
                 ),
                 "number_Article_initial": self.tablechoice.filter(
