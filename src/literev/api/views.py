@@ -55,18 +55,56 @@ class ConvertToBooleanQueryAPIView(APIView):
         Response
             A JSON response containing the translated boolean query.
         """
+        # PROMPT_TEMPLATE = """
+        # Translate the following question into a boolean query suitable for jurisprudence.
+        # Adhere to the following rules:
+        # - Ensure all key concepts and terms from the question are included in the query.
+        # - Use "AND" to combine distinct concepts.
+        # - Use "OR" to include synonyms or related terms for a concept.
+        # - Use "NOT" to exclude terms, where negations such as "sans" should exclude the associated terms.
+        # - "NOT" must directly precede the term it excludes, and avoid using "AND NOT".
+        # - Wrap multi-word terms (composed words) in double quotes.
+        # - Use parentheses to group terms where appropriate.
+        # - Ensure the boolean query is valid and includes all relevant terms from the question, properly handling negations like "sans."
+        # - Return only the boolean query, without any explanation or extra text.
+
+        # Question:
+        # {context}
         PROMPT_TEMPLATE = """
-        Translate the following question into a boolean query suitable for jurisprudence.
-        Adhere to the following rules:
-        - Ensure all key concepts and terms from the question are included in the query.
-        - Use "AND" to combine distinct concepts.
-        - Use "OR" to include synonyms or related terms for a concept.
-        - Use "NOT" to exclude terms, where negations such as "sans" should exclude the associated terms.
-        - "NOT" must directly precede the term it excludes, and avoid using "AND NOT".
-        - Wrap multi-word terms (composed words) in double quotes.
-        - Use parentheses to group terms where appropriate.
-        - Ensure the boolean query is valid and includes all relevant terms from the question, properly handling negations like "sans."
-        - Return only the boolean query, without any explanation or extra text.
+        Translate the following question into a Boolean query suitable for jurisprudence.
+        Strictly follow these rules to ensure accuracy, logical correctness, and reproducibility:
+        **GENERAL RULES:**
+        - Do NOT remove, modify, reorder, or omit any terms unless necessary for logical correctness.
+        - Ensure all key concepts and terms from the question are included in the Bolean query.
+        - Ensure the boolean query is valid and includes all relevant terms from the question.
+        - Wrap multi-word phrases in double quotes (e.g., `"breach of contract"`).
+        - NEVER wrap single-word terms in double quotes.
+        - Boolean operators MUST be UPPER CASE: AND, OR, NOT.
+        - Use `AND` to combine distinct legal concepts.
+        - Group synonyms with `OR`, wrapped in parentheses, even with only two terms.
+        - Do NOT use `AND` inside `OR` groups.
+        - Avoid extra or unnecessary parentheses.
+        - Maintain the original term order unless required for clarity.
+        - The SAME input MUST ALWAYS produce the SAME Boolean query.
+        **NEGATIONS (`NOT`):**
+        - Express negations like `sans`, `excluding`, or `without` using `NOT`.
+        - Multi-word exclusions MUST be in double quotes (e.g., `NOT "faute grave"`).
+        - Apply `NOT` INDIVIDUALLY to each excluded term.
+        - If the excluded terms form a multi-word phrase, they MUST remain enclosed in double quotes.
+        - Correct: `"résolution amiable" AND "obligation contractuelle" NOT "défaut de paiement"`
+        - Incorrect: `("résolution amiable" AND "obligation contractuelle") NOT défaut de paiement`
+        - NEVER use `AND NOT` in the Boolean query.
+        - Correct: `indemnisation NOT "retard injustifié"`
+        - Incorrect: `indemnisation AND NOT "retard injustifié"`
+        **SYNONYMS (`OR`):**
+        - Group related terms inside parentheses with `OR`.
+        - Example: `("préjudice moral" OR "dommage corporel") AND "responsabilité civile"`.
+        **LEGAL CONTEXT:**
+        - Preserve key legal expressions.
+        - Example: `"absence de consentement"` must be represented as `("absence de consentement" OR "défaut de consentement" OR "vice du consentement")`.
+        - Ensure precise, valid, and contextually accurate queries.
+
+        Return only the Boolean query, with no extra text.
 
         Question:
         {context}
@@ -80,6 +118,12 @@ class ConvertToBooleanQueryAPIView(APIView):
                 model_name="gpt-4o-mini",
                 api_key=api_key,
                 output_max_length=2048,
+                temperature=0,
+                api_params={
+                    "top_p": 0.0,
+                    "frequency_penalty": 0.0,
+                    "presence_penalty": 0.0,
+                },
             )
 
             result = gen.generate(query="", context=[natural_lenguage])

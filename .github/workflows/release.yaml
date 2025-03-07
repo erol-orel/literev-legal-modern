@@ -10,7 +10,7 @@ jobs:
   release:
     if: ${{ !github.event.pull_request.draft }}
     name: Release
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 20
 
     defaults:
@@ -18,12 +18,9 @@ jobs:
         shell: bash -el {0}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
-      - uses: mamba-org/setup-micromamba@v1
+      - uses: mamba-org/setup-micromamba@v2
         with:
           environment-file: conda/release.yaml
           condarc-file: .github/workflows/.condarc

@@ -1,4 +1,4 @@
-name: literev
+name: literev-release
 channels:
   - nodefaults
   - conda-forge

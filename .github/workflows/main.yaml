@@ -90,14 +90,19 @@ jobs:
         sudo apt-get update
         sudo apt-get install gettext-base
 
-    - uses: conda-incubator/setup-miniconda@v3
+    - uses: mamba-org/setup-micromamba@v2
       with:
-        miniconda-version: "latest"
         environment-file: conda/base.yaml
-        channels: conda-forge,nodefaults
-        activate-environment: literev-legal
-        auto-update-conda: true
-        conda-solver: libmamba
+        condarc-file: .github/workflows/.condarc
+        micromamba-binary-path: ${{ runner.temp }}/bin/micromamba
+        micromamba-root-path: ${{ runner.temp }}/micromamba
+        environment-name: literev
+        generate-run-shell: false
+        create-args: -v
+        init-shell: >-
+          bash
+        # cache-environment: true
+        post-cleanup: 'all'
 
     - name: Create environment variables files
       run: |
