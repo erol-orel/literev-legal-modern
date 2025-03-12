@@ -407,7 +407,7 @@ def projectpage(
             update_new_table_choice(
                 user=actual_user,
                 project=project,
-                document_id_list=document_pk_list,
+                document_ids_list=document_pk_list,
             )
 
             refinement_name = request.POST.get("refinement-name", "No name")
