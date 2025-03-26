@@ -9,8 +9,12 @@ from typing import Any, cast
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
-from django.http import HttpRequest, HttpResponse, JsonResponse
-from django.shortcuts import redirect, render
+from django.http import (
+    HttpRequest,
+    HttpResponse,
+    JsonResponse,
+)
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.generic import TemplateView
 
@@ -683,27 +687,42 @@ def historicalpage(request: HttpRequest) -> HttpResponse:
 
 @login_required(login_url="/accounts/login/")
 def rag(
-    request: HttpRequest,
-    project_id: int,
-    rag_id: int = 0,
+    request: HttpRequest, project_id: int, rag_id: int = 0
 ) -> HttpResponse:
-    context: dict[str, Any] = dict(
-        project_id=project_id,
-    )
-    context["natural_language_query"] = ""
+    user = cast(User, request.user)
 
     project = Project.objects.filter(id=project_id).first()
-
     if not project:
         return redirect(reverse("search"))
 
-    table_choice = TableChoice.objects.filter(
-        project=project,
-        user=cast(User, request.user),
-        is_check=True,
-    )
+    if request.method == "POST" and "remove-rag-id" in request.POST:
+        rag_to_remove_id = int(request.POST["remove-rag-id"])
+        remove_rag_history(project, rag_to_remove_id)
+        return redirect(
+            reverse("project-rag-page", kwargs={"project_id": project_id})
+        )
 
-    documents_ids = list(table_choice.values_list("document_id", flat=True))
+    project_rag = None
+    show_closed_stats = False
+
+    counts = {"oui": 0, "non": 0, "peut_etre": 0, "mixte": 0}
+    percentages = {"oui": 0, "non": 0, "peut_etre": 0, "mixte": 0}
+
+    if rag_id:
+        project_rag = get_object_or_404(
+            ProjectRAG, project_id=project_id, id=rag_id
+        )
+        stats = getattr(project_rag, "stats", None)
+
+        if stats and stats.classification_stats:
+            show_closed_stats = True
+            counts = stats.classification_stats.get("counts", {})
+            percentages = stats.classification_stats.get("percentages", {})
+
+    table_choices = TableChoice.objects.filter(
+        project=project, user=user, is_check=True
+    )
+    documents_ids = list(table_choices.values_list("document_id", flat=True))
 
     project_rags = (
         ProjectRAG.objects.filter(project=project)
@@ -724,29 +743,29 @@ def rag(
         else None
     )
 
-    refinement_id = last_refinement.id if last_refinement else 0
-    iteration_id = last_iteration.id if last_iteration else 0
-
-    if request.method == "POST" and "remove-rag-id" in request.POST:
-        rag_id = int(request.POST["remove-rag-id"])
-        remove_rag_history(project, rag_id)
-        return redirect(
-            reverse("project-rag-page", kwargs={"project_id": project_id})
-        )
-
     context = {
         "project": project,
         "project_rags": project_rags,
-        "project_rag_id": rag_id or 0,
+        "project_rag": project_rag,
+        "project_rag_id": project_rag.id if project_rag else 0,
         "project_id": project_id,
         "documents_ids": documents_ids,
         "number_documents": len(documents_ids),
-        "refinement_id": refinement_id,
-        "iteration_id": iteration_id,
+        "refinement_id": last_refinement.id if last_refinement else 0,
+        "iteration_id": last_iteration.id if last_iteration else 0,
+        "summary_answer": project_rag.summary_answer if project_rag else "",
+        "natural_language_query": project.natural_language_query or "",
+        "classification_total": sum(counts.values()),
+        "oui_count": counts["oui"],
+        "non_count": counts["non"],
+        "peut_etre_count": counts["peut_etre"],
+        "mixte_count": counts["mixte"],
+        "oui_percent": percentages["oui"],
+        "non_percent": percentages["non"],
+        "peut_etre_percent": percentages["peut_etre"],
+        "mixte_percent": percentages["mixte"],
+        "show_closed_stats": show_closed_stats,
     }
-
-    if project.natural_language_query:
-        context["natural_language_query"] = project.natural_language_query
 
     return render(request, "rag.html", context)
 

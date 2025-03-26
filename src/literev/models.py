@@ -131,6 +131,7 @@ class ProjectRAG(models.Model):
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default="in-progress"
     )
+    summary_answer = models.TextField(null=True, blank=True)
 
     def __str__(self) -> str:
         return (
@@ -177,3 +178,26 @@ class ProjectDocumentRAG(models.Model):
             f"ProjectDocumentRAG for ProjectRAG ID {self.project_rag.id} - "
             f"Document ID {self.document.id}"
         )
+
+
+class ProjectRAGStats(models.Model):
+    """
+    Stores classification statistics for closed-ended ProjectRAG questions.
+
+    Linked to ProjectRAG via OneToOneField.
+    """
+
+    project_rag = models.OneToOneField(
+        ProjectRAG, on_delete=models.CASCADE, related_name="stats"
+    )
+
+    classification_stats = models.JSONField(default=dict)
+
+    user = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, default=None
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Stats for ProjectRAG ID {self.project_rag.id}"

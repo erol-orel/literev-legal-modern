@@ -108,6 +108,102 @@
            style="overflow:auto">
         <div class="col-12">
           <div>
+            <div>
+              <h3>
+                Résumé général:
+              </h3>
+              {% if summary_answer %}
+                <div class="container mb-4 px-4">
+                  <div class="alert alert-info">
+                    <p>
+                      {{ summary_answer }}
+                    </p>
+                  </div>
+                </div>
+              {% endif %}
+            </div>
+            {% if show_closed_stats %}
+
+              <div class="container mb-4 px-2">
+                <div class="card shadow-sm rounded">
+                  <div class="card-body">
+                    <h5 class="card-title text-center mb-3">
+                      État des réponses analysées
+                    </h5>
+
+                    <!-- Progress Bar -->
+                    <div class="progress"
+                         style="height: 30px;
+                                border-radius: 8px;
+                                overflow: hidden">
+                      <div class="progress-bar"
+                           role="progressbar"
+                           style="width: {{ oui_percent }}%;
+                                  background-color: rgba(76, 127, 175, 0.85);
+                                  color: #fff"
+                           aria-valuenow="{{ oui_percent }}"
+                           aria-valuemin="0"
+                           aria-valuemax="100">
+                        Oui {{ oui_percent }}%
+                      </div>
+
+                      <div class="progress-bar"
+                           role="progressbar"
+                           style="width: {{ non_percent }}%;
+                                  background-color: rgb(233, 94, 84);
+                                  color: #fff"
+                           aria-valuenow="{{ non_percent }}"
+                           aria-valuemin="0"
+                           aria-valuemax="100">
+                        Non {{ non_percent }}%
+                      </div>
+
+                      <div class="progress-bar"
+                           role="progressbar"
+                           style="width: {{ peut_etre_percent }}%;
+                                  background-color: rgba(236, 163, 53, 0.85);
+                                  color: #fff"
+                           aria-valuenow="{{ peut_etre_percent }}"
+                           aria-valuemin="0"
+                           aria-valuemax="100">
+                        Peut-être {{ peut_etre_percent }}%
+                      </div>
+
+                      <div class="progress-bar"
+                           role="progressbar"
+                           style="width: {{ mixte_percent }}%;
+                                  background-color: rgb(170, 76, 187);
+                                  color: #fff"
+                           aria-valuenow="{{ mixte_percent }}"
+                           aria-valuemin="0"
+                           aria-valuemax="100">
+                        Mixte {{ mixte_percent }}%
+                      </div>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="d-flex justify-content-around mt-3 text-center">
+                      <div>
+                        <span style="color: rgba(76, 127, 175, 0.85)"><strong>Oui:</strong></span>
+                        {{ oui_count }}
+                      </div>
+                      <div>
+                        <span style="color: rgb(233, 94, 84)"><strong>Non:</strong></span>
+                        {{ non_count }}
+                      </div>
+                      <div>
+                        <span style="color: rgba(236, 163, 53, 0.85)"><strong>Peut-être:</strong></span>
+                        {{ peut_etre_count }}
+                      </div>
+                      <div>
+                        <span style="color: rgb(170, 76, 187)"><strong>Mixte:</strong></span>
+                        {{ mixte_count }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% endif %}
             <div class="row">
               <hr />
             </div>
@@ -118,6 +214,7 @@
       </div>
     </div>
   {% endif %}
+
   <div class="container pb-5 px-4"
        id="history-questions">
     <h3 class="text-center"
