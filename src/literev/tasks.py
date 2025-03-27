@@ -21,7 +21,10 @@ from literev.libs.pipeline import (
     update_pp_document,
 )
 from literev.libs.rag_pdf import PDFRAG
-from literev.libs.scoring import sort_documents_by_es_score
+from literev.libs.scoring import (
+    assign_confidence_scores,
+    sort_documents_by_es_score,
+)
 from literev.libs.utils import (
     save_documents_to_db,
     update_es_scores_file,
@@ -433,6 +436,9 @@ def task_rag_result_table(
             document_ids=document_ids,
         )
         rag.run()
+
+        # Assess confidence scores
+        assign_confidence_scores(project_rag)
 
     except Exception as e:
         logging.error(f"[task_rag_result_table] (#{project_rag_id}): {e}")

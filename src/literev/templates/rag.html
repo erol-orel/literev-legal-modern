@@ -307,6 +307,15 @@
       procedureType.textContent = documentRag.document.procedure_type;
       header.appendChild(procedureType); //to add
 
+      if (documentRag.confidence_score != null) {
+        const confidenceScore = document.createElement("span");
+        confidenceScore.classList.add("fs-5", "badge", "text-bg-success", "rounded-pill");
+        const confidenceScoreValue = documentRag.confidence_score
+        confidenceScore.textContent = `Confidence Score: ${confidenceScoreValue.toFixed(2)}`;
+        header.appendChild(confidenceScore); //to add
+        header.classList.add("d-flex", "justify-content-between",)
+      }
+
       divContainer.appendChild(header);
 
       const subdivContainer = document.createElement("div");
@@ -391,7 +400,7 @@
 
   </script>
 
-  <script data-url-status="{% url 'projectrag-by-project-rag-id' project_id=project_id rag_id=project_rag_id %}" data-url-doc-rag-list="{% url 'projectdocumentsrag-list' %}" data-project-id="{{ project_id }}" data-number-documents="{{ number_documents }}">
+  <script data-url-status="{% url 'projectrag-by-project-rag-id' project_id=project_id rag_id=project_rag_id %}" data-url-doc-rag-list="{% url 'projectdocumentsrag-list' %}" data-project-id="{{ project_id }}" data-number-documents="{{ number_documents }}" data-url-project-rag-project="{% url 'projectrag-by-project' project_id=project_id %}" data-url-project-rag-page="{% url 'project-rag-page' project_id=project_id %}">
 
     const data = document.currentScript.dataset;
     const urlStatus = data.urlStatus;
@@ -440,13 +449,16 @@
         const scriptTag = document.getElementById("documents_ids");
         const documentIds = JSON.parse(scriptTag.textContent);
 
+        const urlProjectRagProject = data.urlProjectRagProject;
+        const urlProjectRagPage = data.urlProjectRagPage;
+
         try {
           const getResponse = await axios.post(
-            "{% url 'projectrag-by-project' project_id=project_id %}",
+            urlProjectRagProject,
             { project_id: projectId, query: query, documents_ids: documentIds },
             { headers: { "X-CSRFToken": csrftoken }}
           );
-          url = "{% url 'project-rag-page' project_id=project_id %}";
+          url = urlProjectRagPage;
           url  = url + getResponse.data.id;
           window.location = url;
         } catch (error) {

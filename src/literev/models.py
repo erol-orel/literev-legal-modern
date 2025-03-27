@@ -160,6 +160,7 @@ class ProjectDocumentRAG(models.Model):
     )
     citation = models.TextField()
     answer = models.TextField()
+    confidence_score = models.FloatField(default=None, null=True, blank=True)
 
     def set_source(self, source: str) -> None:
         """

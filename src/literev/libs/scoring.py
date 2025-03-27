@@ -8,10 +8,69 @@ from django.conf import settings
 from django.db.models.query import QuerySet
 
 from literev.libs.data_files import get_dataframe_project, get_es_scores
-from literev.models import ClusterElement, Document, Project, TableChoice
+from literev.models import (
+    ClusterElement,
+    Document,
+    Project,
+    ProjectDocumentRAG,
+    ProjectRAG,
+    TableChoice,
+)
 
 logging.basicConfig(level=logging.INFO)
 NLP = spacy.load("fr_core_news_md")
+
+
+def get_similarity_score_phrases(string_A: str, string_B: str) -> float:
+    """
+    Returns similarity score between two strings.
+
+    Parameters
+    ----------
+    string_A : str
+        A string to compare with string_B
+    string_B : str
+        A string to compare with string_A
+
+    Returns
+    -------
+    float
+        Similarity score between string_A and string_B
+    """
+    tokens_A = NLP(string_A)
+    tokens_B = NLP(string_B)
+
+    return tokens_A.similarity(tokens_B)
+
+
+def assign_confidence_scores(project_rag: ProjectRAG) -> None:
+    """
+    Asign confidence scores to RAG answers given project_rag model object database.
+
+    Parameters
+    ----------
+    project_rag : ProjectRAG
+        Object used related with rag documents answers
+    string_B : str
+        A string to compare with string_A
+
+    Returns
+    -------
+    None
+
+    Notes
+    Saves the scores in field confidence_score from ProjectDocumentRAG objects.
+    -----
+    """
+    rag_documents = ProjectDocumentRAG.objects.filter(project_rag=project_rag)
+
+    for rag_document in rag_documents:
+        similarity_answer_citation = get_similarity_score_phrases(
+            rag_document.citation, rag_document.answer
+        )
+
+        rag_document.confidence_score = similarity_answer_citation
+        rag_document.save()
 
 
 def get_most_similar_keywords(

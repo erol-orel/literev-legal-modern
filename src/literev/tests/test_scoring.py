@@ -8,9 +8,11 @@ from django.conf import settings
 from django.test import TestCase, override_settings
 
 from literev.libs.scoring import (
+    assign_confidence_scores,
     extract_keywords,
     get_dataframe_project,
     get_most_similar_keywords,
+    get_similarity_score_phrases,
     get_topic_and_hdbscan_score,
     sort_by_es_score,
     sort_by_keyword_score,
@@ -22,16 +24,19 @@ from literev.models import (
     ClusterElement,
     Document,
     Project,
+    ProjectDocumentRAG,
+    ProjectRAG,
     TableChoice,
 )
 
 DATA_PATH = Path(__file__).parent / "sample_test"
 
+DATA_DOC = Path(__file__).parent / "data"
+
 
 @override_settings(ARTICLE_DATA=DATA_PATH)
 class ScoringTest(TestCase):
     def setUp(self) -> None:
-        print("printing from the setup")
         self.project = Project.objects.create(
             id=30,
             name="test project",
@@ -200,3 +205,55 @@ class ScoringTest(TestCase):
 
         self.assertEqual(sorted_list_docs[0].id, expected_first_doc_id)
         self.assertEqual(sorted_list_docs[-1].id, expected_last_document_id)
+
+
+class ScoringRAGAnwersTest(TestCase):
+    def setUp(self) -> None:
+        self.project = Project.objects.create(
+            name="test project",
+            query="etest query",
+        )
+        self.project_rag = ProjectRAG.objects.create(
+            project=self.project,
+            query="Quel est la vitesse dépassée ?",
+        )
+
+        with open(DATA_DOC / "rag_answers.txt", "r") as f:
+            rag_answers = f.read().split("\n\n")
+
+        with open(DATA_DOC / "rag_citation.txt", "r") as f:
+            rag_citations = f.read().split("\n\n")
+
+        for i in range(7):
+            document = Document.objects.create(
+                project=self.project,
+                raw_document_text=rag_citations[i],
+            )
+            ProjectDocumentRAG.objects.create(
+                project_rag=self.project_rag,
+                document=document,
+                citation=rag_citations[i],
+                answer=rag_answers[i],
+            )
+
+    def test_similarity_phrases(self):
+        string_A = "The hamburger is cooked in the kitchen"
+        string_B = "The pizza is made in a restaurant"
+        expected = 0.8501040217284543
+        result = get_similarity_score_phrases(string_A, string_B)
+
+        self.assertEqual(expected, result)
+
+    def test_asigning_confidence_scores(self):
+        expected_score_0 = 0.6886859583329661
+        expected_score_1 = 0.2840474803546656
+        assign_confidence_scores(self.project_rag)
+        rag_documents = ProjectDocumentRAG.objects.filter(
+            project_rag=self.project_rag
+        )
+
+        first_rag_doc = rag_documents.first()
+        last_rag_doc = rag_documents.last()
+
+        self.assertEqual(expected_score_0, first_rag_doc.confidence_score)
+        self.assertEqual(expected_score_1, last_rag_doc.confidence_score)

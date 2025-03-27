@@ -32,6 +32,7 @@ class ProjectDocumentRAGSerializer(serializers.ModelSerializer):
             "document",
             "citation",
             "answer",
+            "confidence_score",
         ]
         read_only_fields = ["id", "project_rag", "document"]
 
