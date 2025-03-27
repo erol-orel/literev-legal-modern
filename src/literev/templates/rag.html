@@ -91,9 +91,7 @@
   {% endif %}
 
   <div id="loadingSpinner"
-       class="mt-5 d-flex justify-content-center"
-       style="display: none;
-              visibility: hidden">
+       class="mt-5 d-flex justify-content-center d-none">
     <div class="spinner-border text-primary"
          role="status">
       <span class="visually-hidden">Asking to LiteRev RAG ...</span>
@@ -289,65 +287,156 @@
 {% block jscode %}
   {{ documents_ids|json_script:"documents_ids" }}
   <script>
+    const ansRowFactory = (documentRag) => {
+      if (
+        documentRag.answer.includes("No content available") ||
+        documentRag.answer.includes("Error generating response") ||
+        documentRag.answer.includes("Réponse non disponible")
+      ){
+        return null;
+      }
+      const divContainer = document.createElement("div");
+      divContainer.classList.add("mb-3");
+
+      const header = document.createElement("div");
+      header.classList.add("mb-3");
+      const procedureType = document.createElement("a");
+      procedureType.classList.add("fs-5", "text-white", "badge", "text-bg-dark");
+      procedureType.setAttribute("href", documentRag.document.url_document);
+      procedureType.setAttribute("target", "_blanck");
+      procedureType.textContent = documentRag.document.procedure_type;
+      header.appendChild(procedureType); //to add
+
+      divContainer.appendChild(header);
+
+      const subdivContainer = document.createElement("div");
+      subdivContainer.classList.add("mb-2")
+      const decisionType = document.createElement("b");
+      decisionType.textContent = documentRag.document.decision_type;
+      subdivContainer.appendChild(decisionType);
+      const metadata = document.createTextNode(`, du ${documentRag.document.decision_date} `)
+      subdivContainer.appendChild(metadata);
+      const labelResult = document.createElement("b");
+      labelResult.textContent = "Result: "
+      subdivContainer.appendChild(labelResult);
+      const textResult = document.createTextNode(`${documentRag.document.result}`);
+      subdivContainer.appendChild(textResult); // to add
+
+      divContainer.appendChild(subdivContainer);
+
+      if (documentRag.document.standards != "") {
+        const standards = document.createElement("div");
+        standards.classList.add("mb-2");
+        const labelStandards = document.createElement("b");
+        labelStandards.textContent = "Normes: ";
+        standards.appendChild(labelStandards);
+
+        const textStandards = document.createTextNode(`${documentRag.document.standards}`);
+        standards.appendChild(textStandards);  //to add
+
+        divContainer.appendChild(standards);
+      }
+
+      const answer = document.createElement("div");
+      answer.classList.add("mb-2");
+      const labelAnswer = document.createElement("b");
+      labelAnswer.textContent = "Answer: ";
+      answer.appendChild(labelAnswer);
+
+      const textAnswer = document.createTextNode(`${documentRag.answer}`);
+      answer.appendChild(textAnswer);  //to add
+
+      divContainer.appendChild(answer)
+
+      const citation = document.createElement("div");
+      citation.classList.add("mb-2");
+      const labelCitation = document.createElement("b");
+      labelCitation.textContent = "Highlighted in document: ";
+      citation.appendChild(labelCitation);
+
+      const textCitation = document.createTextNode(`${documentRag.citation}`);
+      citation.appendChild(textCitation);  //to add
+
+      // adding all childs
+      divContainer.appendChild(citation);
+
+      // add hr
+
+      const hrLine = document.createElement('hr');
+      divContainer.append(hrLine)
+
+      return { divContainer }
+
+    }
+  </script>
+
+  <script>
+    const loadingSpinner = document.getElementById("loadingSpinner");
+    const resultsContainer = document.getElementById("resultsContainer");
+
     function show_loading() {
       // Show the loading spinner and hide results
-      document.getElementById("loadingSpinner").style.display = "block";
-      document.getElementById("loadingSpinner").style.visibility = "visible";
+      loadingSpinner.classList.remove("d-none");
       if (document.getElementById("resultsContainer") !== null) {
-        document.getElementById("resultsContainer").style.display = "none";
-        document.getElementById("resultsContainer").style.visibility = "hidden";
+        resultsContainer.classList.add("d-none");
       }
     }
-
 
     function show_table() {
-      document.getElementById("loadingSpinner").style.display = "none";
-      document.getElementById("loadingSpinner").style.visibility = "hidden";
+      loadingSpinner.classList.add("d-none");
       if (document.getElementById("resultsContainer") !== null) {
-        document.getElementById("resultsContainer").style.display = "block";
-        document.getElementById("resultsContainer").style.visibility = "visible";
+        resultsContainer.classList.remove("d-none");
       }
     }
+
+  </script>
+
+  <script data-url-status="{% url 'projectrag-by-project-rag-id' project_id=project_id rag_id=project_rag_id %}" data-url-doc-rag-list="{% url 'projectdocumentsrag-list' %}" data-project-id="{{ project_id }}" data-number-documents="{{ number_documents }}">
+
+    const data = document.currentScript.dataset;
+    const urlStatus = data.urlStatus;
+    const urlDocRagList = data.urlDocRagList;
+    const numberDocuments = parseInt(data.numberDocuments,10);
 
     const checkStatus = async () => {
       if (document.getElementById("questionText") === null) {
         return;
       }
-      const getResponse = await axios.get(
-        "{% url 'projectrag-by-project-rag-id' project_id=project_id rag_id=project_rag_id %}"
-      );
+      const getResponse = await axios.get(urlStatus);
+
       const ragStatus = getResponse.data.status;
 
       if (ragStatus === "completed") {
         document.getElementById("questionText").innerHTML = getResponse.data.query;
-        const documentsResponse = await axios.get(
-          "{% url 'projectdocumentsrag-list' %}",
+        const documentsResponse = await axios.get(urlDocRagList,
           { params: { project_rag: getResponse.data.id } }
         );
+
         renderResults(documentsResponse.data);
         return;
       }
 
       if (ragStatus === null) {
         /* if there is no request/question yet */
-        {% if number_documents > 0 %}
-        document.getElementById("ask-button").disabled = false;
-        {% endif %}
+        if(numberDocuments > 0){
+          document.getElementById("ask-button").disabled = false;
+        }
       } else if (ragStatus === "in-progress") {
         show_loading();
       }
 
       setTimeout(checkStatus, 1000);
     };
+    const ragForm = document.getElementById("ragForm");
 
-    if (document.getElementById("ragForm") !== null) {
-      document.getElementById("ragForm").addEventListener("submit", async function(event) {
+    if (ragForm !== null) {
+      ragForm.addEventListener("submit", async function(event) {
         event.preventDefault();
         show_loading();
 
         const query = document.getElementById("queryInput").value;
         const csrftoken = document.getElementsByName("csrfmiddlewaretoken")[0].value;
-        const projectId = {{ project_id }};
+        const projectId = data.projectId;
         const scriptTag = document.getElementById("documents_ids");
         const documentIds = JSON.parse(scriptTag.textContent);
 
@@ -368,96 +457,14 @@
 
     function renderResults(ragData) {
       const answersContainer = document.getElementById("ragAnswers");
-      answersContainer.innerHTML = "";
-
-      // Sort ragData by decision_date (most recent first) and specific answers at the end
-      ragData.sort((a, b) => {
-        const priorityAnswers = [
-          "No content available.",
-          "Error generating response.",
-          "Réponse non disponible.",
-        ];
-
-        const aPriority = priorityAnswers.includes(a.answer) ? 1 : 0;
-        const bPriority = priorityAnswers.includes(b.answer) ? 1 : 0;
-
-        if (aPriority !== bPriority) {
-          return aPriority - bPriority; // Push priority answers to the end
-        }
-
-        // If both have the same priority, sort by decision_date (most recent first)
-        const aDate = new Date(a.document.decision_date);
-        const bDate = new Date(b.document.decision_date);
-
-        return bDate - aDate; // Descending order
-      });
 
       // Render the sorted results
-      ragData.forEach((documentRag) => {
-        let documentHeader = `
-          <div class="project-search-metadata col-12">
-              <div class="d-flex justify-content-between mb-2">
-                  <h3>
-                      <span class="badge text-bg-dark">
-                          <a class="text-white" href="${documentRag.document.url_document}" target="_blank">${documentRag.document.procedure_type}</a>
-                      </span>
-                  </h3>
-              </div>
-              <div class="ms-auto mt-3 text-start mb-3">
-                  <div>
-                      <b>${documentRag.document.decision_type}</b>, du ${documentRag.document.decision_date}
-                      <b>Result:</b> ${documentRag.document.result}
-                  </div>
-              </div>
-          </div>
-        `;
-
-        let documentStandards = `
-          <div class="mb-2">
-            <b>Normes:</b> ${documentRag.document.standards}
-          </div>
-        `;
-        let documentAns = `
-        <div class="mb-2">
-              <b>Answer: </b>
-              ${documentRag.answer}
-        </div>
-        `;
-        let documentCitation = `
-          <div class="mb-5 ms-auto">
-              <div>
-                  <b>Highlighted in document: </b>
-                  ${documentRag.citation}
-              </div>
-          </div>
-        `;
-        const documentDivisor = `
-          <div class="row mb-2">
-              <hr />
-          </div>
-        `;
-        let documentRow = documentHeader;
-
-        if (documentRag.document.standards != "") {
-          documentRow += documentStandards;
+      for (const documentRag of ragData){
+        const row = ansRowFactory(documentRag);
+        if (row != null) {
+          answersContainer.appendChild(row.divContainer);
         }
-
-        if (
-          documentRag.answer.includes("No content available") ||
-          documentRag.answer.includes("Error generating response") ||
-          documentRag.answer.includes("Réponse non disponible")
-        ) {
-          {% if natural_language_query == "" %}
-            documentRow += documentAns + documentDivisor;
-          {% else %}
-            documentRow = "";
-          {% endif %}
-        } else {
-          documentRow += documentAns + documentCitation + documentDivisor;
-        }
-
-        answersContainer.insertAdjacentHTML("beforeend", documentRow);
-      });
+      }
 
       show_table();
     }

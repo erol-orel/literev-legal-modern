@@ -72,7 +72,7 @@ class GeneralSummary(BaseModel):
 
 
 @wraps
-def ret_cache(func: Callable[str, list[str]]) -> Callable[str, list[str]]:
+def ret_cache(func: Callable[[str], list[str]]) -> Callable[[str], list[str]]:
     cache = RET_CACHE
 
     def wrapper(text: str) -> list[str]:

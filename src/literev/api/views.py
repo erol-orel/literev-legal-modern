@@ -178,6 +178,7 @@ class ProjectRAGbyProjectIdAPIView(APIView):
             project_rag = ProjectRAG.objects.filter(project=project).last()
 
         serializer = ProjectRAGSerializer(project_rag)
+
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request: Request, project_id: int) -> Response:
