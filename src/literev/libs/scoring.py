@@ -6,6 +6,10 @@ import spacy
 
 from django.conf import settings
 from django.db.models.query import QuerySet
+from langchain_openai import ChatOpenAI
+from ragas.dataset_schema import SingleTurnSample
+from ragas.llms import LangchainLLMWrapper
+from ragas.metrics import FaithfulnesswithHHEM
 
 from literev.libs.data_files import get_dataframe_project, get_es_scores
 from literev.models import (
@@ -19,6 +23,70 @@ from literev.models import (
 
 logging.basicConfig(level=logging.INFO)
 NLP = spacy.load("fr_core_news_md")
+
+llm = ChatOpenAI(model="gpt-4o-mini")
+evaluator_llm = LangchainLLMWrapper(llm)
+
+
+async def get_faithfulnesswithHHEM_score(
+    query: str, response: str, citation: str
+) -> float:
+    """
+    Evaluates a sample and returns faithfulnesswithHHEM score
+    given a simple sample. To generate the score uses a
+    OpenAI as LLM evaluator.
+
+    Parameters
+    ----------
+    query : str
+        question or query used in RAG.
+    response : str
+        a string response from rag response
+    citation : str
+        A portion from document which is used to generate the response
+        in RAG.
+
+    Returns
+    -------
+    float
+        faithfulnesswithHHEM score between string_A and string_B
+    """
+    sample = SingleTurnSample(
+        user_input=query, response=response, retrieved_contexts=[citation]
+    )
+    scorer = FaithfulnesswithHHEM(llm=evaluator_llm)
+    faithfulnesswh_score = await scorer.single_turn_ascore(sample)
+
+    return faithfulnesswh_score
+
+
+async def assign_faithfulnesswithHHEM_scores(project_rag: ProjectRAG) -> None:
+    """
+    Asign faithfulnesswithHHEM scores to RAG answers given project_rag model object database.
+
+    Parameters
+    ----------
+    project_rag : ProjectRAG
+        Object used related with rag documents answers
+
+    Returns
+    -------
+    None
+
+    Notes
+    Saves the scores in field ProjectDocumentRAG.confidence_score.
+    -----
+    """
+    rag_documents = ProjectDocumentRAG.objects.filter(project_rag=project_rag)
+    query = project_rag.query
+
+    async for rag_document in rag_documents:
+        faithfulness_score = await get_faithfulnesswithHHEM_score(
+            query, rag_document.answer, rag_document.citation
+        )
+
+        rag_document.confidence_score = faithfulness_score
+        await rag_document.asave()
 
 
 def get_similarity_score_phrases(string_A: str, string_B: str) -> float:
@@ -51,8 +119,6 @@ def assign_confidence_scores(project_rag: ProjectRAG) -> None:
     ----------
     project_rag : ProjectRAG
         Object used related with rag documents answers
-    string_B : str
-        A string to compare with string_A
 
     Returns
     -------

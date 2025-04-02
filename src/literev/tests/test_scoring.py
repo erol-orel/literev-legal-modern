@@ -1,16 +1,23 @@
+import asyncio
+
+from functools import wraps
 from pathlib import Path
+from unittest import TestCase as UnitTestCase
 from unittest import skip
 
 import joblib
+import openai
 import pandas as pd
 
 from django.conf import settings
-from django.test import TestCase, override_settings
+from django.test import TestCase, TransactionTestCase, override_settings
 
 from literev.libs.scoring import (
     assign_confidence_scores,
+    assign_faithfulnesswithHHEM_scores,
     extract_keywords,
     get_dataframe_project,
+    get_faithfulnesswithHHEM_score,
     get_most_similar_keywords,
     get_similarity_score_phrases,
     get_topic_and_hdbscan_score,
@@ -32,6 +39,23 @@ from literev.models import (
 DATA_PATH = Path(__file__).parent / "sample_test"
 
 DATA_DOC = Path(__file__).parent / "data"
+
+
+def skip_on(exception, reason="Default"):
+    def decorator_function(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                # Try to run the test
+                return func(*args, **kwargs)
+            except exception:
+                # If exception of given type happens, absorb it
+                # and raise pytest.Skip with given reason
+                UnitTestCase.skipTest(func, reason)
+
+        return wrapper
+
+    return decorator_function
 
 
 @override_settings(ARTICLE_DATA=DATA_PATH)
@@ -257,3 +281,96 @@ class ScoringRAGAnwersTest(TestCase):
 
         self.assertEqual(expected_score_0, first_rag_doc.confidence_score)
         self.assertEqual(expected_score_1, last_rag_doc.confidence_score)
+
+
+class ScoringFaithfulnessRAGAnwersTest(TransactionTestCase):
+    def setUp(self) -> None:
+        self.project = Project.objects.create(
+            name="test project",
+            query="test query for ragas",
+        )
+        self.project_rag = ProjectRAG.objects.create(
+            project=self.project,
+            query="Quel est la vitesse dépassée ?",
+        )
+
+        with open(DATA_DOC / "rag_answers.txt", "r") as f:
+            rag_answers = f.read().split("\n\n")
+
+        with open(DATA_DOC / "rag_citation.txt", "r") as f:
+            rag_citations = f.read().split("\n\n")
+
+        # create two documents_rag
+        first_document = Document.objects.create(
+            project=self.project,
+            raw_document_text=rag_citations[2],
+        )
+        ProjectDocumentRAG.objects.create(
+            project_rag=self.project_rag,
+            document=first_document,
+            citation=rag_citations[2],
+            answer=rag_answers[2],
+        )
+
+        last_document = Document.objects.create(
+            project=self.project,
+            raw_document_text=rag_citations[5],
+        )
+        ProjectDocumentRAG.objects.create(
+            project_rag=self.project_rag,
+            document=last_document,
+            citation=rag_citations[5],
+            answer=rag_answers[5],
+        )
+
+    @skip_on(openai.RateLimitError, reason="API returns quota exceeded")
+    def test_assign_faithfulness_scores(self):
+        expected_score_0 = 1.00
+        expected_score_1 = 0.00
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(
+            assign_faithfulnesswithHHEM_scores(self.project_rag)
+        )
+
+        rag_documents = ProjectDocumentRAG.objects.filter(
+            project_rag=self.project_rag
+        )
+
+        first_rag_doc = rag_documents.first()
+        last_rag_doc = rag_documents.last()
+
+        self.assertEqual(expected_score_0, first_rag_doc.confidence_score)
+        self.assertEqual(expected_score_1, last_rag_doc.confidence_score)
+
+    @skip_on(openai.RateLimitError, reason="API returns quota exceeded")
+    async def test_get_faithfulness_score(self):
+        query = "Where and when was Einstein born?"
+        faithfulness_response = (
+            "Einstein was born in Germany on 14th March 1879."
+        )
+        context = (
+            "Albert Einstein (born 14 March 1879) was a German-born theoretical physicist, "
+            "widely held to be one of the greatest and most influential scientists of all time"
+        )
+        result_faithfulness_score = await get_faithfulnesswithHHEM_score(
+            query, faithfulness_response, context
+        )
+
+        low_faithfulness_response = (
+            "Einstein was born in Germany on 20th March 1879."
+        )
+
+        faithfulness_expected_score = 1.0
+        low_faithfulness_expected_score = 0.5
+
+        self.assertEqual(
+            result_faithfulness_score, faithfulness_expected_score
+        )
+
+        result_low_faithfulness_score = await get_faithfulnesswithHHEM_score(
+            query, low_faithfulness_response, context
+        )
+
+        self.assertEqual(
+            result_low_faithfulness_score, low_faithfulness_expected_score
+        )
