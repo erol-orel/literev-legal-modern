@@ -111,7 +111,7 @@ def get_similarity_score_phrases(string_A: str, string_B: str) -> float:
     return tokens_A.similarity(tokens_B)
 
 
-def assign_confidence_scores(project_rag: ProjectRAG) -> None:
+def assign_similarity_scores(project_rag: ProjectRAG) -> None:
     """
     Asign confidence scores to RAG answers given project_rag model object database.
 

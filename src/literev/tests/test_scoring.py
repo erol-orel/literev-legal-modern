@@ -13,8 +13,8 @@ from django.conf import settings
 from django.test import TestCase, TransactionTestCase, override_settings
 
 from literev.libs.scoring import (
-    assign_confidence_scores,
     assign_faithfulnesswithHHEM_scores,
+    assign_similarity_scores,
     extract_keywords,
     get_dataframe_project,
     get_faithfulnesswithHHEM_score,
@@ -271,7 +271,7 @@ class ScoringRAGAnwersTest(TestCase):
     def test_asigning_confidence_scores(self):
         expected_score_0 = 0.6886859583329661
         expected_score_1 = 0.2840474803546656
-        assign_confidence_scores(self.project_rag)
+        assign_similarity_scores(self.project_rag)
         rag_documents = ProjectDocumentRAG.objects.filter(
             project_rag=self.project_rag
         )

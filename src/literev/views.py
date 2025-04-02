@@ -54,6 +54,7 @@ from literev.models import (
     Cluster,
     Document,
     Project,
+    ProjectDocumentRAG,
     ProjectRAG,
     ProjectRefinement,
     RefinementIteration,
@@ -743,6 +744,17 @@ def rag(
         else None
     )
 
+    first_document_rag = ProjectDocumentRAG.objects.filter(
+        project_rag=project_rag
+    ).first()
+
+    has_confidence_score = False
+
+    if first_document_rag:
+        has_confidence_score = (
+            True if first_document_rag.confidence_score else False
+        )
+
     context = {
         "project": project,
         "project_rags": project_rags,
@@ -765,6 +777,7 @@ def rag(
         "peut_etre_percent": percentages["peut_etre"],
         "mixte_percent": percentages["mixte"],
         "show_closed_stats": show_closed_stats,
+        "has_confidence_score": has_confidence_score,
     }
 
     return render(request, "rag.html", context)
