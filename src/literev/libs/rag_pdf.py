@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 
 from functools import wraps
@@ -32,7 +33,7 @@ AUG_CACHE = CacheFile(target_dir=TMP_DIR / "aug")
 GEN_CACHE = CacheFile(target_dir=TMP_DIR / "gen")
 
 # TODO:update for contenttext instead fo pdf document
-logging.basicConfig(level=settings.LOGGING_LEVEL)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -49,6 +50,15 @@ class RAGAnswer(BaseModel):
     )
 
 
+class SummaryGeneralAnswer(BaseModel):
+    summary: str = Field(
+        ...,
+        description="The answer",
+    )
+
+    considerations: list[str]
+
+
 class ClosedAnswerClassification(BaseModel):
     answer: str = Field(..., description="Document answer")
     category: Literal["oui", "non", "peut_etre", "mixte"]
@@ -63,12 +73,6 @@ class ClosedAnswerClassification(BaseModel):
 
 class QuestionTypeClassification(BaseModel):
     question_type: Literal["open", "closed"]
-
-
-class GeneralSummary(BaseModel):
-    summary: str = Field(
-        ..., description="Concise and coherent summary in French."
-    )
 
 
 @wraps
@@ -94,6 +98,13 @@ class PDFRAG:
         "write a concise and coherent summary as a single sentence, in French. "
         "Summarize the different perspectives, even if they are contradictory. "
         "If there is absolutely no relevant information at all, return exactly: `Résumé non disponible`.\n\n"
+        "**Instructions:**\n"
+        "1. Do NOT mention specific names or individual cases.\n"
+        "2. If all answers agree on one idea, return a single-sentence summary.\n"
+        "3. If there are multiple legal arguments or points of view:\n"
+        "   - Provide a short summary sentence.\n"
+        "   - Then provide a list of *considerations* (distinct juridical elements) as bullet points (avoid repetitions).\n"
+        "   - Only use bullet points when the summary presents multiple distinct legal bases or perspectives.\n\n"
         "The original question is: `{query}`\n\n"
         "Given Answers:\n"
         "{context}"
@@ -131,12 +142,17 @@ class PDFRAG:
     )
 
     def __init__(self, project_rag_id: int, document_ids: list[int]) -> None:
-        self.project_rag = ProjectRAG.objects.get(id=project_rag_id)
+        """Initialize PDFRAG with project_rag_id and document_ids."""
+        self.api_key: str = getattr(settings, "OPENAI_API_KEY", "")
+
+        self.project_rag: ProjectRAG = ProjectRAG.objects.get(
+            id=project_rag_id
+        )
         self.project_rag.status = "in-progress"
         self.project_rag.save()
 
-        self.document_ids = document_ids
-        self.question_type = None
+        self.document_ids: list[int] = document_ids
+        self.question_type: str | None = None
 
     @ret_cache
     def split_text_into_chunks(self, text: str) -> list[str]:
@@ -171,13 +187,13 @@ class PDFRAG:
                 rag = Rago(
                     retrieval=StringRet(chunks),
                     augmented=OpenAIAug(
-                        api_key=settings.OPENAI_API_KEY,
+                        api_key=self.api_key,
                         top_k=5,
                         model_name="text-embedding-ada-002",
                         cache=AUG_CACHE,
                     ),
                     generation=OpenAIGen(
-                        api_key=settings.OPENAI_API_KEY,
+                        api_key=self.api_key,
                         model_name="gpt-4o-mini",
                         prompt_template=self.template_prompt,
                         temperature=0,
@@ -234,7 +250,6 @@ class PDFRAG:
             document=document,
             citation=message,
             answer=message,
-            from_full_text=False,
         )
 
     def generate_general_summary(self) -> None:
@@ -243,7 +258,10 @@ class PDFRAG:
         answers = self._fetch_valid_document_answers()
 
         if not answers:
-            summary_answer = "Résumé non disponible"
+            summary_data = {
+                "summary": "Résumé non disponible",
+                "considerations": [],
+            }
             logger.info("No valid answers found. Using default summary.")
         else:
             logger.info(f"Combining {len(answers)} answers for summarization.")
@@ -254,7 +272,7 @@ class PDFRAG:
 
             try:
                 summary_gen = OpenAIGen(
-                    api_key=settings.OPENAI_API_KEY,
+                    api_key=self.api_key,
                     model_name="gpt-4o-mini",
                     prompt_template=self.summary_template_prompt,
                     temperature=0,
@@ -264,29 +282,37 @@ class PDFRAG:
                         "frequency_penalty": 0.0,
                         "presence_penalty": 0.0,
                     },
-                    structured_output=GeneralSummary,
+                    structured_output=SummaryGeneralAnswer,
                 )
 
-                summary_obj: GeneralSummary = summary_gen.generate(
+                summary_obj: SummaryGeneralAnswer = summary_gen.generate(
                     query=self.project_rag.query,
                     context=[answers_bullet_points],
                 )
-                summary_answer = summary_obj.summary.strip()
+
+                summary_data = {
+                    "summary": summary_obj.summary.strip(),
+                    "considerations": summary_obj.considerations,
+                }
 
             except Exception as e:
                 logger.error(f"Failed to generate general summary: {e}")
-                summary_answer = "Résumé non disponible"
+                summary_data = {
+                    "summary": "Résumé non disponible",
+                    "considerations": [],
+                }
 
-        self.project_rag.summary_answer = summary_answer
+        self.project_rag.summary_answer = json.dumps(summary_data)
+
         self.project_rag.save()
 
-        logger.info(f"Summary saved: {summary_answer}")
+        logger.info(f"Summary saved: {summary_data}")
 
     def check_question_type(self) -> str:
         logger.info("Classifying the question type...")
 
         classification_gen = OpenAIGen(
-            api_key=settings.OPENAI_API_KEY,
+            api_key=self.api_key,
             model_name="gpt-4o-mini",
             prompt_template=self.prompt_check_question_type,
             temperature=0,
@@ -328,7 +354,7 @@ class PDFRAG:
         logger.info("Classifying answers with LLM and structured output...")
 
         classification_gen = OpenAIGen(
-            api_key=settings.OPENAI_API_KEY,
+            api_key=self.api_key,
             model_name="gpt-4o-mini",
             prompt_template=self.classification_template_prompt,
             temperature=0,

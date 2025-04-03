@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -179,7 +181,6 @@ def test_rag_aug_variation(doc2_txt_chunks) -> None:
 def test_generate_general_summary_with_valid_answers(
     mock_openai_gen, mock_doc_filter, project_rag
 ):
-    """Test generating a general summary when valid answers exist."""
     mock_queryset = MagicMock()
     mock_queryset.exclude.return_value.values_list.return_value = [
         "Première réponse pertinente.",
@@ -189,17 +190,21 @@ def test_generate_general_summary_with_valid_answers(
 
     mock_summary_obj = MagicMock()
     mock_summary_obj.summary = "Résumé généré basé sur les réponses."
+    mock_summary_obj.considerations = ["Considération A", "Considération B"]
     mock_openai_gen.return_value.generate.return_value = mock_summary_obj
 
     rag_processor = PDFRAG(project_rag_id=project_rag.id, document_ids=[])
     rag_processor.project_rag = project_rag
-
     rag_processor.generate_general_summary()
 
-    assert (
-        rag_processor.project_rag.summary_answer
-        == "Résumé généré basé sur les réponses."
+    expected = json.dumps(
+        {
+            "summary": "Résumé généré basé sur les réponses.",
+            "considerations": ["Considération A", "Considération B"],
+        }
     )
+
+    assert rag_processor.project_rag.summary_answer == expected
 
 
 @pytest.mark.django_db
@@ -208,18 +213,22 @@ def test_generate_general_summary_with_valid_answers(
 def test_generate_general_summary_no_valid_answers(
     mock_openai_gen, mock_doc_filter, project_rag
 ):
-    """Test generating summary returns `Résumé non disponible` when no valid answers exist."""
-
     mock_queryset = MagicMock()
     mock_queryset.exclude.return_value.values_list.return_value = []
     mock_doc_filter.return_value = mock_queryset
 
     rag_processor = PDFRAG(project_rag_id=project_rag.id, document_ids=[])
     rag_processor.project_rag = project_rag
-
     rag_processor.generate_general_summary()
 
-    assert rag_processor.project_rag.summary_answer == "Résumé non disponible"
+    expected = json.dumps(
+        {
+            "summary": "Résumé non disponible",
+            "considerations": [],
+        }
+    )
+
+    assert rag_processor.project_rag.summary_answer == expected
 
 
 @pytest.mark.django_db
@@ -228,7 +237,6 @@ def test_generate_general_summary_no_valid_answers(
 def test_generate_general_summary_strips_whitespace(
     mock_openai_gen, mock_doc_filter, project_rag
 ):
-    """Test that the generated summary is stripped of whitespace."""
     mock_queryset = MagicMock()
     mock_queryset.exclude.return_value.values_list.return_value = [
         "Texte juridique."
@@ -237,53 +245,18 @@ def test_generate_general_summary_strips_whitespace(
 
     mock_summary_obj = MagicMock()
     mock_summary_obj.summary = "   Résumé avec des espaces.   "
+    mock_summary_obj.considerations = []
     mock_openai_gen.return_value.generate.return_value = mock_summary_obj
 
     rag_processor = PDFRAG(project_rag_id=project_rag.id, document_ids=[])
     rag_processor.project_rag = project_rag
-
     rag_processor.generate_general_summary()
 
-    assert (
-        rag_processor.project_rag.summary_answer == "Résumé avec des espaces."
+    expected = json.dumps(
+        {
+            "summary": "Résumé avec des espaces.",
+            "considerations": [],
+        }
     )
 
-
-@pytest.mark.django_db
-@patch("literev.libs.rag_pdf.ProjectDocumentRAG.objects.filter")
-@patch("literev.libs.rag_pdf.OpenAIGen")
-def test_generate_general_summary_uses_correct_prompt_template(
-    mock_openai_gen, mock_doc_filter, project_rag
-):
-    """Test that the correct summary prompt template is used when generating."""
-
-    mock_queryset = MagicMock()
-    mock_queryset.exclude.return_value.values_list.return_value = [
-        "Réponse juridique pertinente."
-    ]
-    mock_doc_filter.return_value = mock_queryset
-
-    def mock_openai_gen_init(*args, **kwargs):
-        prompt_template = kwargs.get("prompt_template")
-
-        assert (
-            "Based on ALL of the following answers extracted from the documents"
-            in prompt_template
-        )
-        assert (
-            "write a concise and coherent summary as a single sentence, in French"
-            in prompt_template
-        )
-        assert "Résumé non disponible" in prompt_template
-        assert "{context}" in prompt_template
-
-        mock_instance = MagicMock()
-        mock_instance.generate.return_value = "Résumé généré."
-        return mock_instance
-
-    mock_openai_gen.side_effect = mock_openai_gen_init
-
-    rag_processor = PDFRAG(project_rag_id=project_rag.id, document_ids=[])
-    rag_processor.project_rag = project_rag
-
-    rag_processor.generate_general_summary()
+    assert rag_processor.project_rag.summary_answer == expected

@@ -686,7 +686,6 @@ def historicalpage(request: HttpRequest) -> HttpResponse:
     return render(request, "historicalpage.html", context)
 
 
-@login_required(login_url="/accounts/login/")
 def rag(
     request: HttpRequest, project_id: int, rag_id: int = 0
 ) -> HttpResponse:
@@ -705,7 +704,6 @@ def rag(
 
     project_rag = None
     show_closed_stats = False
-
     counts = {"oui": 0, "non": 0, "peut_etre": 0, "mixte": 0}
     percentages = {"oui": 0, "non": 0, "peut_etre": 0, "mixte": 0}
 
@@ -714,7 +712,6 @@ def rag(
             ProjectRAG, project_id=project_id, id=rag_id
         )
         stats = getattr(project_rag, "stats", None)
-
         if stats and stats.classification_stats:
             show_closed_stats = True
             counts = stats.classification_stats.get("counts", {})
@@ -755,6 +752,29 @@ def rag(
             True if first_document_rag.confidence_score else False
         )
 
+    summary_data = {}
+
+    if project_rag and project_rag.summary_answer:
+        if isinstance(project_rag.summary_answer, str):
+            try:
+                summary_data = json.loads(project_rag.summary_answer)
+            except json.JSONDecodeError:
+                summary_data = {"summary": "", "considerations": []}
+        elif isinstance(project_rag.summary_answer, dict):
+            summary_data = project_rag.summary_answer
+    summary_text = (
+        summary_data.get("summary", "")
+        if isinstance(summary_data, dict)
+        else ""
+    )
+
+    considerations = summary_data.get("considerations", [])
+
+    if isinstance(considerations, str):
+        considerations = [
+            line.strip() for line in considerations.split("\n") if line.strip()
+        ]
+
     context = {
         "project": project,
         "project_rags": project_rags,
@@ -765,7 +785,8 @@ def rag(
         "number_documents": len(documents_ids),
         "refinement_id": last_refinement.id if last_refinement else 0,
         "iteration_id": last_iteration.id if last_iteration else 0,
-        "summary_answer": project_rag.summary_answer if project_rag else "",
+        "summary_text": summary_text,
+        "considerations": considerations,
         "natural_language_query": project.natural_language_query or "",
         "classification_total": sum(counts.values()),
         "oui_count": counts["oui"],

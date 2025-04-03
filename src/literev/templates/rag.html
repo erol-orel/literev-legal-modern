@@ -108,17 +108,29 @@
           <div>
             <div>
               <h3>
-                Résumé général:
+                Considérations générales:
               </h3>
-              {% if summary_answer %}
+              {% if summary_text %}
                 <div class="container mb-4 px-4">
                   <div class="alert alert-info">
                     <p>
-                      {{ summary_answer }}
+                      <strong>Résumé :</strong> {{ summary_text }}
                     </p>
+                    {% if considerations %}
+                      <strong>Arguments retenus :</strong>
+                      <ul>
+                        {% for topic in considerations %}
+                          <li>
+                            {{ topic }}
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    {% endif %}
+
                   </div>
                 </div>
               {% endif %}
+
             </div>
             {% if show_closed_stats %}
 

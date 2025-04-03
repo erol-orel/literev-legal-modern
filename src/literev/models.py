@@ -162,6 +162,7 @@ class ProjectDocumentRAG(models.Model):
     answer = models.TextField()
     confidence_score = models.FloatField(default=None, null=True, blank=True)
 
+    # TODO: Review this field because it's not a real field in the method
     def set_source(self, source: str) -> None:
         """
         Set the source type for the answer (pdf or abstract).

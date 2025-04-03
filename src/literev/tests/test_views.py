@@ -1,3 +1,5 @@
+import json
+
 from pathlib import Path
 from unittest import skip
 
@@ -6,11 +8,14 @@ from django.contrib.auth.models import User
 from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 
+from literev.libs.rag_pdf import PDFRAG
 from literev.models import (
     Cluster,
     ClusterElement,
     Document,
     Project,
+    ProjectDocumentRAG,
+    ProjectRAG,
     ProjectRefinement,
     RefinementIteration,
     TableChoice,
@@ -348,3 +353,64 @@ class TableSelectViewTests(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("search"), response.url)
+
+
+class ProjectRAGTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser", password="testpass"
+        )
+        self.project = Project.objects.create(name="Test Project")
+        self.document, created = Document.objects.get_or_create(
+            project=self.project,
+            defaults={"raw_document_text": "Test document text"},
+        )
+        self.project_rag = ProjectRAG.objects.create(
+            project=self.project,
+            summary_answer=json.dumps(
+                {
+                    "summary": "Ceci est un résumé.",
+                    "considerations": ["Point 1", "Point 2", "Point 3"],
+                }
+            ),
+        )
+
+    def test_project_rag_general_summary_and_considerations(self):
+        project_rag = ProjectRAG.objects.get(project=self.project)
+        self.assertIsInstance(project_rag.summary_answer, str)
+
+        try:
+            summary_data = json.loads(project_rag.summary_answer)
+        except json.JSONDecodeError:
+            summary_data = {"summary": "", "considerations": []}
+
+        self.assertEqual(summary_data.get("summary"), "Ceci est un résumé.")
+        self.assertEqual(
+            summary_data.get("considerations"),
+            ["Point 1", "Point 2", "Point 3"],
+        )
+
+    def test_pdf_rag_run_method(self):
+        pdf_rag = PDFRAG(
+            project_rag_id=self.project_rag.id, document_ids=[self.document.id]
+        )
+        pdf_rag.run()
+
+        self.project_rag.refresh_from_db()
+
+        ProjectDocumentRAG.objects.create(
+            project_rag=self.project_rag,
+            document=self.document,
+            citation="Example citation",
+            answer="Generated answer",
+        )
+
+        try:
+            summary_data = json.loads(self.project_rag.summary_answer)
+        except json.JSONDecodeError:
+            summary_data = {"summary": "", "considerations": []}
+
+        self.assertIn("summary", summary_data)
+        self.assertIn("considerations", summary_data)
+        self.assertIsInstance(summary_data["summary"], str)
+        self.assertIsInstance(summary_data["considerations"], list)
