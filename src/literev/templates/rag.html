@@ -444,13 +444,16 @@
     const updateOrderSelector =document.getElementById("update_order_by");
 
     // Handle dropdown change
-    updateOrderSelector.addEventListener('change', () => {
+    if (updateOrderSelector != null) {
+      updateOrderSelector.addEventListener('change', () => {
       const answersContainer = document.getElementById("ragAnswers");
       while (answersContainer.firstChild) {
         answersContainer.removeChild(answersContainer.lastChild);
       }
       checkStatus();
     });
+    }
+
 
     const checkStatus = async () => {
       if (document.getElementById("questionText") === null) {
