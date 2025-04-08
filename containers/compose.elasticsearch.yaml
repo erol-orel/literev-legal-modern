@@ -20,11 +20,11 @@ services:
     volumes:
       - esdata:/usr/share/elasticsearch/data
     ports:
-      - ${ES_PORT:-9200}:${ES_PORT:-9200}
+      - 9200:9200
     networks:
       - literev
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:${ES_PORT:-9200}/_cluster/health || exit 1"]  # Use HTTP for healthcheck
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 120
