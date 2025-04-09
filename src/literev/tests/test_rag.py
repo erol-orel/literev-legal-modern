@@ -15,7 +15,7 @@ from django.conf import settings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 from literev.libs.rag_pdf import PDFRAG, RAGAnswer
-from literev.models import Document, ProjectRAG
+from literev.models import Document, ProjectDocumentRAG, ProjectRAG
 
 
 @pytest.fixture
@@ -176,17 +176,34 @@ def test_rag_aug_variation(doc2_txt_chunks) -> None:
 
 
 @pytest.mark.django_db
-@patch("literev.libs.rag_pdf.ProjectDocumentRAG.objects.filter")
 @patch("literev.libs.rag_pdf.OpenAIGen")
 def test_generate_general_summary_with_valid_answers(
-    mock_openai_gen, mock_doc_filter, project_rag
+    mock_openai_gen, project_rag
 ):
-    mock_queryset = MagicMock()
-    mock_queryset.exclude.return_value.values_list.return_value = [
-        "Première réponse pertinente.",
-        "Deuxième réponse pertinente.",
-    ]
-    mock_doc_filter.return_value = mock_queryset
+    from literev.models import Document, ProjectDocumentRAG
+
+    # Create mock documents
+    doc1 = Document.objects.create(
+        project=project_rag.project, procedure_type="ProcA"
+    )
+    doc2 = Document.objects.create(
+        project=project_rag.project, procedure_type="ProcB"
+    )
+
+    ProjectDocumentRAG.objects.create(
+        project_rag=project_rag,
+        document=doc1,
+        answer="Première réponse pertinente.",
+        citation="Texte cité 1.",
+        confidence_score=0.9,
+    )
+    ProjectDocumentRAG.objects.create(
+        project_rag=project_rag,
+        document=doc2,
+        answer="Deuxième réponse pertinente.",
+        citation="Texte cité 2.",
+        confidence_score=0.85,
+    )
 
     mock_summary_obj = MagicMock()
     mock_summary_obj.summary = "Résumé généré basé sur les réponses."
@@ -197,14 +214,11 @@ def test_generate_general_summary_with_valid_answers(
     rag_processor.project_rag = project_rag
     rag_processor.generate_general_summary()
 
-    expected = json.dumps(
-        {
-            "summary": "Résumé généré basé sur les réponses.",
-            "considerations": ["Considération A", "Considération B"],
-        }
-    )
+    result = json.loads(rag_processor.project_rag.summary_answer)
 
-    assert rag_processor.project_rag.summary_answer == expected
+    assert result["summary"] == "Résumé généré basé sur les réponses."
+    assert "Considération A" in result["considerations"][0]["text"]
+    assert "Considération B" in result["considerations"][1]["text"]
 
 
 @pytest.mark.django_db
@@ -232,16 +246,21 @@ def test_generate_general_summary_no_valid_answers(
 
 
 @pytest.mark.django_db
-@patch("literev.libs.rag_pdf.ProjectDocumentRAG.objects.filter")
 @patch("literev.libs.rag_pdf.OpenAIGen")
 def test_generate_general_summary_strips_whitespace(
-    mock_openai_gen, mock_doc_filter, project_rag
+    mock_openai_gen, project_rag
 ):
-    mock_queryset = MagicMock()
-    mock_queryset.exclude.return_value.values_list.return_value = [
-        "Texte juridique."
-    ]
-    mock_doc_filter.return_value = mock_queryset
+    doc = Document.objects.create(
+        project=project_rag.project, procedure_type="ProcX"
+    )
+
+    ProjectDocumentRAG.objects.create(
+        project_rag=project_rag,
+        document=doc,
+        answer="Texte juridique.",
+        citation="Extrait juridique.",
+        confidence_score=0.95,
+    )
 
     mock_summary_obj = MagicMock()
     mock_summary_obj.summary = "   Résumé avec des espaces.   "

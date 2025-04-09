@@ -118,19 +118,28 @@
                     </p>
                     {% if considerations %}
                       <strong>Arguments retenus :</strong>
-                      <ul>
-                        {% for topic in considerations %}
+                      <ul class="small">
+                        {% for consideration in considerations %}
                           <li>
-                            {{ topic }}
+                            {{ consideration.text }}
+                            {% for proc in consideration.procedure_types %}
+                              {% if proc != "Inconnu" %}
+                                <a href="{% url 'contentdocument' proc|document_id_by_procedure_type %}"
+                                   class="badge bg-secondary text-white ms-1"
+                                   target="_blank">
+                                  {{ proc }}
+                                </a>
+                              {% else %}
+                                <span class="badge bg-secondary text-white ms-1">{{ proc }}</span>
+                              {% endif %}
+                            {% endfor %}
                           </li>
                         {% endfor %}
                       </ul>
                     {% endif %}
-
                   </div>
                 </div>
               {% endif %}
-
             </div>
             {% if show_closed_stats %}
 

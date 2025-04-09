@@ -229,3 +229,13 @@ def clusters_summary(project: Project) -> list[dict[str, Union[str, int]]]:
 def get_dict_value(dictionary: dict[str, str], key: str) -> str:
     """This filter gets a value from a dictionary given a specific key."""
     return dictionary.get(key, "")
+
+
+@register.filter
+def document_id_by_procedure_type(procedure_type):
+    try:
+        return (
+            Document.objects.filter(procedure_type=procedure_type).first().id
+        )
+    except AttributeError:
+        return None

@@ -21,6 +21,7 @@ from rago.retrieval import StringRet
 
 from literev.libs.scoring import (
     assign_faithfulnesswithHHEM_scores,
+    get_similarity_score_phrases,
     sort_documents_by_es_score,
 )
 from literev.models import (
@@ -100,20 +101,21 @@ class PDFRAG:
     summary_template_prompt = (
         "Based on ALL of the given answers extracted from the documents, "
         "write a concise and coherent summary as a single sentence, in French. "
-        "Summarize the different perspectives, even if they are contradictory. "
-        "If there is absolutely no relevant information at all, return exactly: `Résumé non disponible`.\n\n"
+        "Summarize the different legal perspectives, even if they are contradictory. "
+        "Avoid vague or emotional expressions. Focus on legal arguments and facts. "
+        "If there is absolutely no relevant information, return exactly: `Résumé non disponible`. "
+        "\n\n"
         "**Instructions:**\n"
         "1. Do NOT mention specific names or individual cases.\n"
         "2. If all answers agree on one idea, return a single-sentence summary.\n"
         "3. If there are multiple legal arguments or points of view:\n"
         "   - Provide a short summary sentence.\n"
         "   - Then provide a list of *considerations* (distinct juridical elements) as bullet points (avoid repetitions).\n"
-        "   - Only use bullet points when the summary presents multiple distinct legal bases or perspectives.\n\n"
+        "   - Each bullet point should be tagged with the top 3 most similar source document procedure types.\n\n"
         "The original question is: `{query}`\n\n"
         "Given Answers:\n"
         "{context}"
     )
-
     template_prompt = (
         "Based on the given context, answer to this question: `{query}`. "
         "If no information is available in the context, "
@@ -264,7 +266,28 @@ class PDFRAG:
     def generate_general_summary(self) -> None:
         logger.info("Generating general summary...")
 
-        answers = self._fetch_valid_document_answers()
+        document_rags = ProjectDocumentRAG.objects.filter(
+            project_rag=self.project_rag
+        ).select_related("document")
+
+        answers = []
+        tagged_data = []
+
+        for rag in document_rags:
+            if rag.answer.strip().lower() in [
+                "no content available.",
+                "réponse non disponible",
+                "error generating response.",
+            ]:
+                continue
+            answers.append(f"- {rag.answer.strip()}")
+            tagged_data.append(
+                {
+                    "answer": rag.answer.strip(),
+                    "citation": rag.citation.strip(),
+                    "procedure_type": rag.document.procedure_type or "Inconnu",
+                }
+            )
 
         if not answers:
             summary_data = {
@@ -274,10 +297,6 @@ class PDFRAG:
             logger.info("No valid answers found. Using default summary.")
         else:
             logger.info(f"Combining {len(answers)} answers for summarization.")
-
-            answers_bullet_points = "\n".join(
-                f"- {answer.strip()}" for answer in answers if answer.strip()
-            )
 
             try:
                 summary_gen = OpenAIGen(
@@ -296,12 +315,43 @@ class PDFRAG:
 
                 summary_obj: SummaryGeneralAnswer = summary_gen.generate(
                     query=self.project_rag.query,
-                    context=[answers_bullet_points],
+                    context=["\n".join(answers)],
                 )
+
+                tagged_considerations = []
+                for cons in summary_obj.considerations:
+                    cons_text = cons.strip().lower()
+                    scored_items = []
+                    for item in tagged_data:
+                        score_answer = get_similarity_score_phrases(
+                            cons_text, item["answer"].lower()
+                        )
+                        score_citation = get_similarity_score_phrases(
+                            cons_text, item["citation"].lower()
+                        )
+                        score = max(score_answer, score_citation)
+                        scored_items.append((score, item["procedure_type"]))
+
+                    top_items = sorted(scored_items, reverse=True)[:3]
+                    top_procedure_types = list(
+                        {pt for _, pt in top_items if _ >= 0.75}
+                    )
+                    if not top_procedure_types:
+                        top_procedure_types = [
+                            pt for _, pt in top_items[:3]
+                        ] or ["Inconnu"]
+
+                    tagged_considerations.append(
+                        {
+                            "text": cons.strip(),
+                            "procedure_types": top_procedure_types,
+                            "tagged": f"{cons.strip()} ({', '.join(top_procedure_types)})",
+                        }
+                    )
 
                 summary_data = {
                     "summary": summary_obj.summary.strip(),
-                    "considerations": summary_obj.considerations,
+                    "considerations": tagged_considerations,
                 }
 
             except Exception as e:
@@ -312,9 +362,7 @@ class PDFRAG:
                 }
 
         self.project_rag.summary_answer = json.dumps(summary_data)
-
         self.project_rag.save()
-
         logger.info(f"Summary saved: {summary_data}")
 
     def check_question_type(self) -> str:
