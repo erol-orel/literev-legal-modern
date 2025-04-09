@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import os
 
@@ -23,7 +22,6 @@ from literev.libs.pipeline import (
 )
 from literev.libs.rag_pdf import PDFRAG
 from literev.libs.scoring import (
-    assign_faithfulnesswithHHEM_scores,
     sort_documents_by_es_score,
 )
 from literev.libs.utils import (
@@ -437,13 +435,6 @@ def task_rag_result_table(
             document_ids=document_ids,
         )
         rag.run()
-
-        # Assess confidence scores
-        # assign_confidence_scores(project_rag)
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(
-            assign_faithfulnesswithHHEM_scores(project_rag)
-        )
 
     except Exception as e:
         logging.error(f"[task_rag_result_table] (#{project_rag_id}): {e}")

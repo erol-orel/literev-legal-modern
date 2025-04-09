@@ -113,7 +113,7 @@
               {% if summary_text %}
                 <div class="container mb-4 px-4">
                   <div class="alert alert-info">
-                    <p>
+                    <p id="general-ans">
                       <strong>Résumé :</strong> {{ summary_text }}
                     </p>
                     {% if considerations %}
@@ -405,7 +405,6 @@
       divContainer.appendChild(citation);
 
       // add hr
-
       const hrLine = document.createElement('hr');
       divContainer.append(hrLine)
 
@@ -464,11 +463,15 @@
       const ragStatus = getResponse.data.status;
 
       if (ragStatus === "completed") {
-        document.getElementById("questionText").innerHTML = getResponse.data.query;
+        document.getElementById("questionText").textContent = getResponse.data.query;
         const documentsResponse = await axios.get(urlDocRagList,
           { params: { project_rag: getResponse.data.id } }
         );
+        const generalAns = document.getElementById("general-ans");
 
+        if (generalAns == null) {
+          window.location.reload()
+        }
         renderResults(documentsResponse.data);
         return;
       }

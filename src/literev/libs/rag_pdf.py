@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 
@@ -18,7 +19,10 @@ from rago.extensions.cache import CacheFile
 from rago.generation import OpenAIGen
 from rago.retrieval import StringRet
 
-from literev.libs.scoring import sort_documents_by_es_score
+from literev.libs.scoring import (
+    assign_faithfulnesswithHHEM_scores,
+    sort_documents_by_es_score,
+)
 from literev.models import (
     Document,
     ProjectDocumentRAG,
@@ -229,9 +233,6 @@ class PDFRAG:
                     document, "Error generating response."
                 )
 
-        self.project_rag.status = "completed"
-        self.project_rag.save()
-
         self.generate_general_summary()
 
         self.question_type = self.check_question_type()
@@ -243,6 +244,14 @@ class PDFRAG:
             self.generate_closed_answer_statistics()
         else:
             logger.info("Open-ended question. Skipping closed answer stats.")
+
+        # Assess confidence scores
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(
+            assign_faithfulnesswithHHEM_scores(self.project_rag)
+        )
+        self.project_rag.status = "completed"
+        self.project_rag.save()
 
     def _create_empty_response(self, document, message: str) -> None:
         ProjectDocumentRAG.objects.create(
