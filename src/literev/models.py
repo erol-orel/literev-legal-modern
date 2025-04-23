@@ -159,21 +159,9 @@ class ProjectDocumentRAG(models.Model):
         "Document", on_delete=models.CASCADE, related_name="document_rags"
     )
     citation = models.TextField()
+    citation_context = models.JSONField(default=list)
     answer = models.TextField()
     confidence_score = models.FloatField(default=None, null=True, blank=True)
-
-    # TODO: Review this field because it's not a real field in the method
-    def set_source(self, source: str) -> None:
-        """
-        Set the source type for the answer (pdf or abstract).
-
-        Parameters
-        ----------
-        source : str
-            The content source ('pdf' or 'abstract') used to generate the answer.
-        """
-        self.from_full_text = source == "pdf"
-        self.save()
 
     def __str__(self) -> str:
         return (

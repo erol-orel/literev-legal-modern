@@ -215,12 +215,15 @@ class PDFRAG:
                 )
 
                 result = rag.prompt(self.project_rag.query)
-
+                citation_context = rag.logs.get("augmented", {}).get(
+                    "result", []
+                )
                 ProjectDocumentRAG.objects.create(
                     project_rag=self.project_rag,
                     document=document,
                     citation=result.highlight.strip(),
                     answer=result.answer.strip(),
+                    citation_context=citation_context,
                 )
 
                 if "réponse non disponible" not in result.answer.lower():

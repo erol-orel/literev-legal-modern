@@ -749,7 +749,7 @@ def rag(
 
     if first_document_rag:
         has_confidence_score = (
-            True if first_document_rag.confidence_score else False
+            True if first_document_rag.confidence_score is not None else False
         )
 
     summary_data = {}

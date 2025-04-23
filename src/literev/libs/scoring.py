@@ -29,7 +29,7 @@ evaluator_llm = LangchainLLMWrapper(llm)
 
 
 async def get_faithfulnesswithHHEM_score(
-    query: str, response: str, citation: str
+    query: str, response: str, citation: list[str]
 ) -> float:
     """
     Evaluates a sample and returns faithfulnesswithHHEM score
@@ -42,7 +42,7 @@ async def get_faithfulnesswithHHEM_score(
         question or query used in RAG.
     response : str
         a string response from rag response
-    citation : str
+    citation : list[str]
         A portion from document which is used to generate the response
         in RAG.
 
@@ -52,7 +52,7 @@ async def get_faithfulnesswithHHEM_score(
         faithfulnesswithHHEM score between string_A and string_B
     """
     sample = SingleTurnSample(
-        user_input=query, response=response, retrieved_contexts=[citation]
+        user_input=query, response=response, retrieved_contexts=citation
     )
     scorer = FaithfulnesswithHHEM(llm=evaluator_llm)
     faithfulnesswh_score = await scorer.single_turn_ascore(sample)
@@ -81,8 +81,13 @@ async def assign_faithfulnesswithHHEM_scores(project_rag: ProjectRAG) -> None:
     query = project_rag.query
 
     async for rag_document in rag_documents:
+        citation_context = (
+            rag_document.citation_context
+            if rag_document.citation_context
+            else [rag_document.citation]
+        )
         faithfulness_score = await get_faithfulnesswithHHEM_score(
-            query, rag_document.answer, rag_document.citation
+            query, rag_document.answer, citation_context
         )
 
         rag_document.confidence_score = faithfulness_score
