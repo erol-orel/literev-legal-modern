@@ -6,8 +6,8 @@ on:
     branches: [ main ]
 
 env:
-  HOST_UID: 1001
-  HOST_GID: 1001
+  HOST_UID: 1000
+  HOST_GID: 1000
   DOCKER_CPU_LIMIT: 1.0
   DOCKER_CPU_RESERVATION: 0.5
   LITEREV_USE_MULTIPROCESSING: false
@@ -20,7 +20,7 @@ env:
   DJANGO_SETTINGS_MODULE: config.settings.dev
   DJANGO_SECRET_KEY: "django-insecure-96*q09uh20(^i4sdxqh3n_v#d-o:**7zrri&k-j3@f10hm88)"
   DJANGO_ENV: dev
-  ES_HOST_URL: "http://95.216.201.202:9200"
+  ES_HOST_URL: "http://staging.literev.com:9200"
   ES_PASSWORD: "I39hAE_bvikcbRHNhyvf"
   ES_USERNAME: "elastic"
   MEDIA_ROOT: /tmp/literev/static/media
@@ -53,153 +53,196 @@ env:
 jobs:
   check_branch:
     name: Check if branch is ahead of main
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
+      - uses: actions/checkout@v4
+
+      - name: self-hosted setup
+        run: |
+          export HOST_UID=$(id -u)
+          export HOST_GID=$(id -g)
+          sudo mkdir -p /home/ci/actions-runner/_work/literev-legal/literev-legal/
+          sudo chown -R ${HOST_UID}:${HOST_GID} /home/ci/actions-runner/_work/literev-legal/literev-legal/
+          sudo mkdir -p /opt/data/literev
+          sudo chown -R ${HOST_UID}:${HOST_GID} /opt/data/literev
+          sudo mkdir -p  /tmp/literev/
+          sudo chown -R ${HOST_UID}:${HOST_GID} /tmp/literev
+
+      - name: Prune Docker system
+        if: ${{ always() && github.event_name != 'pull_request' && github.event_name != 'pull_request_target' && env.ci_enable_debugging != 'true' }}
+        run: docker system prune -a -f
+
       - name: Git checkout
         uses: actions/checkout@v4
         if: ${{ github.event_name == 'pull_request' }}
         with:
           fetch-depth: 0
 
+      - name: Fetch main
+        run: git fetch origin main
+
       - name: Check if branch is ahead of main
         if: ${{ github.event_name == 'pull_request' }}
         run: |
-          if ! git merge-base --is-ancestor origin/main ${{ github.event.pull_request.head.sha }};
-          then echo "This branch is not up to date with main";
-          exit 1; fi
+          if ! git merge-base --is-ancestor origin/main HEAD; then
+            echo "::error::This branch is not up to date with main; please rebase or merge."
+            exit 1
+          fi
 
   test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      matrix:
-        python_version: ["3.10"]
-    concurrency:
-      group: ci-${{ github.ref }}
-      cancel-in-progress: true
-
+    name: Run tests and display coverage
+    runs-on: self-hosted
     defaults:
       run:
-        shell: bash -l {0}
+        shell: bash -el {0}
+    timeout-minutes: 120
+    concurrency:
+      group: ci-main-tests-${{ github.ref }}
+      cancel-in-progress: true
+    permissions:
+      pull-requests: write
+      contents: write
+      actions: read
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install Operating System dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install gettext-base
+      - name: self-hosted setup
+        run: |
+          export HOST_UID=$(id -u)
+          export HOST_GID=$(id -g)
+          sudo chown -R ${HOST_UID}:${HOST_GID} /home/ci/actions-runner/_work/literev-legal/literev-legal/
+          sudo mkdir -p /opt/data/literev
+          sudo chown -R ${HOST_UID}:${HOST_GID} /opt/data/literev
+          sudo mkdir -p /tmp/literev/static/media
+          sudo chown -R ${HOST_UID}:${HOST_GID} /tmp/literev/static/media
 
-    - uses: mamba-org/setup-micromamba@v2
-      with:
-        environment-file: conda/base.yaml
-        condarc-file: .github/workflows/.condarc
-        micromamba-binary-path: ${{ runner.temp }}/bin/micromamba
-        micromamba-root-path: ${{ runner.temp }}/micromamba
-        environment-name: literev
-        generate-run-shell: false
-        create-args: -v
-        init-shell: >-
-          bash
-        # cache-environment: true
-        post-cleanup: 'all'
+      - name: Install Operating System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install gettext-base
 
-    - name: Create environment variables files
-      run: |
-        export FRONTEND_HOST_PORT=${FRONTEND_HOST_PORT}
-        export POSTGRES_PORT=${POSTGRES_PORT}
-        export DOCKER_PROJECT_NAME=$RANDOM
-        export HOST_UID=${HOST_UID}
-        export HOST_GID=${HOST_GID}
-        envsubst < .env.tpl > .env
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: conda/base.yaml
+          condarc-file: .github/workflows/.condarc
+          micromamba-binary-path: ${{ runner.temp }}/bin/micromamba
+          micromamba-root-path: ${{ runner.temp }}/micromamba
+          environment-name: literev
+          generate-run-shell: false
+          create-args: -v
+          init-shell: >-
+            bash
+          # cache-environment: true
+          post-cleanup: 'all'
 
-    - name: Check if poetry.lock is updated
-      run: poetry check
+      - name: Create environment variables files
+        run: |
+          export FRONTEND_HOST_PORT=${FRONTEND_HOST_PORT}
+          export POSTGRES_PORT=${POSTGRES_PORT}
+          export DOCKER_PROJECT_NAME=$RANDOM
+          export HOST_UID=${HOST_UID}
+          export HOST_GID=${HOST_GID}
+          envsubst < .env.tpl > .env
 
-    - name: Install dependencies
-      run: poetry install
+      - name: Check if poetry.lock is updated
+        run: poetry check
 
-    - name: Create volumes
-      run: |
-        mkdir -p ${CONTAINER_VOLUME_DATA_DIR}
-        mkdir -p ${POSTGRES_HOST_BACKUP}
+      - name: Install dependencies
+        run: poetry install
 
-    - name: Clean-up and Setup
-      run: |
-        makim clean.all
-        makim containers.host-setup
+      - name: Create volumes
+        run: |
+          mkdir -p ${CONTAINER_VOLUME_DATA_DIR}
+          mkdir -p ${POSTGRES_HOST_BACKUP}
 
-    - name: Remove old database
-      run: sugar compose down --options --volumes || true
+      - name: Clean-up and Setup
+        run: |
+          makim clean.all
+          makim containers.host-setup
 
-    - name: Build images
-      run: sugar compose build --services literev-postgres
+      - name: Remove old database
+        run: sugar compose down --options --volumes || true
 
-    - name: Start literev-postgres container
-      run: sugar compose-ext start --options -d
+      - name: Build images
+        run: sugar compose build --services literev-postgres
 
-    - name: Migrate containers
-      run: makim django.migrate
+      - name: Start literev-postgres container
+        run: sugar compose-ext start --options -d
 
-    - name: Check migration files
-      if: ${{ success() || failure() }}
-      run: makim --verbose django.makemigrations --check
+      - name: Migrate containers
+        run: makim django.migrate
 
-    - name: Run tests
-      if: ${{ success() || failure() }}
-      run: makim tests.unit --clean-cov
+      - name: Check migration files
+        if: ${{ success() || failure() }}
+        run: makim --verbose django.makemigrations --check
 
-    - name: Set coverage report
-      id: parse-coverage-report
-      run: |
-          COVERAGE_REPORT=$(makim tests.coverage-report)
-          COVERAGE_PERCENTAGE=$(echo $COVERAGE_REPORT | grep -oP "TOTAL.* \K(\d{1,3})%")
-          COVERAGE_PERCENTAGE=${COVERAGE_PERCENTAGE%?}
-          STATE=$(if ((COVERAGE_PERCENTAGE<50)); then echo "critical"; elif ((50<=COVERAGE_PERCENTAGE && COVERAGE_PERCENTAGE<=74)); then echo "yellow"; elif ((75<=COVERAGE_PERCENTAGE)); then echo "success"; fi)
-          COVERAGE_REPORT="${COVERAGE_REPORT//'%'/'%25'}"
-          COVERAGE_REPORT="${COVERAGE_REPORT//$'\n'/'%0A'}"
-          COVERAGE_REPORT="${COVERAGE_REPORT//$'\r'/'%0D'}"
-          DABGE="https://img.shields.io/static/v1?label=Code%20Coverage&message=${COVERAGE_PERCENTAGE}%&color=${STATE}"
-          echo "::set-output name=COVERAGE_REPORT::$COVERAGE_REPORT"
-          echo "::set-output name=DABGE::$DABGE"
+      - name: Run tests
+        if: ${{ success() || failure() }}
+        run: makim tests.unit --clean-cov
 
-    - uses: mshick/add-pr-comment@v1
-      with:
-        message: |
-          ![Code Coverage](${{ steps.parse-coverage-report.outputs.DABGE }})
-          ```
-          ${{ steps.parse-coverage-report.outputs.COVERAGE_REPORT }}
-          ```
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
-        repo-token-user-login: 'github-actions[bot]'
+      - name: Set coverage report
+        id: parse-coverage-report
+        run: |
+            COVERAGE_REPORT=$(makim tests.coverage-report)
+            COVERAGE_PERCENTAGE=$(echo $COVERAGE_REPORT | grep -oP "TOTAL.* \K(\d{1,3})%")
+            COVERAGE_PERCENTAGE=${COVERAGE_PERCENTAGE%?}
+            STATE=$(if ((COVERAGE_PERCENTAGE<50)); then echo "critical"; elif ((50<=COVERAGE_PERCENTAGE && COVERAGE_PERCENTAGE<=74)); then echo "yellow"; elif ((75<=COVERAGE_PERCENTAGE)); then echo "success"; fi)
+            COVERAGE_REPORT="${COVERAGE_REPORT//'%'/'%25'}"
+            COVERAGE_REPORT="${COVERAGE_REPORT//$'\n'/'%0A'}"
+            COVERAGE_REPORT="${COVERAGE_REPORT//$'\r'/'%0D'}"
+            DABGE="https://img.shields.io/static/v1?label=Code%20Coverage&message=${COVERAGE_PERCENTAGE}%&color=${STATE}"
+            echo "::set-output name=COVERAGE_REPORT::$COVERAGE_REPORT"
+            echo "::set-output name=DABGE::$DABGE"
 
-    - name: Stop services
-      run: |
-        sugar compose stop
-        sugar compose down --options --volumes
+      - uses: mshick/add-pr-comment@v1
+        with:
+          message: |
+            ![Code Coverage](${{ steps.parse-coverage-report.outputs.DABGE }})
+            ```
+            ${{ steps.parse-coverage-report.outputs.COVERAGE_REPORT }}
+            ```
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          repo-token-user-login: 'github-actions[bot]'
 
-    - name: Semantic Release PR Title Check
-      uses: osl-incubator/semantic-release-pr-title-check@v1.4.1
-      if: ${{ success() || failure() }}
-      with:
-        convention-name: conventionalcommits
+      - name: Stop services
+        run: |
+          sugar compose stop
+          sugar compose down --options --volumes
+
+      - name: Semantic Release PR Title Check
+        uses: osl-incubator/semantic-release-pr-title-check@v1.4.1
+        if: ${{ success() || failure() }}
+        with:
+          convention-name: conventionalcommits
+
 
   linter:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    strategy:
-      matrix:
-        python_version: ["3.10"]
-    concurrency:
-      group: ci-linter-${{ github.ref }}
-      cancel-in-progress: true
-
+    name: Linter
+    needs: check_branch
+    runs-on: self-hosted
     defaults:
       run:
-        shell: bash -l {0}
+        shell: bash -el {0}
+    timeout-minutes: 60
+    concurrency:
+      group: ci-main-linter-${{ github.ref }}
+      cancel-in-progress: true
+    permissions:
+      pull-requests: write
+      contents: write
+      actions: read
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: self-hosted setup
+      run: |
+        export HOST_UID=$(id -u)
+        export HOST_GID=$(id -g)
+        sudo chown -R ${HOST_UID}:${HOST_GID} /home/ci/actions-runner/_work/literev-legal/literev-legal/
+        sudo mkdir -p /opt/data/literev
+        sudo chown -R ${HOST_UID}:${HOST_GID} /opt/data/literev
 
     - name: Install Operating System dependencies
       run: |
@@ -231,77 +274,97 @@ jobs:
       run: makim tests.lint
 
   containers:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    name: Test the container's stack
+    needs: check_branch
+    runs-on: self-hosted
+
     strategy:
       matrix:
-        python_version: ["3.10"]
-    concurrency:
-      group: ci-containers-${{ github.ref }}
-      cancel-in-progress: true
+        env_name:
+          - 'dev'
+          # - 'staging'
 
     defaults:
       run:
-        shell: bash -l {0}
+        shell: bash -el {0}
+    timeout-minutes: 40
+    concurrency:
+      group: ci-main-containers-${{ matrix.env_name }}-${{ github.ref }}
+      cancel-in-progress: true
 
     env:
-      USE_CONTAINER: True
-      SUGAR_ENV: dev
+      DJANGO_ENV: ${{ matrix.env_name }}
+      DJANGO_SETTINGS_MODULE: config.settings.${{ matrix.env_name }}
+      ENV: ${{ matrix.env_name }}
+      POSTGRES_HOST: literev-postgres
+      USE_CONTAINER: true
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install Operating System dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install gettext-base
+      - name: self-hosted setup
+        run: |
+          export HOST_UID=$(id -u)
+          export HOST_GID=$(id -g)
+          sudo chown -R ${HOST_UID}:${HOST_GID} /home/ci/actions-runner/_work/literev-legal/literev-legal/
+          sudo mkdir -p /opt/data/literev
+          sudo chown -R ${HOST_UID}:${HOST_GID} /opt/data/literev
+          sudo mkdir -p /tmp/literev/backup
+          sudo chown -R ${HOST_UID}:${HOST_GID} /tmp/literev/backup
 
-    - uses: conda-incubator/setup-miniconda@v3
-      with:
-        miniconda-version: "latest"
-        environment-file: conda/base.yaml
-        channels: conda-forge,nodefaults
-        activate-environment: literev-legal
-        auto-update-conda: true
-        conda-solver: libmamba
+      - uses: actions/checkout@v3
 
-    - name: Create environment variables files
-      run: |
-        export FRONTEND_HOST_PORT=${FRONTEND_HOST_PORT}
-        export POSTGRES_PORT=${POSTGRES_PORT}
-        export DOCKER_PROJECT_NAME=$RANDOM
-        export HOST_UID=${HOST_UID}
-        export HOST_GID=${HOST_GID}
-        envsubst < .env.tpl > .env
+      - name: Install Operating System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install gettext-base
 
-    - name: Install dependencies
-      run: poetry install
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniconda-version: "latest"
+          environment-file: conda/base.yaml
+          channels: conda-forge,nodefaults
+          activate-environment: literev-legal
+          auto-update-conda: true
+          conda-solver: libmamba
 
-    - name: Create volumes
-      run: |
-        mkdir -p ${CONTAINER_VOLUME_DATA_DIR}
-        mkdir -p ${POSTGRES_HOST_BACKUP}
+      - name: Create environment variables files
+        run: |
+          export FRONTEND_HOST_PORT=${FRONTEND_HOST_PORT}
+          export POSTGRES_PORT=${POSTGRES_PORT}
+          export DOCKER_PROJECT_NAME=$RANDOM
+          export HOST_UID=${HOST_UID}
+          export HOST_GID=${HOST_GID}
+          envsubst < .env.tpl > .env
 
-    - name: Clean-up and Setup
-      run: |
-        makim clean.all
-        makim containers.host-setup
+      - name: Install dependencies
+        run: poetry install
 
-    - name: Remove old database
-      run: sugar compose down --options --volumes || true
+      - name: Create volumes
+        run: |
+          mkdir -p ${CONTAINER_VOLUME_DATA_DIR}
+          mkdir -p ${POSTGRES_HOST_BACKUP}
 
-    - name: Build images
-      run: sugar compose build
+      - name: Clean-up and Setup
+        run: |
+          makim clean.all
+          makim containers.host-setup
 
-    - name: Start containers
-      run: sugar compose-ext restart --options -d
+      - name: Remove old database
+        run: sugar compose down --options --volumes || true
 
-    - name: Containers' info
-      run: |
-        sleep 30
-        sugar compose ps
+      - name: Build images
+        run: sugar compose build
 
-    - name: Stop services
-      run: |
-        sugar compose stop
-        sugar compose down --options "--volumes"
+      - name: Start containers
+        run: sugar compose-ext restart --options -d
+
+      - name: Containers' info
+        run: |
+          sleep 30
+          sugar compose ps
+
+      - name: Stop services
+        run: |
+          sugar compose stop
+          sugar compose down --options "--volumes"

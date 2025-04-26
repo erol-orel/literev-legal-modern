@@ -4,21 +4,24 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
+    branches:  [ main ]
 
 jobs:
   release:
     if: ${{ !github.event.pull_request.draft }}
     name: Release
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    runs-on: self-hosted
+    timeout-minutes: 50
 
     defaults:
       run:
         shell: bash -el {0}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: mamba-org/setup-micromamba@v2
         with:
