@@ -10,6 +10,8 @@ from django.urls import reverse
 from literev.libs.project_workflows import validate_project_access
 from literev.libs.select_functions import download_finalcsv
 from literev.libs.table_choice import (
+    check_all2_maybe_tablechoice,
+    check_all2_yes_tablechoice,
     get_iteration,
     get_iterations_render,
     iterate_check_list,
@@ -377,6 +379,36 @@ class TableSelectHandler:
                 check_list_maybe,
             )
 
+            return redirect(
+                reverse(
+                    "tableselect",
+                    kwargs={
+                        "project_id": self.project_id,
+                        "refinement_id": self.refinement_id,
+                        "iteration_id": self.iteration_id,
+                        "num": self.current_page + 1,
+                        "order_by": self.order_by,
+                    },
+                )
+            )
+
+        elif submit == "check_all":
+            check_all2_yes_tablechoice(self.request.user, self.project)
+            return redirect(
+                reverse(
+                    "tableselect",
+                    kwargs={
+                        "project_id": self.project_id,
+                        "refinement_id": self.refinement_id,
+                        "iteration_id": self.iteration_id,
+                        "num": self.current_page + 1,
+                        "order_by": self.order_by,
+                    },
+                )
+            )
+
+        elif submit == "check_all2_maybe":
+            check_all2_maybe_tablechoice(self.request.user, self.project)
             return redirect(
                 reverse(
                     "tableselect",

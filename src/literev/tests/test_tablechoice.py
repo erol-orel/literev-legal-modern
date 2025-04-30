@@ -3,6 +3,8 @@ from django.test import TestCase, TransactionTestCase
 
 from literev.libs.select_functions import create_refinement
 from literev.libs.table_choice import (
+    check_all2_maybe_tablechoice,
+    check_all2_yes_tablechoice,
     create_tablechoice_rag_iteration,
     highlight_words,
     highlight_words_topic,
@@ -129,3 +131,23 @@ class TableSelectCheckButtons(TransactionTestCase):
         ).count()
 
         self.assertEqual(number_created_tablechoice, 10)
+
+    def test_check_all2_yes(self):
+        check_all2_yes_tablechoice(self.user, self.project)
+
+        tablechoices = TableChoice.objects.filter(
+            user=self.user, project=self.project
+        ).exclude(to_display=False)
+
+        for tablechoice in tablechoices:
+            self.assertTrue(tablechoice.is_check)
+
+    def test_check_all2_maybe(self):
+        check_all2_maybe_tablechoice(self.user, self.project)
+
+        tablechoices = TableChoice.objects.filter(
+            user=self.user, project=self.project
+        ).exclude(to_display=False)
+
+        for tablechoice in tablechoices:
+            self.assertIsNone(tablechoice.is_check)

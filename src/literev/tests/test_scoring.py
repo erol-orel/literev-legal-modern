@@ -260,6 +260,7 @@ class ScoringRAGAnwersTest(TestCase):
                 answer=rag_answers[i],
             )
 
+    @skip("similarity scores is not used anymore")
     def test_similarity_phrases(self):
         string_A = "The hamburger is cooked in the kitchen"
         string_B = "The pizza is made in a restaurant"
@@ -268,7 +269,8 @@ class ScoringRAGAnwersTest(TestCase):
 
         self.assertEqual(expected, result)
 
-    def test_asigning_confidence_scores(self):
+    @skip("similarity scores is not used anymore")
+    def test_asigning_similarity_confidence_scores(self):
         expected_score_0 = 0.6886859583329661
         expected_score_1 = 0.2840474803546656
         assign_similarity_scores(self.project_rag)

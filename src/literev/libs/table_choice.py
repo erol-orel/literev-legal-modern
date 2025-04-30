@@ -694,6 +694,26 @@ def update_document_to_display_table_choice(
     table_choice.filter(is_check=False).update(to_display=False)
 
 
+def check_all2_yes_tablechoice(user: User, project: Project) -> None:
+    """
+    Check all tablechoice elements to yes except tablechoice elements with False display.
+    """
+    tablechoice = TableChoice.objects.filter(
+        user=user, project=project
+    ).exclude(to_display=False)
+    tablechoice.update(is_check=True)
+
+
+def check_all2_maybe_tablechoice(user: User, project: Project) -> None:
+    """
+    Check all tablechoice elements to yes except tablechoice elements with False display.
+    """
+    tablechoice = TableChoice.objects.filter(
+        user=user, project=project
+    ).exclude(to_display=False)
+    tablechoice.update(is_check=None)
+
+
 def update_checked_document_page(
     user: User,
     project: Project,
