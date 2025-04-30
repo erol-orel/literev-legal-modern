@@ -401,7 +401,7 @@ class TableSelectHandler:
                         "project_id": self.project_id,
                         "refinement_id": self.refinement_id,
                         "iteration_id": self.iteration_id,
-                        "num": self.current_page + 1,
+                        "num": self.current_page,
                         "order_by": self.order_by,
                     },
                 )
@@ -416,7 +416,7 @@ class TableSelectHandler:
                         "project_id": self.project_id,
                         "refinement_id": self.refinement_id,
                         "iteration_id": self.iteration_id,
-                        "num": self.current_page + 1,
+                        "num": self.current_page,
                         "order_by": self.order_by,
                     },
                 )
