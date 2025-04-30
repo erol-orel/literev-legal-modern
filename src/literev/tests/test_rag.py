@@ -6,16 +6,26 @@ import json
 
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 import rago
 
 from django.conf import settings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from pydantic import ValidationError
 
-from literev.libs.rag_pdf import PDFRAG, RAGAnswer
-from literev.models import Document, ProjectDocumentRAG, ProjectRAG
+from literev.libs.rag_pdf import (
+    PDFRAG,
+    RAGAnswer,
+    SummaryGeneralAnswer,
+    build_consideration_model,
+)
+from literev.models import (
+    Document,
+    ProjectDocumentRAG,
+    ProjectRAG,
+    ProjectRAGStats,
+)
 
 
 @pytest.fixture
@@ -148,7 +158,7 @@ def test_rag_aug_variation(doc2_txt_chunks) -> None:
         # This model supports at most 16384 completion tokens,
         # whereas you provided 100000.',
         # 'type': 'invalid_request_error',
-        # 'param': 'max_tokens', 'code': None}}
+        # 'param': 'max_tokens', 'code': None
         generation = rago.generation.OpenAIGen(
             api_key=settings.OPENAI_API_KEY,
             model_name="gpt-4o-mini",
@@ -176,106 +186,268 @@ def test_rag_aug_variation(doc2_txt_chunks) -> None:
 
 
 @pytest.mark.django_db
-@patch("literev.libs.rag_pdf.OpenAIGen")
-def test_generate_general_summary_with_valid_answers(
-    mock_openai_gen, project_rag
-):
-    from literev.models import Document, ProjectDocumentRAG
-
-    # Create mock documents
+def test_generate_general_summary_with_valid_answers(project_rag):
     doc1 = Document.objects.create(
-        project=project_rag.project, procedure_type="ProcA"
+        project=project_rag.project,
+        procedure_type="ProcA",
+        raw_document_text="La responsabilité civile découle d'une faute.",
     )
     doc2 = Document.objects.create(
-        project=project_rag.project, procedure_type="ProcB"
+        project=project_rag.project,
+        procedure_type="ProcB",
+        raw_document_text="Un dommage psychologique peut justifier une compensation.",
     )
 
     ProjectDocumentRAG.objects.create(
         project_rag=project_rag,
         document=doc1,
-        answer="Première réponse pertinente.",
-        citation="Texte cité 1.",
+        answer="Une faute entraîne la responsabilité civile.",
+        citation="Citation document 1.",
         confidence_score=0.9,
     )
     ProjectDocumentRAG.objects.create(
         project_rag=project_rag,
         document=doc2,
-        answer="Deuxième réponse pertinente.",
-        citation="Texte cité 2.",
+        answer="La compensation pour dommages psychologiques est possible.",
+        citation="Citation document 2.",
         confidence_score=0.85,
     )
 
-    mock_summary_obj = MagicMock()
-    mock_summary_obj.summary = "Résumé généré basé sur les réponses."
-    mock_summary_obj.considerations = ["Considération A", "Considération B"]
-    mock_openai_gen.return_value.generate.return_value = mock_summary_obj
-
     rag_processor = PDFRAG(project_rag_id=project_rag.id, document_ids=[])
-    rag_processor.project_rag = project_rag
+
     rag_processor.generate_general_summary()
 
     result = json.loads(rag_processor.project_rag.summary_answer)
 
-    assert result["summary"] == "Résumé généré basé sur les réponses."
-    assert "Considération A" in result["considerations"][0]["text"]
-    assert "Considération B" in result["considerations"][1]["text"]
+    assert isinstance(result["summary"], str)
+    assert result["summary"].strip() != ""
+    assert isinstance(result["considerations"], list)
+
+    if result["considerations"]:
+        assert all(isinstance(c, str) for c in result["considerations"])
 
 
 @pytest.mark.django_db
-@patch("literev.libs.rag_pdf.ProjectDocumentRAG.objects.filter")
-@patch("literev.libs.rag_pdf.OpenAIGen")
-def test_generate_general_summary_no_valid_answers(
-    mock_openai_gen, mock_doc_filter, project_rag
-):
-    mock_queryset = MagicMock()
-    mock_queryset.exclude.return_value.values_list.return_value = []
-    mock_doc_filter.return_value = mock_queryset
-
-    rag_processor = PDFRAG(project_rag_id=project_rag.id, document_ids=[])
-    rag_processor.project_rag = project_rag
-    rag_processor.generate_general_summary()
-
-    expected = json.dumps(
-        {
-            "summary": "Résumé non disponible",
-            "considerations": [],
-        }
+def test_generate_general_summary_no_valid_answers(project_rag):
+    doc1 = Document.objects.create(
+        project=project_rag.project,
+        procedure_type="ProcX",
+        raw_document_text="Texte vide ou non pertinent.",
+    )
+    doc2 = Document.objects.create(
+        project=project_rag.project,
+        procedure_type="ProcY",
+        raw_document_text="Document sans contenu utile.",
     )
 
-    assert rag_processor.project_rag.summary_answer == expected
+    ProjectDocumentRAG.objects.create(
+        project_rag=project_rag,
+        document=doc1,
+        answer="Réponse non disponible",
+        citation="Pas de citation.",
+        confidence_score=0.0,
+    )
+    ProjectDocumentRAG.objects.create(
+        project_rag=project_rag,
+        document=doc2,
+        answer="No content available.",
+        citation="Empty citation.",
+        confidence_score=0.0,
+    )
+
+    rag_processor = PDFRAG(project_rag_id=project_rag.id, document_ids=[])
+    rag_processor.generate_general_summary()
+
+    result = json.loads(rag_processor.project_rag.summary_answer)
+
+    assert result == {
+        "summary": "Résumé non disponible",
+        "considerations": [],
+    }
 
 
 @pytest.mark.django_db
-@patch("literev.libs.rag_pdf.OpenAIGen")
-def test_generate_general_summary_strips_whitespace(
-    mock_openai_gen, project_rag
-):
+def test_generate_general_summary_strips_whitespace(project_rag):
     doc = Document.objects.create(
-        project=project_rag.project, procedure_type="ProcX"
+        project=project_rag.project,
+        procedure_type="ProcX",
+        raw_document_text=(
+            "   Le tribunal a confirmé la responsabilité civile "
+            "du défendeur en raison d'une faute prouvée.   "
+        ),
     )
 
     ProjectDocumentRAG.objects.create(
         project_rag=project_rag,
         document=doc,
-        answer="Texte juridique.",
-        citation="Extrait juridique.",
+        answer="La responsabilité est engagée.",
+        citation="Décision du tribunal.",
         confidence_score=0.95,
     )
 
-    mock_summary_obj = MagicMock()
-    mock_summary_obj.summary = "   Résumé avec des espaces.   "
-    mock_summary_obj.considerations = []
-    mock_openai_gen.return_value.generate.return_value = mock_summary_obj
-
     rag_processor = PDFRAG(project_rag_id=project_rag.id, document_ids=[])
-    rag_processor.project_rag = project_rag
     rag_processor.generate_general_summary()
 
-    expected = json.dumps(
+    result = json.loads(rag_processor.project_rag.summary_answer)
+
+    assert isinstance(result["summary"], str)
+    assert result["summary"] == result["summary"].strip()
+    assert isinstance(result["considerations"], list)
+
+
+@pytest.mark.django_db
+def test_generate_open_answer_statistics(project_rag, document_real):
+    ProjectDocumentRAG.objects.create(
+        project_rag=project_rag,
+        document=document_real,
+        citation="Extrait A",
+        answer="Ce document montre que la mesure est précise et évolutive.",
+        confidence_score=0.9,
+    )
+    ProjectDocumentRAG.objects.create(
+        project_rag=project_rag,
+        document=document_real,
+        citation="Extrait B",
+        answer="Cette réponse ne soutient pas les points mentionnés.",
+        confidence_score=0.95,
+    )
+
+    processor = PDFRAG(project_rag_id=project_rag.id, document_ids=[])
+
+    processor.summary_obj = SummaryGeneralAnswer(
+        summary="Résumé être generale",
+        considerations=[
+            "La mesure doit être précise.",
+            "Elle doit être évolutive.",
+        ],
+    )
+
+    processor.generate_open_answer_statistics()
+
+    stats = ProjectRAGStats.objects.get(project_rag=project_rag)
+    output = stats.classification_stats
+
+    assert output["total_documents"] == 2
+    assert (
+        "La mesure doit être précise." in output["consideration_frequencies"]
+    )
+    assert "Elle doit être évolutive." in output["consideration_frequencies"]
+    assert isinstance(
+        output["affirmed_docs_by_consideration"][
+            "La mesure doit être précise."
+        ],
+        list,
+    )
+
+
+def test_build_consideration_model_validation_success():
+    model = build_consideration_model(2)
+    data = model(argument_1=True, argument_2=False)
+
+    assert data.argument_1 is True
+    assert data.argument_2 is False
+
+
+def test_build_consideration_model_validation_missing_field():
+    model = build_consideration_model(2)
+
+    with pytest.raises(ValidationError) as exc:
+        model(argument_1=True)
+
+    assert "argument_2" in str(exc.value)
+
+
+def test_build_consideration_model_validation_wrong_type():
+    EvaluationModel = build_consideration_model(2)
+
+    with pytest.raises(ValidationError):
+        EvaluationModel(argument_1="not a bool", argument_2=True)
+
+
+@pytest.mark.django_db
+def test_check_question_type_open_and_closed(project_rag):
+    project_rag.query = "Est-ce que la garde partagée est accordée ?"
+    project_rag.save()
+    processor_closed = PDFRAG(project_rag_id=project_rag.id, document_ids=[])
+    processor_closed.project_rag = project_rag
+    assert processor_closed.check_question_type() == "closed"
+
+    project_rag.query = (
+        "Quels sont les critères pour obtenir une réparation morale ?"
+    )
+    project_rag.save()
+    processor_open = PDFRAG(project_rag_id=project_rag.id, document_ids=[])
+    processor_open.project_rag = project_rag
+    assert processor_open.check_question_type() == "open"
+
+
+@pytest.mark.django_db
+def test_fetch_valid_document_answers(project_rag, document_real):
+    ProjectDocumentRAG.objects.create(
+        project_rag=project_rag,
+        document=document_real,
+        answer="Réponse pertinente",
+        citation="Extrait A",
+        confidence_score=0.9,
+    )
+    ProjectDocumentRAG.objects.create(
+        project_rag=project_rag,
+        document=document_real,
+        answer="Réponse non disponible",
+        citation="Extrait B",
+        confidence_score=0.0,
+    )
+
+    processor = PDFRAG(project_rag_id=project_rag.id, document_ids=[])
+    valid = processor._fetch_valid_document_answers()
+    assert valid == ["Réponse pertinente"]
+
+
+@pytest.mark.django_db
+def test_tag_answers_considerations(project_rag, document_real):
+    ProjectDocumentRAG.objects.create(
+        project_rag=project_rag,
+        document=document_real,
+        answer="Le parent doit subvenir aux besoins de l'enfant.",
+        citation="Extrait loi A",
+        citation_context=["Extrait loi A"],
+        confidence_score=0.9,
+    )
+
+    ProjectRAGStats.objects.create(
+        project_rag=project_rag,
+        classification_stats={
+            "consideration_frequencies": {
+                "Obligation alimentaire": 1,
+            },
+            "affirmed_docs_by_consideration": {
+                "Obligation alimentaire": [document_real.id],
+            },
+        },
+    )
+
+    processor = PDFRAG(project_rag_id=project_rag.id, document_ids=[])
+    processor.summary_obj = SummaryGeneralAnswer(
+        summary="Résumé général",
+        considerations=["Obligation alimentaire"],
+    )
+
+    processor.project_rag.summary_answer = json.dumps(
         {
-            "summary": "Résumé avec des espaces.",
+            "summary": "Résumé général",
             "considerations": [],
         }
     )
 
-    assert rag_processor.project_rag.summary_answer == expected
+    processor.tag_answers_considerations()
+
+    enriched = json.loads(processor.project_rag.summary_answer)
+    tagged_considerations = enriched.get("considerations", [])
+
+    assert tagged_considerations
+    tagged = tagged_considerations[0]
+
+    assert tagged["text"] == "Obligation alimentaire"
+    assert isinstance(tagged["procedure_types"], list)
+    assert isinstance(tagged["frequency"], int)
+    assert "Obligation alimentaire" in tagged["tagged"]

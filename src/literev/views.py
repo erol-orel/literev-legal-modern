@@ -712,10 +712,15 @@ def rag(
             ProjectRAG, project_id=project_id, id=rag_id
         )
         stats = getattr(project_rag, "stats", None)
+
         if stats and stats.classification_stats:
-            show_closed_stats = True
-            counts = stats.classification_stats.get("counts", {})
-            percentages = stats.classification_stats.get("percentages", {})
+            if "counts" in stats.classification_stats:
+                show_closed_stats = True
+                counts = stats.classification_stats.get("counts", {})
+                percentages = stats.classification_stats.get("percentages", {})
+            else:
+                counts = {"oui": 0, "non": 0, "peut_etre": 0, "mixte": 0}
+                percentages = {"oui": 0, "non": 0, "peut_etre": 0, "mixte": 0}
 
     table_choices = TableChoice.objects.filter(
         project=project, user=user, is_check=True
@@ -753,27 +758,33 @@ def rag(
         )
 
     summary_data = {}
+    summary_text = ""
+    considerations = []
 
     if project_rag and project_rag.summary_answer:
-        if isinstance(project_rag.summary_answer, str):
-            try:
-                summary_data = json.loads(project_rag.summary_answer)
-            except json.JSONDecodeError:
-                summary_data = {"summary": "", "considerations": []}
-        elif isinstance(project_rag.summary_answer, dict):
-            summary_data = project_rag.summary_answer
-    summary_text = (
-        summary_data.get("summary", "")
-        if isinstance(summary_data, dict)
-        else ""
-    )
+        try:
+            summary_data = (
+                json.loads(project_rag.summary_answer)
+                if isinstance(project_rag.summary_answer, str)
+                else project_rag.summary_answer
+            )
+        except json.JSONDecodeError:
+            summary_data = {"summary": "", "considerations": []}
 
-    considerations = summary_data.get("considerations", [])
+        summary_text = summary_data.get("summary", "")
+        raw_considerations = summary_data.get("considerations", [])
 
-    if isinstance(considerations, str):
-        considerations = [
-            line.strip() for line in considerations.split("\n") if line.strip()
-        ]
+        # Normalize considerations
+        for c in raw_considerations:
+            if isinstance(c, dict):
+                considerations.append(
+                    {
+                        "text": c.get("text", "").strip(),
+                        "frequency": c.get("frequency", 0),
+                        "percent": c.get("percent", 0.0),
+                        "procedure_types": c.get("procedure_types", []),
+                    }
+                )
 
     context = {
         "project": project,
@@ -789,14 +800,14 @@ def rag(
         "considerations": considerations,
         "natural_language_query": project.natural_language_query or "",
         "classification_total": sum(counts.values()),
-        "oui_count": counts["oui"],
-        "non_count": counts["non"],
-        "peut_etre_count": counts["peut_etre"],
-        "mixte_count": counts["mixte"],
-        "oui_percent": percentages["oui"],
-        "non_percent": percentages["non"],
-        "peut_etre_percent": percentages["peut_etre"],
-        "mixte_percent": percentages["mixte"],
+        "oui_count": counts.get("oui", 0),
+        "non_count": counts.get("non", 0),
+        "peut_etre_count": counts.get("peut_etre", 0),
+        "mixte_count": counts.get("mixte", 0),
+        "oui_percent": percentages.get("oui", 0),
+        "non_percent": percentages.get("non", 0),
+        "peut_etre_percent": percentages.get("peut_etre", 0),
+        "mixte_percent": percentages.get("mixte", 0),
         "show_closed_stats": show_closed_stats,
         "has_confidence_score": has_confidence_score,
     }

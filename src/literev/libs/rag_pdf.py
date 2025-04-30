@@ -12,7 +12,7 @@ from typing import Any, Callable, Literal, cast
 
 from django.conf import settings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, create_model, field_validator
 from rago import Rago
 from rago.augmented import OpenAIAug
 from rago.extensions.cache import CacheFile
@@ -21,7 +21,6 @@ from rago.retrieval import StringRet
 
 from literev.libs.scoring import (
     assign_faithfulnesswithHHEM_scores,
-    get_similarity_score_phrases,
     sort_documents_by_es_score,
 )
 from literev.models import (
@@ -76,6 +75,11 @@ class ClosedAnswerClassification(BaseModel):
         return v
 
 
+def build_consideration_model(count: int):
+    fields = {f"argument_{i + 1}": (bool, ...) for i in range(count)}
+    return create_model("DynamicEvaluationModel", **fields)
+
+
 class QuestionTypeClassification(BaseModel):
     question_type: Literal["open", "closed"]
 
@@ -98,10 +102,22 @@ def ret_cache(func: Callable[[str], list[str]]) -> Callable[[str], list[str]]:
 class PDFRAG:
     """Run RAG on documents and generate summaries & statistics."""
 
+    evaluate_consideration_template_prompt = (
+        "You are a legal assistant evaluating legal arguments.\n\n"
+        "Given the following **excerpt** from a legal document and a list of **considerations**, "
+        "determine whether each is directly supported by the text.\n\n"
+        "{context}\n\n"
+        "**Return Format:**\n"
+        "argument_1: true\n"
+        "argument_2: false\n"
+        "... and so on."
+    )
+
     summary_template_prompt = (
         "Based on ALL of the given answers extracted from the documents, "
         "write a concise and coherent summary as a single sentence, in French. "
-        "Summarize the different legal perspectives, even if they are contradictory. "
+        "Summarize only the legal perspectives that are directly mentioned or clearly supported by the answers. "
+        "Do not invent or infer arguments that are not explicitly stated. "
         "Avoid vague or emotional expressions. Focus on legal arguments and facts. "
         "If there is absolutely no relevant information, return exactly: `Résumé non disponible`. "
         "\n\n"
@@ -110,21 +126,22 @@ class PDFRAG:
         "2. If all answers agree on one idea, return a single-sentence summary.\n"
         "3. If there are multiple legal arguments or points of view:\n"
         "   - Provide a short summary sentence.\n"
-        "   - Then provide a list of *considerations* (distinct juridical elements) as bullet points (avoid repetitions).\n"
-        "   - Each bullet point should be tagged with the top 3 most similar source document procedure types.\n\n"
         "The original question is: `{query}`\n\n"
         "Given Answers:\n"
         "{context}"
     )
+
     template_prompt = (
-        "Based on the given context, answer to this question: `{query}`. "
-        "If no information is available in the context, "
-        "return `Réponse non disponible`. "
-        "Otherwise, give your answer in only one sentence in French with "
-        "the most relevant information. "
-        "Also return an extract of the context, approximately 5 sentences, "
-        "from where the given answer was generated as a highlight.\n\n"
-        "Context: `{context}`"
+        "Based on the given context, answer the following question: `{query}`. "
+        "If no relevant information is found in the context, return exactly: `Réponse non disponible`. "
+        "Otherwise, provide a single, concise answer in French that is directly supported by the context.\n\n"
+        "In addition to the answer, extract and return the portion of the context — approximately 5 consecutive sentences — "
+        "from which the answer was derived. This highlight **must** explicitly contain all elements of the answer.\n\n"
+        "**Important:**\n"
+        "- Do not infer or imagine details.\n"
+        "- Do not include information that is not explicitly stated in the context.\n"
+        "- The highlight must fully justify the answer.\n\n"
+        "Context:\n`{context}`"
     )
 
     classification_template_prompt = (
@@ -162,15 +179,24 @@ class PDFRAG:
 
     @ret_cache
     def split_text_into_chunks(self, text: str) -> list[str]:
+        """Split input text into overlapping chunks for better retrieval."""
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000, chunk_overlap=200
         )
         return splitter.split_text(text)
 
-    def run(self, max_doc_ans: int | None = None) -> None:
+    def run(
+        self, max_doc_ans: int | None = None, batch_size: int = 10
+    ) -> None:
+        """
+        Run the complete RAG pipeline for a set of documents.
+
+        This method processes documents using (RAG),
+        which generates answers, and updates the project status.
+        """
         logger.info("Starting RAG processing for documents.")
 
-        documents = Document.objects.filter(id__in=self.document_ids)
+        documents = list(Document.objects.filter(id__in=self.document_ids))
 
         if max_doc_ans:
             documents = sort_documents_by_es_score(
@@ -178,87 +204,94 @@ class PDFRAG:
             )
 
         counter = 0
-        for document in documents:
-            try:
-                chunks = self.split_text_into_chunks(
-                    document.raw_document_text
-                )
 
-                if not chunks:
-                    self._create_empty_response(
-                        document, "No content available."
+        for batch_start in range(0, len(documents), batch_size):
+            batch = documents[batch_start : batch_start + batch_size]
+
+            for document in batch:
+                try:
+                    chunks = self.split_text_into_chunks(
+                        document.raw_document_text
                     )
-                    continue
 
-                rag = Rago(
-                    retrieval=StringRet(chunks),
-                    augmented=OpenAIAug(
-                        api_key=self.api_key,
-                        top_k=5,
-                        model_name="text-embedding-ada-002",
-                        cache=AUG_CACHE,
-                    ),
-                    generation=OpenAIGen(
-                        api_key=self.api_key,
-                        model_name="gpt-4o-mini",
-                        prompt_template=self.template_prompt,
-                        temperature=0,
-                        output_max_length=16384,
-                        api_params={
-                            "top_p": 0.0,
-                            "frequency_penalty": 0.0,
-                            "presence_penalty": 0.0,
-                        },
-                        structured_output=RAGAnswer,
-                        cache=GEN_CACHE,
-                    ),
-                )
+                    if not chunks:
+                        self._create_empty_response(
+                            document, "No content available."
+                        )
+                        continue
 
-                result = rag.prompt(self.project_rag.query)
-                citation_context = rag.logs.get("augmented", {}).get(
-                    "result", []
-                )
-                ProjectDocumentRAG.objects.create(
-                    project_rag=self.project_rag,
-                    document=document,
-                    citation=result.highlight.strip(),
-                    answer=result.answer.strip(),
-                    citation_context=citation_context,
-                )
+                    rag = Rago(
+                        retrieval=StringRet(chunks),
+                        augmented=OpenAIAug(
+                            api_key=self.api_key,
+                            top_k=5,
+                            model_name="text-embedding-ada-002",
+                            cache=AUG_CACHE,
+                        ),
+                        generation=OpenAIGen(
+                            api_key=self.api_key,
+                            model_name="gpt-4o-mini",
+                            prompt_template=self.template_prompt,
+                            temperature=0,
+                            output_max_length=16384,
+                            api_params={
+                                "top_p": 0.0,
+                                "frequency_penalty": 0.0,
+                                "presence_penalty": 0.0,
+                            },
+                            structured_output=RAGAnswer,
+                            cache=GEN_CACHE,
+                        ),
+                    )
 
-                if "réponse non disponible" not in result.answer.lower():
-                    counter += 1
+                    result = rag.prompt(self.project_rag.query)
+                    citation_context = rag.logs.get("augmented", {}).get(
+                        "result", []
+                    )
 
-                if max_doc_ans and counter >= max_doc_ans:
-                    break
+                    ProjectDocumentRAG.objects.create(
+                        project_rag=self.project_rag,
+                        document=document,
+                        citation=result.highlight.strip(),
+                        answer=result.answer.strip(),
+                        citation_context=citation_context,
+                    )
 
-            except Exception as e:
-                logger.error(f"Error processing document {document.id}: {e}")
-                self._create_empty_response(
-                    document, "Error generating response."
-                )
+                    if "réponse non disponible" not in result.answer.lower():
+                        counter += 1
 
-        self.generate_general_summary()
+                    if max_doc_ans and counter >= max_doc_ans:
+                        logger.info("Max document answers reached.")
+                        return
+
+                except Exception as e:
+                    logger.error(
+                        f"Error processing document {document.id}: {e}"
+                    )
+                    self._create_empty_response(
+                        document, "Error generating response."
+                    )
 
         self.question_type = self.check_question_type()
 
         if self.question_type == "closed":
-            logger.info(
-                "Closed-ended question. Generating closed answer stats."
-            )
+            self.generate_general_summary(summary_only=True)
             self.generate_closed_answer_statistics()
         else:
-            logger.info("Open-ended question. Skipping closed answer stats.")
+            self.generate_general_summary(summary_only=False)
+            self.generate_open_answer_statistics()
+            self.tag_answers_considerations()
 
-        # Assess confidence scores
         loop = asyncio.get_event_loop()
         loop.run_until_complete(
             assign_faithfulnesswithHHEM_scores(self.project_rag)
         )
+
         self.project_rag.status = "completed"
         self.project_rag.save()
 
     def _create_empty_response(self, document, message: str) -> None:
+        """Create a fallback response for a document when processing fails."""
         ProjectDocumentRAG.objects.create(
             project_rag=self.project_rag,
             document=document,
@@ -266,31 +299,20 @@ class PDFRAG:
             answer=message,
         )
 
-    def generate_general_summary(self) -> None:
+    def generate_general_summary(self, summary_only: bool = False) -> None:
+        """
+        Generate a general summary from all document-level RAG answers.
+
+        This method combines the answers from all documents and generates a
+        summary using the OpenAI GPT-4o-mini model. The summary is stored in the
+        `ProjectRAG` model.
+        """
         logger.info("Generating general summary...")
 
-        document_rags = ProjectDocumentRAG.objects.filter(
-            project_rag=self.project_rag
-        ).select_related("document")
-
-        answers = []
-        tagged_data = []
-
-        for rag in document_rags:
-            if rag.answer.strip().lower() in [
-                "no content available.",
-                "réponse non disponible",
-                "error generating response.",
-            ]:
-                continue
-            answers.append(f"- {rag.answer.strip()}")
-            tagged_data.append(
-                {
-                    "answer": rag.answer.strip(),
-                    "citation": rag.citation.strip(),
-                    "procedure_type": rag.document.procedure_type or "Inconnu",
-                }
-            )
+        valid_rags = self.get_valid_document_rags()
+        answers: list[str] = [
+            f"- {doc_rag.answer.strip()}" for doc_rag in valid_rags
+        ]
 
         if not answers:
             summary_data = {
@@ -300,7 +322,6 @@ class PDFRAG:
             logger.info("No valid answers found. Using default summary.")
         else:
             logger.info(f"Combining {len(answers)} answers for summarization.")
-
             try:
                 summary_gen = OpenAIGen(
                     api_key=self.api_key,
@@ -316,47 +337,17 @@ class PDFRAG:
                     structured_output=SummaryGeneralAnswer,
                 )
 
-                summary_obj: SummaryGeneralAnswer = summary_gen.generate(
+                self.summary_obj: SummaryGeneralAnswer = summary_gen.generate(
                     query=self.project_rag.query,
                     context=["\n".join(answers)],
                 )
 
-                tagged_considerations = []
-                for cons in summary_obj.considerations:
-                    cons_text = cons.strip().lower()
-                    scored_items = []
-                    for item in tagged_data:
-                        score_answer = get_similarity_score_phrases(
-                            cons_text, item["answer"].lower()
-                        )
-                        score_citation = get_similarity_score_phrases(
-                            cons_text, item["citation"].lower()
-                        )
-                        score = max(score_answer, score_citation)
-                        scored_items.append((score, item["procedure_type"]))
-
-                    top_items = sorted(scored_items, reverse=True)[:3]
-                    top_procedure_types = list(
-                        {pt for _, pt in top_items if _ >= 0.75}
-                    )
-                    if not top_procedure_types:
-                        top_procedure_types = [
-                            pt for _, pt in top_items[:3]
-                        ] or ["Inconnu"]
-
-                    tagged_considerations.append(
-                        {
-                            "text": cons.strip(),
-                            "procedure_types": top_procedure_types,
-                            "tagged": f"{cons.strip()} ({', '.join(top_procedure_types)})",
-                        }
-                    )
-
                 summary_data = {
-                    "summary": summary_obj.summary.strip(),
-                    "considerations": tagged_considerations,
+                    "summary": self.summary_obj.summary.strip(),
+                    "considerations": self.summary_obj.considerations
+                    if not summary_only
+                    else [],
                 }
-
             except Exception as e:
                 logger.error(f"Failed to generate general summary: {e}")
                 summary_data = {
@@ -369,6 +360,7 @@ class PDFRAG:
         logger.info(f"Summary saved: {summary_data}")
 
     def check_question_type(self) -> str:
+        """Classify whether the question is closed (yes/no) or open-ended."""
         logger.info("Classifying the question type...")
 
         classification_gen = OpenAIGen(
@@ -392,6 +384,12 @@ class PDFRAG:
         return result
 
     def generate_closed_answer_statistics(self) -> None:
+        """
+        Generate classification statistics for closed-ended questions.
+
+        This computes counts and percentages of 'oui', 'non', 'peut_etre', and 'mixte' labels,
+        and stores them in the `ProjectRAGStats` model.
+        """
         logger.info("Generating closed-ended statistics...")
 
         answers = self._fetch_valid_document_answers()
@@ -400,8 +398,8 @@ class PDFRAG:
             logger.warning("No valid answers for classification.")
             return
 
-        classified_labels = self.classify_answers_with_llm(answers)
-        stats = self.compute_classification_statistics(classified_labels)
+        classified_labels = self.categorize_closed_answers(answers)
+        stats = self.compute_polar_answer_stats(classified_labels)
 
         ProjectRAGStats.objects.update_or_create(
             project_rag=self.project_rag,
@@ -410,7 +408,176 @@ class PDFRAG:
 
         logger.info(f"Classification stats saved: {stats}")
 
-    def classify_answers_with_llm(self, answers: list[str]) -> list[str]:
+    def generate_open_answer_statistics(self) -> None:
+        """
+        Generate evaluation statistics for open-ended answers.
+
+        This method runs evaluation using OpenAI's GPT-4o model for each document
+        answer, and stores the results in the `ProjectRAGStats` model.
+        """
+        logger.info("Generating open-ended answer statistics...")
+
+        if (
+            not getattr(self, "summary_obj", None)
+            or not self.summary_obj.considerations
+        ):
+            logger.warning("No considerations found in summary to evaluate.")
+            return
+
+        valid_docs = self.get_valid_document_rags()
+        if not valid_docs:
+            logger.warning("No valid documents available for evaluation.")
+            return
+
+        considerations = [c.strip() for c in self.summary_obj.considerations]
+        results = {c: 0 for c in considerations}
+        docs_affirmed = {c: set() for c in considerations}
+
+        EvaluationModel = build_consideration_model(len(considerations))
+
+        for doc_rag in valid_docs:
+            try:
+                arguments_block = "\n".join(
+                    f"* argument_{i + 1}: {c}"
+                    for i, c in enumerate(considerations)
+                )
+
+                context_block = (
+                    f"Excerpt:\n{doc_rag.citation}\n\n"
+                    f"Considerations:\n{arguments_block}"
+                )
+
+                prompt = OpenAIGen(
+                    api_key=self.api_key,
+                    model_name="gpt-4o-mini",
+                    prompt_template=self.evaluate_consideration_template_prompt,
+                    temperature=0,
+                    output_max_length=1024,
+                    api_params={
+                        "top_p": 0.0,
+                        "frequency_penalty": 0.0,
+                        "presence_penalty": 0.0,
+                    },
+                    structured_output=EvaluationModel,
+                )
+
+                evaluation = prompt.generate(
+                    query=self.project_rag.query,
+                    context=[context_block],
+                )
+
+                for idx, cons_text in enumerate(considerations):
+                    if getattr(evaluation, f"argument_{idx + 1}", False):
+                        results[cons_text] += 1
+                        docs_affirmed[cons_text].add(doc_rag.document.id)
+
+            except Exception as e:
+                logger.warning(
+                    f"Evaluation failed for doc {doc_rag.document.id}: {e}"
+                )
+
+        stats = {
+            "total_documents": len(valid_docs),
+            "consideration_frequencies": results,
+            "affirmed_docs_by_consideration": {
+                k: list(v) for k, v in docs_affirmed.items()
+            },
+        }
+
+        logger.info(f"Open-ended statistics generated: {stats}")
+        ProjectRAGStats.objects.update_or_create(
+            project_rag=self.project_rag,
+            defaults={"classification_stats": stats},
+        )
+
+    def tag_answers_considerations(self) -> None:
+        """
+        Tag RAG answers with consideration texts and associate procedure types
+        without using faithfulness scores. Simply takes the last three procedure types
+        from documents affirming the consideration.
+        """
+        logger.info("Tagging considerations based on affirmed documents...")
+
+        if (
+            not getattr(self, "summary_obj", None)
+            or not self.summary_obj.considerations
+        ):
+            logger.warning("No summary or considerations available.")
+            return
+
+        valid_rags = (
+            ProjectDocumentRAG.objects.filter(project_rag=self.project_rag)
+            .select_related("document")
+            .exclude(
+                answer__in=(
+                    "no content available.",
+                    "réponse non disponible",
+                    "error generating response.",
+                )
+            )
+        )
+
+        tagged_data = {
+            rag.document.id: {
+                "procedure_type": rag.document.procedure_type or "Inconnu"
+            }
+            for rag in valid_rags
+        }
+
+        total_docs = len(tagged_data)
+
+        stats_obj = ProjectRAGStats.objects.filter(
+            project_rag=self.project_rag
+        ).first()
+        classification_stats = (
+            stats_obj.classification_stats if stats_obj else {}
+        )
+
+        frequencies = classification_stats.get("consideration_frequencies", {})
+        affirmed_docs = classification_stats.get(
+            "affirmed_docs_by_consideration", {}
+        )
+
+        tagged_considerations = []
+
+        for consideration in self.summary_obj.considerations:
+            consideration_text = consideration.strip()
+            doc_ids = affirmed_docs.get(consideration_text, [])
+
+            procedure_types = [
+                tagged_data[doc_id]["procedure_type"]
+                for doc_id in doc_ids
+                if doc_id in tagged_data
+            ]
+
+            top_procedure_types = procedure_types[:3] or ["Inconnu"]
+
+            count = frequencies.get(consideration_text, 0)
+            percent = (
+                round((count / total_docs) * 100, 1) if total_docs else 0.0
+            )
+
+            tagged_considerations.append(
+                {
+                    "text": consideration_text,
+                    "procedure_types": top_procedure_types,
+                    "tagged": f"{consideration_text} ({', '.join(top_procedure_types)})",
+                    "frequency": count,
+                    "percent": percent,
+                }
+            )
+
+        summary_data = json.loads(self.project_rag.summary_answer)
+        summary_data["considerations"] = tagged_considerations
+        self.project_rag.summary_answer = json.dumps(summary_data)
+        self.project_rag.save()
+
+        logger.info(f"Tagged considerations: {tagged_considerations}")
+
+    def categorize_closed_answers(self, answers: list[str]) -> list[str]:
+        """
+        Classify a list of answers into closed categories using (RAG).
+        """
         logger.info("Classifying answers with LLM and structured output...")
 
         classification_gen = OpenAIGen(
@@ -432,21 +599,26 @@ class PDFRAG:
                         query=self.project_rag.query, context=[answer]
                     )
                 )
+
                 label = classification_obj.category
                 categories.append(label)
             except Exception as e:
                 logger.error(
                     f"LLM classification failed for answer: {answer} | {e}"
                 )
-                categories.append("mixed")  # fallback category
+                categories.append("error")  # fallback category
 
         return categories
 
-    def compute_classification_statistics(
+    def compute_polar_answer_stats(
         self, classified_labels: list[str]
     ) -> dict[str, Any]:
+        """
+        Compute count and percentage statistics for classified labels.
+        """
         logger.info("Computing statistics...")
 
+        error_count = 0
         total = len(classified_labels)
         counts = {"oui": 0, "non": 0, "peut_etre": 0, "mixte": 0}
 
@@ -456,8 +628,15 @@ class PDFRAG:
                 counts[label] += 1
             else:
                 logger.warning(
-                    f"Unexpected label {label} found in classification results."
+                    f"Unexpected label '{label}' found in classification results."
                 )
+                if label == "error":
+                    error_count += 1
+
+        if error_count > 0:
+            logger.warning(
+                f"{error_count} document answers failed classification and were marked as 'error'"
+            )
 
         percentages = {
             k: round((v / total) * 100, 2) if total > 0 else 0
@@ -471,14 +650,39 @@ class PDFRAG:
         }
 
     def _fetch_valid_document_answers(self) -> list[str]:
+        """Retrieve valid document answers, excluding placeholders and errors."""
         return list(
             ProjectDocumentRAG.objects.filter(project_rag=self.project_rag)
             .exclude(
-                answer__in=[
+                answer__in=(
                     "No content available.",
                     "Error generating response.",
                     "Réponse non disponible",
-                ]
+                )
             )
             .values_list("answer", flat=True)
         )
+
+    def get_valid_document_rags(self) -> list[ProjectDocumentRAG]:
+        """
+        Retrieve ProjectDocumentRAG objects with non-empty, valid answers.
+        """
+        return [
+            doc
+            for doc in ProjectDocumentRAG.objects.filter(
+                project_rag=self.project_rag
+            ).select_related("document")
+            if doc.answer.strip().lower()
+            not in (
+                "no content available.",
+                "réponse non disponible",
+                "error generating response.",
+            )
+        ]
+
+    def clean_considerations_with_frequencies(self, summary_obj, frequencies):
+        return [
+            c
+            for c in summary_obj.considerations
+            if frequencies.get(c.strip(), 0) > 0
+        ]
