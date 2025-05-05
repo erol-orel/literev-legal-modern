@@ -116,6 +116,8 @@ jobs:
           sudo chown -R ${HOST_UID}:${HOST_GID} /opt/data/literev
           sudo mkdir -p /tmp/literev/static/media
           sudo chown -R ${HOST_UID}:${HOST_GID} /tmp/literev/static/media
+          sudo mkdir -p /tmp/literev/cache
+          sudo chown -R ${HOST_UID}:${HOST_GID} /tmp/literev/cache
 
       - name: Install Operating System dependencies
         run: |

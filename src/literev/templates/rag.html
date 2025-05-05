@@ -343,11 +343,7 @@
         return null;
       }
 
-      if (
-        documentRag.confidence_score <= 0.0
-      ){
-        return null;
-      }
+      if (!(documentRag.confidence_score > 0)) return null;
 
       const divContainer = document.createElement("div");
       divContainer.classList.add("mb-3");

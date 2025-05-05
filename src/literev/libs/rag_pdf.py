@@ -313,7 +313,7 @@ class PDFRAG:
         valid_rags = [
             doc
             for doc in self.get_valid_document_rags()
-            if doc.confidence_score > 0.0
+            if doc.confidence_score is not None and doc.confidence_score > 0.0
         ]
 
         answers: list[str] = [
