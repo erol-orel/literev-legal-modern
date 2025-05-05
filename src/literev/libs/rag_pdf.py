@@ -103,9 +103,10 @@ class PDFRAG:
     """Run RAG on documents and generate summaries & statistics."""
 
     evaluate_consideration_template_prompt = (
-        "You are a legal assistant evaluating legal arguments.\n\n"
-        "Given the following **excerpt** from a legal document and a list of **considerations**, "
-        "determine whether each is directly supported by the text.\n\n"
+        "You are a legal assistant reviewing a summarized legal answer.\n\n"
+        "Based on the provided **excerpt** 'a one-sentence summary answer', and the list of legal **considerations**, "
+        "determine whether each consideration is **explicitly supported** or **clearly contradicted** in the excerpt.\n\n"
+        "Do not make assumptions beyond the excerpt. Focus only on what is directly stated.\n\n"
         "{context}\n\n"
         "**Return Format:**\n"
         "argument_1: true\n"
@@ -448,7 +449,7 @@ class PDFRAG:
                 )
 
                 context_block = (
-                    f"Excerpt:\n{doc_rag.citation}\n\n"
+                    f"Excerpt:\n{doc_rag.answer}\n\n"
                     f"Considerations:\n{arguments_block}"
                 )
 
