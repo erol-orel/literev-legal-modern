@@ -272,6 +272,11 @@ class PDFRAG:
                         document, "Error generating response."
                     )
 
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(
+            assign_faithfulnesswithHHEM_scores(self.project_rag)
+        )
+
         self.question_type = self.check_question_type()
 
         if self.question_type == "closed":
@@ -281,11 +286,6 @@ class PDFRAG:
             self.generate_general_summary(summary_only=False)
             self.generate_open_answer_statistics()
             self.tag_answers_considerations()
-
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(
-            assign_faithfulnesswithHHEM_scores(self.project_rag)
-        )
 
         self.project_rag.status = "completed"
         self.project_rag.save()
@@ -309,7 +309,12 @@ class PDFRAG:
         """
         logger.info("Generating general summary...")
 
-        valid_rags = self.get_valid_document_rags()
+        valid_rags = [
+            doc
+            for doc in self.get_valid_document_rags()
+            if doc.confidence_score > 0.0
+        ]
+
         answers: list[str] = [
             f"- {doc_rag.answer.strip()}" for doc_rag in valid_rags
         ]
@@ -515,6 +520,7 @@ class PDFRAG:
                     "error generating response.",
                 )
             )
+            .exclude(confidence_score=0.0)
         )
 
         tagged_data = {
@@ -660,6 +666,7 @@ class PDFRAG:
                     "Réponse non disponible",
                 )
             )
+            .exclude(confidence_score=0.0)
             .values_list("answer", flat=True)
         )
 
@@ -671,7 +678,9 @@ class PDFRAG:
             doc
             for doc in ProjectDocumentRAG.objects.filter(
                 project_rag=self.project_rag
-            ).select_related("document")
+            )
+            .exclude(confidence_score=0.0)
+            .select_related("document")
             if doc.answer.strip().lower()
             not in (
                 "no content available.",
