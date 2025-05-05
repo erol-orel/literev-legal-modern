@@ -7,6 +7,7 @@ import logging
 from http import HTTPStatus
 from typing import Any, cast
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
 from django.http import (
@@ -95,6 +96,8 @@ def search_search(
     dict[str, Any]
         The updated context.
     """
+    context["clustering_min_documents"] = settings.CLUSTERING_MIN_DOCUMENTS
+
     search_form = SearchForm(request.POST)
     context["search_form"] = search_form
 
@@ -142,7 +145,6 @@ def search_search(
 def search_continue(
     request: HttpRequest, context: dict[str, Any]
 ) -> dict[str, Any]:
-    # use when implement login
     user = request.user
     project_name = request.session["project_name"]
     query = request.session["query"]

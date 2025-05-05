@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 
 UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
 
+CLUSTERING_MIN_DOCUMENTS = settings.CLUSTERING_MIN_DOCUMENTS
+
 
 @app.task(bind=True)
 def back_clustering_documents(self, project_id: int):
@@ -41,6 +43,9 @@ def back_clustering_documents(self, project_id: int):
     update_task_code(project, self.request.id)
 
     documents = Document.objects.filter(project=project)
+
+    if documents.count() < CLUSTERING_MIN_DOCUMENTS:
+        return
 
     try:
         pp_documents = [

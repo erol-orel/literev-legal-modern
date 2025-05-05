@@ -243,6 +243,8 @@ for dir in [
 LIMIT_NUMBER_REFINEMENTS = env.int("LIMIT_NUMBER_REFINEMENTS", default=15)
 LIMIT_NUMBER_ITERATIONS = env.int("LIMIT_NUMBER_ITERATIONS", default=15)
 
+CLUSTERING_MIN_DOCUMENTS = env.int("CLUSTERING_MIN_DOCUMENTS", default=20)
+
 # DOCUMENTS COLLECTORS
 # ------------------------------------------------------------------------------
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000000

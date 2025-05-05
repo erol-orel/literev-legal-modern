@@ -30,13 +30,15 @@
                   There are no estimated documents for this query.
                   Please specify a different one.
                 </li>
-              {% elif total_documents < 20 %}
-                <!-- Orange alert for less than 20 articles -->
+              {% elif total_documents < clustering_min_documents %}
+                <!-- Orange alert for less than clustering_min_documents articles -->
                 <li class="list-group-item mx-4 ps-4"
                     style="background-color: #FFBE98">
                   The number of estimated documents is {{ total_documents }}.
-                  This number is less than the minimum required (20) to proceed.
-                  Please specify a different query.
+                  The project can be created but the documents
+                  will not be clustered
+                  (Minimum number of documents for clustering: {{ clustering_min_documents }}).
+                  Would you like to continue with this query?
                 </li>
               {% else %}
                 <!-- Green alert for acceptable number of articles -->
@@ -73,7 +75,7 @@
                     type='submit'
                     name='submit'
                     value='continue'
-                    {% if number_articles < 20 %}
+                    {% if number_articles == 0 %}
                       disabled
                     {% endif %}>
               Continue

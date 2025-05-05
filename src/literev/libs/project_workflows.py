@@ -275,12 +275,6 @@ def projectpage_load_final_results(user, project: Project) -> dict[str, Any]:
     dict[str, Any]
         Context data for rendering the project page.
     """
-    cluster_list = (
-        Cluster.objects.filter(project=project)
-        .values_list("topic", flat=True)
-        .order_by("order")
-    )
-    grouped_clusters = get_grouped_clusters(project)
     refinements = ProjectRefinement.objects.filter(owner=user, project=project)
 
     context_data = {
@@ -308,6 +302,22 @@ def projectpage_load_final_results(user, project: Project) -> dict[str, Any]:
     if project.selected_indices == ["civil_court"]:
         context_data["is_civil_court"] = True
 
+    cluster_list = (
+        Cluster.objects.filter(project=project)
+        .values_list("topic", flat=True)
+        .order_by("order")
+    )
+
+    if not cluster_list.count():
+        context_data.update(
+            {
+                "no_clusters": True,
+            }
+        )
+        return context_data
+
+    grouped_clusters = get_grouped_clusters(project)
+
     if project.is_finish:
         topics, palette = get_color_map(list(cluster_list))
         plot_data = load_plot_data(project.pk)
@@ -320,6 +330,7 @@ def projectpage_load_final_results(user, project: Project) -> dict[str, Any]:
                 ),
                 "div_plot": plot_data["div_plot"],
                 "script_plot": plot_data["script_plot"],
+                "no_clusters": False,
             }
         )
 

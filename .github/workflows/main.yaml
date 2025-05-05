@@ -49,6 +49,7 @@ env:
   REDIS_PORT: 6379
   REDIS_HOST: localhost
   REDIS_DB: 0
+  CLUSTERING_MIN_DOCUMENTS: 20
 
 jobs:
   check_branch:

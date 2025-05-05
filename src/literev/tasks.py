@@ -49,6 +49,8 @@ from literev_core.preprocessing import (
 
 logger = logging.getLogger(__name__)
 
+CLUSTERING_MIN_DOCUMENTS = settings.CLUSTERING_MIN_DOCUMENTS
+
 
 def get_shared_projects_ids() -> None:
     return [
@@ -263,11 +265,11 @@ def get_nl_rag_ans(self, project_id: int) -> int | None:
         document_ids=docs_ids,
     )
 
-    rag.run(max_doc_ans=5)
+    rag.run(max_doc_ans=10)
 
 
 @app.task(bind=True)
-def back_get_early_results(self, project_id: int):
+def back_get_early_results(self, project_id: int) -> None:
     """
     Generates early reduction of dimensionality and create early 2d map in
     cluster and cluster elements objects
@@ -280,6 +282,9 @@ def back_get_early_results(self, project_id: int):
         .exclude(preprocessed_document__isnull=True)
         .exclude(preprocessed_document="")
     )
+
+    if documents.count() < CLUSTERING_MIN_DOCUMENTS:
+        return
 
     pp_documents = [
         pp_doc

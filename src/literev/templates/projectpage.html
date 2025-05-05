@@ -470,7 +470,13 @@
           </div>
         {% endif %}
       </div>
-      {% if is_finish %}
+      {% if project.is_finish and no_clusters %}
+        <div class="row text-center mt-5 mb-5">
+          <div class="fs-5 alert alert-info">
+            <strong>The project documents could not be classified into clusters.</strong>
+          </div>
+        </div>
+      {% elif project.is_finish %}
         <div class="container my-2">
           <div class="text-center">
             <div class="fw-bold fs-3 d-inline-block me-3 mt-5">
@@ -485,13 +491,15 @@
             {% endif %}
           </div>
         </div>
-      {% else %}
+      {% elif project.is_running %}
         <div class="row text-center mt-5 mb-5">
           <div class="fs-5 alert alert-info">
             <strong>Project documents are being classified into clusters.
             Results will be displayed here when they are ready.</strong>
           </div>
         </div>
+      {% else %}
+
       {% endif %}
 
       {% if is_finish %}
@@ -615,7 +623,7 @@
                         name="type-filter"
                         id="type-filter"
                         value="Topic">
-                  {% if is_finish %}
+                  {% if is_finish and not no_clusters %}
                     <option value="Topic">
                       Topic
                     </option>

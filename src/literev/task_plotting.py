@@ -160,6 +160,9 @@ def plot_clusters(
 
     clusters_points = ClusterElement.objects.filter(cluster__project=project)
 
+    if not clusters_points.count():
+        return
+
     # Get the grouped cluster
     clusters = Cluster.objects.filter(project=project)
 
