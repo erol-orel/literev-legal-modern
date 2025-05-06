@@ -11,7 +11,7 @@ groups:
       - containers/compose.elasticsearch.yaml
     env-file: .env
     services:
-      default: literev,literev-postgres,literev-redis,literev-celery,literev-nginx,certbot,elasticsearch
+      default: literev,literev-postgres,literev-redis,literev-celery,literev-nginx,certbot
       available:
         - name: literev
         - name: literev-postgres
@@ -19,7 +19,10 @@ groups:
         - name: literev-celery
         - name: literev-nginx
         - name: certbot
-        - name: elasticsearch
+        - name: es-legal-setup
+        - name: es-legal-1
+        - name: es-legal-2
+        - name: es-legal-3
 
   dev:
     config-path:

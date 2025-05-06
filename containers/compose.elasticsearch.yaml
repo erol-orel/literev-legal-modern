@@ -1,41 +1,160 @@
 services:
-  elasticsearch:
-    hostname: elasticsearch
+  es-legal-1:
+    container_name: es-legal-1
+    hostname: es-legal-1
     image: docker.elastic.co/elasticsearch/elasticsearch:${ES_STACK_VERSION}
     user: "1000:1000"
     env_file:
       - ../.env
     environment:
-      - node.name=es-legal
-      - discovery.type=single-node
-      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
-      - bootstrap.memory_lock=false
+      - node.name=es-legal-1
+      - cluster.name=docker-cluster
+      - cluster.initial_master_nodes=es-legal-1,es-legal-2,es-legal-3
+      - discovery.seed_hosts=es-legal-1,es-legal-2,es-legal-3
+      # Assign roles explicitly to reduce overhead.
+      - node.roles=master,data,data_hot,ingest,ml,transform
       - xpack.security.enabled=false
-      - xpack.security.http.ssl.enabled=false
-      - xpack.security.transport.ssl.enabled=false
-      # Set default replica count to 0 for single-node
-      - "index.number_of_replicas=0"
+      - action.destructive_requires_name=true
+      # To avoid allocation failures when disk usage grows
+      - cluster.routing.allocation.disk.watermark.low=75%
+      - cluster.routing.allocation.disk.watermark.high=85%
+      - cluster.routing.allocation.disk.watermark.flood_stage=95%
+      - cluster.info.update.interval=1m
+      # To help investigate future memory crashes
+      - ES_JAVA_OPTS=-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/usr/share/elasticsearch/data
     ulimits:
       memlock:
         soft: -1
         hard: -1
+    mem_limit: 2g
     volumes:
-      - esdata:/usr/share/elasticsearch/data
+      - esdata1:/usr/share/elasticsearch/data
     ports:
       - "9200:9200"
-    networks:
-      - literev
-    restart: always
+    depends_on:
+      - es-legal-2
+      - es-legal-3
     healthcheck:
       test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 120
+    restart: always
+    networks:
+      literev:
+        aliases:
+          - es-legal-1
+
+  es-legal-2:
+    container_name: es-legal-2
+    hostname: es-legal-2
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ES_STACK_VERSION}
+    user: "1000:1000"
+    env_file:
+      - ../.env
+    environment:
+      - node.name=es-legal-2
+      - cluster.name=docker-cluster
+      - cluster.initial_master_nodes=es-legal-1,es-legal-2,es-legal-3
+      - discovery.seed_hosts=es-legal-1,es-legal-2,es-legal-3
+      # Assign roles explicitly to reduce overhead.
+      - node.roles=master,data,data_hot,ingest,ml,transform
+      - xpack.security.enabled=false
+      - action.destructive_requires_name=true
+      # To avoid allocation failures when disk usage grows
+      - cluster.routing.allocation.disk.watermark.low=75%
+      - cluster.routing.allocation.disk.watermark.high=85%
+      - cluster.routing.allocation.disk.watermark.flood_stage=95%
+      - cluster.info.update.interval=1m
+      # To help investigate future memory crashes
+      - ES_JAVA_OPTS=-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    mem_limit: 2g
+    volumes:
+      - esdata2:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+    restart: always
+    networks:
+      literev:
+        aliases:
+          - es-legal-2
+
+  es-legal-3:
+    container_name: es-legal-3
+    hostname: es-legal-3
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ES_STACK_VERSION}
+    user: "1000:1000"
+    env_file:
+      - ../.env
+    environment:
+      - node.name=es-legal-3
+      - cluster.name=docker-cluster
+      - cluster.initial_master_nodes=es-legal-1,es-legal-2,es-legal-3
+      - discovery.seed_hosts=es-legal-1,es-legal-2,es-legal-3
+      # Assign roles explicitly to reduce overhead.
+      - node.roles=master,data,data_hot,ingest,ml,transform
+      - xpack.security.enabled=false
+      - action.destructive_requires_name=true
+      # To avoid allocation failures when disk usage grows
+      - cluster.routing.allocation.disk.watermark.low=75%
+      - cluster.routing.allocation.disk.watermark.high=85%
+      - cluster.routing.allocation.disk.watermark.flood_stage=95%
+      - cluster.info.update.interval=1m
+      # To help investigate future memory crashes
+      - ES_JAVA_OPTS=-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    mem_limit: 2g
+    volumes:
+      - esdata3:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+    restart: always
+    networks:
+      literev:
+        aliases:
+          - es-legal-3
+
+  es-legal-setup:
+    image: curlimages/curl:8.13.0
+    depends_on: [es-legal-1]
+    command: >
+      sh -c '
+        echo "[*] Waiting for cluster readiness..." &&
+        until curl -u elastic:${ES_PASSWORD} -s http://es-legal-1:9200/_cluster/health?wait_for_status=yellow; do sleep 2; done &&
+        echo "[*] Disabling ILM..." &&
+        curl -u elastic:${ES_PASSWORD} -X POST http://es-legal-1:9200/_ilm/stop &&
+        echo "[*] Blocking write/deletion on core indexes..." &&
+        for idx in civil_court penal_court administrative_court; do
+          curl -u elastic:${ES_PASSWORD} -X PUT http://es-legal-1:9200/$$idx/_settings -H "Content-Type: application/json" \
+            -d "{\"index.blocks.write\": true, \"index.blocks.read_only_allow_delete\": false}"
+        done
+      '
+    networks:
+      - literev
 
 volumes:
-  esdata:
+  esdata1:
     driver: local
-    name: es_legal_data
+    name: es_legal_data_1
+  esdata2:
+    driver: local
+    name: es_legal_data_2
+  esdata3:
+    driver: local
+    name: es_legal_data_3
 
 networks:
   literev:
