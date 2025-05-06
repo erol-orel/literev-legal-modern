@@ -205,6 +205,7 @@ class PDFRAG:
             )
 
         counter = 0
+        stop_processing = False
 
         for batch_start in range(0, len(documents), batch_size):
             batch = documents[batch_start : batch_start + batch_size]
@@ -263,7 +264,8 @@ class PDFRAG:
 
                     if max_doc_ans and counter >= max_doc_ans:
                         logger.info("Max document answers reached.")
-                        return
+                        stop_processing = True
+                        break
 
                 except Exception as e:
                     logger.error(
@@ -272,6 +274,9 @@ class PDFRAG:
                     self._create_empty_response(
                         document, "Error generating response."
                     )
+
+            if stop_processing:
+                break
 
         loop = asyncio.get_event_loop()
         loop.run_until_complete(
