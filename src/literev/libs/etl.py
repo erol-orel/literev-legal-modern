@@ -230,8 +230,7 @@ class DataTranslator:
 
         # delete noise or unused fields
         # delete query key if exists
-        if QUERY_KEY in doc:
-            del doc[QUERY_KEY]
+        doc.pop(QUERY_KEY, None)
 
         return doc
 

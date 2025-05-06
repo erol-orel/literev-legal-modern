@@ -10,11 +10,10 @@ from typing import Any
 import pandas as pd
 
 from django.conf import settings
-from django.db.models import Count, Q
+from django.db.models import Q
 from django.http import HttpResponse
 
 from literev.models import (
-    Cluster,
     ClusterElement,
     Document,
     Project,
@@ -24,6 +23,7 @@ from literev.models import (
 )
 
 UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
+CLUSTERING_MIN_DOCUMENTS = settings.CLUSTERING_MIN_DOCUMENTS
 
 
 def create_final_file(project: Project) -> str:
@@ -44,6 +44,9 @@ def create_final_file(project: Project) -> str:
         path to the csv file.
 
     """
+    documents_count = Document.objects.filter(project=project).count()
+    exist_clusters = documents_count >= CLUSTERING_MIN_DOCUMENTS
+
     # get the documents
     list_tablechoice = TableChoice.objects.filter(
         project=project, is_check=True
@@ -52,8 +55,9 @@ def create_final_file(project: Project) -> str:
     # create the csv file from a dictionary
     metadata: dict[str, list[int | str]] = {}
 
-    metadata["number_cluster"] = []
-    metadata["topic"] = []
+    if exist_clusters:
+        metadata["number_cluster"] = []
+        metadata["topic"] = []
     metadata["decision_type"] = []
     metadata["procedure_type"] = []
     metadata["decision_date"] = []
@@ -62,38 +66,9 @@ def create_final_file(project: Project) -> str:
     metadata["summary"] = []
     # metadata["raw_document"] = []
 
-    clusters = Cluster.objects.filter(project=project)
-
-    sorted_clusters = (
-        clusters.values("topic")
-        .annotate(total_documents=Count("clusterelement__document"))
-        .order_by("-total_documents")
-    )
-
-    number_topic: dict[str, str] = {}
-
-    index = 0
-    for cluster in sorted_clusters:
-        if cluster["topic"] == UNCLASSIFIED_PAPERS_TOPIC:
-            number_topic[cluster["topic"]] = "No cluster"
-            continue
-        index += 1
-        number_topic[cluster["topic"]] = index
-
     for tablechoice in list_tablechoice:
         document = tablechoice.document
         # get the cluster object of this project and document
-        try:
-            cluster_element = ClusterElement.objects.get(
-                cluster__project=project, document=document
-            )
-        except ClusterElement.DoesNotExist:
-            continue
-
-        # metadata["number_cluster"].append(cluster_element.cluster.topic)
-        topic = cluster_element.cluster.topic
-        metadata["number_cluster"].append(number_topic[topic])
-        metadata["topic"].append(", ".join(topic.split(", ")[:10]))
         metadata["decision_type"].append(document.decision_type)
         metadata["procedure_type"].append(document.procedure_type)
         metadata["decision_date"].append(document.decision_date)
@@ -101,6 +76,19 @@ def create_final_file(project: Project) -> str:
         metadata["result"].append(document.result)
         metadata["summary"].append(document.descriptors)
         # metadata["raw_document"].append(document.raw_document_text)
+
+        if exist_clusters:
+            try:
+                cluster_element = ClusterElement.objects.get(
+                    cluster__project=project, document=document
+                )
+            except ClusterElement.DoesNotExist:
+                continue
+
+            # metadata["number_cluster"].append(cluster_element.cluster.topic)
+            topic = cluster_element.cluster.topic
+            metadata["number_cluster"].append(cluster_element.cluster.order)
+            metadata["topic"].append(", ".join(topic.split(", ")[:10]))
 
     path_to_file = f"{settings.ARTICLE_DATA}/export_project_{project.id}_"
 
@@ -327,11 +315,16 @@ def get_filtered_document(
     if not union_documents and not any(
         "filter-union" in key for key in filters
     ):
-        union_documents = set(
-            ClusterElement.objects.filter(
-                cluster__project=project
-            ).values_list("document__pk", flat=True)
-        )
+        documents = Document.objects.filter(project=project)
+
+        if documents.count() < settings.CLUSTERING_MIN_DOCUMENTS:
+            union_documents = set(documents.values_list("pk", flat=True))
+        else:
+            union_documents = set(
+                ClusterElement.objects.filter(
+                    cluster__project=project
+                ).values_list("document__pk", flat=True)
+            )
 
     filtered_documents = union_documents - excluded_documents
     logging.info(f"Filtered documents: {len(filtered_documents)}")
@@ -430,15 +423,25 @@ def get_documents_by_descriptor(
 ) -> set[int]:
     """Retrieve document IDs filtered by descriptors."""
     result = set()
-    for desc in descriptors:
-        regex_key = r".*" + desc.strip() + r".*"
-        documents = (
-            Document.objects.filter(
+    no_clusters = (
+        Document.objects.filter(project=project).count()
+        < CLUSTERING_MIN_DOCUMENTS
+    )
+
+    for descriptor in descriptors:
+        regex_key = r".*" + descriptor.strip() + r".*"
+        if no_clusters:
+            documents = Document.objects.filter(
                 project=project, descriptors__iregex=regex_key
+            ).values_list("pk", flat=True)
+        else:
+            documents = (
+                Document.objects.filter(
+                    project=project, descriptors__iregex=regex_key
+                )
+                .exclude(clusterelement__isnull=True)
+                .values_list("pk", flat=True)
             )
-            .exclude(clusterelement__isnull=True)
-            .values_list("pk", flat=True)
-        )
 
         result.update(documents)
     return result
@@ -447,13 +450,24 @@ def get_documents_by_descriptor(
 def get_documents_by_norm(project: Project, norms: list[str]) -> set[int]:
     """Retrieve document IDs filtered by norm."""
     result = set()
+    no_clusters = (
+        Document.objects.filter(project=project).count()
+        < CLUSTERING_MIN_DOCUMENTS
+    )
+
     for norm in norms:
         regex_key = r".*" + norm.strip() + r".*"
-        documents = (
-            Document.objects.filter(project=project)
-            .filter(Q(standards__iregex=regex_key))
-            .exclude(clusterelement__isnull=True)
-        )
+        if no_clusters:
+            documents = Document.objects.filter(project=project).filter(
+                Q(standards__iregex=regex_key)
+            )
+        else:
+            documents = (
+                Document.objects.filter(project=project)
+                .filter(Q(standards__iregex=regex_key))
+                .exclude(clusterelement__isnull=True)
+            )
+
         result.update(documents.values_list("pk", flat=True))
     return result
 
@@ -463,13 +477,24 @@ def get_documents_by_keyword(
 ) -> set[int]:
     """Retrieve document IDs filtered by keyword."""
     result = set()
+    no_clusters = (
+        Document.objects.filter(project=project).count()
+        < CLUSTERING_MIN_DOCUMENTS
+    )
+
     for keyword in keywords:
         regex_key = r".*" + keyword + r".*"
-        documents = (
-            Document.objects.filter(project=project)
-            .filter(Q(prepared_for_ngrams__iregex=regex_key))
-            .exclude(clusterelement__isnull=True)
-        )
+
+        if no_clusters:
+            documents = Document.objects.filter(project=project).filter(
+                Q(prepared_for_ngrams__iregex=regex_key)
+            )
+        else:
+            documents = (
+                Document.objects.filter(project=project)
+                .filter(Q(prepared_for_ngrams__iregex=regex_key))
+                .exclude(clusterelement__isnull=True)
+            )
 
         result.update(documents.values_list("pk", flat=True))
 
@@ -481,10 +506,21 @@ def get_documents_by_no_decis(
 ) -> set[int]:
     """Retrieve document IDs filtered by 'no_decis'."""
     result = set()
+    no_clusters = (
+        Document.objects.filter(project=project).count()
+        < CLUSTERING_MIN_DOCUMENTS
+    )
+
     for no_d in no_decis:
-        documents = Document.objects.filter(
-            project=project, decision_type=no_d
-        ).exclude(clusterelement__isnull=True)
+        if no_clusters:
+            documents = Document.objects.filter(
+                project=project, decision_type=no_d
+            )
+        else:
+            documents = Document.objects.filter(
+                project=project, decision_type=no_d
+            ).exclude(clusterelement__isnull=True)
+
         result.update(documents.values_list("pk", flat=True))
 
     return result
@@ -495,10 +531,19 @@ def get_documents_by_chamber(
 ) -> set[int]:
     """Retrieve document IDs filtered by 'chamber'."""
     result = set()
+    no_clusters = (
+        Document.objects.filter(project=project).count()
+        < CLUSTERING_MIN_DOCUMENTS
+    )
+
     for chamb in chambers:
-        documents = Document.objects.filter(
-            project=project, chamber=chamb
-        ).exclude(clusterelement__isnull=True)
+        if no_clusters:
+            documents = Document.objects.filter(project=project, chamber=chamb)
+        else:
+            documents = Document.objects.filter(
+                project=project, chamber=chamb
+            ).exclude(clusterelement__isnull=True)
+
         result.update(documents.values_list("pk", flat=True))
 
     return result
@@ -507,15 +552,21 @@ def get_documents_by_chamber(
 def get_documents_by_result(project: Project, results: list[str]) -> set[int]:
     """Retrieve document IDs filtered by result."""
     result = set()
+    no_clusters = (
+        Document.objects.filter(project=project).count()
+        < CLUSTERING_MIN_DOCUMENTS
+    )
     for result_value in results:
         if result_value == "NO RESULT":
-            documents = Document.objects.filter(
-                project=project, result=""
-            ).exclude(clusterelement__isnull=True)
+            documents = Document.objects.filter(project=project, result="")
         else:
             documents = Document.objects.filter(
                 project=project, result=result_value
-            ).exclude(clusterelement__isnull=True)
+            )
+
+        if not no_clusters:
+            documents = documents.exclude(clusterelement__isnull=True)
+
         result.update(documents.values_list("pk", flat=True))
 
     return result
@@ -526,6 +577,11 @@ def get_documents_by_year_range(
 ) -> set[int]:
     """Retrieve document IDs filtered by year range."""
     result = set()
+    no_clusters = (
+        Document.objects.filter(project=project).count()
+        < CLUSTERING_MIN_DOCUMENTS
+    )
+
     for year_range in year_ranges:
         if "-" in year_range:
             start_year, end_year = year_range.split("-")
@@ -533,9 +589,16 @@ def get_documents_by_year_range(
             start_year = end_year = year_range
         start_date = f"{start_year}-01-01"
         end_date = f"{end_year}-12-31"
-        documents = Document.objects.filter(
-            project=project, decision_date__range=(start_date, end_date)
-        ).exclude(clusterelement__isnull=True)
+
+        if no_clusters:
+            documents = Document.objects.filter(
+                project=project, decision_date__range=(start_date, end_date)
+            )
+        else:
+            documents = Document.objects.filter(
+                project=project, decision_date__range=(start_date, end_date)
+            ).exclude(clusterelement__isnull=True)
+
         result.update(documents.values_list("pk", flat=True))
 
     return result

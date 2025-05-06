@@ -348,7 +348,7 @@ def projectpage(
 
     if not (
         project.is_finish
-        or project.step in ["asking-rag", "clustering", "plotting"]
+        or project.step in ["question-answering", "clustering", "plotting"]
     ):
         return redirect(reverse("search"))
 
@@ -381,6 +381,7 @@ def projectpage(
         if submit == "filters":
             filters = get_filters(request.POST)
             context.update(handle_filters_submission(user, project, filters))
+
         elif submit == "ask-top-docs":
             create_tablechoice_rag_iteration(user, project)
 

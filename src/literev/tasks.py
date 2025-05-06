@@ -244,7 +244,7 @@ def get_nl_rag_ans(self, project_id: int) -> int | None:
         return
 
     project = Project.objects.get(id=project_id)
-    project.step = "asking-rag"
+    project.step = "question-answering"
     project.save()
 
     project_rag, _ = ProjectRAG.objects.get_or_create(

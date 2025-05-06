@@ -1,6 +1,6 @@
 import json
 
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase, override_settings
 
 from literev.libs.select_functions import (
     add_tooltips_topic,
@@ -15,8 +15,11 @@ from literev.models import (
     Project,
 )
 
+CLUSTERING_MIN_DOCUMENTS_TEST = 3
 
-class RefinementFilterTests(TestCase):
+
+@override_settings(CLUSTERING_MIN_DOCUMENTS=CLUSTERING_MIN_DOCUMENTS_TEST)
+class RefinementFilterTests(TransactionTestCase):
     def setUp(self):
         """Set up test data for refinement workflow tests."""
         self.project = Project.objects.create(name="licenciements 2000-2024")

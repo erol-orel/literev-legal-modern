@@ -18,6 +18,7 @@ from literev.tasks import get_shared_projects_ids
 register = template.Library()
 
 UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
+CLUSTERING_MIN_DOCUMENTS = settings.CLUSTERING_MIN_DOCUMENTS
 
 
 @register.filter
@@ -32,6 +33,11 @@ def check_shared_project(project_id: int):
 
 @register.filter
 def count_processed_documents(project: Project) -> int:
+    documents_count = Document.objects.filter(project=project).count()
+
+    if documents_count < CLUSTERING_MIN_DOCUMENTS:
+        return documents_count
+
     return ClusterElement.objects.filter(cluster__project=project).count()
 
 
