@@ -402,9 +402,13 @@ def projectpage(
             if refinement_id:
                 remove_refinement(user, project, int(refinement_id))
 
+        elif submit == "delete":
+            context["project_id"] = project.id
+            context["confirm_delete_project"] = True
+
         elif submit == "confirm_delete_project":
-            running_delete(request.POST["project_id"])
-            return redirect(reverse("running"))
+            running_delete(int(request.POST["project_id"]))
+            return redirect(reverse("search"))
 
         elif submit == "continue":
             document_pk_list_str = request.POST.get("document_pk_list", "")
@@ -443,6 +447,9 @@ def projectpage(
             )
 
     context.update(projectpage_load_final_results(user, project))
+
+    print("--------------------------")
+    print(context.get("project_id", "No project id"))
 
     return render(request, "projectpage.html", context)
 
