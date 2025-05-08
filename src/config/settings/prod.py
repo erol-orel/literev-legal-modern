@@ -10,11 +10,14 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 
+import logging
 import os
 
-# import sentry_sdk
-# from sentry_sdk.integrations.django import DjangoIntegration
-# from sentry_sdk.integrations.logging import LoggingIntegration
+import sentry_sdk
+
+from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration
+
 from config.settings.base import *  # noqa: F403  # noqa: F403
 from config.settings.base import ALLOWED_HOSTS, env
 
@@ -38,25 +41,25 @@ EMAIL_USE_TLS = False
 
 # SENTRY
 
-# sentry_sdk.init(
-#     dsn=env("SENTRY_DSN", default=""),
-#     # Set traces_sample_rate to 1.0 to capture 100%
-#     # of transactions for performance monitoring.
-#     traces_sample_rate=1.0,
-#     # Set profiles_sample_rate to 1.0 to profile 100%
-#     # of sampled transactions.
-#     # We recommend adjusting this value in production.
-#     profiles_sample_rate=1.0,
-#     integrations=[
-#         LoggingIntegration(
-#             # Capture info and above as breadcrumbs (this is the default)
-#             level=logging.INFO,
-#             # Send warnings as events (default is logging.ERROR)
-#             event_level=logging.WARNING,
-#         ),
-#         DjangoIntegration(),
-#     ],
-# )
+sentry_sdk.init(
+    dsn=env("SENTRY_DSN", default=""),
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for performance monitoring.
+    traces_sample_rate=1.0,
+    # Set profiles_sample_rate to 1.0 to profile 100%
+    # of sampled transactions.
+    # We recommend adjusting this value in production.
+    profiles_sample_rate=1.0,
+    integrations=[
+        LoggingIntegration(
+            # Capture info and above as breadcrumbs (this is the default)
+            level=logging.INFO,
+            # Send warnings as events (default is logging.ERROR)
+            event_level=logging.WARNING,
+        ),
+        DjangoIntegration(),
+    ],
+)
 
 # SECURITY
 # ----------------------------------------------------------------------------
