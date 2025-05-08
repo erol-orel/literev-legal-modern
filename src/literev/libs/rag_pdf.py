@@ -7,6 +7,7 @@ import json
 import logging
 
 from functools import wraps
+from hashlib import sha256
 from pathlib import Path
 from typing import Any, Callable, Literal, cast
 
@@ -35,10 +36,34 @@ TMP_DIR = Path("/tmp") / "rago"
 RET_CACHE = CacheFile(target_dir=TMP_DIR / "ret")
 AUG_CACHE = CacheFile(target_dir=TMP_DIR / "aug")
 GEN_CACHE = CacheFile(target_dir=TMP_DIR / "gen")
+SUMMARY_CACHE = CacheFile(target_dir=TMP_DIR / "summary")
 
 # TODO:update for contenttext instead fo pdf document
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+@wraps
+def ret_cache(func: Callable[[str], list[str]]) -> Callable[[str], list[str]]:
+    cache = RET_CACHE
+
+    def wrapper(text: str) -> list[str]:
+        cached = cache.load(text)
+        if cached is not None:
+            return cast(list[str], cached)
+        result = func(text)
+        cache.save(text, result)
+        return result
+
+    return wrapper
+
+
+def compute_summary_cache_key(query: str, document_ids: list[int]) -> str:
+    """
+    Compute a deterministic hash key for summary caching based on query and document IDs.
+    """
+    base = f"{query.strip()}::{','.join(map(str, sorted(document_ids)))}"
+    return sha256(base.encode("utf-8")).hexdigest()
 
 
 class RAGAnswer(BaseModel):
@@ -82,21 +107,6 @@ def build_consideration_model(count: int):
 
 class QuestionTypeClassification(BaseModel):
     question_type: Literal["open", "closed"]
-
-
-@wraps
-def ret_cache(func: Callable[[str], list[str]]) -> Callable[[str], list[str]]:
-    cache = RET_CACHE
-
-    def wrapper(text: str) -> list[str]:
-        cached = cache.load(text)
-        if cached is not None:
-            return cast(list[str], cached)
-        result = func(text)
-        cache.save(text, result)
-        return result
-
-    return wrapper
 
 
 class PDFRAG:
@@ -306,24 +316,15 @@ class PDFRAG:
         )
 
     def generate_general_summary(self, summary_only: bool = False) -> None:
-        """
-        Generate a general summary from all document-level RAG answers.
-
-        This method combines the answers from all documents and generates a
-        summary using the OpenAI GPT-4o-mini model. The summary is stored in the
-        `ProjectRAG` model.
-        """
+        """Generate a one-sentence summary and considerations, cached using a hash key."""
         logger.info("Generating general summary...")
 
         valid_rags = [
             doc
             for doc in self.get_valid_document_rags()
-            if doc.confidence_score is not None and doc.confidence_score > 0.0
+            if doc.confidence_score and doc.confidence_score > 0
         ]
-
-        answers: list[str] = [
-            f"- {doc_rag.answer.strip()}" for doc_rag in valid_rags
-        ]
+        answers = [f"- {doc_rag.answer.strip()}" for doc_rag in valid_rags]
 
         if not answers:
             summary_data = {
@@ -332,43 +333,52 @@ class PDFRAG:
             }
             logger.info("No valid answers found. Using default summary.")
         else:
-            logger.info(f"Combining {len(answers)} answers for summarization.")
-            try:
-                summary_gen = OpenAIGen(
-                    api_key=self.api_key,
-                    model_name="gpt-4o-mini",
-                    prompt_template=self.summary_template_prompt,
-                    temperature=0,
-                    output_max_length=2048,
-                    api_params={
-                        "top_p": 0.0,
-                        "frequency_penalty": 0.0,
-                        "presence_penalty": 0.0,
-                    },
-                    structured_output=SummaryGeneralAnswer,
-                )
+            cache_key = compute_summary_cache_key(
+                self.project_rag.query, self.document_ids
+            )
+            cached = SUMMARY_CACHE.load(cache_key)
 
-                self.summary_obj: SummaryGeneralAnswer = summary_gen.generate(
-                    query=self.project_rag.query,
-                    context=["\n".join(answers)],
-                )
-
-                summary_data = {
-                    "summary": self.summary_obj.summary.strip(),
-                    "considerations": self.summary_obj.considerations
-                    if not summary_only
-                    else [],
-                }
-            except Exception as e:
-                logger.error(f"Failed to generate general summary: {e}")
-                summary_data = {
-                    "summary": "Résumé non disponible",
-                    "considerations": [],
-                }
+            if cached:
+                logger.info("Summary loaded from cache.")
+                summary_data = cached
+                self.summary_obj = SummaryGeneralAnswer(**summary_data)
+            else:
+                try:
+                    summary_gen = OpenAIGen(
+                        api_key=self.api_key,
+                        model_name="gpt-4o-mini",
+                        prompt_template=self.summary_template_prompt,
+                        temperature=0,
+                        output_max_length=2048,
+                        api_params={
+                            "top_p": 0.0,
+                            "frequency_penalty": 0.0,
+                            "presence_penalty": 0.0,
+                        },
+                        structured_output=SummaryGeneralAnswer,
+                    )
+                    self.summary_obj = summary_gen.generate(
+                        query=self.project_rag.query,
+                        context=["\n".join(answers)],
+                    )
+                    summary_data = {
+                        "summary": self.summary_obj.summary.strip(),
+                        "considerations": self.summary_obj.considerations
+                        if not summary_only
+                        else [],
+                    }
+                    SUMMARY_CACHE.save(cache_key, summary_data)
+                    logger.info("Summary generated and cached.")
+                except Exception as e:
+                    logger.error(f"Failed to generate summary: {e}")
+                    summary_data = {
+                        "summary": "Résumé non disponible",
+                        "considerations": [],
+                    }
 
         self.project_rag.summary_answer = json.dumps(summary_data)
         self.project_rag.save()
-        logger.info(f"Summary saved: {summary_data}")
+        logger.info(f"Summary saved to ProjectRAG: {summary_data}")
 
     def check_question_type(self) -> str:
         """Classify whether the question is closed (yes/no) or open-ended."""
