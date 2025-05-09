@@ -124,6 +124,24 @@ def back_clustering_documents(self, project_id: int):
         ]
     )
 
+    hdbscan_scores = best_study_clusterer.probabilities_
+
+    joblib.dump(
+        hdbscan_scores,
+        settings.ARTICLE_DATA / f"hdbscan_scores_project_{project.id}.pkl",
+    )
+    joblib.dump(
+        list_id_docs,
+        settings.ARTICLE_DATA / f"id_list_project_{project.id}.pkl",
+    )
+    joblib.dump(
+        tf_idf, settings.ARTICLE_DATA / f"tf_idf_project_{project.id}.pkl"
+    )
+    joblib.dump(
+        columns_name,
+        settings.ARTICLE_DATA / f"column_name_project_{project.id}.pkl",
+    )
+
     for cluster_num in num_clusters:
         w = np.where(best_study_clusterer.labels_ == cluster_num)[0]
 
@@ -198,22 +216,5 @@ def back_clustering_documents(self, project_id: int):
     #     settings.ARTICLE_DATA / f"tfidf_keywords_project_{project.id}.pkl",
     # )
 
-    hdbscan_scores = best_study_clusterer.probabilities_
-
-    joblib.dump(
-        hdbscan_scores,
-        settings.ARTICLE_DATA / f"hdbscan_scores_project_{project.id}.pkl",
-    )
-    joblib.dump(
-        list_id_docs,
-        settings.ARTICLE_DATA / f"id_list_project_{project.id}.pkl",
-    )
-    joblib.dump(
-        tf_idf, settings.ARTICLE_DATA / f"tf_idf_project_{project.id}.pkl"
-    )
-    joblib.dump(
-        columns_name,
-        settings.ARTICLE_DATA / f"column_name_project_{project.id}.pkl",
-    )
-
     project.step_number = 0
+    project.save()

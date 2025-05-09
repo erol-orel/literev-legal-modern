@@ -1,30 +1,222 @@
 from __future__ import annotations
 
+import json
 import logging
-import random
 
 from typing import cast
 
+import joblib
+import numpy as np
+import requests
 import openai
 import tiktoken
 
-from django.conf import settings
 from openai import OpenAI
 
-from literev.models import Cluster, Document
+from django.conf import settings
+from rago.retrieval import StringRet
+
+from literev.models import (
+    Cluster,
+    ClusterElement,
+    Document,
+)
+
+from literev.libs.rag_classes import HactarAug
+from rago.augmented import OpenAIAug
+
+from pathlib import Path
+
+from rago.extensions.cache import CacheFile
+
+TMP_DIR = Path("/tmp") / "rago"
+AUG_CACHE = CacheFile(target_dir=TMP_DIR / "aug")
+
+USE_HACTAR_LLM = settings.USE_HACTAR_LLM
+
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 logger = logging.getLogger(__name__)
 
 openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
-# gpt model consumed by the api
+# TODO: Move this somewhere else
+def split_text_into_chunks(text: str) -> list[str]:
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000, chunk_overlap=200
+    )
+    return splitter.split_text(text)
+
+
+def get_top_documents_from_cluster(
+    cluster: Cluster, n: int = 10
+) -> list[Document]:
+    """
+    Get the n most relevant documents from a cluster based on HDBSCAN probabilities.
+
+    Parameters
+    ----------
+    cluster : Cluster
+        The cluster to analyze
+    n : int, optional
+        Number of documents to return, by default 10
+
+    Returns
+    -------
+    list[Document]
+        List of the n most relevant Document objects
+    """
+    try:
+        # Load saved HDBSCAN scores and document IDs
+        hdbscan_scores = joblib.load(
+            settings.ARTICLE_DATA
+            / f"hdbscan_scores_project_{cluster.project.id}.pkl"
+        )
+        list_id_docs = joblib.load(
+            settings.ARTICLE_DATA / f"id_list_project_{cluster.project.id}.pkl"
+        )
+
+        # Get documents in this cluster
+        cluster_elements = ClusterElement.objects.filter(cluster=cluster)
+        cluster_doc_ids = [elem.document.id for elem in cluster_elements]
+
+        # Get indices of documents in this cluster
+        cluster_indices = [
+            list_id_docs.index(doc_id) for doc_id in cluster_doc_ids
+        ]
+
+        # Get probabilities for documents in this cluster
+        cluster_probs = hdbscan_scores[cluster_indices]
+
+        # Sort by probability and get top n
+        top_indices = np.argsort(cluster_probs)[-n:][::-1]
+        top_doc_ids = [cluster_doc_ids[i] for i in top_indices]
+
+        # Get Document objects
+        top_documents = Document.objects.filter(id__in=top_doc_ids)
+
+        # Sort documents by their probability
+        prob_dict = dict(zip(top_doc_ids, cluster_probs[top_indices]))
+        sorted_documents = sorted(
+            top_documents, key=lambda x: prob_dict[x.id], reverse=True
+        )
+
+        logger.info(
+            f"Found {len(sorted_documents)} relevant documents for cluster {cluster.id}"
+        )
+        return sorted_documents
+
+    except FileNotFoundError as e:
+        logger.error(
+            f"Could not load HDBSCAN data for project {cluster.project.id}"
+        )
+        logger.error(e)
+        return Document.objects.filter(clusterelement__cluster=cluster)[:n]
+
+
+# Available models from hactar.unige.ch
+MODEL_SPECS = {
+    # Current model to consider across LiteRev
+    "mistral-small3.1:24b": {
+        "context_size": 128000,
+        "encoding": "cl100k_base",
+    },
+    "qwen2.5:32b": {
+        "context_size": 128000,
+        "encoding": "cl100k_base",
+    },
+    "gemma3:27b": {
+        "context_size": 128000,
+        "encoding": "cl100k_base",
+    },
+    "yi:34b": {
+        "context_size": 128000,
+        "encoding": "cl100k_base",
+    },
+    "phi3:14b": {
+        "context_size": 128000,
+        "encoding": "cl100k_base",
+    },
+}
+
 GPT_MODEL = "gpt-4o-mini"
 GPT_MODEL_MAX_TOKENS = 128000
+LLM_MODEL = "mistral-small3.1:24b"
 MAX_TOKENS_RESPONSE = 250
-# 200 tokens extra margin for security
-TOKEN_LIMIT = GPT_MODEL_MAX_TOKENS - MAX_TOKENS_RESPONSE - 200
-RANDOM_K = 27
 
+# Get model specs with fallback values
+current_model = MODEL_SPECS.get(
+    LLM_MODEL, {"context_size": 128000, "encoding": "cl100k_base"}
+)
+LLM_MODEL_MAX_TOKENS = current_model["context_size"] if USE_HACTAR_LLM else GPT_MODEL_MAX_TOKENS
+TOKEN_LIMIT = LLM_MODEL_MAX_TOKENS - MAX_TOKENS_RESPONSE - 200
+RELEVANT_K = 10  # Number of relevant documents to consider when asking RAG
+
+def call_model(prompt: str, api_key: str):
+    """
+    Call chosen LLM model via Open WebUI API endpoints.
+
+    Sets the api_key, sends the prompt to hactar's servers,
+    and returns the generated response.
+
+    Parameters
+    ----------
+    prompt : str
+        Input text prompt for LLM.
+
+    api_key : str, optional
+        The Open WebUI API key. Defaults to project settings.
+
+    Returns
+    -------
+    str
+        Response generated by LLM.
+
+    References
+    ----------
+    More on Open WebUI: https://docs.openwebui.com/getting-started/api-endpoints
+
+    Examples
+    --------
+    >>> response = call_model("What is the capital of France?")
+    >>> logger.info(response)
+    'The capital of France is Paris.'
+    """
+
+    url = "https://hactar.unige.ch/api/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    data = {
+        "model": f"{LLM_MODEL}",
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt,
+                "max_tokens": MAX_TOKENS_RESPONSE,
+                "temperature": 0.0,
+            }
+        ],
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        response.raise_for_status()
+        result = response.json()
+
+        if "choices" in result and len(result["choices"]) > 0:
+            return result["choices"][0]["message"]["content"]
+        else:
+            logger.error(f"Unexpected API response format: {result}")
+            return ""
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"API request failed: {e}")
+        return ""
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to decode API response: {e}")
+        return ""
 
 def call_chatgpt(prompt: str, api_key: str = settings.OPENAI_API_KEY) -> str:
     """
@@ -82,10 +274,9 @@ def call_chatgpt(prompt: str, api_key: str = settings.OPENAI_API_KEY) -> str:
 
     return cast(str, response.choices[0].message.content)
 
-
-def build_prompt(cluster: Cluster) -> str:
+def build_prompt(cluster: Cluster, USE_HACTAR_LLM: bool) -> str:
     """
-    Build a GPT prompt for summarizing a cluster of law cases.
+    Build a prompt for summarizing a cluster of law cases.
 
     Constructs a prompt to describe a cluster of law cases based on a predefined
     template. The function collects context from documents associated with the cluster
@@ -99,7 +290,7 @@ def build_prompt(cluster: Cluster) -> str:
     Returns
     -------
     str
-        A complete prompt formatted for GPT consumption.
+        A complete prompt formatted for LLM consumption.
 
     Notes
     -----
@@ -117,7 +308,19 @@ def build_prompt(cluster: Cluster) -> str:
     """
 
     prompt_fragments: list[str] = []
-    enc = tiktoken.encoding_for_model(GPT_MODEL)
+    enc = tiktoken.get_encoding(
+        MODEL_SPECS.get(LLM_MODEL, {}).get("encoding", "cl100k_base")
+    )
+
+    retrieval_prompt = (
+        "You are a legal assistant specialized in generating queries for a RAG system."
+        "Your role is to generate a single query in French that will be used to search"
+        "a vector database containing legal documents from the canton of Geneva."
+        "The following keywords represent the topic of a document cluster:\n{keywords}.\n"
+        "Your task is to formulate a RAG query in French that maximizes the relevance of"
+        "the search in this context. Your response must be only the"
+        "query — no explanation, no commentary, nothing else."
+    )
 
     prompt_template = (
         "Provide a clear and concise general description based on the following "
@@ -139,47 +342,80 @@ def build_prompt(cluster: Cluster) -> str:
         "Write the response in French."
     )
 
-    document_context_template = "{context}.\n"
+    cluster_documents = Document.objects.filter(
+        clusterelement__cluster=cluster
+    )
 
+    doc_num = min(RELEVANT_K, len(cluster_documents))
+    # Get the most relevant documents from the cluster
+    documents = get_top_documents_from_cluster(cluster, n=doc_num)
+
+    # Generate a better RAG query based on the cluster keywords
+    if USE_HACTAR_LLM :
+        rag_query = call_model(
+            retrieval_prompt.format(keywords=cluster.topic),
+            settings.HACTAR_API_KEY,
+        )
+    else:
+        rag_query = call_chatgpt(
+            retrieval_prompt.format(keywords=cluster.topic),
+            settings.OPENAI_API_KEY,
+        )
+
+    logger.info(f"rag_query : {rag_query}")
     prompt = prompt_template.format(keywords=cluster.topic)
 
-    documents = Document.objects.filter(clusterelement__cluster=cluster)
-
     for i, document in enumerate(documents, start=1):
-        abstract_words = document.preprocessed_document.split()
+        chunks = split_text_into_chunks(document.raw_document_text)
 
-        if len(abstract_words) > RANDOM_K:
-            rnd_index = random.randrange(len(abstract_words) - RANDOM_K)
-            document_abstract = " ".join(
-                abstract_words[rnd_index : rnd_index + RANDOM_K]
-            )
-        else:
-            logger.warning(
-                f"Document {i} does not have enough abstract words."
-            )
-            document_abstract = " ".join(abstract_words)
+        retrieval = StringRet(chunks)
 
-        document_context = document_context_template.format(
-            context=document_abstract
-        )
-        prompt_fragments.append(document_context)
+        if USE_HACTAR_LLM : 
+            augmented = HactarAug(
+                api_key=settings.HACTAR_API_KEY,
+                top_k=5,
+                model_name="mxbai-embed-large:latest",
+                cache=AUG_CACHE,
+            )
+        else :
+            augmented = OpenAIAug(
+                api_key=settings.OPENAI_API_KEY,
+                top_k=5,
+                model_name="text-embedding-ada-002",
+                cache=AUG_CACHE,
+            )
+
+        # Getting relevant chunks
+        ret_data = retrieval.get(rag_query)
+        document_context = augmented.search(rag_query, ret_data)
+
+        # For now only get the chunk which got the best score
+        document_context = document_context[-1].replace("\n", "")
+        logger.info(f"document context : {document_context}")
+
+        prompt_fragments.append(f"\ndocument {i} : " + document_context)
 
         if (len(enc.encode(prompt + "".join(prompt_fragments)))) > TOKEN_LIMIT:
             logger.warning(
                 "Reached token limit; stopping addition of further documents."
             )
-            break  # Stop adding documents if token limit is exceeded
+            break
 
-    full_prompt = prompt + "\n".join(prompt_fragments) + prompt_constraints
+    full_prompt = (
+        prompt + "\n".join(prompt_fragments) + "\n" + prompt_constraints
+    )
+    logger.info(
+        f"full prompt ({len(enc.encode(full_prompt))}) : {full_prompt}"
+    )
 
     return full_prompt
 
 
 def nlp_topic_description(
-    cluster: Cluster, api_key: str = settings.OPENAI_API_KEY
+    cluster: Cluster, api_key: str = settings.HACTAR_API_KEY
 ) -> str:
     """
-    Generate a topic description based on topic keywords using ChatGPT.
+    Generate a topic description based on topic keywords using a LLM model.
 
     Parameters
     ----------
@@ -189,12 +425,12 @@ def nlp_topic_description(
     Returns
     -------
     str
-        A description generated by ChatGPT based on the input keywords.
+        A description generated by an LLM based on the input keywords.
 
     Notes
     -----
     This function returns a dummy text if the application is in development
-    mode (DEBUG) and there's no OPENAI_API_KEY configured in the settings.
+    mode (DEBUG) and there's no HACTAR_KEY configured in the settings.
 
     Examples
     --------
@@ -211,6 +447,9 @@ def nlp_topic_description(
             f"{cluster.topic}."
         )
 
-    prompt = build_prompt(cluster)
+    prompt = build_prompt(cluster, USE_HACTAR_LLM)
 
-    return call_chatgpt(prompt=prompt, api_key=api_key)
+    if USE_HACTAR_LLM :
+        return call_model(prompt=prompt, api_key=api_key)
+    else :
+        return call_chatgpt(prompt, api_key=settings.OPENAI_API_KEY)

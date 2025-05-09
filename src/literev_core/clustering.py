@@ -193,9 +193,7 @@ def retrieve_best_study(
     if tf_idf.shape[0] <= 10000:
         number_neighbour = 10
     else:
-        number_neighbour = int(
-            round(10 + 15 * (np.log10(tf_idf.shape[0]) - 4))
-        )
+        number_neighbour = round(10 + 15 * (np.log10(tf_idf.shape[0]) - 4))
 
     best_study_clusterer = best_study.clusterer
 

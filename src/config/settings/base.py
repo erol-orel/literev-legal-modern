@@ -51,6 +51,10 @@ DEBUG = env.bool("DEBUG", default=False)
 # Get OpenAI API key
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 
+HACTAR_API_KEY = os.environ.get("HACTAR_API_KEY", "")
+
+USE_HACTAR_LLM = env.bool("USE_HACTAR_LLM", default=False)
+
 APP_NAME = "literev"
 ALLOWED_HOSTS = [
     "localhost",

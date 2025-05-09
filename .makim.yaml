@@ -294,6 +294,26 @@ groups:
           sugar compose-ext start --services literev-postgres --options "-d"
           python src/manage.py shell
 
+      cache-embeddings:
+        help: Caches all the embeddings of the legal documents from the three chambers
+        env-file: .env
+        run: |
+          sugar compose-ext start \
+            --services literev-postgres --options -d
+
+          CMD="python manage.py cache_embeddings"
+
+          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
+            sugar compose run --service literev --options "--rm" --cmd "$CMD"
+          else
+            cd ./src/
+            export POSTGRES_HOST=localhost
+            $CMD
+          fi
+          echo "[II] Access to DB granted."
+
+          echo "Embeddings done"
+
   containers:
     tasks:
       wait:

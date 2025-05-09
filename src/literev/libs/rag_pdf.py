@@ -15,9 +15,9 @@ from django.conf import settings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from pydantic import BaseModel, Field, create_model, field_validator
 from rago import Rago
-from rago.augmented import OpenAIAug
 from rago.extensions.cache import CacheFile
 from rago.generation import OpenAIGen
+from rago.augmented import OpenAIAug
 from rago.retrieval import StringRet
 
 from literev.libs.scoring import (
@@ -31,6 +31,8 @@ from literev.models import (
     ProjectRAGStats,
 )
 
+from literev.libs.rag_classes import HactarAug, HactarGen
+
 TMP_DIR = Path("/tmp") / "rago"
 
 RET_CACHE = CacheFile(target_dir=TMP_DIR / "ret")
@@ -38,10 +40,11 @@ AUG_CACHE = CacheFile(target_dir=TMP_DIR / "aug")
 GEN_CACHE = CacheFile(target_dir=TMP_DIR / "gen")
 SUMMARY_CACHE = CacheFile(target_dir=TMP_DIR / "summary")
 
-# TODO:update for contenttext instead fo pdf document
-logging.basicConfig(level=logging.INFO)
+# TODO:update for contenttext instead of pdf document
+logging.basicConfig(level=settings.LOGGING_LEVEL)
 logger = logging.getLogger(__name__)
 
+USE_HACTAR_LLM = settings.USE_HACTAR_LLM
 
 @wraps
 def ret_cache(func: Callable[[str], list[str]]) -> Callable[[str], list[str]]:
@@ -234,30 +237,55 @@ class PDFRAG:
                             document, "No content available."
                         )
                         continue
-
-                    rag = Rago(
-                        retrieval=StringRet(chunks),
-                        augmented=OpenAIAug(
-                            api_key=self.api_key,
-                            top_k=5,
-                            model_name="text-embedding-ada-002",
-                            cache=AUG_CACHE,
-                        ),
-                        generation=OpenAIGen(
-                            api_key=self.api_key,
-                            model_name="gpt-4o-mini",
-                            prompt_template=self.template_prompt,
-                            temperature=0,
-                            output_max_length=16384,
-                            api_params={
-                                "top_p": 0.0,
-                                "frequency_penalty": 0.0,
-                                "presence_penalty": 0.0,
-                            },
-                            structured_output=RAGAnswer,
-                            cache=GEN_CACHE,
-                        ),
-                    )
+                    
+                    if USE_HACTAR_LLM :
+                        rag = Rago(
+                            retrieval=StringRet(chunks),
+                            augmented=HactarAug(
+                                api_key=settings.HACTAR_API_KEY,
+                                top_k=5,
+                                model_name="mxbai-embed-large:latest",
+                                cache=AUG_CACHE,
+                            ),
+                            generation=HactarGen(
+                                api_key=settings.HACTAR_API_KEY,
+                                model_name="mistral-small3.1:latest",
+                                prompt_template=self.template_prompt,
+                                temperature=0,
+                                output_max_length=16384,
+                                api_params={
+                                    "top_p": 0.0,
+                                    "frequency_penalty": 0.0,
+                                    "presence_penalty": 0.0,
+                                },
+                                structured_output=RAGAnswer,
+                                cache=GEN_CACHE,
+                            ),
+                        )
+                    else:
+                        rag = Rago(
+                            retrieval=StringRet(chunks),
+                            augmented=OpenAIAug(
+                                api_key=self.api_key,
+                                top_k=5,
+                                model_name="text-embedding-ada-002",
+                                cache=AUG_CACHE,
+                            ),
+                            generation=OpenAIGen(
+                                api_key=self.api_key,
+                                model_name="gpt-4o-mini",
+                                prompt_template=self.template_prompt,
+                                temperature=0,
+                                output_max_length=16384,
+                                api_params={
+                                    "top_p": 0.0,
+                                    "frequency_penalty": 0.0,
+                                    "presence_penalty": 0.0,
+                                },
+                                structured_output=RAGAnswer,
+                                cache=GEN_CACHE,
+                            ),
+                        )
 
                     result = rag.prompt(self.project_rag.query)
                     citation_context = rag.logs.get("augmented", {}).get(
