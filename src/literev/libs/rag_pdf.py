@@ -207,6 +207,9 @@ class PDFRAG:
         """
         logger.info("Starting RAG processing for documents.")
 
+        self.project_rag.status = "questioning_documents"
+        self.project_rag.save()
+
         documents = list(Document.objects.filter(id__in=self.document_ids))
 
         if max_doc_ans:
@@ -288,19 +291,38 @@ class PDFRAG:
             if stop_processing:
                 break
 
+        self.project_rag.status = "generating_scores"
+        self.project_rag.save()
+
         loop = asyncio.get_event_loop()
         loop.run_until_complete(
             assign_faithfulnesswithHHEM_scores(self.project_rag)
         )
 
+        self.project_rag.status = "generating_summary"
+        self.project_rag.save()
+
         self.question_type = self.check_question_type()
 
         if self.question_type == "closed":
             self.generate_general_summary(summary_only=True)
+
+            self.project_rag.status = "generating_statistics"
+            self.project_rag.save()
+
             self.generate_closed_answer_statistics()
+
         else:
             self.generate_general_summary(summary_only=False)
+
+            self.project_rag.status = "generating_statistics"
+            self.project_rag.save()
+
             self.generate_open_answer_statistics()
+
+            self.project_rag.status = "tagging_considerations"
+            self.project_rag.save()
+
             self.tag_answers_considerations()
 
         self.project_rag.status = "completed"

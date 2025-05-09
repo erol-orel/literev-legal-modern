@@ -9,14 +9,22 @@ from literev.models import ProjectDocumentRAG, ProjectRAG
 
 
 class ProjectRAGSerializer(serializers.ModelSerializer):
-    """
-    Serializer for ProjectRAG model.
-    """
+    status_display = serializers.SerializerMethodField()
 
     class Meta:
         model = ProjectRAG
-        fields = ["id", "project", "query", "created_at", "status"]
+        fields = [
+            "id",
+            "project",
+            "query",
+            "created_at",
+            "status",
+            "status_display",
+        ]
         read_only_fields = ["id", "project", "created_at"]
+
+    def get_status_display(self, obj):
+        return obj.get_status_display()
 
 
 class ProjectDocumentRAGSerializer(serializers.ModelSerializer):

@@ -270,6 +270,9 @@
       <thead>
         <tr>
           <th scope="col">
+            Status
+          </th>
+          <th scope="col">
             Query
           </th>
           <th scope="col">
@@ -285,7 +288,30 @@
       </thead>
       <tbody>
         {% for rag in project_rags %}
-          <tr>
+          <tr id="rag-row-{{ rag.id }}">
+            <td>
+              <span id="status-{{ rag.id }}"
+                    class="badge text-uppercase small history-status-badge
+                           {% if rag.status == 'completed' %}
+                             bg-success
+                           {% elif rag.status == 'failed' %}
+                             bg-danger
+                           {% elif rag.status == 'questioning_documents' %}
+                             bg-primary
+                           {% elif rag.status == 'generating_scores' %}
+                             bg-info
+                           {% elif rag.status == 'generating_summary' %}
+                             bg-secondary
+                           {% elif rag.status == 'generating_statistics' %}
+                             bg-warning
+                           {% elif rag.status == 'tagging_considerations' %}
+                             bg-dark
+                           {% else %}
+                             bg-light text-dark
+                           {% endif %}">
+                {{ rag.get_status_display }}
+              </span>
+            </td>
             <td>
               <a href="{% url 'project-rag-id-page' project_id=project_id rag_id=rag.id %}"
                  class="text-decoration-none fw-bold">
@@ -468,40 +494,61 @@
     });
     }
 
-
     const checkStatus = async () => {
-      if (document.getElementById("questionText") === null) {
-        return;
-      }
-      const getResponse = await axios.get(urlStatus);
+      if (document.getElementById("questionText") === null) return;
 
+      const getResponse = await axios.get(urlStatus);
       const ragStatus = getResponse.data.status;
 
+      // Update question text and header badge
+      const historyRow = document.querySelector(`#rag-row-${getResponse.data.id}`);
+      if (historyRow) {
+        const statusSpan = historyRow.querySelector(".history-status-badge");
+        if (statusSpan) {
+          const displayText = getResponse.data.status_display || 'In progress';
+          statusSpan.textContent = displayText;
+          statusSpan.className = "badge text-uppercase small history-status-badge";
+          // Add color class
+          const classMap = {
+            completed: "bg-success",
+            failed: "bg-danger",
+            questioning_documents: "bg-primary",
+            generating_scores: "bg-info",
+            generating_summary: "bg-secondary",
+            generating_statistics: "bg-warning",
+            tagging_considerations: "bg-dark",
+          };
+          statusSpan.classList.add(classMap[getResponse.data.status] || "bg-light", "text-dark");
+        }
+      }
+
+      // If completed, load results
       if (ragStatus === "completed") {
         document.getElementById("questionText").textContent = getResponse.data.query;
-        const documentsResponse = await axios.get(urlDocRagList,
-          { params: { project_rag: getResponse.data.id } }
-        );
-        const generalAns = document.getElementById("general-ans");
+        const documentsResponse = await axios.get(urlDocRagList, {
+          params: { project_rag: getResponse.data.id }
+        });
 
+        const generalAns = document.getElementById("general-ans");
         if (generalAns == null) {
-          window.location.reload()
+          window.location.reload();
         }
+
         renderResults(documentsResponse.data);
         return;
       }
 
       if (ragStatus === null) {
-        /* if there is no request/question yet */
-        if(numberDocuments > 0){
+        if (numberDocuments > 0) {
           document.getElementById("ask-button").disabled = false;
         }
-      } else if (ragStatus === "in-progress") {
-        show_loading();
+      } else {
+        show_loading(); // show spinner during any other step
       }
 
       setTimeout(checkStatus, 1000);
     };
+
     const ragForm = document.getElementById("ragForm");
 
     if (ragForm !== null) {

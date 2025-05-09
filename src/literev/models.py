@@ -118,8 +118,13 @@ class ProjectRAG(models.Model):
     """
 
     STATUS_CHOICES = [
-        ("completed", "Completed"),
         ("in-progress", "In Progress"),
+        ("questioning_documents", "Generating Answers"),
+        ("generating_scores", "Scoring Answers"),
+        ("generating_summary", "Creating General Summary"),
+        ("generating_statistics", "Generating Statistics"),
+        ("tagging_considerations", "Tagging Considerations"),
+        ("completed", "Completed"),
         ("failed", "Failed"),
     ]
 
@@ -129,7 +134,7 @@ class ProjectRAG(models.Model):
     query = models.CharField(max_length=500)
     created_at = models.DateTimeField(default=timezone.now)
     status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default="in-progress"
+        max_length=30, choices=STATUS_CHOICES, default="in-progress"
     )
     summary_answer = models.TextField(null=True, blank=True)
 
