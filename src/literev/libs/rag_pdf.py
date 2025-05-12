@@ -15,13 +15,14 @@ from django.conf import settings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from pydantic import BaseModel, Field, create_model, field_validator
 from rago import Rago
+from rago.augmented import OpenAIAug
 from rago.extensions.cache import CacheFile
 from rago.generation import OpenAIGen
-from rago.augmented import OpenAIAug
 from rago.retrieval import StringRet
 
+from literev.libs.rag_classes import HactarAug, HactarGen
 from literev.libs.scoring import (
-    assign_faithfulnesswithHHEM_scores,
+    assign_faithfulness_scores,
     sort_documents_by_es_score,
 )
 from literev.models import (
@@ -30,8 +31,6 @@ from literev.models import (
     ProjectRAG,
     ProjectRAGStats,
 )
-
-from literev.libs.rag_classes import HactarAug, HactarGen
 
 TMP_DIR = Path("/tmp") / "rago"
 
@@ -45,6 +44,7 @@ logging.basicConfig(level=settings.LOGGING_LEVEL)
 logger = logging.getLogger(__name__)
 
 USE_HACTAR_LLM = settings.USE_HACTAR_LLM
+
 
 @wraps
 def ret_cache(func: Callable[[str], list[str]]) -> Callable[[str], list[str]]:
@@ -237,8 +237,8 @@ class PDFRAG:
                             document, "No content available."
                         )
                         continue
-                    
-                    if USE_HACTAR_LLM :
+
+                    if USE_HACTAR_LLM:
                         rag = Rago(
                             retrieval=StringRet(chunks),
                             augmented=HactarAug(
@@ -323,9 +323,7 @@ class PDFRAG:
         self.project_rag.save()
 
         loop = asyncio.get_event_loop()
-        loop.run_until_complete(
-            assign_faithfulnesswithHHEM_scores(self.project_rag)
-        )
+        loop.run_until_complete(assign_faithfulness_scores(self.project_rag))
 
         self.project_rag.status = "generating_summary"
         self.project_rag.save()

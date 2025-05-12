@@ -448,9 +448,6 @@ def projectpage(
 
     context.update(projectpage_load_final_results(user, project))
 
-    print("--------------------------")
-    print(context.get("project_id", "No project id"))
-
     return render(request, "projectpage.html", context)
 
 

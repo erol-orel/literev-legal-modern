@@ -3,31 +3,27 @@ from __future__ import annotations
 import json
 import logging
 
+from pathlib import Path
 from typing import cast
 
 import joblib
 import numpy as np
-import requests
 import openai
+import requests
 import tiktoken
 
-from openai import OpenAI
-
 from django.conf import settings
+from openai import OpenAI
+from rago.augmented import OpenAIAug
+from rago.extensions.cache import CacheFile
 from rago.retrieval import StringRet
 
+from literev.libs.rag_classes import HactarAug
 from literev.models import (
     Cluster,
     ClusterElement,
     Document,
 )
-
-from literev.libs.rag_classes import HactarAug
-from rago.augmented import OpenAIAug
-
-from pathlib import Path
-
-from rago.extensions.cache import CacheFile
 
 TMP_DIR = Path("/tmp") / "rago"
 AUG_CACHE = CacheFile(target_dir=TMP_DIR / "aug")
@@ -39,6 +35,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 logger = logging.getLogger(__name__)
 
 openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+
 
 # TODO: Move this somewhere else
 def split_text_into_chunks(text: str) -> list[str]:
@@ -148,9 +145,12 @@ MAX_TOKENS_RESPONSE = 250
 current_model = MODEL_SPECS.get(
     LLM_MODEL, {"context_size": 128000, "encoding": "cl100k_base"}
 )
-LLM_MODEL_MAX_TOKENS = current_model["context_size"] if USE_HACTAR_LLM else GPT_MODEL_MAX_TOKENS
+LLM_MODEL_MAX_TOKENS = (
+    current_model["context_size"] if USE_HACTAR_LLM else GPT_MODEL_MAX_TOKENS
+)
 TOKEN_LIMIT = LLM_MODEL_MAX_TOKENS - MAX_TOKENS_RESPONSE - 200
 RELEVANT_K = 10  # Number of relevant documents to consider when asking RAG
+
 
 def call_model(prompt: str, api_key: str):
     """
@@ -218,6 +218,7 @@ def call_model(prompt: str, api_key: str):
         logger.error(f"Failed to decode API response: {e}")
         return ""
 
+
 def call_chatgpt(prompt: str, api_key: str = settings.OPENAI_API_KEY) -> str:
     """
     Call ChatGPT via the OpenAI Python package.
@@ -273,6 +274,7 @@ def call_chatgpt(prompt: str, api_key: str = settings.OPENAI_API_KEY) -> str:
         return ""
 
     return cast(str, response.choices[0].message.content)
+
 
 def build_prompt(cluster: Cluster, USE_HACTAR_LLM: bool) -> str:
     """
@@ -351,7 +353,7 @@ def build_prompt(cluster: Cluster, USE_HACTAR_LLM: bool) -> str:
     documents = get_top_documents_from_cluster(cluster, n=doc_num)
 
     # Generate a better RAG query based on the cluster keywords
-    if USE_HACTAR_LLM :
+    if USE_HACTAR_LLM:
         rag_query = call_model(
             retrieval_prompt.format(keywords=cluster.topic),
             settings.HACTAR_API_KEY,
@@ -370,14 +372,14 @@ def build_prompt(cluster: Cluster, USE_HACTAR_LLM: bool) -> str:
 
         retrieval = StringRet(chunks)
 
-        if USE_HACTAR_LLM : 
+        if USE_HACTAR_LLM:
             augmented = HactarAug(
                 api_key=settings.HACTAR_API_KEY,
                 top_k=5,
                 model_name="mxbai-embed-large:latest",
                 cache=AUG_CACHE,
             )
-        else :
+        else:
             augmented = OpenAIAug(
                 api_key=settings.OPENAI_API_KEY,
                 top_k=5,
@@ -449,7 +451,7 @@ def nlp_topic_description(
 
     prompt = build_prompt(cluster, USE_HACTAR_LLM)
 
-    if USE_HACTAR_LLM :
+    if USE_HACTAR_LLM:
         return call_model(prompt=prompt, api_key=api_key)
-    else :
+    else:
         return call_chatgpt(prompt, api_key=settings.OPENAI_API_KEY)

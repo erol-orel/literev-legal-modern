@@ -13,11 +13,11 @@ from django.conf import settings
 from django.test import TestCase, TransactionTestCase, override_settings
 
 from literev.libs.scoring import (
-    assign_faithfulnesswithHHEM_scores,
+    assign_faithfulness_scores,
     assign_similarity_scores,
     extract_keywords,
     get_dataframe_project,
-    get_faithfulnesswithHHEM_score,
+    get_faithfulness_score,
     get_most_similar_keywords,
     get_similarity_score_phrases,
     get_topic_and_hdbscan_score,
@@ -330,9 +330,7 @@ class ScoringFaithfulnessRAGAnwersTest(TransactionTestCase):
         expected_score_0 = 1.00
         expected_score_1 = 0.00
         loop = asyncio.get_event_loop()
-        loop.run_until_complete(
-            assign_faithfulnesswithHHEM_scores(self.project_rag)
-        )
+        loop.run_until_complete(assign_faithfulness_scores(self.project_rag))
 
         rag_documents = ProjectDocumentRAG.objects.filter(
             project_rag=self.project_rag
@@ -354,7 +352,7 @@ class ScoringFaithfulnessRAGAnwersTest(TransactionTestCase):
             "Albert Einstein (born 14 March 1879) was a German-born theoretical physicist, "
             "widely held to be one of the greatest and most influential scientists of all time"
         )
-        result_faithfulness_score = await get_faithfulnesswithHHEM_score(
+        result_faithfulness_score = await get_faithfulness_score(
             query, faithfulness_response, context
         )
 
@@ -369,7 +367,7 @@ class ScoringFaithfulnessRAGAnwersTest(TransactionTestCase):
             result_faithfulness_score, faithfulness_expected_score
         )
 
-        result_low_faithfulness_score = await get_faithfulnesswithHHEM_score(
+        result_low_faithfulness_score = await get_faithfulness_score(
             query, low_faithfulness_response, context
         )
 

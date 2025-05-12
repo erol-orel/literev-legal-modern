@@ -9,7 +9,7 @@ from django.db.models.query import QuerySet
 from langchain_openai import ChatOpenAI
 from ragas.dataset_schema import SingleTurnSample
 from ragas.llms import LangchainLLMWrapper
-from ragas.metrics import FaithfulnesswithHHEM
+from ragas.metrics import Faithfulness, FaithfulnesswithHHEM
 
 from literev.libs.data_files import get_dataframe_project, get_es_scores
 from literev.models import (
@@ -28,8 +28,8 @@ llm = ChatOpenAI(model="gpt-4o-mini")
 evaluator_llm = LangchainLLMWrapper(llm)
 
 
-async def get_faithfulnesswithHHEM_score(
-    query: str, response: str, citation: list[str]
+async def get_faithfulness_score(
+    query: str, response: str, citation: list[str], use_HHEM=False
 ) -> float:
     """
     Evaluates a sample and returns faithfulnesswithHHEM score
@@ -54,13 +54,17 @@ async def get_faithfulnesswithHHEM_score(
     sample = SingleTurnSample(
         user_input=query, response=response, retrieved_contexts=citation
     )
-    scorer = FaithfulnesswithHHEM(llm=evaluator_llm)
+    if use_HHEM:
+        scorer = FaithfulnesswithHHEM(llm=evaluator_llm)
+    else:
+        scorer = Faithfulness(llm=evaluator_llm)
+
     faithfulnesswh_score = await scorer.single_turn_ascore(sample)
 
     return faithfulnesswh_score
 
 
-async def assign_faithfulnesswithHHEM_scores(project_rag: ProjectRAG) -> None:
+async def assign_faithfulness_scores(project_rag: ProjectRAG) -> None:
     """
     Asign faithfulnesswithHHEM scores to RAG answers given project_rag model object database.
 
@@ -86,7 +90,7 @@ async def assign_faithfulnesswithHHEM_scores(project_rag: ProjectRAG) -> None:
             if rag_document.citation_context
             else [rag_document.citation]
         )
-        faithfulness_score = await get_faithfulnesswithHHEM_score(
+        faithfulness_score = await get_faithfulness_score(
             query, rag_document.answer, citation_context
         )
 
