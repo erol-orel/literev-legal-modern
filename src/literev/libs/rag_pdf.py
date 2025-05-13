@@ -301,6 +301,9 @@ class PDFRAG:
                         citation_context=citation_context,
                     )
 
+                    if "réponse non disponible" not in result.answer.lower():
+                        counter += 1
+
                     if max_doc_ans and counter >= max_doc_ans:
                         logger.info("Max document answers reached.")
                         stop_processing = True
