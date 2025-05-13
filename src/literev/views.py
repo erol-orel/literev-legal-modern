@@ -9,7 +9,7 @@ from typing import Any, cast
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q
+from django.db.models import Q
 from django.http import (
     HttpRequest,
     HttpResponse,
@@ -734,10 +734,8 @@ def rag(
     )
     documents_ids = list(table_choices.values_list("document_id", flat=True))
 
-    project_rags = (
-        ProjectRAG.objects.filter(project=project)
-        .annotate(num_documents=Count("documents"))
-        .order_by("-created_at")
+    project_rags = ProjectRAG.objects.filter(project=project).order_by(
+        "-created_at"
     )
 
     last_refinement = (

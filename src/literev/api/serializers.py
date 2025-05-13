@@ -20,6 +20,8 @@ class ProjectRAGSerializer(serializers.ModelSerializer):
             "created_at",
             "status",
             "status_display",
+            "valid_answer_count",
+            "num_documents",
         ]
         read_only_fields = ["id", "project", "created_at"]
 

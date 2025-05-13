@@ -214,6 +214,7 @@ class PDFRAG:
         self.project_rag.save()
 
         documents = list(Document.objects.filter(id__in=self.document_ids))
+        self.project_rag.num_documents = len(documents)
 
         if max_doc_ans:
             documents = sort_documents_by_es_score(
@@ -300,9 +301,6 @@ class PDFRAG:
                         citation_context=citation_context,
                     )
 
-                    if "réponse non disponible" not in result.answer.lower():
-                        counter += 1
-
                     if max_doc_ans and counter >= max_doc_ans:
                         logger.info("Max document answers reached.")
                         stop_processing = True
@@ -324,6 +322,10 @@ class PDFRAG:
 
         loop = asyncio.get_event_loop()
         loop.run_until_complete(assign_faithfulness_scores(self.project_rag))
+
+        self.project_rag.valid_answer_count = (
+            self.count_valid_answered_documents(self.project_rag)
+        )
 
         self.project_rag.status = "generating_summary"
         self.project_rag.save()
@@ -759,3 +761,19 @@ class PDFRAG:
             for c in summary_obj.considerations
             if frequencies.get(c.strip(), 0) > 0
         ]
+
+    def count_valid_answered_documents(self, project_rag: ProjectRAG) -> int:
+        return (
+            ProjectDocumentRAG.objects.filter(
+                project_rag=project_rag,
+                confidence_score__gt=0,
+            )
+            .exclude(
+                answer__in=[
+                    "No content available",
+                    "Error generating response",
+                    "Réponse non disponible",
+                ]
+            )
+            .count()
+        )

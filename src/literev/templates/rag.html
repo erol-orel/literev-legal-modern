@@ -276,7 +276,7 @@
             Query
           </th>
           <th scope="col">
-            Documents
+            Answers/Documents
           </th>
           <th scope="col">
             Created At
@@ -319,7 +319,10 @@
               </a>
             </td>
             <td>
-              <span class="text-dark">{{ rag.num_documents }}</span>
+              <span class="text-dark"
+                    id="answers-documents-{{ rag.id }}">
+                {{ rag.valid_answer_count }} of {{ rag.num_documents }}
+              </span>
             </td>
             <td>
               {{ rag.created_at|date:"Y-m-d H:i:s" }}
@@ -514,12 +517,20 @@
             failed: "bg-danger",
             questioning_documents: "bg-primary",
             generating_scores: "bg-info",
-            generating_summary: "bg-secondary",
+            generating_summary: "bg-primary",
             generating_statistics: "bg-warning",
-            tagging_considerations: "bg-dark",
+            tagging_considerations: "bg-info",
           };
           statusSpan.classList.add(classMap[getResponse.data.status] || "bg-light", "text-dark");
         }
+      }
+
+      // Update the Answers/Documents count
+      const docCountCell = document.getElementById(`answers-documents-${getResponse.data.id}`);
+      if (docCountCell) {
+        const validAnswers = getResponse.data.valid_answer_count || 0;
+        const totalDocs = getResponse.data.num_documents || 0;
+        docCountCell.textContent = `${validAnswers} of ${totalDocs}`;
       }
 
       // If completed, load results

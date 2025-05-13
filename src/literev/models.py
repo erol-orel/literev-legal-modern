@@ -138,6 +138,9 @@ class ProjectRAG(models.Model):
     )
     summary_answer = models.TextField(null=True, blank=True)
 
+    num_documents = models.PositiveIntegerField(default=0)  # Total selected
+    valid_answer_count = models.PositiveIntegerField(default=0)
+
     def __str__(self) -> str:
         return (
             f"ProjectRAG for Project ID {self.project.id} - "
