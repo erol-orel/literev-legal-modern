@@ -307,6 +307,7 @@ class PDFRAG:
                     if max_doc_ans and counter >= max_doc_ans:
                         logger.info("Max document answers reached.")
                         stop_processing = True
+
                         break
 
                 except Exception as e:
@@ -319,6 +320,8 @@ class PDFRAG:
 
             if stop_processing:
                 break
+
+        self.project_rag.num_documents = counter
 
         self.project_rag.status = "generating_scores"
         self.project_rag.save()
