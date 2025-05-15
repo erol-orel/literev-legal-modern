@@ -113,7 +113,29 @@ class QuestionTypeClassification(BaseModel):
 
 
 class PDFRAG:
-    """Run RAG on documents and generate summaries & statistics."""
+    """
+    Run the complete RAG pipeline for a subset of selected documents.
+
+    This includes:
+    - RAG answer generation
+    - Faithfulness scoring
+    - General summary generation
+    - Answer classification
+    - Consideration tagging
+
+    Parameters
+    ----------
+    max_doc_ans : int or None, optional
+        Maximum number of documents to answer, by default None.
+    batch_size : int, optional
+        Number of documents to process per batch, by default 10.
+
+    Notes
+    -----
+    Only documents from `self.document_ids` are processed.
+    `project_rag.num_documents` reflects total answered documents.
+    `project_rag.valid_answer_count` counts valid and confident responses.
+    """
 
     evaluate_consideration_template_prompt = (
         "You are a legal assistant reviewing a summarized legal answer.\n\n"
@@ -363,7 +385,21 @@ class PDFRAG:
         self.project_rag.save()
 
     def _create_empty_response(self, document, message: str) -> None:
-        """Create a fallback response for a document when processing fails."""
+        """
+        Create a fallback placeholder response for a document.
+
+        Parameters
+        ----------
+        document : Document
+            Document object for which RAG failed.
+        message : str
+            Fallback answer text to store.
+
+        Notes
+        -----
+        These responses are excluded from summary and statistics.
+        """
+
         ProjectDocumentRAG.objects.create(
             project_rag=self.project_rag,
             document=document,
@@ -372,14 +408,23 @@ class PDFRAG:
         )
 
     def generate_general_summary(self, summary_only: bool = False) -> None:
-        """Generate a one-sentence summary and considerations, cached using a hash key."""
+        """
+        Generate a general summary and optional considerations.
+
+        Parameters
+        ----------
+        summary_only : bool, optional
+            If True, exclude considerations from summary.
+
+        Notes
+        -----
+        Uses only valid responses from `self.document_ids`.
+        Caches the result based on the query and documents.
+        """
         logger.info("Generating general summary...")
 
-        valid_rags = [
-            doc
-            for doc in self.get_valid_document_rags()
-            if doc.confidence_score and doc.confidence_score > 0
-        ]
+        valid_rags = self.get_valid_document_rags()
+
         answers = [f"- {doc_rag.answer.strip()}" for doc_rag in valid_rags]
 
         if not answers:
@@ -434,10 +479,19 @@ class PDFRAG:
 
         self.project_rag.summary_answer = json.dumps(summary_data)
         self.project_rag.save()
-        logger.info(f"Summary saved to ProjectRAG: {summary_data}")
+
+        logger.info("Completed summary generation.")
 
     def check_question_type(self) -> str:
-        """Classify whether the question is closed (yes/no) or open-ended."""
+        """
+        Determine whether the user query is open or closed.
+
+        Returns
+        -------
+        str
+            Either "open" or "closed", based on LLM classification.
+        """
+
         logger.info("Classifying the question type...")
 
         classification_gen = OpenAIGen(
@@ -456,17 +510,21 @@ class PDFRAG:
 
         result = result_obj.question_type
 
-        logger.info(f"Question classified as: {result}")
+        logger.info("Completed question type classification.")
 
         return result
 
     def generate_closed_answer_statistics(self) -> None:
         """
-        Generate classification statistics for closed-ended questions.
+        Generate classification stats for closed-ended answers.
 
-        This computes counts and percentages of 'oui', 'non', 'peut_etre', and 'mixte' labels,
-        and stores them in the `ProjectRAGStats` model.
+        Notes
+        -----
+        Only valid answers from `self.document_ids` are classified.
+        Categories: 'oui', 'non', 'peut_etre', and 'mixte'.
+        Stores results in ProjectRAGStats.
         """
+
         logger.info("Generating closed-ended statistics...")
 
         answers = self._fetch_valid_document_answers()
@@ -487,11 +545,14 @@ class PDFRAG:
 
     def generate_open_answer_statistics(self) -> None:
         """
-        Generate evaluation statistics for open-ended answers.
+        Evaluate support for considerations across valid RAG answers.
 
-        This method runs evaluation using OpenAI's GPT-4o model for each document
-        answer, and stores the results in the `ProjectRAGStats` model.
+        Notes
+        -----
+        Uses structured output format to detect affirmed considerations.
+        Results include frequencies and supporting document IDs.
         """
+
         logger.info("Generating open-ended answer statistics...")
 
         if (
@@ -502,6 +563,7 @@ class PDFRAG:
             return
 
         valid_docs = self.get_valid_document_rags()
+
         if not valid_docs:
             logger.warning("No valid documents available for evaluation.")
             return
@@ -569,10 +631,14 @@ class PDFRAG:
 
     def tag_answers_considerations(self) -> None:
         """
-        Tag RAG answers with consideration texts and associate procedure types
-        without using faithfulness scores. Simply takes the last three procedure types
-        from documents affirming the consideration.
+        Associate considerations with top procedure types.
+
+        Notes
+        -----
+        Tags up to 3 procedure types from valid affirming documents.
+        Updates `summary_answer` with enriched considerations.
         """
+
         logger.info("Tagging considerations based on affirmed documents...")
 
         if (
@@ -582,18 +648,7 @@ class PDFRAG:
             logger.warning("No summary or considerations available.")
             return
 
-        valid_rags = (
-            ProjectDocumentRAG.objects.filter(project_rag=self.project_rag)
-            .select_related("document")
-            .exclude(
-                answer__in=(
-                    "no content available.",
-                    "réponse non disponible",
-                    "error generating response.",
-                )
-            )
-            .exclude(confidence_score=0.0)
-        )
+        valid_rags = self.get_valid_document_rags()
 
         tagged_data = {
             rag.document.id: {
@@ -650,12 +705,23 @@ class PDFRAG:
         self.project_rag.summary_answer = json.dumps(summary_data)
         self.project_rag.save()
 
-        logger.info(f"Tagged considerations: {tagged_considerations}")
+        logger.info("Completed tagging considerations.")
 
     def categorize_closed_answers(self, answers: list[str]) -> list[str]:
         """
-        Classify a list of answers into closed categories using (RAG).
+        Classify answers into closed categories using LLM.
+
+        Parameters
+        ----------
+        answers : list of str
+            Valid answer texts.
+
+        Returns
+        -------
+        list of str
+            Categories: 'oui', 'non', 'peut_etre', 'mixte', or 'error'.
         """
+
         logger.info("Classifying answers with LLM and structured output...")
 
         classification_gen = OpenAIGen(
@@ -686,14 +752,27 @@ class PDFRAG:
                 )
                 categories.append("error")  # fallback category
 
+        logger.info("Completed answer classification.")
+
         return categories
 
     def compute_polar_answer_stats(
         self, classified_labels: list[str]
     ) -> dict[str, Any]:
         """
-        Compute count and percentage statistics for classified labels.
+        Compute statistics for closed classification labels.
+
+        Parameters
+        ----------
+        classified_labels : list of str
+            List of labels returned by LLM classification.
+
+        Returns
+        -------
+        dict of str to Any
+            Includes counts, percentages, and total size.
         """
+
         logger.info("Computing statistics...")
 
         error_count = 0
@@ -721,6 +800,8 @@ class PDFRAG:
             for k, v in counts.items()
         }
 
+        logger.info("Completed statistics computation.")
+
         return {
             "counts": counts,
             "percentages": percentages,
@@ -728,15 +809,26 @@ class PDFRAG:
         }
 
     def _fetch_valid_document_answers(self) -> list[str]:
-        """Retrieve valid document answers, excluding placeholders and errors."""
+        """
+        Retrieve valid RAG answers for selected documents.
+
+        Returns
+        -------
+        list of str
+            List of answers excluding errors and zero-confidence cases.
+        """
+
         return list(
-            ProjectDocumentRAG.objects.filter(project_rag=self.project_rag)
+            ProjectDocumentRAG.objects.filter(
+                project_rag=self.project_rag,
+                document_id__in=self.document_ids,
+            )
             .exclude(
-                answer__in=(
+                answer__in=[
                     "No content available.",
                     "Error generating response.",
                     "Réponse non disponible",
-                )
+                ]
             )
             .exclude(confidence_score=0.0)
             .values_list("answer", flat=True)
@@ -744,24 +836,47 @@ class PDFRAG:
 
     def get_valid_document_rags(self) -> list[ProjectDocumentRAG]:
         """
-        Retrieve ProjectDocumentRAG objects with non-empty, valid answers.
+        Return valid ProjectDocumentRAG entries from selected documents.
+
+        Returns
+        -------
+        list of ProjectDocumentRAG
+            Entries with confidence > 0 and valid answer content.
         """
-        return [
-            doc
-            for doc in ProjectDocumentRAG.objects.filter(
-                project_rag=self.project_rag
+
+        return list(
+            ProjectDocumentRAG.objects.filter(
+                project_rag=self.project_rag,
+                document_id__in=self.document_ids,
             )
             .exclude(confidence_score=0.0)
-            .select_related("document")
-            if doc.answer.strip().lower()
-            not in (
-                "no content available.",
-                "réponse non disponible",
-                "error generating response.",
+            .exclude(
+                answer__in=[
+                    "No content available.",
+                    "Error generating response.",
+                    "Réponse non disponible",
+                ]
             )
-        ]
+            .select_related("document")
+        )
 
     def clean_considerations_with_frequencies(self, summary_obj, frequencies):
+        """
+        Filter considerations with non-zero frequency values.
+
+        Parameters
+        ----------
+        summary_obj : SummaryGeneralAnswer
+            The parsed summary object.
+        frequencies : dict
+            Frequency data from RAG statistics.
+
+        Returns
+        -------
+        list of str
+            Considerations with frequency > 0.
+        """
+
         return [
             c
             for c in summary_obj.considerations
@@ -769,9 +884,24 @@ class PDFRAG:
         ]
 
     def count_valid_answered_documents(self, project_rag: ProjectRAG) -> int:
+        """
+        Count valid answered documents within the selected subset.
+
+        Parameters
+        ----------
+        project_rag : ProjectRAG
+            The RAG project to evaluate.
+
+        Returns
+        -------
+        int
+            Count of valid and confident RAG answers.
+        """
+
         return (
             ProjectDocumentRAG.objects.filter(
                 project_rag=project_rag,
+                document_id__in=self.document_ids,
                 confidence_score__gt=0,
             )
             .exclude(

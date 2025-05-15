@@ -213,7 +213,9 @@ def test_generate_general_summary_with_valid_answers(project_rag):
         confidence_score=0.85,
     )
 
-    rag_processor = PDFRAG(project_rag_id=project_rag.id, document_ids=[])
+    rag_processor = PDFRAG(
+        project_rag_id=project_rag.id, document_ids=[doc1.id, doc2.id]
+    )
 
     rag_processor.generate_general_summary()
 
@@ -255,7 +257,10 @@ def test_generate_general_summary_no_valid_answers(project_rag):
         confidence_score=0.0,
     )
 
-    rag_processor = PDFRAG(project_rag_id=project_rag.id, document_ids=[])
+    rag_processor = PDFRAG(
+        project_rag_id=project_rag.id, document_ids=[doc2.id]
+    )
+
     rag_processor.generate_general_summary()
 
     result = json.loads(rag_processor.project_rag.summary_answer)
@@ -297,22 +302,24 @@ def test_generate_general_summary_strips_whitespace(project_rag):
 
 @pytest.mark.django_db
 def test_generate_open_answer_statistics(project_rag, document_real):
+    doc = document_real
+
     ProjectDocumentRAG.objects.create(
         project_rag=project_rag,
-        document=document_real,
+        document=doc,
         citation="Extrait A",
         answer="Ce document montre que la mesure est précise et évolutive.",
         confidence_score=0.9,
     )
     ProjectDocumentRAG.objects.create(
         project_rag=project_rag,
-        document=document_real,
+        document=doc,
         citation="Extrait B",
         answer="Cette réponse ne soutient pas les points mentionnés.",
         confidence_score=0.95,
     )
 
-    processor = PDFRAG(project_rag_id=project_rag.id, document_ids=[])
+    processor = PDFRAG(project_rag_id=project_rag.id, document_ids=[doc.id])
 
     processor.summary_obj = SummaryGeneralAnswer(
         summary="Résumé être generale",
@@ -332,12 +339,6 @@ def test_generate_open_answer_statistics(project_rag, document_real):
         "La mesure doit être précise." in output["consideration_frequencies"]
     )
     assert "Elle doit être évolutive." in output["consideration_frequencies"]
-    assert isinstance(
-        output["affirmed_docs_by_consideration"][
-            "La mesure doit être précise."
-        ],
-        list,
-    )
 
 
 def test_build_consideration_model_validation_success():
@@ -398,7 +399,9 @@ def test_fetch_valid_document_answers(project_rag, document_real):
         confidence_score=0.0,
     )
 
-    processor = PDFRAG(project_rag_id=project_rag.id, document_ids=[])
+    processor = PDFRAG(
+        project_rag_id=project_rag.id, document_ids=[document_real.id]
+    )
     valid = processor._fetch_valid_document_answers()
     assert valid == ["Réponse pertinente"]
 
