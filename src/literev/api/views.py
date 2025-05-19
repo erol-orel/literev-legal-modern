@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 from django.conf import settings
+from django.db.models.functions import Lower, Trim
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rago.generation import OpenAIGen
@@ -188,17 +189,13 @@ class ProjectRAGbyProjectIdAPIView(APIView):
         Returns:
             Response: A JSON response with the provided project_id and list of IDs.
         """
-        # Parse data from the request body
-        query = request.data.get("query")
+        query = request.data.get("query", "")
         document_ids = request.data.get("documents_ids", [])
 
         if not project_id or not isinstance(document_ids, list) or not query:
             return Response(
                 {
-                    "error": (
-                        "project_id, query, and a list of "
-                        "document ids are required."
-                    )
+                    "error": "project_id, query, and a list of document ids are required."
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -212,8 +209,27 @@ class ProjectRAGbyProjectIdAPIView(APIView):
                 "You do not have permission to access this project."
             )
 
+        normalized_query = normalize_query(query)
+        matching_rags = (
+            ProjectRAG.objects.filter(project=project)
+            .annotate(normalized_query_db=Lower(Trim("query")))
+            .filter(normalized_query_db=normalized_query)
+        )
+
+        doc_id_set = set(document_ids)
+        for rag in matching_rags:
+            existing_doc_ids = set(
+                ProjectDocumentRAG.objects.filter(project_rag=rag).values_list(
+                    "document_id", flat=True
+                )
+            )
+            if doc_id_set == existing_doc_ids:
+                # Reuse existing RAG
+                serializer = ProjectRAGSerializer(rag)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+
         project_rag = ProjectRAG.objects.create(
-            query=query,
+            query=query.strip(),
             project=project,
             status="in-progress",
         )
@@ -351,3 +367,7 @@ class UpdateTableChoiceAPIView(APIView):
             {"detail": "TableChoice updated successfully."},
             status=status.HTTP_200_OK,
         )
+
+
+def normalize_query(text: str) -> str:
+    return " ".join(text.strip().lower().split())

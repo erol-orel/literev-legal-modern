@@ -454,3 +454,84 @@ def test_tag_answers_considerations(project_rag, document_real):
     assert isinstance(tagged["procedure_types"], list)
     assert isinstance(tagged["frequency"], int)
     assert "Obligation alimentaire" in tagged["tagged"]
+
+
+import pytest
+
+from literev.libs.rag_pdf import (
+    DOCUMENT_CACHE,
+    compute_document_cache_key,
+)
+from literev.models import Project
+
+
+@pytest.mark.django_db
+def test_document_level_cache(project_factory, document_factory):
+    project = project_factory(
+        natural_language_query="Quels sont les critères d'un harcèlement au travail ?"
+    )
+    document = document_factory(
+        project=project,
+        raw_document_text="Extrait : un comportement hostile et répété.",
+    )
+
+    project_rag = ProjectRAG.objects.create(
+        project=project,
+        query=project.natural_language_query,
+        status="in-progress",
+    )
+
+    document_ids = [document.id]
+
+    cache_key = compute_document_cache_key(
+        query=project_rag.query,
+        document_id=document.id,
+    )
+
+    assert DOCUMENT_CACHE.load(cache_key) is None
+
+    # First run: triggers generation and saves to cache
+    rag = PDFRAG(project_rag_id=project_rag.id, document_ids=document_ids)
+    rag.run()
+
+    cached = DOCUMENT_CACHE.load(cache_key)
+    assert cached is not None
+    assert "citation" in cached
+    assert "answer" in cached
+
+    # Second run: should load from cache
+    project_rag_2 = ProjectRAG.objects.create(
+        project=project,
+        query=project.natural_language_query,
+        status="in-progress",
+    )
+
+    rag2 = PDFRAG(project_rag_id=project_rag_2.id, document_ids=document_ids)
+    rag2.run()
+
+    # Ensure ProjectDocumentRAG is created again from cache
+    assert ProjectDocumentRAG.objects.filter(
+        project_rag=project_rag_2, document=document
+    ).exists()
+
+
+@pytest.fixture
+def project_factory(db):
+    def make_project(natural_language_query="Quel est le droit au repos ?"):
+        return Project.objects.create(
+            name="Test Project", natural_language_query=natural_language_query
+        )
+
+    return make_project
+
+
+@pytest.fixture
+def document_factory(db):
+    def make_doc(project, raw_document_text):
+        return Document.objects.create(
+            project=project,
+            raw_document_text=raw_document_text,
+            procedure_type="TestProc",
+        )
+
+    return make_doc

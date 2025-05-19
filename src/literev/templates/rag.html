@@ -567,7 +567,8 @@
         event.preventDefault();
         show_loading();
 
-        const query = document.getElementById("queryInput").value;
+        const rawQuery = document.getElementById("queryInput").value;
+        const query = rawQuery.trim().toLowerCase();
         const csrftoken = document.getElementsByName("csrfmiddlewaretoken")[0].value;
         const projectId = data.projectId;
         const scriptTag = document.getElementById("documents_ids");

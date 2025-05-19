@@ -37,7 +37,7 @@ TMP_DIR = Path("/tmp") / "rago"
 RET_CACHE = CacheFile(target_dir=TMP_DIR / "ret")
 AUG_CACHE = CacheFile(target_dir=TMP_DIR / "aug")
 GEN_CACHE = CacheFile(target_dir=TMP_DIR / "gen")
-SUMMARY_CACHE = CacheFile(target_dir=TMP_DIR / "summary")
+DOCUMENT_CACHE = CacheFile(target_dir=TMP_DIR / "documents")
 
 # TODO:update for contenttext instead of pdf document
 logging.basicConfig(level=settings.LOGGING_LEVEL)
@@ -61,12 +61,9 @@ def ret_cache(func: Callable[[str], list[str]]) -> Callable[[str], list[str]]:
     return wrapper
 
 
-def compute_summary_cache_key(query: str, document_ids: list[int]) -> str:
-    """
-    Compute a deterministic hash key for summary caching based on query and document IDs.
-    """
-    base = f"{query.strip()}::{','.join(map(str, sorted(document_ids)))}"
-    return sha256(base.encode("utf-8")).hexdigest()
+def compute_document_cache_key(query: str, document_id: int) -> str:
+    """Compute a stable cache key per document, tied to a specific query."""
+    return sha256(f"{query.strip()}::{document_id}".encode()).hexdigest()
 
 
 class RAGAnswer(BaseModel):
@@ -230,8 +227,8 @@ class PDFRAG:
         This method processes documents using (RAG),
         which generates answers, and updates the project status.
         """
-        logger.info("Starting RAG processing for documents.")
 
+        logger.info("Starting RAG processing for documents.")
         self.project_rag.status = "questioning_documents"
         self.project_rag.save()
 
@@ -248,68 +245,48 @@ class PDFRAG:
 
         for batch_start in range(0, len(documents), batch_size):
             batch = documents[batch_start : batch_start + batch_size]
-
             for document in batch:
+                try:
+                    cache_key = compute_document_cache_key(
+                        self.project_rag.query, document.id
+                    )
+
+                    cached_result = DOCUMENT_CACHE.load(cache_key)
+                    if cached_result:
+                        logger.info(
+                            f"[RAG] Loaded cached result for doc #{document.id}"
+                        )
+                        ProjectDocumentRAG.objects.create(
+                            project_rag=self.project_rag,
+                            document=document,
+                            citation=cached_result["citation"],
+                            answer=cached_result["answer"],
+                            citation_context=cached_result.get(
+                                "citation_context", []
+                            ),
+                        )
+                        if (
+                            "réponse non disponible"
+                            not in cached_result["answer"].lower()
+                        ):
+                            counter += 1
+                        continue
+                except Exception as e:
+                    logger.warning(
+                        f"[RAG] Failed to load cache for doc #{document.id}: {e}"
+                    )
+
                 try:
                     chunks = self.split_text_into_chunks(
                         document.raw_document_text
                     )
-
                     if not chunks:
                         self._create_empty_response(
                             document, "No content available."
                         )
                         continue
 
-                    if USE_HACTAR_LLM:
-                        rag = Rago(
-                            retrieval=StringRet(chunks),
-                            augmented=HactarAug(
-                                api_key=settings.HACTAR_API_KEY,
-                                top_k=5,
-                                model_name="mxbai-embed-large:latest",
-                                cache=AUG_CACHE,
-                            ),
-                            generation=HactarGen(
-                                api_key=settings.HACTAR_API_KEY,
-                                model_name="mistral-small3.1:latest",
-                                prompt_template=self.template_prompt,
-                                temperature=0,
-                                output_max_length=16384,
-                                api_params={
-                                    "top_p": 0.0,
-                                    "frequency_penalty": 0.0,
-                                    "presence_penalty": 0.0,
-                                },
-                                structured_output=RAGAnswer,
-                                cache=GEN_CACHE,
-                            ),
-                        )
-                    else:
-                        rag = Rago(
-                            retrieval=StringRet(chunks),
-                            augmented=OpenAIAug(
-                                api_key=self.api_key,
-                                top_k=5,
-                                model_name="text-embedding-ada-002",
-                                cache=AUG_CACHE,
-                            ),
-                            generation=OpenAIGen(
-                                api_key=self.api_key,
-                                model_name="gpt-4o-mini",
-                                prompt_template=self.template_prompt,
-                                temperature=0,
-                                output_max_length=16384,
-                                api_params={
-                                    "top_p": 0.0,
-                                    "frequency_penalty": 0.0,
-                                    "presence_penalty": 0.0,
-                                },
-                                structured_output=RAGAnswer,
-                                cache=GEN_CACHE,
-                            ),
-                        )
-
+                    rag = self._get_rag_instance(chunks)
                     result = rag.prompt(self.project_rag.query)
                     citation_context = rag.logs.get("augmented", {}).get(
                         "result", []
@@ -323,19 +300,31 @@ class PDFRAG:
                         citation_context=citation_context,
                     )
 
+                    DOCUMENT_CACHE.save(
+                        cache_key,
+                        {
+                            "citation": result.highlight.strip(),
+                            "answer": result.answer.strip(),
+                            "citation_context": citation_context,
+                        },
+                    )
+                    logger.info(
+                        f"[RAG] Saved result to cache for doc #{document.id}"
+                    )
+
                     if "réponse non disponible" not in result.answer.lower():
                         counter += 1
 
                     if max_doc_ans and counter >= max_doc_ans:
                         logger.info("Max document answers reached.")
                         stop_processing = True
-
                         break
 
                 except Exception as e:
                     logger.error(
-                        f"Error processing document {document.id}: {e}"
+                        f"[RAG] Error generating result for doc #{document.id}: {e}"
                     )
+
                     self._create_empty_response(
                         document, "Error generating response."
                     )
@@ -344,7 +333,6 @@ class PDFRAG:
                 break
 
         self.project_rag.num_documents = counter
-
         self.project_rag.status = "generating_scores"
         self.project_rag.save()
 
@@ -354,7 +342,6 @@ class PDFRAG:
         self.project_rag.valid_answer_count = (
             self.count_valid_answered_documents(self.project_rag)
         )
-
         self.project_rag.status = "generating_summary"
         self.project_rag.save()
 
@@ -362,27 +349,70 @@ class PDFRAG:
 
         if self.question_type == "closed":
             self.generate_general_summary(summary_only=True)
-
             self.project_rag.status = "generating_statistics"
             self.project_rag.save()
-
             self.generate_closed_answer_statistics()
-
         else:
             self.generate_general_summary(summary_only=False)
-
             self.project_rag.status = "generating_statistics"
             self.project_rag.save()
-
             self.generate_open_answer_statistics()
-
             self.project_rag.status = "tagging_considerations"
             self.project_rag.save()
-
             self.tag_answers_considerations()
 
         self.project_rag.status = "completed"
         self.project_rag.save()
+
+    def _get_rag_instance(self, chunks: list[str]):
+        if settings.USE_HACTAR_LLM:
+            return Rago(
+                retrieval=StringRet(chunks),
+                augmented=HactarAug(
+                    api_key=settings.HACTAR_API_KEY,
+                    top_k=5,
+                    model_name="mxbai-embed-large:latest",
+                    cache=AUG_CACHE,
+                ),
+                generation=HactarGen(
+                    api_key=settings.HACTAR_API_KEY,
+                    model_name="mistral-small3.1:latest",
+                    prompt_template=self.template_prompt,
+                    temperature=0,
+                    output_max_length=16384,
+                    api_params={
+                        "top_p": 0.0,
+                        "frequency_penalty": 0.0,
+                        "presence_penalty": 0.0,
+                    },
+                    structured_output=RAGAnswer,
+                    cache=GEN_CACHE,
+                ),
+            )
+        else:
+            return Rago(
+                retrieval=StringRet(chunks),
+                augmented=OpenAIAug(
+                    api_key=self.api_key,
+                    top_k=5,
+                    model_name="text-embedding-ada-002",
+                    cache=AUG_CACHE,
+                ),
+                generation=OpenAIGen(
+                    api_key=self.api_key,
+                    model_name="gpt-4o-mini",
+                    prompt_template=self.template_prompt,
+                    temperature=0,
+                    output_max_length=16384,
+                    api_params={
+                        "top_p": 0.0,
+                        "frequency_penalty": 0.0,
+                        "presence_penalty": 0.0,
+                    },
+                    structured_output=RAGAnswer,
+                    cache=GEN_CACHE,
+                ),
+            )
 
     def _create_empty_response(self, document, message: str) -> None:
         """
@@ -434,48 +464,37 @@ class PDFRAG:
             }
             logger.info("No valid answers found. Using default summary.")
         else:
-            cache_key = compute_summary_cache_key(
-                self.project_rag.query, self.document_ids
-            )
-            cached = SUMMARY_CACHE.load(cache_key)
-
-            if cached:
-                logger.info("Summary loaded from cache.")
-                summary_data = cached
-                self.summary_obj = SummaryGeneralAnswer(**summary_data)
-            else:
-                try:
-                    summary_gen = OpenAIGen(
-                        api_key=self.api_key,
-                        model_name="gpt-4o-mini",
-                        prompt_template=self.summary_template_prompt,
-                        temperature=0,
-                        output_max_length=2048,
-                        api_params={
-                            "top_p": 0.0,
-                            "frequency_penalty": 0.0,
-                            "presence_penalty": 0.0,
-                        },
-                        structured_output=SummaryGeneralAnswer,
-                    )
-                    self.summary_obj = summary_gen.generate(
-                        query=self.project_rag.query,
-                        context=["\n".join(answers)],
-                    )
-                    summary_data = {
-                        "summary": self.summary_obj.summary.strip(),
-                        "considerations": self.summary_obj.considerations
-                        if not summary_only
-                        else [],
-                    }
-                    SUMMARY_CACHE.save(cache_key, summary_data)
-                    logger.info("Summary generated and cached.")
-                except Exception as e:
-                    logger.error(f"Failed to generate summary: {e}")
-                    summary_data = {
-                        "summary": "Résumé non disponible",
-                        "considerations": [],
-                    }
+            try:
+                summary_gen = OpenAIGen(
+                    api_key=self.api_key,
+                    model_name="gpt-4o-mini",
+                    prompt_template=self.summary_template_prompt,
+                    temperature=0,
+                    output_max_length=2048,
+                    api_params={
+                        "top_p": 0.0,
+                        "frequency_penalty": 0.0,
+                        "presence_penalty": 0.0,
+                    },
+                    structured_output=SummaryGeneralAnswer,
+                )
+                self.summary_obj = summary_gen.generate(
+                    query=self.project_rag.query,
+                    context=["\n".join(answers)],
+                )
+                summary_data = {
+                    "summary": self.summary_obj.summary.strip(),
+                    "considerations": self.summary_obj.considerations
+                    if not summary_only
+                    else [],
+                }
+                logger.info("Summary generated.")
+            except Exception as e:
+                logger.error(f"Failed to generate summary: {e}")
+                summary_data = {
+                    "summary": "Résumé non disponible",
+                    "considerations": [],
+                }
 
         self.project_rag.summary_answer = json.dumps(summary_data)
         self.project_rag.save()
