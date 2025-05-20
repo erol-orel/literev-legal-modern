@@ -224,10 +224,9 @@ class PDFRAG:
         """
         Run the complete RAG pipeline for a set of documents.
 
-        This method processes documents using (RAG),
-        which generates answers, and updates the project status.
+        This method processes documents using RAG, generates answers,
+        and updates the project status throughout the pipeline.
         """
-
         logger.info("Starting RAG processing for documents.")
         self.project_rag.status = "questioning_documents"
         self.project_rag.save()
@@ -243,91 +242,16 @@ class PDFRAG:
         counter = 0
         stop_processing = False
 
-        for batch_start in range(0, len(documents), batch_size):
-            batch = documents[batch_start : batch_start + batch_size]
+        for i in range(0, len(documents), batch_size):
+            batch = documents[i : i + batch_size]
             for document in batch:
-                try:
-                    cache_key = compute_document_cache_key(
-                        self.project_rag.query, document.id
-                    )
-
-                    cached_result = DOCUMENT_CACHE.load(cache_key)
-                    if cached_result:
-                        logger.info(
-                            f"[RAG] Loaded cached result for doc #{document.id}"
-                        )
-                        ProjectDocumentRAG.objects.create(
-                            project_rag=self.project_rag,
-                            document=document,
-                            citation=cached_result["citation"],
-                            answer=cached_result["answer"],
-                            citation_context=cached_result.get(
-                                "citation_context", []
-                            ),
-                        )
-                        if (
-                            "réponse non disponible"
-                            not in cached_result["answer"].lower()
-                        ):
-                            counter += 1
-                        continue
-                except Exception as e:
-                    logger.warning(
-                        f"[RAG] Failed to load cache for doc #{document.id}: {e}"
-                    )
-
-                try:
-                    chunks = self.split_text_into_chunks(
-                        document.raw_document_text
-                    )
-                    if not chunks:
-                        self._create_empty_response(
-                            document, "No content available."
-                        )
-                        continue
-
-                    rag = self._get_rag_instance(chunks)
-                    result = rag.prompt(self.project_rag.query)
-                    citation_context = rag.logs.get("augmented", {}).get(
-                        "result", []
-                    )
-
-                    ProjectDocumentRAG.objects.create(
-                        project_rag=self.project_rag,
-                        document=document,
-                        citation=result.highlight.strip(),
-                        answer=result.answer.strip(),
-                        citation_context=citation_context,
-                    )
-
-                    DOCUMENT_CACHE.save(
-                        cache_key,
-                        {
-                            "citation": result.highlight.strip(),
-                            "answer": result.answer.strip(),
-                            "citation_context": citation_context,
-                        },
-                    )
-                    logger.info(
-                        f"[RAG] Saved result to cache for doc #{document.id}"
-                    )
-
-                    if "réponse non disponible" not in result.answer.lower():
-                        counter += 1
-
+                success = self._process_document(document)
+                if success:
+                    counter += 1
                     if max_doc_ans and counter >= max_doc_ans:
                         logger.info("Max document answers reached.")
                         stop_processing = True
                         break
-
-                except Exception as e:
-                    logger.error(
-                        f"[RAG] Error generating result for doc #{document.id}: {e}"
-                    )
-
-                    self._create_empty_response(
-                        document, "Error generating response."
-                    )
 
             if stop_processing:
                 break
@@ -347,6 +271,9 @@ class PDFRAG:
 
         self.question_type = self.check_question_type()
 
+        self.project_rag.status = "generating_statistics"
+        self.project_rag.save()
+
         if self.question_type == "closed":
             self.generate_general_summary(summary_only=True)
             self.project_rag.status = "generating_statistics"
@@ -360,9 +287,76 @@ class PDFRAG:
             self.project_rag.status = "tagging_considerations"
             self.project_rag.save()
             self.tag_answers_considerations()
-
         self.project_rag.status = "completed"
         self.project_rag.save()
+
+    def _process_document(self, document: Document) -> bool:
+        try:
+            cache_key = compute_document_cache_key(
+                self.project_rag.query, document.id
+            )
+            cached_result = DOCUMENT_CACHE.load(cache_key)
+
+            if cached_result:
+                logger.info(
+                    f"[RAG] Loaded cached result for doc #{document.id}"
+                )
+                ProjectDocumentRAG.objects.create(
+                    project_rag=self.project_rag,
+                    document=document,
+                    citation=cached_result["citation"],
+                    answer=cached_result["answer"],
+                    citation_context=cached_result.get("citation_context", []),
+                )
+                return (
+                    "réponse non disponible"
+                    not in cached_result["answer"].lower()
+                )
+
+        except Exception as e:
+            logger.warning(
+                f"[RAG] Failed to load cache for doc #{document.id}: {e}"
+            )
+
+        try:
+            chunks = self.split_text_into_chunks(document.raw_document_text)
+            if not chunks:
+                self._create_empty_response(document, "No content available.")
+                return False
+
+            rag = self._get_rag_instance(chunks)
+            result = rag.prompt(self.project_rag.query)
+
+            citation = result.highlight.strip()
+            answer = result.answer.strip()
+            citation_context = rag.logs.get("augmented", {}).get("result", [])
+
+            ProjectDocumentRAG.objects.create(
+                project_rag=self.project_rag,
+                document=document,
+                citation=citation,
+                answer=answer,
+                citation_context=citation_context,
+            )
+
+            DOCUMENT_CACHE.save(
+                cache_key,
+                {
+                    "citation": citation,
+                    "answer": answer,
+                    "citation_context": citation_context,
+                },
+            )
+            logger.info(f"[RAG] Saved result to cache for doc #{document.id}")
+
+            return "réponse non disponible" not in answer.lower()
+
+        except Exception as e:
+            logger.error(
+                f"[RAG] Error generating result for doc #{document.id}: {e}"
+            )
+            self._create_empty_response(document, "Error generating response.")
+            return False
 
     def _get_rag_instance(self, chunks: list[str]):
         if settings.USE_HACTAR_LLM:
@@ -453,9 +447,7 @@ class PDFRAG:
         """
         logger.info("Generating general summary...")
 
-        valid_rags = self.get_valid_document_rags()
-
-        answers = [f"- {doc_rag.answer.strip()}" for doc_rag in valid_rags]
+        answers = self._fetch_valid_document_answers()
 
         if not answers:
             summary_data = {
@@ -827,58 +819,6 @@ class PDFRAG:
             "total": total,
         }
 
-    def _fetch_valid_document_answers(self) -> list[str]:
-        """
-        Retrieve valid RAG answers for selected documents.
-
-        Returns
-        -------
-        list of str
-            List of answers excluding errors and zero-confidence cases.
-        """
-
-        return list(
-            ProjectDocumentRAG.objects.filter(
-                project_rag=self.project_rag,
-                document_id__in=self.document_ids,
-            )
-            .exclude(
-                answer__in=[
-                    "No content available.",
-                    "Error generating response.",
-                    "Réponse non disponible",
-                ]
-            )
-            .exclude(confidence_score=0.0)
-            .values_list("answer", flat=True)
-        )
-
-    def get_valid_document_rags(self) -> list[ProjectDocumentRAG]:
-        """
-        Return valid ProjectDocumentRAG entries from selected documents.
-
-        Returns
-        -------
-        list of ProjectDocumentRAG
-            Entries with confidence > 0 and valid answer content.
-        """
-
-        return list(
-            ProjectDocumentRAG.objects.filter(
-                project_rag=self.project_rag,
-                document_id__in=self.document_ids,
-            )
-            .exclude(confidence_score=0.0)
-            .exclude(
-                answer__in=[
-                    "No content available.",
-                    "Error generating response.",
-                    "Réponse non disponible",
-                ]
-            )
-            .select_related("document")
-        )
-
     def clean_considerations_with_frequencies(self, summary_obj, frequencies):
         """
         Filter considerations with non-zero frequency values.
@@ -902,33 +842,53 @@ class PDFRAG:
             if frequencies.get(c.strip(), 0) > 0
         ]
 
-    def count_valid_answered_documents(self, project_rag: ProjectRAG) -> int:
+    def _get_base_valid_document_rags_queryset(self):
         """
-        Count valid answered documents within the selected subset.
-
-        Parameters
-        ----------
-        project_rag : ProjectRAG
-            The RAG project to evaluate.
+        Base queryset for valid ProjectDocumentRAG entries associated with this project_rag.
 
         Returns
         -------
-        int
-            Count of valid and confident RAG answers.
+        QuerySet
+            Common queryset with standard filters and exclusions applied.
+        """
+        return ProjectDocumentRAG.objects.filter(
+            project_rag=self.project_rag,
+            document_id__in=self.document_ids,
+            confidence_score__gt=0,
+        ).exclude(
+            answer__in=[
+                "No content available.",
+                "Error generating response.",
+                "Réponse non disponible",
+                "No content available",
+                "Réponse non disponible",
+            ]
+        )
+
+    def _fetch_valid_document_answers(self) -> list[str]:
+        """
+        Retrieve valid RAG answers for selected documents.
         """
 
-        return (
-            ProjectDocumentRAG.objects.filter(
-                project_rag=project_rag,
-                document_id__in=self.document_ids,
-                confidence_score__gt=0,
+        return list(
+            self._get_base_valid_document_rags_queryset().values_list(
+                "answer", flat=True
             )
-            .exclude(
-                answer__in=[
-                    "No content available",
-                    "Error generating response",
-                    "Réponse non disponible",
-                ]
-            )
-            .count()
         )
+
+    def get_valid_document_rags(self) -> list[ProjectDocumentRAG]:
+        """
+        Return valid ProjectDocumentRAG entries from selected documents.
+        """
+
+        return list(
+            self._get_base_valid_document_rags_queryset().select_related(
+                "document"
+            )
+        )
+
+    def count_valid_answered_documents(self, project_rag: ProjectRAG) -> int:
+        """
+        Count valid answered documents within the selected subset.
+        """
+        return self._get_base_valid_document_rags_queryset().count()
