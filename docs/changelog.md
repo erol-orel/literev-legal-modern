@@ -2,6 +2,61 @@ Release Notes
 ---
 
 
+## [0.12.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.11.0...0.12.0) (2025-05-21)
+
+### Features
+
+* add confidence score workflow for rag answers ([#240](https://github.com/thegraphnetwork-literev/literev-legal/issues/240)) ([c8edb03](https://github.com/thegraphnetwork-literev/literev-legal/commit/c8edb03671a1fd586cefd241bf6c8f5acb008e17))
+* add django command to count tokens ([#219](https://github.com/thegraphnetwork-literev/literev-legal/issues/219)) ([892e6a1](https://github.com/thegraphnetwork-literev/literev-legal/commit/892e6a143d4b78985b2290aad2c7f341ca407cac))
+* add extended citation context for rag answer scoring ([#260](https://github.com/thegraphnetwork-literev/literev-legal/issues/260)) ([fb6800a](https://github.com/thegraphnetwork-literev/literev-legal/commit/fb6800ae0db7fe750a964c3191aad2426990b125))
+* add faithfulness ragas score ([#290](https://github.com/thegraphnetwork-literev/literev-legal/issues/290)) ([00865a8](https://github.com/thegraphnetwork-literev/literev-legal/commit/00865a817f6c6f4763daf4ca3eb7ab2db31eedec))
+* add faithfulness score workflow ([#241](https://github.com/thegraphnetwork-literev/literev-legal/issues/241)) ([c533b57](https://github.com/thegraphnetwork-literev/literev-legal/commit/c533b57568362f6f239f053c1fbfa879cad332e8))
+* add hactar rago ([#271](https://github.com/thegraphnetwork-literev/literev-legal/issues/271)) ([1649326](https://github.com/thegraphnetwork-literev/literev-legal/commit/1649326c71bc79f864319779685cc6e8adc747b4))
+* add minor features ([#216](https://github.com/thegraphnetwork-literev/literev-legal/issues/216)) ([57eba88](https://github.com/thegraphnetwork-literev/literev-legal/commit/57eba88a2a1e1c794b1c8517f1149653d46a37fe))
+* add nlp workflow ([#203](https://github.com/thegraphnetwork-literev/literev-legal/issues/203)) ([a4e51bd](https://github.com/thegraphnetwork-literev/literev-legal/commit/a4e51bde40e9cd1fb8a3de731133bfd8a1e6c025))
+* add selectors yes maybe and no in table select page ([#185](https://github.com/thegraphnetwork-literev/literev-legal/issues/185)) ([bac3aa8](https://github.com/thegraphnetwork-literev/literev-legal/commit/bac3aa8fa681ed8c2087ad317cf6856dd817daaa))
+* add sentry for errors management ([#270](https://github.com/thegraphnetwork-literev/literev-legal/issues/270)) ([3356112](https://github.com/thegraphnetwork-literev/literev-legal/commit/335611212d97f0ae772b0e5063fa3e1e1c362854))
+* add sorting rag answer ([#244](https://github.com/thegraphnetwork-literev/literev-legal/issues/244)) ([060966b](https://github.com/thegraphnetwork-literev/literev-legal/commit/060966b69309772ade1d12fab49901e489ffc329))
+* Add support for caching ([#215](https://github.com/thegraphnetwork-literev/literev-legal/issues/215)) ([60b8ed1](https://github.com/thegraphnetwork-literev/literev-legal/commit/60b8ed1ceb0b7f0ef62ed616a1ffebfd3c3a2165))
+* add valid and total document counters to RAG history table ([#284](https://github.com/thegraphnetwork-literev/literev-legal/issues/284)) ([e8c0bf5](https://github.com/thegraphnetwork-literev/literev-legal/commit/e8c0bf588134b4d18f60874162b14bf3fdfccb6b))
+* **api:** add initial implementation for natural language to boolean query translation ([#202](https://github.com/thegraphnetwork-literev/literev-legal/issues/202)) ([abd9ee6](https://github.com/thegraphnetwork-literev/literev-legal/commit/abd9ee6e07e53a3d17ba41068f11f736fff61915))
+* **ci:** Update workflow to run in self-hosted ([#261](https://github.com/thegraphnetwork-literev/literev-legal/issues/261)) ([4f70ba8](https://github.com/thegraphnetwork-literev/literev-legal/commit/4f70ba86482bff65cd23c2a8833601a412b1fbd2))
+* **elasticsearch:** Improve Elasticsearch Docker Compose for Production Multi‑Node Cluster ([#264](https://github.com/thegraphnetwork-literev/literev-legal/issues/264)) ([19aaba4](https://github.com/thegraphnetwork-literev/literev-legal/commit/19aaba4c953086ebc5bf1f3be7b6cce43d5022f7))
+* **elasticsearch:** Set unassigned replicas in a single-node cluster ([#253](https://github.com/thegraphnetwork-literev/literev-legal/issues/253)) ([7b8e7f6](https://github.com/thegraphnetwork-literev/literev-legal/commit/7b8e7f6293d02002c780e9f38908494c22fbe34c))
+* enable processing projects with documents greater than zero  ([#278](https://github.com/thegraphnetwork-literev/literev-legal/issues/278)) ([ee8284f](https://github.com/thegraphnetwork-literev/literev-legal/commit/ee8284f34ebf5f16d5549db1ea93a361a3712e79))
+* Improve 'count-tokens' script ([#220](https://github.com/thegraphnetwork-literev/literev-legal/issues/220)) ([32362d2](https://github.com/thegraphnetwork-literev/literev-legal/commit/32362d2ce5cd58cbcb8a40e5744aa3f4221d2340))
+* **rag-api:** Add RAG status display in history table via REST API ([#288](https://github.com/thegraphnetwork-literev/literev-legal/issues/288)) ([34e8d26](https://github.com/thegraphnetwork-literev/literev-legal/commit/34e8d26d4b5217cb6ec32d277125730d3b8216ad))
+* **rag:** add document-level caching using query and document ID ([#297](https://github.com/thegraphnetwork-literev/literev-legal/issues/297)) ([30715ae](https://github.com/thegraphnetwork-literev/literev-legal/commit/30715aeec1b1d655cee18f74726fb5d8c93446a3))
+* **rag:** Implement delete button for removing RAG history entries ([#222](https://github.com/thegraphnetwork-literev/literev-legal/issues/222)) ([5908e38](https://github.com/thegraphnetwork-literev/literev-legal/commit/5908e3840fdcd916b56c997463ea72787ca9a24b))
+* **rag:** Implement historical table with document rendering support ([#214](https://github.com/thegraphnetwork-literev/literev-legal/issues/214)) ([8b402bb](https://github.com/thegraphnetwork-literev/literev-legal/commit/8b402bbf767812c43a66a62d0caef139065b4414))
+* **rag:** Implement sorting of RAG answers ([#196](https://github.com/thegraphnetwork-literev/literev-legal/issues/196)) ([69bf75c](https://github.com/thegraphnetwork-literev/literev-legal/commit/69bf75c926f62d942cd3de905f4e751f9c9ba283))
+* **rag:** Implement statistics using RAG for bullet-points ([#254](https://github.com/thegraphnetwork-literev/literev-legal/issues/254)) ([6f11584](https://github.com/thegraphnetwork-literev/literev-legal/commit/6f115844be898ecd1de7139e578bc81843448d4a))
+* **rag:** link procedure type tags in general summary bullet points ([#247](https://github.com/thegraphnetwork-literev/literev-legal/issues/247)) ([7e9fcce](https://github.com/thegraphnetwork-literev/literev-legal/commit/7e9fcce289b28bb08ea46e2a052b3be1cc312066))
+* **rag:** refine prompt for consideration eval ([#276](https://github.com/thegraphnetwork-literev/literev-legal/issues/276)) ([243a937](https://github.com/thegraphnetwork-literev/literev-legal/commit/243a937ab12eb0bbb38b0705dce98ad977cd928f))
+* **research-NLQ:** Improve prompt template rules and add validation tests ([#234](https://github.com/thegraphnetwork-literev/literev-legal/issues/234)) ([daf51b9](https://github.com/thegraphnetwork-literev/literev-legal/commit/daf51b9ad75794c5f166f8c9c83c0c178a7e8002))
+* **tableselect:** Set es_score as the default sorting order ([#184](https://github.com/thegraphnetwork-literev/literev-legal/issues/184)) ([ee38b60](https://github.com/thegraphnetwork-literev/literev-legal/commit/ee38b60dd37c8fa3300359663ca084a231681251))
+
+### Bug Fixes
+
+* **docker-compose:** Optimize Elasticsearch memory settings and environment config ([#250](https://github.com/thegraphnetwork-literev/literev-legal/issues/250)) ([212b4b7](https://github.com/thegraphnetwork-literev/literev-legal/commit/212b4b756ade15275baebdf246fc76904c4e060f))
+* document counter in views ([#282](https://github.com/thegraphnetwork-literev/literev-legal/issues/282)) ([f36eee8](https://github.com/thegraphnetwork-literev/literev-legal/commit/f36eee8277cfc19ebf753aab0027183a4bde0941))
+* Fix RAG workflow after submitting a question ([#218](https://github.com/thegraphnetwork-literev/literev-legal/issues/218)) ([7fc8e46](https://github.com/thegraphnetwork-literev/literev-legal/commit/7fc8e463f938ee48496146ce1ddbbd08dc524560))
+* **forms:** Resolve default date handling and persist selected sources ([#208](https://github.com/thegraphnetwork-literev/literev-legal/issues/208)) ([5f45817](https://github.com/thegraphnetwork-literev/literev-legal/commit/5f4581775e7eda6ce0dbb2a1dd145a14fa6115cf))
+* Improve the RAG result ([#223](https://github.com/thegraphnetwork-literev/literev-legal/issues/223)) ([3a9a430](https://github.com/thegraphnetwork-literev/literev-legal/commit/3a9a4309dbd8cbbee25df288bc99e0bf02379cdb))
+* Improve the results with spacy model large version ([#211](https://github.com/thegraphnetwork-literev/literev-legal/issues/211)) ([cd98410](https://github.com/thegraphnetwork-literev/literev-legal/commit/cd984105e25b0adc3601814e826ce7dd8820ec4b))
+* **JS:** Improve scripts for tableselect page ([#226](https://github.com/thegraphnetwork-literev/literev-legal/issues/226)) ([54f178e](https://github.com/thegraphnetwork-literev/literev-legal/commit/54f178ede98691c4e0a7cd4e5486f00a29f71f36))
+* load all results at once ([#248](https://github.com/thegraphnetwork-literev/literev-legal/issues/248)) ([3680e4a](https://github.com/thegraphnetwork-literev/literev-legal/commit/3680e4aa62f763d4a0e68382af2f84cbdb88d479))
+* **rag:** ensure post-processing runs after early document limit ([#281](https://github.com/thegraphnetwork-literev/literev-legal/issues/281)) ([42ba952](https://github.com/thegraphnetwork-literev/literev-legal/commit/42ba9529c3ce0ea589d811904bea0569b3ba84c2))
+* **rag:** limit initial RAG query to top 10 documents for new projects ([#293](https://github.com/thegraphnetwork-literev/literev-legal/issues/293)) ([99961d3](https://github.com/thegraphnetwork-literev/literev-legal/commit/99961d35a357838081669061105014b4ab480655))
+* **rag:** restrict queryset to selected document_ids in evaluations ([#295](https://github.com/thegraphnetwork-literev/literev-legal/issues/295)) ([cc40d84](https://github.com/thegraphnetwork-literev/literev-legal/commit/cc40d84618807e0871a27ad878671fe124d88673))
+* **rag:** safely compare confidence_score to avoid NoneType errors ([#277](https://github.com/thegraphnetwork-literev/literev-legal/issues/277)) ([638f1cb](https://github.com/thegraphnetwork-literev/literev-legal/commit/638f1cb9fbc86700ce2ba9be9edd2d5b77d23570))
+* **rag:** update answer checks to use includes strings ([#228](https://github.com/thegraphnetwork-literev/literev-legal/issues/228)) ([31ee192](https://github.com/thegraphnetwork-literev/literev-legal/commit/31ee192492255d12e9782df3e701bab5dcdccdc1))
+* solve ask question query ([#246](https://github.com/thegraphnetwork-literev/literev-legal/issues/246)) ([9c3411b](https://github.com/thegraphnetwork-literev/literev-legal/commit/9c3411b4e80cdaf3337e0774f46520f3adc1982b))
+* solve bug check all buttons ([#267](https://github.com/thegraphnetwork-literev/literev-legal/issues/267)) ([28ab4ef](https://github.com/thegraphnetwork-literev/literev-legal/commit/28ab4ef8cd9ac10e1ec78cebe57673cdb329b22f))
+* solve bug tfidfvectorizer stopwords ([#198](https://github.com/thegraphnetwork-literev/literev-legal/issues/198)) ([0813dc7](https://github.com/thegraphnetwork-literev/literev-legal/commit/0813dc75e6f1b332d2064d554f3fab47e4b74231))
+* solve delete button bug ([#285](https://github.com/thegraphnetwork-literev/literev-legal/issues/285)) ([947d6d1](https://github.com/thegraphnetwork-literev/literev-legal/commit/947d6d17ff3e80878628d4c5434a9e0ec30a73cc))
+* update tableselect post handler ([#199](https://github.com/thegraphnetwork-literev/literev-legal/issues/199)) ([a5207f6](https://github.com/thegraphnetwork-literev/literev-legal/commit/a5207f6a7c8a4f7397a3881c04abb3aeb1d95b57))
+
 ## [0.11.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.10.0...0.11.0) (2024-12-19)
 
 ### Features
