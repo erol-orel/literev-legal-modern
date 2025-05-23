@@ -20,6 +20,7 @@ groups:
         - name: literev-nginx
         - name: certbot
         - name: es-legal-setup
+        - name: es-restore
         - name: es-legal-1
         - name: es-legal-2
         - name: es-legal-3

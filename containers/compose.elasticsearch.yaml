@@ -9,19 +9,23 @@ services:
     environment:
       - node.name=es-legal-1
       - cluster.name=docker-cluster
-      - cluster.initial_master_nodes=es-legal-1,es-legal-2,es-legal-3
       - discovery.seed_hosts=es-legal-1,es-legal-2,es-legal-3
       # Assign roles explicitly to reduce overhead.
       - node.roles=master,data,data_hot,ingest,ml,transform
       - xpack.security.enabled=false
       - action.destructive_requires_name=true
-      # To avoid allocation failures when disk usage grows
+      # Disk watermark protections
       - cluster.routing.allocation.disk.watermark.low=75%
       - cluster.routing.allocation.disk.watermark.high=85%
       - cluster.routing.allocation.disk.watermark.flood_stage=95%
       - cluster.info.update.interval=1m
-      # To help investigate future memory crashes
+      # Cluster formation and data safety
+      - gateway.recover_after_data_nodes=2
+      - gateway.expected_data_nodes=3
+      # Heap dump on crash
       - ES_JAVA_OPTS=-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/usr/share/elasticsearch/data
+      # Snapshot repo path
+      - path.repo=/usr/share/elasticsearch/snapshots
     ulimits:
       memlock:
         soft: -1
@@ -29,6 +33,7 @@ services:
     mem_limit: 2g
     volumes:
       - esdata1:/usr/share/elasticsearch/data
+      - es_snapshots:/usr/share/elasticsearch/snapshots
     ports:
       - "9200:9200"
     depends_on:
@@ -55,19 +60,23 @@ services:
     environment:
       - node.name=es-legal-2
       - cluster.name=docker-cluster
-      - cluster.initial_master_nodes=es-legal-1,es-legal-2,es-legal-3
       - discovery.seed_hosts=es-legal-1,es-legal-2,es-legal-3
       # Assign roles explicitly to reduce overhead.
       - node.roles=master,data,data_hot,ingest,ml,transform
       - xpack.security.enabled=false
       - action.destructive_requires_name=true
-      # To avoid allocation failures when disk usage grows
+      # Disk watermark protections
       - cluster.routing.allocation.disk.watermark.low=75%
       - cluster.routing.allocation.disk.watermark.high=85%
       - cluster.routing.allocation.disk.watermark.flood_stage=95%
       - cluster.info.update.interval=1m
-      # To help investigate future memory crashes
+      # Cluster formation and data safety
+      - gateway.recover_after_data_nodes=2
+      - gateway.expected_data_nodes=3
+      # Heap dump on crash
       - ES_JAVA_OPTS=-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/usr/share/elasticsearch/data
+      # Snapshot repo path
+      - path.repo=/usr/share/elasticsearch/snapshots
     ulimits:
       memlock:
         soft: -1
@@ -75,6 +84,7 @@ services:
     mem_limit: 2g
     volumes:
       - esdata2:/usr/share/elasticsearch/data
+      - es_snapshots:/usr/share/elasticsearch/snapshots
     healthcheck:
       test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health || exit 1"]
       interval: 10s
@@ -96,19 +106,23 @@ services:
     environment:
       - node.name=es-legal-3
       - cluster.name=docker-cluster
-      - cluster.initial_master_nodes=es-legal-1,es-legal-2,es-legal-3
       - discovery.seed_hosts=es-legal-1,es-legal-2,es-legal-3
       # Assign roles explicitly to reduce overhead.
       - node.roles=master,data,data_hot,ingest,ml,transform
       - xpack.security.enabled=false
       - action.destructive_requires_name=true
-      # To avoid allocation failures when disk usage grows
+      # Disk watermark protections
       - cluster.routing.allocation.disk.watermark.low=75%
       - cluster.routing.allocation.disk.watermark.high=85%
       - cluster.routing.allocation.disk.watermark.flood_stage=95%
       - cluster.info.update.interval=1m
-      # To help investigate future memory crashes
+      # Cluster formation and data safety
+      - gateway.recover_after_data_nodes=2
+      - gateway.expected_data_nodes=3
+      # Heap dump on crash
       - ES_JAVA_OPTS=-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/usr/share/elasticsearch/data
+      # Snapshot repo path
+      - path.repo=/usr/share/elasticsearch/snapshots
     ulimits:
       memlock:
         soft: -1
@@ -116,6 +130,7 @@ services:
     mem_limit: 2g
     volumes:
       - esdata3:/usr/share/elasticsearch/data
+      - es_snapshots:/usr/share/elasticsearch/snapshots
     healthcheck:
       test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health || exit 1"]
       interval: 10s
@@ -145,6 +160,30 @@ services:
     networks:
       - literev
 
+  es-restore:
+    image: python:3.12-slim
+    container_name: es-restore
+    command: >
+      sh -c "
+        pip install --no-cache-dir requests &&
+        while true; do
+          python /app/restore_if_missing.py;
+          sleep 60;
+        done
+      "
+    volumes:
+      - ./elasticsearch_restore:/app
+    environment:
+      - ES_URL=http://es-legal-1:9200
+      - SNAPSHOT_REPO=literev_backup
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+    depends_on:
+      - es-legal-1
+    networks:
+      - literev
+    restart: always
+
+
 volumes:
   esdata1:
     driver: local
@@ -155,6 +194,10 @@ volumes:
   esdata3:
     driver: local
     name: es_legal_data_3
+
+  es_snapshots:
+    driver: local
+    name: es_legal_snapshots
 
 networks:
   literev:
