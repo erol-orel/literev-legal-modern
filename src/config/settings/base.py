@@ -55,6 +55,8 @@ HACTAR_API_KEY = os.environ.get("HACTAR_API_KEY", "")
 
 USE_HACTAR_LLM = env.bool("USE_HACTAR_LLM", default=False)
 
+HACTAR_VERIFY_SSL = env.bool("HACTAR_VERIFY_SSL", default=False)
+
 APP_NAME = "literev"
 ALLOWED_HOSTS = [
     "localhost",

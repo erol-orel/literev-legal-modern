@@ -11,8 +11,7 @@ from typing import cast
 import numpy as np
 import requests
 
-
-# --------------------------------#
+from django.conf import settings
 from pydantic import BaseModel
 from rago.augmented.base import AugmentedBase, EmbeddingType
 from rago.generation.base import GenerationBase
@@ -20,9 +19,25 @@ from typeguard import typechecked
 
 logger = logging.getLogger(__name__)
 
+HACTAR_VERIFY_SSL = settings.HACTAR_VERIFY_SSL
+
+
+class HactarConnectionHelper:
+    def check_hactar_api_connection(
+        self, base_url: str, headers: dict, verify_ssl: bool = True
+    ) -> None:
+        """Test the connection to Hactar API."""
+        try:
+            response = requests.get(
+                f"{base_url}/models", headers=headers, verify=verify_ssl
+            )
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            raise ValueError(f"Failed to connect to Hactar API: {e}")
+
 
 @typechecked
-class HactarAug(AugmentedBase):
+class HactarAug(HactarConnectionHelper, AugmentedBase):
     """Class for augmentation with Hactar embeddings."""
 
     default_model_name = "mxbai-embed-large:latest"
@@ -40,13 +55,11 @@ class HactarAug(AugmentedBase):
             "Content-Type": "application/json",
         }
         # Test connection
-        try:
-            response = requests.get(
-                f"{self.api_base_url}/models", headers=self.headers
-            )
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            raise ValueError(f"Failed to connect to Hactar API: {e}")
+        self.check_hactar_api_connection(
+            self.api_base_url,
+            self.headers,
+            verify_ssl=HACTAR_VERIFY_SSL,
+        )
 
     def get_embedding(self, content: list[str]) -> EmbeddingType:
         """Retrieve the embedding for a given text using Hactar API.
@@ -64,7 +77,12 @@ class HactarAug(AugmentedBase):
         data = {"model": self.model_name, "input": content}
 
         logger.info("Requesting embeddings from Hactar...")
-        response = requests.post(url, headers=self.headers, json=data)
+        response = requests.post(
+            url,
+            headers=self.headers,
+            json=data,
+            verify=settings.HACTAR_VERIFY_SSL,
+        )
         response.raise_for_status()
         result_json = response.json()
 
@@ -107,7 +125,7 @@ class HactarAug(AugmentedBase):
 
 
 @typechecked
-class HactarGen(GenerationBase):
+class HactarGen(HactarConnectionHelper, GenerationBase):
     """API endpoint generation model for text generation."""
 
     default_model_name = "mistral-small3.1:latest"
@@ -129,13 +147,11 @@ class HactarGen(GenerationBase):
         }
 
         # Test connection
-        try:
-            response = requests.get(
-                f"{self.api_base_url}/models", headers=self.headers
-            )
-            response.raise_for_status()
-        except requests.exceptions.RequestException as e:
-            raise ValueError(f"Failed to connect to Hactar API: {e}")
+        self.check_hactar_api_connection(
+            self.api_base_url,
+            self.headers,
+            verify_ssl=HACTAR_VERIFY_SSL,
+        )
 
     def generate(self, query: str, context: list[str]) -> str | BaseModel:
         """Generate text using Ollama's API
@@ -187,6 +203,7 @@ class HactarGen(GenerationBase):
                 f"{self.api_base_url}/ollama/api/chat",
                 headers=self.headers,
                 json=model_params,
+                verify=settings.HACTAR_VERIFY_SSL,
             )
             response.raise_for_status()
             result = response.json()
@@ -233,6 +250,7 @@ class HactarGen(GenerationBase):
                 f"{self.api_base_url}/ollama/api/chat",
                 headers=self.headers,
                 json=model_params,
+                verify=settings.HACTAR_VERIFY_SSL,
             )
             response.raise_for_status()
             result = response.json()
@@ -250,6 +268,7 @@ class HactarGen(GenerationBase):
             f"{self.api_base_url}/ollama/api/chat",
             headers=self.headers,
             json=model_params,
+            verify=settings.HACTAR_VERIFY_SSL,
         )
         response.raise_for_status()
         result = response.json()

@@ -13,6 +13,7 @@ import requests
 import tiktoken
 
 from django.conf import settings
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from openai import OpenAI
 from rago.augmented import OpenAIAug
 from rago.extensions.cache import CacheFile
@@ -25,14 +26,13 @@ from literev.models import (
     Document,
 )
 
+logger = logging.getLogger(__name__)
+
 TMP_DIR = Path("/tmp") / "rago"
 AUG_CACHE = CacheFile(target_dir=TMP_DIR / "aug")
 
 USE_HACTAR_LLM = settings.USE_HACTAR_LLM
-
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-
-logger = logging.getLogger(__name__)
+HACTAR_VERIFY_SSL = settings.HACTAR_VERIFY_SSL
 
 openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
@@ -201,7 +201,12 @@ def call_model(prompt: str, api_key: str):
     }
 
     try:
-        response = requests.post(url, headers=headers, json=data)
+        response = requests.post(
+            url,
+            headers=headers,
+            json=data,
+            verify_ssl=HACTAR_VERIFY_SSL,
+        )
         response.raise_for_status()
         result = response.json()
 
