@@ -338,12 +338,17 @@ groups:
         help: Prepare the host for running the containers
         env-file: .env
         run: |
-          mkdir -p ${LITEREV_CACHE_DIR}
           mkdir -p ${CONTAINER_VOLUME_DATA_DIR}
+          sudo chown -R ${HOST_UID}:${HOST_GID} ${CONTAINER_VOLUME_DATA_DIR}
+          mkdir -p ${LITEREV_CACHE_DIR}
           mkdir -p ${POSTGRES_DATA}
           mkdir -p ${POSTGRES_HOST_BACKUP}
           mkdir -p ${STATIC_ROOT}
-          sudo chown -R ${HOST_UID}:${HOST_GID} ${STATIC_ROOT}
+          mkdir -p ${MEDIA_ROOT}
+          mkdir -p ${CONTAINER_VOLUME_DATA_DIR}/articles
+          mkdir -p ${CONTAINER_VOLUME_DATA_DIR}/plot
+          mkdir -p ${CONTAINER_VOLUME_DATA_DIR}/pkl
+          mkdir -p ${CONTAINER_VOLUME_DATA_DIR}/static
 
       postgres-dump-database:
         backend: bash

@@ -205,7 +205,7 @@ def call_model(prompt: str, api_key: str):
             url,
             headers=headers,
             json=data,
-            verify_ssl=HACTAR_VERIFY_SSL,
+            verify=HACTAR_VERIFY_SSL,
         )
         response.raise_for_status()
         result = response.json()

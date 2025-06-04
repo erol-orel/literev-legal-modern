@@ -46,7 +46,7 @@ RUN addgroup --gid ${GID} literev \
   && mkdir -p /opt/services/literev /opt/data/literev \
   && chmod -R a+rwx /opt/conda /opt/services \
   && export ENV_NAME="$ENV_NAME" \
-  && chown -R literev:literev /opt/services /opt/data \
+  && chown -R literev:literev /opt/services /opt/data /tmp/literev \
   && echo "literev ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/literev \
   && chmod 0440 /etc/sudoers.d/literev
 

@@ -23,7 +23,6 @@ env:
   ES_HOST_URL: "http://staging.literev.com:9200"
   ES_PASSWORD: "I39hAE_bvikcbRHNhyvf"
   ES_USERNAME: "elastic"
-  MEDIA_ROOT: /tmp/literev/static/media
   FRONTEND_HOST_PORT: 8000
   POSTGRES_PORT: 35432
   POSTGRES_HOST: localhost  # literev-postgres
@@ -35,15 +34,17 @@ env:
   POSTGRES_PASSWORD_LITEREV: literevqsx3409po
   POSTGRES_DATA: /tmp/literev/postgres
   POSTGRES_HOST_BACKUP: /tmp/literev/backup
+  CONTAINER_VOLUME_DATA_DIR: /tmp/literev
+  STATIC_ROOT: /tmp/literev/static
+  MEDIA_ROOT: /tmp/literev/static/media
+  LITEREV_CACHE_DIR: /tmp/literev/cache
+  LITEREV_LOGS_DIR: /tmp/literev/logs
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   CERTBOT_EMAIL: ci@literev.unige.ch
   CERTBOT_DOMAIN: literev.unige.ch
-  STATIC_ROOT: /tmp/literev/static
-  LITEREV_CACHE_DIR: /tmp/literev/cache
   ACTIONS_RUNNER_DEBUG: true
   PUBMED_REQUEST_TIME_INTERVAL: 0.5
   PUBMEDCENTRAL_REQUEST_TIME_INTERVAL: 0.5
-  CONTAINER_VOLUME_DATA_DIR: /tmp/literev
   USE_CONTAINER: False
   SUGAR_ENV: test
   REDIS_PORT: 6379
@@ -64,8 +65,6 @@ jobs:
           export HOST_GID=$(id -g)
           sudo mkdir -p /home/ci/actions-runner/_work/literev-legal/literev-legal/
           sudo chown -R ${HOST_UID}:${HOST_GID} /home/ci/actions-runner/_work/literev-legal/literev-legal/
-          sudo mkdir -p /opt/data/literev
-          sudo chown -R ${HOST_UID}:${HOST_GID} /opt/data/literev
           sudo mkdir -p  /tmp/literev/
           sudo chown -R ${HOST_UID}:${HOST_GID} /tmp/literev
 
@@ -108,17 +107,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: self-hosted setup
+      - name: Self-hosted setup
         run: |
           export HOST_UID=$(id -u)
           export HOST_GID=$(id -g)
-          sudo chown -R ${HOST_UID}:${HOST_GID} /home/ci/actions-runner/_work/literev-legal/literev-legal/
+          sudo chown -R "${HOST_UID}:${HOST_GID}" /home/ci/actions-runner/_work/literev-legal/literev-legal/
+
+          BASE_DIR=/tmp/literev
+
+          # Create directories
+          for dir in articles plot pkl static; do
+            sudo mkdir -p "${BASE_DIR}/${dir}"
+          done
+
           sudo mkdir -p /opt/data/literev
-          sudo chown -R ${HOST_UID}:${HOST_GID} /opt/data/literev
-          sudo mkdir -p /tmp/literev/static/media
-          sudo chown -R ${HOST_UID}:${HOST_GID} /tmp/literev/static/media
-          sudo mkdir -p /tmp/literev/cache
-          sudo chown -R ${HOST_UID}:${HOST_GID} /tmp/literev/cache
+          sudo chown -R "${HOST_UID}:${HOST_GID}" "${BASE_DIR}" /opt/data/literev
 
       - name: Install Operating System dependencies
         run: |
@@ -154,15 +157,9 @@ jobs:
       - name: Install dependencies
         run: poetry install
 
-      - name: Create volumes
-        run: |
-          mkdir -p ${CONTAINER_VOLUME_DATA_DIR}
-          mkdir -p ${POSTGRES_HOST_BACKUP}
-
-      - name: Clean-up and Setup
+      - name: Clean-up
         run: |
           makim clean.all
-          makim containers.host-setup
 
       - name: Remove old database
         run: sugar compose down --options --volumes || true
@@ -310,10 +307,8 @@ jobs:
           export HOST_UID=$(id -u)
           export HOST_GID=$(id -g)
           sudo chown -R ${HOST_UID}:${HOST_GID} /home/ci/actions-runner/_work/literev-legal/literev-legal/
-          sudo mkdir -p /opt/data/literev
-          sudo chown -R ${HOST_UID}:${HOST_GID} /opt/data/literev
-          sudo mkdir -p /tmp/literev/backup
-          sudo chown -R ${HOST_UID}:${HOST_GID} /tmp/literev/backup
+          sudo mkdir -p /opt/data/literev /tmp/literev
+          sudo chown -R ${HOST_UID}:${HOST_GID} /opt/data/literev /tmp/literev
 
       - uses: actions/checkout@v3
 
@@ -342,11 +337,6 @@ jobs:
 
       - name: Install dependencies
         run: poetry install
-
-      - name: Create volumes
-        run: |
-          mkdir -p ${CONTAINER_VOLUME_DATA_DIR}
-          mkdir -p ${POSTGRES_HOST_BACKUP}
 
       - name: Clean-up and Setup
         run: |
