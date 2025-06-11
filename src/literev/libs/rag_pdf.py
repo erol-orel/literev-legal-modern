@@ -32,18 +32,20 @@ from literev.models import (
     ProjectRAGStats,
 )
 
-TMP_DIR = Path("/tmp") / "rago"
-
-RET_CACHE = CacheFile(target_dir=TMP_DIR / "ret")
-AUG_CACHE = CacheFile(target_dir=TMP_DIR / "aug")
-GEN_CACHE = CacheFile(target_dir=TMP_DIR / "gen")
-DOCUMENT_CACHE = CacheFile(target_dir=TMP_DIR / "documents")
-
-# TODO:update for contenttext instead of pdf document
 logging.basicConfig(level=settings.LOGGING_LEVEL)
 logger = logging.getLogger(__name__)
 
+
 USE_HACTAR_LLM = settings.USE_HACTAR_LLM
+
+TMP_DIR = Path("/tmp") / "rago"
+
+MODULE_NAME = "hactar" if USE_HACTAR_LLM else "openai"
+
+RET_CACHE = CacheFile(target_dir=TMP_DIR / f"ret_{MODULE_NAME}")
+AUG_CACHE = CacheFile(target_dir=TMP_DIR / f"aug_{MODULE_NAME}")
+GEN_CACHE = CacheFile(target_dir=TMP_DIR / f"gen_{MODULE_NAME}")
+DOCUMENT_CACHE = CacheFile(target_dir=TMP_DIR / "documents")
 
 
 @wraps
