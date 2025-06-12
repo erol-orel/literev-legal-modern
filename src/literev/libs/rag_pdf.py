@@ -258,7 +258,6 @@ class PDFRAG:
             if stop_processing:
                 break
 
-        self.project_rag.num_documents = counter
         self.project_rag.status = "generating_scores"
         self.project_rag.save()
 
@@ -329,10 +328,11 @@ class PDFRAG:
             rag = self._get_rag_instance(chunks)
             result = rag.prompt(self.project_rag.query)
 
-            citation = result.highlight.strip()
             answer = result.answer.strip()
+            citation = result.highlight.strip()
             citation_context = rag.logs.get("augmented", {}).get("result", [])
 
+            # Store fallback responses but tag them with score=0 later
             ProjectDocumentRAG.objects.create(
                 project_rag=self.project_rag,
                 document=document,
@@ -340,6 +340,17 @@ class PDFRAG:
                 answer=answer,
                 citation_context=citation_context,
             )
+
+            INVALID_ANSWERS = {
+                "",
+                "réponse non disponible",
+                "no content available.",
+                "no content available",
+                "error generating response.",
+            }
+
+            if answer.lower() in INVALID_ANSWERS:
+                return False
 
             DOCUMENT_CACHE.save(
                 cache_key,
@@ -350,8 +361,6 @@ class PDFRAG:
                 },
             )
             logger.info(f"[RAG] Saved result to cache for doc #{document.id}")
-
-            return "réponse non disponible" not in answer.lower()
 
         except Exception as e:
             logger.error(
@@ -847,7 +856,6 @@ class PDFRAG:
     def _get_base_valid_document_rags_queryset(self):
         """
         Base queryset for valid ProjectDocumentRAG entries associated with this project_rag.
-
         Returns
         -------
         QuerySet
@@ -859,11 +867,11 @@ class PDFRAG:
             confidence_score__gt=0,
         ).exclude(
             answer__in=[
+                "",
                 "No content available.",
                 "Error generating response.",
                 "Réponse non disponible",
                 "No content available",
-                "Réponse non disponible",
             ]
         )
 

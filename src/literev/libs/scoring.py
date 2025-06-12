@@ -66,32 +66,41 @@ async def get_faithfulness_score(
 
 async def assign_faithfulness_scores(project_rag: ProjectRAG) -> None:
     """
-    Asign faithfulnesswithHHEM scores to RAG answers given project_rag model object database.
+    Assign faithfulness scores to RAG answers for a given project_rag.
 
-    Parameters
-    ----------
-    project_rag : ProjectRAG
-        Object used related with rag documents answers
-
-    Returns
-    -------
-    None
-
-    Notes
-    Saves the scores in field ProjectDocumentRAG.confidence_score.
-    -----
+    Save the scores in the confidence_score field of ProjectDocumentRAG objects.
+    Assign a score of 0.0 to invalid or placeholder answers.
     """
     rag_documents = ProjectDocumentRAG.objects.filter(project_rag=project_rag)
-    query = project_rag.query
+    query = project_rag.query.strip()
+
+    INVALID_ANSWERS = {
+        "",
+        "réponse non disponible",
+        "no content available.",
+        "no content available",
+        "error generating response.",
+    }
 
     async for rag_document in rag_documents:
+        answer = (rag_document.answer or "").strip().lower()
+
+        # Preventing the false 1.0 score issue
+        if answer in INVALID_ANSWERS:
+            rag_document.confidence_score = 0.0
+            await rag_document.asave()
+            continue
+
+        # Ensure citation_context is not empty
         citation_context = (
             rag_document.citation_context
             if rag_document.citation_context
+            and len(rag_document.citation_context) > 0
             else [rag_document.citation]
         )
+
         faithfulness_score = await get_faithfulness_score(
-            query, rag_document.answer, citation_context
+            query, rag_document.answer.strip(), citation_context
         )
 
         rag_document.confidence_score = faithfulness_score
