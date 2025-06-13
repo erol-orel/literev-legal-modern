@@ -229,29 +229,35 @@ class PDFRAG:
         This method processes documents using RAG, generates answers,
         and updates the project status throughout the pipeline.
         """
-        logger.info("Starting RAG processing for documents.")
-        self.project_rag.status = "questioning_documents"
-        self.project_rag.save()
+        logger.debug("Starting RAG processing for documents.")
 
-        documents = list(Document.objects.filter(id__in=self.document_ids))
-        self.project_rag.num_documents = len(documents)
+        queryset = Document.objects.filter(id__in=self.document_ids).order_by(
+            "id"
+        )
 
         if max_doc_ans:
-            documents = sort_documents_by_es_score(
-                self.project_rag.project, documents
+            queryset = sort_documents_by_es_score(
+                self.project_rag.project, queryset
             )
+
+        self.project_rag.num_documents = len(self.document_ids)
+
+        self.project_rag.status = "questioning_documents"
+        self.project_rag.save()
 
         counter = 0
         stop_processing = False
 
-        for i in range(0, len(documents), batch_size):
-            batch = documents[i : i + batch_size]
+        queryset_count = queryset.count()
+
+        for batch_start in range(0, queryset_count, batch_size):
+            batch = queryset[batch_start : batch_start + batch_size]
             for document in batch:
                 success = self._process_document(document)
                 if success:
                     counter += 1
                     if max_doc_ans and counter >= max_doc_ans:
-                        logger.info("Max document answers reached.")
+                        logger.debug("Max document answers reached.")
                         stop_processing = True
                         break
 
@@ -271,9 +277,6 @@ class PDFRAG:
         self.project_rag.save()
 
         self.question_type = self.check_question_type()
-
-        self.project_rag.status = "generating_statistics"
-        self.project_rag.save()
 
         if self.question_type == "closed":
             self.generate_general_summary(summary_only=True)
@@ -299,7 +302,7 @@ class PDFRAG:
             cached_result = DOCUMENT_CACHE.load(cache_key)
 
             if cached_result:
-                logger.info(
+                logger.debug(
                     f"[RAG] Loaded cached result for doc #{document.id}"
                 )
                 ProjectDocumentRAG.objects.create(
@@ -360,7 +363,7 @@ class PDFRAG:
                     "citation_context": citation_context,
                 },
             )
-            logger.info(f"[RAG] Saved result to cache for doc #{document.id}")
+            logger.debug(f"[RAG] Saved result to cache for doc #{document.id}")
 
         except Exception as e:
             logger.error(
@@ -419,6 +422,41 @@ class PDFRAG:
                 ),
             )
 
+    def _get_rag_generator(
+        self,
+        prompt_template: str,
+        structured_output: type[BaseModel],
+        output_max_length: int = 2048,
+        model_name: str | None = None,
+    ) -> HactarGen | OpenAIGen:
+        """
+        Returns an LLM generator (OpenAI or Hactar) for the given prompt and output schema.
+        """
+        common_params = dict(
+            prompt_template=prompt_template,
+            temperature=0,
+            output_max_length=output_max_length,
+            api_params={
+                "top_p": 0.0,
+                "frequency_penalty": 0.0,
+                "presence_penalty": 0.0,
+            },
+            structured_output=structured_output,
+        )
+
+        if settings.USE_HACTAR_LLM:
+            return HactarGen(
+                api_key=settings.HACTAR_API_KEY,
+                model_name=model_name or "mistral-small3.1:latest",
+                **common_params,  # type: ignore
+            )
+        else:
+            return OpenAIGen(
+                api_key=self.api_key,
+                model_name=model_name or "gpt-4o-mini",
+                **common_params,  # type: ignore
+            )
+
     def _create_empty_response(self, document, message: str) -> None:
         """
         Create a fallback placeholder response for a document.
@@ -445,53 +483,38 @@ class PDFRAG:
     def generate_general_summary(self, summary_only: bool = False) -> None:
         """
         Generate a general summary and optional considerations.
-
-        Parameters
-        ----------
-        summary_only : bool, optional
-            If True, exclude considerations from summary.
-
-        Notes
-        -----
         Uses only valid responses from `self.document_ids`.
-        Caches the result based on the query and documents.
         """
-        logger.info("Generating general summary...")
+        logger.debug("Generating general summary...")
 
         answers = self._fetch_valid_document_answers()
 
         if not answers:
+            logger.debug("No valid answers found. Using default summary.")
             summary_data = {
                 "summary": "Résumé non disponible",
                 "considerations": [],
             }
-            logger.info("No valid answers found. Using default summary.")
         else:
             try:
-                summary_gen = OpenAIGen(
-                    api_key=self.api_key,
-                    model_name="gpt-4o-mini",
+                summary_gen = self._get_rag_generator(
                     prompt_template=self.summary_template_prompt,
-                    temperature=0,
-                    output_max_length=2048,
-                    api_params={
-                        "top_p": 0.0,
-                        "frequency_penalty": 0.0,
-                        "presence_penalty": 0.0,
-                    },
                     structured_output=SummaryGeneralAnswer,
                 )
+
                 self.summary_obj = summary_gen.generate(
                     query=self.project_rag.query,
-                    context=["\n".join(answers)],
+                    context=answers,  # keep as list[str] for chunk-aware processing
                 )
                 summary_data = {
                     "summary": self.summary_obj.summary.strip(),
-                    "considerations": self.summary_obj.considerations
-                    if not summary_only
-                    else [],
+                    "considerations": (
+                        self.summary_obj.considerations
+                        if not summary_only
+                        else []
+                    ),
                 }
-                logger.info("Summary generated.")
+                logger.debug("Summary generated.")
             except Exception as e:
                 logger.error(f"Failed to generate summary: {e}")
                 summary_data = {
@@ -501,8 +524,7 @@ class PDFRAG:
 
         self.project_rag.summary_answer = json.dumps(summary_data)
         self.project_rag.save()
-
-        logger.info("Completed summary generation.")
+        logger.debug("Completed summary generation.")
 
     def check_question_type(self) -> str:
         """
@@ -514,25 +536,20 @@ class PDFRAG:
             Either "open" or "closed", based on LLM classification.
         """
 
-        logger.info("Classifying the question type...")
+        logger.debug("Classifying the question type...")
 
-        classification_gen = OpenAIGen(
-            api_key=self.api_key,
-            model_name="gpt-4o-mini",
+        question_type_gen = self._get_rag_generator(
             prompt_template=self.prompt_check_question_type,
-            temperature=0,
-            output_max_length=64,
-            cache=GEN_CACHE,
             structured_output=QuestionTypeClassification,
         )
 
-        result_obj: QuestionTypeClassification = classification_gen.generate(
+        question_type_obj = question_type_gen.generate(
             query="", context=[self.project_rag.query]
         )
 
-        result = result_obj.question_type
+        result = question_type_obj.question_type
 
-        logger.info("Completed question type classification.")
+        logger.debug("Completed question type classification.")
 
         return result
 
@@ -608,27 +625,21 @@ class PDFRAG:
                     f"Considerations:\n{arguments_block}"
                 )
 
-                prompt = OpenAIGen(
-                    api_key=self.api_key,
-                    model_name="gpt-4o-mini",
+                consideration_gen = self._get_rag_generator(
                     prompt_template=self.evaluate_consideration_template_prompt,
-                    temperature=0,
-                    output_max_length=1024,
-                    api_params={
-                        "top_p": 0.0,
-                        "frequency_penalty": 0.0,
-                        "presence_penalty": 0.0,
-                    },
                     structured_output=EvaluationModel,
+                    output_max_length=1024,
                 )
 
-                evaluation = prompt.generate(
+                consideration_obj = consideration_gen.generate(
                     query=self.project_rag.query,
                     context=[context_block],
                 )
 
                 for idx, cons_text in enumerate(considerations):
-                    if getattr(evaluation, f"argument_{idx + 1}", False):
+                    if getattr(
+                        consideration_obj, f"argument_{idx + 1}", False
+                    ):
                         results[cons_text] += 1
                         docs_affirmed[cons_text].add(doc_rag.document.id)
 
@@ -727,7 +738,7 @@ class PDFRAG:
         self.project_rag.summary_answer = json.dumps(summary_data)
         self.project_rag.save()
 
-        logger.info("Completed tagging considerations.")
+        logger.debug("Completed tagging considerations.")
 
     def categorize_closed_answers(self, answers: list[str]) -> list[str]:
         """
@@ -744,29 +755,22 @@ class PDFRAG:
             Categories: 'oui', 'non', 'peut_etre', 'mixte', or 'error'.
         """
 
-        logger.info("Classifying answers with LLM and structured output...")
+        logger.debug("Classifying answers with LLM and structured output...")
 
-        classification_gen = OpenAIGen(
-            api_key=self.api_key,
-            model_name="gpt-4o-mini",
+        closed_answer_gen = self._get_rag_generator(
             prompt_template=self.classification_template_prompt,
-            temperature=0,
-            output_max_length=64,
-            cache=GEN_CACHE,
             structured_output=ClosedAnswerClassification,
+            output_max_length=64,
         )
-
         categories = []
 
         for answer in answers:
             try:
-                classification_obj: ClosedAnswerClassification = (
-                    classification_gen.generate(
-                        query=self.project_rag.query, context=[answer]
-                    )
+                closed_answer_obj = closed_answer_gen.generate(
+                    query=self.project_rag.query, context=[answer]
                 )
 
-                label = classification_obj.category
+                label = closed_answer_obj.category
                 categories.append(label)
             except Exception as e:
                 logger.error(
@@ -774,7 +778,7 @@ class PDFRAG:
                 )
                 categories.append("error")  # fallback category
 
-        logger.info("Completed answer classification.")
+        logger.debug("Completed answer classification.")
 
         return categories
 
@@ -795,7 +799,7 @@ class PDFRAG:
             Includes counts, percentages, and total size.
         """
 
-        logger.info("Computing statistics...")
+        logger.debug("Computing statistics...")
 
         error_count = 0
         total = len(classified_labels)
@@ -822,7 +826,7 @@ class PDFRAG:
             for k, v in counts.items()
         }
 
-        logger.info("Completed statistics computation.")
+        logger.debug("Completed statistics computation.")
 
         return {
             "counts": counts,

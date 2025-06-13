@@ -43,7 +43,7 @@ RUN apt-get update -y \
 
 RUN addgroup --gid ${GID} literev \
   && useradd --uid ${UID} --gid ${GID} -ms /bin/bash literev \
-  && mkdir -p /opt/services/literev /opt/data/literev \
+  && mkdir -p /opt/services/literev /opt/data/literev /tmp/literev \
   && chmod -R a+rwx /opt/conda /opt/services \
   && export ENV_NAME="$ENV_NAME" \
   && chown -R literev:literev /opt/services /opt/data /tmp/literev \

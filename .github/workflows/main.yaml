@@ -302,13 +302,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: self-hosted setup
+      - name: Self-hosted setup
         run: |
           export HOST_UID=$(id -u)
           export HOST_GID=$(id -g)
-          sudo chown -R ${HOST_UID}:${HOST_GID} /home/ci/actions-runner/_work/literev-legal/literev-legal/
-          sudo mkdir -p /opt/data/literev /tmp/literev
-          sudo chown -R ${HOST_UID}:${HOST_GID} /opt/data/literev /tmp/literev
+          sudo chown -R "${HOST_UID}:${HOST_GID}" /home/ci/actions-runner/_work/literev-legal/literev-legal/
+
+          BASE_DIR=/tmp/literev
+
+          # Create directories
+          for dir in articles plot pkl static; do
+            sudo mkdir -p "${BASE_DIR}/${dir}"
+          done
+
+          sudo mkdir -p /opt/data/literev
+          sudo chown -R "${HOST_UID}:${HOST_GID}" "${BASE_DIR}" /opt/data/literev
 
       - uses: actions/checkout@v3
 
@@ -341,7 +349,6 @@ jobs:
       - name: Clean-up and Setup
         run: |
           makim clean.all
-          makim containers.host-setup
 
       - name: Remove old database
         run: sugar compose down --options --volumes || true
