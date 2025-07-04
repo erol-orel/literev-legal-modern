@@ -231,29 +231,38 @@ class PDFRAG:
         """
         logger.debug("Starting RAG processing for documents.")
 
-        queryset = Document.objects.filter(id__in=self.document_ids).order_by(
-            "id"
+        queryset = list(
+            Document.objects.filter(id__in=self.document_ids).order_by("id")
         )
 
         if max_doc_ans:
             queryset = sort_documents_by_es_score(
                 self.project_rag.project, queryset
             )
+            self.project_rag.num_documents = max_doc_ans
+        else:
+            self.project_rag.num_documents = len(self.document_ids)
 
-        self.project_rag.num_documents = len(self.document_ids)
+        queryset_count = len(queryset)
 
         self.project_rag.status = "questioning_documents"
         self.project_rag.save()
 
         counter = 0
         stop_processing = False
-
-        queryset_count = queryset.count()
+        counter_sent_documents = 0
 
         for batch_start in range(0, queryset_count, batch_size):
             batch = queryset[batch_start : batch_start + batch_size]
+
             for document in batch:
                 success = self._process_document(document)
+                counter_sent_documents += 1
+
+                if max_doc_ans and counter_sent_documents > max_doc_ans:
+                    self.project_rag.num_documents = counter_sent_documents
+                    self.project_rag.save()
+
                 if success:
                     counter += 1
                     if max_doc_ans and counter >= max_doc_ans:
@@ -291,8 +300,11 @@ class PDFRAG:
             self.project_rag.status = "tagging_considerations"
             self.project_rag.save()
             self.tag_answers_considerations()
+
         self.project_rag.status = "completed"
         self.project_rag.save()
+
+        logger.info("RAG pipeline completed for articles.")
 
     def _process_document(self, document: Document) -> bool:
         try:
@@ -312,6 +324,7 @@ class PDFRAG:
                     answer=cached_result["answer"],
                     citation_context=cached_result.get("citation_context", []),
                 )
+
                 return (
                     "réponse non disponible"
                     not in cached_result["answer"].lower()
@@ -363,7 +376,10 @@ class PDFRAG:
                     "citation_context": citation_context,
                 },
             )
+
             logger.debug(f"[RAG] Saved result to cache for doc #{document.id}")
+
+            return True
 
         except Exception as e:
             logger.error(

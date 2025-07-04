@@ -255,7 +255,7 @@ def get_nl_rag_ans(self, project_id: int) -> int | None:
     documents = Document.objects.filter(project=project)
     number_documents = documents.count()
 
-    upper_limit = min(number_documents, 50)
+    upper_limit = number_documents
 
     top_docs = get_top_docs_by_es(project, documents, upper_limit)
     docs_ids = [doc.id for doc in top_docs]
@@ -265,7 +265,9 @@ def get_nl_rag_ans(self, project_id: int) -> int | None:
         document_ids=docs_ids,
     )
 
-    rag.run(max_doc_ans=10)
+    max_doc_ans = min(10, number_documents)
+
+    rag.run(max_doc_ans=max_doc_ans)
 
 
 @app.task(bind=True)
@@ -275,8 +277,6 @@ def back_get_early_results(self, project_id: int) -> None:
     cluster and cluster elements objects
     """
     project = Project.objects.get(id=project_id)
-    update_task_code(project, self.request.id)
-
     documents = (
         Document.objects.filter(project=project)
         .exclude(preprocessed_document__isnull=True)
@@ -291,9 +291,15 @@ def back_get_early_results(self, project_id: int) -> None:
         for pp_doc in documents.values_list("preprocessed_document", flat=True)
     ]
 
+    if not pp_documents:
+        logger.info("There are no preprocessed documents for research")
+        return
+
     list_doc_ids = [
         id_doc for id_doc in documents.values_list("id", flat=True)
     ]
+
+    update_task_code(project, self.request.id)
 
     cluster = Cluster.objects.create(
         project=project, topic="Cluster from early results"

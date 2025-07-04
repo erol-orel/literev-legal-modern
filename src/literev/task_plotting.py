@@ -190,7 +190,7 @@ def plot_clusters(
 
     cluster_number_source = ColumnDataSource(data=cluster_number_data)
 
-    fig.circle(
+    fig.scatter(
         x="x",
         y="y",
         size=38,

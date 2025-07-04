@@ -240,7 +240,7 @@ def extract_keywords(expression: str) -> list[str]:
 
 
 def sort_documents_by_es_score(
-    project: Project, documents: QuerySet[Document]
+    project: Project, documents: list[Document]
 ) -> list[Document]:
     """
     Sort tablechoice object by elasticsearch score.
@@ -261,7 +261,7 @@ def sort_documents_by_es_score(
 
     if scores:
         sorted_list = sorted(
-            list(documents),
+            documents,
             key=lambda x: scores[x.id],
             reverse=True,
         )

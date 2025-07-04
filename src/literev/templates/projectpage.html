@@ -389,6 +389,16 @@
                     {{ project.query }}
                   </td>
                 </tr>
+                {% if project.natural_language_query %}
+                  <tr>
+                    <th scope="row">
+                      Natural language query
+                    </th>
+                    <td>
+                      {{ project.natural_language_query }}
+                    </td>
+                  </tr>
+                {% endif %}
                 <tr>
                   <th scope="row">
                     Range date project
@@ -433,7 +443,7 @@
                       name="submit"
                       value="ask-top-docs"
                       class="btn btn-secondary btn-lg mt-2 mb-5">
-                <i class="fa-regular fa-comment me-2"></i>Ask to top relevant Documents
+                <i class="fa-regular fa-comment me-2"></i>Ask to top 10 relevant Documents
               </button>
             </div>
           </form>
