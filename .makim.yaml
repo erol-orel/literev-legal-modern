@@ -314,6 +314,47 @@ groups:
 
           echo "Embeddings done"
 
+      faithfulness-benchmark:
+        help: |
+          Benchmark faithfulness scores of stored RAG answers with one or more LLMs.
+        args:
+          project:
+            help: Project ID
+            type: string
+            required: true
+          rag:
+            help: RAG ID
+            type: string
+            required: true
+          models:
+            help: Space-separated model aliases to benchmark (e.g. 'openai mistral-24b')
+            type: string
+            required: true
+          threshold:
+            help: Faithfulness threshold
+            type: string
+            default: "0.0"
+        backend: bash
+        run: |
+          # Construct the command to avoid extra quotes being added
+          CMD="python manage.py faithfulness_metrics \
+            --project ${{ args.project }} \
+            --rag ${{ args.rag }} \
+            --models ${{ args.models }} \
+            --threshold ${{ args.threshold }}"
+
+          echo "Executing command: $CMD"
+
+          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
+            sugar compose-ext run --service literev --options "--rm" --cmd "$CMD"
+            echo "Starting benchmark process..."
+          else
+            cd ./src/
+            export POSTGRES_HOST=localhost
+            export ES_HOST_URL=http://localhost:9200
+            eval "$CMD"
+          fi
+
   containers:
     tasks:
       wait:

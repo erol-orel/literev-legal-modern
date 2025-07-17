@@ -154,6 +154,11 @@ jobs:
       - name: Check if poetry.lock is updated
         run: poetry check
 
+      - name: Clean broken certifi metadata
+        run: |
+          echo "Removing stray certifi dist-info so pip won't choke..."
+          rm -rf "${CONDA_PREFIX}/lib/python3.10/site-packages"/certifi-*.dist-info
+
       - name: Install dependencies
         run: poetry install
 
@@ -267,6 +272,11 @@ jobs:
         export HOST_GID=${HOST_GID}
         envsubst < .env.tpl > .env
 
+    - name: Clean broken certifi metadata
+      run: |
+        echo "Removing stray certifi dist-info so pip won't choke..."
+        rm -rf "${CONDA_PREFIX}/lib/python3.10/site-packages"/certifi-*.dist-info
+
     - name: Install dependencies
       run: poetry install
 
@@ -342,6 +352,11 @@ jobs:
           export HOST_UID=${HOST_UID}
           export HOST_GID=${HOST_GID}
           envsubst < .env.tpl > .env
+
+      - name: Clean broken certifi metadata
+        run: |
+          echo "Removing stray certifi dist-info so pip won't choke..."
+          rm -rf "${CONDA_PREFIX}/lib/python3.10/site-packages"/certifi-*.dist-info
 
       - name: Install dependencies
         run: poetry install

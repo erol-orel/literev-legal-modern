@@ -128,7 +128,7 @@ class HactarAug(HactarConnectionHelper, AugmentedBase):
 class HactarGen(HactarConnectionHelper, GenerationBase):
     """API endpoint generation model for text generation."""
 
-    default_model_name = "mistral-small3.1:latest"
+    default_model_name = "mistral-small3.1:24b"
     api_base_url = "https://hactar.unige.ch"
     default_api_params = {
         "top_p": 1.0,

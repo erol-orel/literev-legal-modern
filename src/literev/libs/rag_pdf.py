@@ -36,12 +36,10 @@ logging.basicConfig(level=settings.LOGGING_LEVEL)
 logger = logging.getLogger(__name__)
 
 
-USE_HACTAR_LLM = settings.USE_HACTAR_LLM
+USE_HACTAR_LLM: bool = getattr(settings, "USE_HACTAR_LLM", False)
 
 TMP_DIR = Path("/tmp") / "rago"
-
 MODULE_NAME = "hactar" if USE_HACTAR_LLM else "openai"
-
 RET_CACHE = CacheFile(target_dir=TMP_DIR / f"ret_{MODULE_NAME}")
 AUG_CACHE = CacheFile(target_dir=TMP_DIR / f"aug_{MODULE_NAME}")
 GEN_CACHE = CacheFile(target_dir=TMP_DIR / f"gen_{MODULE_NAME}")
@@ -166,17 +164,25 @@ class PDFRAG:
         "{context}"
     )
 
-    template_prompt = (
-        "Based on the given context, answer the following question: `{query}`. "
-        "If no relevant information is found in the context, return exactly: `Réponse non disponible`. "
-        "Otherwise, provide a single, concise answer in French that is directly supported by the context.\n\n"
-        "In addition to the answer, extract and return the portion of the context — approximately 5 consecutive sentences — "
-        "from which the answer was derived. This highlight **must** explicitly contain all elements of the answer.\n\n"
-        "**Important:**\n"
+    document_answering_system_prompt = (
+        "You are a factual legal assistant. "
+        "Always answer in French based solely on the provided context. "
+        "If you are absolutely certain the context has no relevant information, "
+        'return exactly the string "Réponse non disponible".'
+    )
+
+    document_answering_user_prompt = (
+        'Question: "{query}"\n\n'
+        "Context:\n{context}\n\n"
+        "Please respond in JSON format with two fields:\n"
+        "{{\n"
+        '  "answer": "<your concise answer here>",\n'
+        '  "highlight": "<up to 5 consecutive sentences from context>"\n'
+        "}}\n\n"
+        "Rules:\n"
         "- Do not infer or imagine details.\n"
         "- Do not include information that is not explicitly stated in the context.\n"
-        "- The highlight must fully justify the answer.\n\n"
-        "Context:\n`{context}`"
+        "- The highlight must fully justify the answer.\n"
     )
 
     classification_template_prompt = (
@@ -201,7 +207,9 @@ class PDFRAG:
 
     def __init__(self, project_rag_id: int, document_ids: list[int]) -> None:
         """Initialize PDFRAG with project_rag_id and document_ids."""
-        self.api_key: str = getattr(settings, "OPENAI_API_KEY", "")
+        self.use_hactar_llm = USE_HACTAR_LLM
+        self.openai_api_key: str = getattr(settings, "OPENAI_API_KEY", "")
+        self.hactar_api_key: str = getattr(settings, "HACTAR_API_KEY", "")
 
         self.project_rag: ProjectRAG = ProjectRAG.objects.get(
             id=project_rag_id
@@ -221,7 +229,9 @@ class PDFRAG:
         return splitter.split_text(text)
 
     def run(
-        self, max_doc_ans: int | None = None, batch_size: int = 10
+        self,
+        max_doc_ans: int | None = None,
+        batch_size: int = 10,
     ) -> None:
         """
         Run the complete RAG pipeline for a set of documents.
@@ -279,10 +289,14 @@ class PDFRAG:
         loop = asyncio.get_event_loop()
         loop.run_until_complete(assign_faithfulness_scores(self.project_rag))
 
+        self.project_rag.refresh_from_db()
+
         self.project_rag.valid_answer_count = (
             self.count_valid_answered_documents(self.project_rag)
         )
+
         self.project_rag.status = "generating_summary"
+
         self.project_rag.save()
 
         self.question_type = self.check_question_type()
@@ -389,54 +403,60 @@ class PDFRAG:
             return False
 
     def _get_rag_instance(self, chunks: list[str]):
-        if settings.USE_HACTAR_LLM:
-            return Rago(
-                retrieval=StringRet(chunks),
-                augmented=HactarAug(
-                    api_key=settings.HACTAR_API_KEY,
-                    top_k=5,
-                    model_name="mxbai-embed-large:latest",
-                    cache=AUG_CACHE,
-                ),
-                generation=HactarGen(
-                    api_key=settings.HACTAR_API_KEY,
-                    model_name="mistral-small3.1:latest",
-                    prompt_template=self.template_prompt,
-                    temperature=0,
-                    output_max_length=16384,
-                    api_params={
-                        "top_p": 0.0,
-                        "frequency_penalty": 0.0,
-                        "presence_penalty": 0.0,
-                    },
-                    structured_output=RAGAnswer,
-                    cache=GEN_CACHE,
-                ),
+        RETRIEVAL = StringRet(chunks)
+        aug_cache = AUG_CACHE
+        gen_cache = GEN_CACHE
+
+        if self.use_hactar_llm:
+            gen = HactarGen(
+                api_key=self.hactar_api_key,
+                model_name="mistral-small3.1:24b",
+                system_message=self.document_answering_system_prompt,
+                prompt_template=self.document_answering_user_prompt,
+                temperature=0.0,
+                output_max_length=16384,
+                api_params={
+                    "top_p": 0.0,
+                    "frequency_penalty": 0.0,
+                    "presence_penalty": 0.0,
+                },
+                structured_output=RAGAnswer,
+                cache=gen_cache,
+            )
+            aug = HactarAug(
+                api_key=self.hactar_api_key,
+                top_k=5,
+                model_name="mxbai-embed-large:latest",
+                cache=aug_cache,
             )
         else:
-            return Rago(
-                retrieval=StringRet(chunks),
-                augmented=OpenAIAug(
-                    api_key=self.api_key,
-                    top_k=5,
-                    model_name="text-embedding-ada-002",
-                    cache=AUG_CACHE,
-                ),
-                generation=OpenAIGen(
-                    api_key=self.api_key,
-                    model_name="gpt-4o-mini",
-                    prompt_template=self.template_prompt,
-                    temperature=0,
-                    output_max_length=16384,
-                    api_params={
-                        "top_p": 0.0,
-                        "frequency_penalty": 0.0,
-                        "presence_penalty": 0.0,
-                    },
-                    structured_output=RAGAnswer,
-                    cache=GEN_CACHE,
-                ),
+            gen = OpenAIGen(
+                api_key=self.openai_api_key,
+                model_name="gpt-4o-mini",
+                system_message=self.document_answering_system_prompt,
+                prompt_template=self.document_answering_user_prompt,
+                temperature=0.0,
+                output_max_length=16384,
+                api_params={
+                    "top_p": 0.0,
+                    "frequency_penalty": 0.0,
+                    "presence_penalty": 0.0,
+                },
+                structured_output=RAGAnswer,
+                cache=gen_cache,
             )
+            aug = OpenAIAug(
+                api_key=self.openai_api_key,
+                top_k=5,
+                model_name="text-embedding-ada-002",
+                cache=aug_cache,
+            )
+
+        return Rago(
+            retrieval=RETRIEVAL,
+            augmented=aug,
+            generation=gen,
+        )
 
     def _get_rag_generator(
         self,
@@ -460,15 +480,15 @@ class PDFRAG:
             structured_output=structured_output,
         )
 
-        if settings.USE_HACTAR_LLM:
+        if self.use_hactar_llm:
             return HactarGen(
-                api_key=settings.HACTAR_API_KEY,
-                model_name=model_name or "mistral-small3.1:latest",
+                api_key=self.hactar_api_key,
+                model_name=model_name or "mistral-small3.1:24b",
                 **common_params,  # type: ignore
             )
         else:
             return OpenAIGen(
-                api_key=self.api_key,
+                api_key=self.openai_api_key,
                 model_name=model_name or "gpt-4o-mini",
                 **common_params,  # type: ignore
             )

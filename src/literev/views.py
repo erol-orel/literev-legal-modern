@@ -791,6 +791,10 @@ def rag(
                     }
                 )
 
+    considerations.sort(
+        key=lambda c: float(c.get("percent", 0.0) or 0.0), reverse=True
+    )
+
     context = {
         "project": project,
         "project_rags": project_rags,

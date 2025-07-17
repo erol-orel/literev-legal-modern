@@ -111,7 +111,8 @@ def test_rago_chunks(doc2_txt_chunks) -> None:
     generation = rago.generation.OpenAIGen(
         api_key=settings.OPENAI_API_KEY,
         model_name="gpt-4o-mini",
-        prompt_template=PDFRAG.template_prompt,
+        system_message=PDFRAG.document_answering_system_prompt,
+        prompt_template=PDFRAG.document_answering_user_prompt,
         temperature=0,
         output_max_length=16384,
         structured_output=RAGAnswer,
@@ -162,7 +163,8 @@ def test_rag_aug_variation(doc2_txt_chunks) -> None:
         generation = rago.generation.OpenAIGen(
             api_key=settings.OPENAI_API_KEY,
             model_name="gpt-4o-mini",
-            prompt_template=PDFRAG.template_prompt,
+            system_message=PDFRAG.document_answering_system_prompt,
+            prompt_template=PDFRAG.document_answering_user_prompt,
             temperature=0,
             output_max_length=16384,
             api_params={

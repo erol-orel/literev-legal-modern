@@ -4,9 +4,13 @@ import re
 import joblib
 import spacy
 
+from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.db.models.query import QuerySet
+from langchain.schema import Generation, LLMResult
+from langchain_core.prompt_values import StringPromptValue
 from langchain_openai import ChatOpenAI
+from openai import OpenAI as OpenAIClient
 from ragas.dataset_schema import SingleTurnSample
 from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import Faithfulness, FaithfulnesswithHHEM
@@ -28,8 +32,45 @@ llm = ChatOpenAI(model="gpt-4o-mini")
 evaluator_llm = LangchainLLMWrapper(llm)
 
 
+class HactarFaithfulnessLLM:
+    """
+    Minimal LLM wrapper for Ragas faithfulness scoring.
+    Can point at any OpenAI-compatible endpoint (Hactar or OpenAI).
+    """
+
+    def __init__(self, api_key: str, base_url: str, model: str):
+        self.client = OpenAIClient(api_key=api_key, base_url=base_url)
+        self.model = model
+
+    async def _call(self, prompt: str) -> str:
+        resp = await sync_to_async(self.client.chat.completions.create)(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1024,
+            temperature=0.0,
+        )
+        return resp.choices[0].message.content
+
+    async def generate(self, prompts, **_kwargs) -> LLMResult:
+        if isinstance(prompts, StringPromptValue):
+            text = prompts.text
+        elif isinstance(prompts, list):
+            text = prompts[0]
+        else:
+            text = str(prompts)
+
+        content = await self._call(text)
+        return LLMResult(
+            generations=[[Generation(text=content)]],
+            llm_output={},
+        )
+
+
 async def get_faithfulness_score(
-    query: str, response: str, citation: list[str], use_HHEM=False
+    query: str,
+    response: str,
+    citation: list[str],
+    use_HHEM: bool = False,
 ) -> float:
     """
     Evaluates a sample and returns faithfulnesswithHHEM score
@@ -51,17 +92,30 @@ async def get_faithfulness_score(
     float
         faithfulnesswithHHEM score between string_A and string_B
     """
-    sample = SingleTurnSample(
-        user_input=query, response=response, retrieved_contexts=citation
-    )
-    if use_HHEM:
-        scorer = FaithfulnesswithHHEM(llm=evaluator_llm)
+
+    if settings.USE_HACTAR_LLM:
+        api_key = settings.HACTAR_API_KEY
+        base_url = "https://hactar.unige.ch/api"
+        model = "mistral-small3.1:24b"
     else:
-        scorer = Faithfulness(llm=evaluator_llm)
+        api_key = settings.OPENAI_API_KEY
+        base_url = "https://api.openai.com/v1"
+        model = "gpt-4o-mini"
 
-    faithfulnesswh_score = await scorer.single_turn_ascore(sample)
+    llm = HactarFaithfulnessLLM(
+        api_key=api_key, base_url=base_url, model=model
+    )
 
-    return faithfulnesswh_score
+    sample = SingleTurnSample(
+        user_input=query,
+        response=response,
+        retrieved_contexts=citation,
+    )
+
+    Scorer = FaithfulnesswithHHEM if use_HHEM else Faithfulness
+    scorer = Scorer(llm=llm)
+
+    return await scorer.single_turn_ascore(sample)
 
 
 async def assign_faithfulness_scores(project_rag: ProjectRAG) -> None:

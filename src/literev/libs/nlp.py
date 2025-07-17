@@ -29,7 +29,10 @@ from literev.models import (
 logger = logging.getLogger(__name__)
 
 TMP_DIR = Path("/tmp") / "rago"
-AUG_CACHE = CacheFile(target_dir=TMP_DIR / "aug")
+
+MODULE_NAME = "hactar" if settings.USE_HACTAR_LLM else "openai"
+
+AUG_CACHE = CacheFile(target_dir=TMP_DIR / f"aug_nlp_{MODULE_NAME}")
 
 USE_HACTAR_LLM = settings.USE_HACTAR_LLM
 HACTAR_VERIFY_SSL = settings.HACTAR_VERIFY_SSL
