@@ -39,6 +39,7 @@ groups:
         - name: literev-redis
         - name: literev-celery
         - name: literev-elasticsearch
+        - name: literev-jupyter
 
   dev-host:
     config-path:
