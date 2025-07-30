@@ -20,7 +20,7 @@ from literev.libs.data_files import get_es_scores
 from literev.libs.pipeline import (
     update_pp_document,
 )
-from literev.libs.rag_pdf import PDFRAG
+from literev.libs.rag_pdf import RagAnswersManager
 from literev.libs.scoring import (
     sort_documents_by_es_score,
 )
@@ -260,14 +260,14 @@ def get_nl_rag_ans(self, project_id: int) -> int | None:
     top_docs = get_top_docs_by_es(project, documents, upper_limit)
     docs_ids = [doc.id for doc in top_docs]
 
-    rag = PDFRAG(
+    rag = RagAnswersManager(
         project_rag_id=project_rag.id,
-        document_ids=docs_ids,
+        documents_ids=docs_ids,
     )
 
     max_doc_ans = min(10, number_documents)
 
-    rag.run(max_doc_ans=max_doc_ans)
+    rag.run_pipeline(max_doc_ans=max_doc_ans)
 
 
 @app.task(bind=True)
@@ -441,11 +441,11 @@ def task_rag_result_table(
     """Run RAG for the data from result table."""
     try:
         project_rag = ProjectRAG.objects.get(id=project_rag_id)
-        rag = PDFRAG(
+        rag = RagAnswersManager(
             project_rag_id=project_rag.id,
-            document_ids=document_ids,
+            documents_ids=document_ids,
         )
-        rag.run()
+        rag.run_pipeline()
 
     except Exception as e:
         logging.error(f"[task_rag_result_table] (#{project_rag_id}): {e}")

@@ -8,7 +8,7 @@ from django.contrib.auth.models import User
 from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 
-from literev.libs.rag_pdf import PDFRAG
+from literev.libs.rag_pdf import RagAnswersManager
 from literev.models import (
     Cluster,
     ClusterElement,
@@ -366,6 +366,7 @@ class ProjectRAGTests(TestCase):
             defaults={"raw_document_text": "Test document text"},
         )
         self.project_rag = ProjectRAG.objects.create(
+            query="test query",
             project=self.project,
             summary_answer=json.dumps(
                 {
@@ -391,10 +392,11 @@ class ProjectRAGTests(TestCase):
         )
 
     def test_pdf_rag_run_method(self):
-        pdf_rag = PDFRAG(
-            project_rag_id=self.project_rag.id, document_ids=[self.document.id]
+        pdf_rag = RagAnswersManager(
+            project_rag_id=self.project_rag.id,
+            documents_ids=[self.document.id],
         )
-        pdf_rag.run()
+        pdf_rag.run_pipeline()
 
         self.project_rag.refresh_from_db()
 

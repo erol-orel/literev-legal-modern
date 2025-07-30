@@ -2,6 +2,7 @@ import logging
 import re
 
 import joblib
+import numpy as np
 import spacy
 
 from asgiref.sync import sync_to_async
@@ -9,10 +10,8 @@ from django.conf import settings
 from django.db.models.query import QuerySet
 from langchain.schema import Generation, LLMResult
 from langchain_core.prompt_values import StringPromptValue
-from langchain_openai import ChatOpenAI
 from openai import OpenAI as OpenAIClient
 from ragas.dataset_schema import SingleTurnSample
-from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import Faithfulness, FaithfulnesswithHHEM
 
 from literev.libs.data_files import get_dataframe_project, get_es_scores
@@ -27,9 +26,6 @@ from literev.models import (
 
 logging.basicConfig(level=logging.INFO)
 NLP = spacy.load("fr_core_news_md")
-
-llm = ChatOpenAI(model="gpt-4o-mini")
-evaluator_llm = LangchainLLMWrapper(llm)
 
 
 class HactarFaithfulnessLLM:
@@ -115,7 +111,15 @@ async def get_faithfulness_score(
     Scorer = FaithfulnesswithHHEM if use_HHEM else Faithfulness
     scorer = Scorer(llm=llm)
 
-    return await scorer.single_turn_ascore(sample)
+    faithfulnesswh_score = await scorer.single_turn_ascore(sample)
+
+    if not np.isfinite(faithfulnesswh_score):
+        logging.warning(
+            f"Scoring returned NaN for query: {query}, answer: {response} and citation_context: {citation}. Defaulting to 0.0."
+        )
+        return 0.0
+
+    return faithfulnesswh_score
 
 
 async def assign_faithfulness_scores(project_rag: ProjectRAG) -> None:
