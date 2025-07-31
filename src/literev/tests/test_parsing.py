@@ -1,9 +1,13 @@
 from datetime import datetime
+from pathlib import Path
 from typing import List
 
 from django.test import TestCase
 
 from literev.libs import parsing
+from literev.libs.parsing import extract_after_endroit
+
+DATA_PATH = Path(__file__).parent / "data"
 
 
 class TokenTestCase(TestCase):
@@ -1120,3 +1124,23 @@ class ElasticSearchComposedWordsTestCase(TestCase):
 
         # Assert that the result matches the expected result
         self.assertEqual(result, expected_result)
+
+
+class TestRawDocumentExtraction(TestCase):
+    def test_extract_after_endroit(self):
+        with open(DATA_PATH / "document_w_endroit.txt") as f:
+            reader = f.read()
+
+        with open(DATA_PATH / "document_after_endroit.txt") as f:
+            expected = f.read()
+
+        result = extract_after_endroit(reader)
+
+        self.assertEqual(expected, result)
+
+    def test_extract_adter_endroit_fail(self):
+        with open(DATA_PATH / "document_wo_endroit.txt") as f:
+            reader = f.read()
+        result = extract_after_endroit(reader)
+
+        self.assertEqual(result, reader)

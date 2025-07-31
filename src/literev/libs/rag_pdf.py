@@ -21,6 +21,7 @@ from rago.extensions.cache import CacheFile
 from rago.generation import OpenAIGen
 from rago.retrieval import StringRet
 
+from literev.libs.parsing import extract_after_endroit
 from literev.libs.rag_classes import HactarAug, HactarGen
 from literev.libs.scoring import (
     get_faithfulness_score,
@@ -116,7 +117,9 @@ def prepare_chunks(text: str) -> list[str]:
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000, chunk_overlap=200
     )
-    return splitter.split_text(text)
+    text_after_endroit = extract_after_endroit(text)
+
+    return splitter.split_text(text_after_endroit)
 
 
 def get_rag_generator(

@@ -1317,3 +1317,15 @@ def process_search_query_elasticsearch(
         elastic_search_query["query"]["bool"]["minimum_should_match"] = 1
 
     return elastic_search_query
+
+
+def extract_after_endroit(text: str) -> str:
+    keyword = "EN DROIT"
+    idx = text.find(keyword)
+    if idx == -1:
+        # Keyword not found: return entire document
+        return text
+    else:
+        # Keyword found: return everything after the keyword
+        # + len(keyword) to start *after* the phrase
+        return text[idx + len(keyword) :].lstrip("\n")
