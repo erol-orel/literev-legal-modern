@@ -297,11 +297,24 @@ groups:
       cache-embeddings:
         help: Caches all the embeddings of the legal documents from the three chambers
         env-file: .env
+        args:
+          index-name:
+            help: |
+              The name of the legal chamber to generate embeddings for.
+            type: string
+            default: "penal_court"
+            required: true
+          max-workers:
+            help: |
+              How many threads should work in parallel.
+            type: string
+            default: "5"
+            required: false
         run: |
           sugar compose-ext start \
             --services literev-postgres --options -d
 
-          CMD="python manage.py cache_embeddings"
+          CMD="python manage.py cache_embeddings --index-name ${{ args.index_name }} --max-workers ${{ args.max_workers }}"
 
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
             sugar compose run --service literev --options "--rm" --cmd "$CMD"

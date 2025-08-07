@@ -634,6 +634,10 @@ def test_document_level_cache(project_factory, document_factory):
         document_id=document.id,
     )
 
+    # Ensure cache is empty before test
+    cache_entry = Path(DOCUMENT_CACHE.target_dir) / f"{cache_key}.pkl"
+    cache_entry.unlink(missing_ok=True)
+
     assert DOCUMENT_CACHE.load(cache_key) is None
 
     # First run: triggers generation and saves to cache

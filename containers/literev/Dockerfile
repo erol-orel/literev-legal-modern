@@ -91,9 +91,11 @@ RUN chmod +x /opt/start.sh \
 ARG STATIC_ROOT
 ARG MEDIA_ROOT
 ARG CONTAINER_VOLUME_DATA_DIR
+ARG LITEREV_CACHE_DIR
 
 ENV STATIC_ROOT ${STATIC_ROOT}
 ENV MEDIA_ROOT ${MEDIA_ROOT}
+ENV LITEREV_CACHE_DIR ${LITEREV_CACHE_DIR}
 ENV CONTAINER_VOLUME_DATA_DIR ${CONTAINER_VOLUME_DATA_DIR}
 
 RUN mkdir -p ${CONTAINER_VOLUME_DATA_DIR}/articles \
@@ -101,7 +103,8 @@ RUN mkdir -p ${CONTAINER_VOLUME_DATA_DIR}/articles \
   && mkdir -p ${CONTAINER_VOLUME_DATA_DIR}/pkl \
   && mkdir -p ${CONTAINER_VOLUME_DATA_DIR}/static \
   && mkdir -p ${STATIC_ROOT}/.well-known/acme-challenge \
-  && mkdir -p ${MEDIA_ROOT}
+  && mkdir -p ${MEDIA_ROOT} \
+  && mkdir -p ${LITEREV_CACHE_DIR}
 
 WORKDIR /opt/services/literev/src
 

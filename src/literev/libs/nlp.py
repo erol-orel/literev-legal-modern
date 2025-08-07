@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import logging
 
-from pathlib import Path
 from typing import cast
 
 import joblib
@@ -13,13 +12,13 @@ import requests
 import tiktoken
 
 from django.conf import settings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 from openai import OpenAI
 from rago.augmented import OpenAIAug
 from rago.extensions.cache import CacheFile
 from rago.retrieval import StringRet
 
 from literev.libs.rag_classes import HactarAug
+from literev.libs.rag_pdf import prepare_chunks
 from literev.models import (
     Cluster,
     ClusterElement,
@@ -28,24 +27,16 @@ from literev.models import (
 
 logger = logging.getLogger(__name__)
 
-TMP_DIR = Path("/tmp") / "rago"
+CACHE_DIR = settings.LITEREV_CACHE_DIR / "rago"
 
 MODULE_NAME = "hactar" if settings.USE_HACTAR_LLM else "openai"
 
-AUG_CACHE = CacheFile(target_dir=TMP_DIR / f"aug_nlp_{MODULE_NAME}")
+AUG_CACHE = CacheFile(target_dir=CACHE_DIR / f"aug_nlp_{MODULE_NAME}")
 
 USE_HACTAR_LLM = settings.USE_HACTAR_LLM
 HACTAR_VERIFY_SSL = settings.HACTAR_VERIFY_SSL
 
 openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
-
-
-# TODO: Move this somewhere else
-def split_text_into_chunks(text: str) -> list[str]:
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000, chunk_overlap=200
-    )
-    return splitter.split_text(text)
 
 
 def get_top_documents_from_cluster(
@@ -376,7 +367,7 @@ def build_prompt(cluster: Cluster, USE_HACTAR_LLM: bool) -> str:
     prompt = prompt_template.format(keywords=cluster.topic)
 
     for i, document in enumerate(documents, start=1):
-        chunks = split_text_into_chunks(document.raw_document_text)
+        chunks = prepare_chunks(document.raw_document_text)
 
         retrieval = StringRet(chunks)
 
@@ -384,7 +375,7 @@ def build_prompt(cluster: Cluster, USE_HACTAR_LLM: bool) -> str:
             augmented = HactarAug(
                 api_key=settings.HACTAR_API_KEY,
                 top_k=5,
-                model_name="mxbai-embed-large:latest",
+                model_name="mxbai-embed-large:latest",  # model_name="nomic-embed-text", # suggested model to embed
                 cache=AUG_CACHE,
             )
         else:

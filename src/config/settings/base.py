@@ -290,7 +290,9 @@ LOGOUT_REDIRECT_URL = "/"
 DOWNLOAD_PDF_ARTICLE = False
 
 # CACHE CONFIGURATION
-CACHE_DIR = Path(env("LITEREV_CACHE_DIR", default="/opt/data/literev/cache"))
+LITEREV_CACHE_DIR = Path(
+    env("LITEREV_CACHE_DIR", default="/opt/data/literev/cache")
+)
 CACHE_ACTIVE = env.bool("LITEREV_CACHE_ACTIVE", False)
 CACHE_EXPIRATION = 3600  # seconds
 

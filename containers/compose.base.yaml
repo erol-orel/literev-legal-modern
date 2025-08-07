@@ -15,6 +15,7 @@ services:
       args:
         # note: if you want to use a specific UID and GID, ensure to add it to
         #       the .env file
+        # TODO: Check CACHEDIR
         - UID=${HOST_UID:-1000}
         - GID=${HOST_GID:-1000}
         - ENV=${ENV:-prod}
@@ -23,6 +24,8 @@ services:
         - MEDIA_ROOT=${DJANGO_MEDIA_ROOT:-/tmp/literev/media}
         - HTTP_PROXY=${http_proxy}
         - HTTPS_PROXY=${https_proxy}
+        - LITEREV_CACHE_DIR=${LITEREV_CACHE_DIR:-/opt/data/literev/cache}
+
     user: "literev:literev"
 
 
@@ -41,6 +44,7 @@ services:
       - container_data_dir:${CONTAINER_VOLUME_DATA_DIR}
       - static_root:${STATIC_ROOT:-/tmp/literev/static}
       - media_root:${DJANGO_MEDIA_ROOT:-/tmp/literev/media}
+      - llm_cache:${LITEREV_CACHE_DIR:-/opt/data/literev/cache}
     networks:
       - literev
     healthcheck:
@@ -88,6 +92,7 @@ services:
       - container_data_dir:${CONTAINER_VOLUME_DATA_DIR}
       - static_root:${STATIC_ROOT:-/tmp/literev/static}
       - media_root:${DJANGO_MEDIA_ROOT:-/tmp/literev/media}
+      - llm_cache:${LITEREV_CACHE_DIR:-/opt/data/literev/cache}
     networks:
       - literev
 
@@ -140,6 +145,7 @@ volumes:
   container_data_dir:
   static_root:
   media_root:
+  llm_cache:
 
 networks:
   literev:

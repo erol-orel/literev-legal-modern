@@ -8,7 +8,6 @@ import logging
 
 from functools import wraps
 from hashlib import sha256
-from pathlib import Path
 from typing import Any, Callable, Literal, cast
 
 from django.conf import settings
@@ -37,15 +36,14 @@ from literev.models import (
 logging.basicConfig(level=settings.LOGGING_LEVEL)
 logger = logging.getLogger(__name__)
 
-
 USE_HACTAR_LLM: bool = getattr(settings, "USE_HACTAR_LLM", False)
 
-TMP_DIR = Path("/tmp") / "rago"
+CACHE_DIR = settings.LITEREV_CACHE_DIR / "rago"
 MODULE_NAME = "hactar" if USE_HACTAR_LLM else "openai"
-RET_CACHE = CacheFile(target_dir=TMP_DIR / f"ret_{MODULE_NAME}")
-AUG_CACHE = CacheFile(target_dir=TMP_DIR / f"aug_{MODULE_NAME}")
-GEN_CACHE = CacheFile(target_dir=TMP_DIR / f"gen_{MODULE_NAME}")
-DOCUMENT_CACHE = CacheFile(target_dir=TMP_DIR / "documents")
+RET_CACHE = CacheFile(target_dir=CACHE_DIR / f"ret_{MODULE_NAME}")
+AUG_CACHE = CacheFile(target_dir=CACHE_DIR / f"aug_{MODULE_NAME}")
+GEN_CACHE = CacheFile(target_dir=CACHE_DIR / f"gen_{MODULE_NAME}")
+DOCUMENT_CACHE = CacheFile(target_dir=CACHE_DIR / "documents")
 
 
 @wraps
@@ -187,7 +185,7 @@ class OpenAIAnswerClient:
             augmented = HactarAug(
                 api_key=settings.HACTAR_API_KEY,
                 top_k=5,
-                model_name="mxbai-embed-large:latest",
+                model_name="mxbai-embed-large:latest",  # model_name="nomic-embed-text", #Suggested change
                 cache=AUG_CACHE,
             )
             generation = HactarGen(

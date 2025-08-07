@@ -68,6 +68,8 @@ class HactarAug(HactarConnectionHelper, AugmentedBase):
         - https://github.com/ollama/ollama/blob/main/docs/api.md#generate-embeddings
         """
 
+        self._REQUEST_TIMEOUT_S = 120
+
         cache_key = sha256("".join(content).encode("utf-8")).hexdigest()
         cached = self._get_cache(cache_key)
         if cached is not None:
@@ -77,11 +79,13 @@ class HactarAug(HactarConnectionHelper, AugmentedBase):
         data = {"model": self.model_name, "input": content}
 
         logger.info("Requesting embeddings from Hactar...")
+
         response = requests.post(
             url,
             headers=self.headers,
             json=data,
             verify=settings.HACTAR_VERIFY_SSL,
+            timeout=self._REQUEST_TIMEOUT_S,
         )
         response.raise_for_status()
         result_json = response.json()
