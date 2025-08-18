@@ -37,6 +37,7 @@ logging.basicConfig(level=settings.LOGGING_LEVEL)
 logger = logging.getLogger(__name__)
 
 USE_HACTAR_LLM: bool = getattr(settings, "USE_HACTAR_LLM", False)
+MIN_CONFIDENCE = getattr(settings, "RAG_MIN_CONFIDENCE", 0.0)
 
 CACHE_DIR = settings.LITEREV_CACHE_DIR / "rago"
 MODULE_NAME = "hactar" if USE_HACTAR_LLM else "openai"
@@ -44,6 +45,7 @@ RET_CACHE = CacheFile(target_dir=CACHE_DIR / f"ret_{MODULE_NAME}")
 AUG_CACHE = CacheFile(target_dir=CACHE_DIR / f"aug_{MODULE_NAME}")
 GEN_CACHE = CacheFile(target_dir=CACHE_DIR / f"gen_{MODULE_NAME}")
 DOCUMENT_CACHE = CacheFile(target_dir=CACHE_DIR / "documents")
+FAITH_CACHE = CacheFile(target_dir=CACHE_DIR / f"faith_{MODULE_NAME}")
 
 
 @wraps
@@ -64,6 +66,22 @@ def ret_cache(func: Callable[[str], list[str]]) -> Callable[[str], list[str]]:
 def compute_document_cache_key(query: str, document_id: int) -> str:
     """Compute a stable cache key per document, tied to a specific query."""
     return sha256(f"{query.strip()}::{document_id}".encode()).hexdigest()
+
+
+def compute_faithfulness_cache_key(
+    query: str,
+    document_id: int,
+    answer: str,
+    citation_context: list[str] | list[dict] | None,
+) -> str:
+    payload = {
+        "query": query.strip(),
+        "document_id": document_id,
+        "answer": (answer or "").strip(),
+        "citation_context": citation_context or [],
+    }
+    blob = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    return sha256(blob.encode("utf-8")).hexdigest()
 
 
 class RAGAnswer(BaseModel):
@@ -814,15 +832,30 @@ class RagAnswersManager:
         self, rag_documents_w_valid_answers: QuerySet[ProjectDocumentRAG]
     ) -> None:
         for rag_document in rag_documents_w_valid_answers:
-            score = self.loop.run_until_complete(
-                get_faithfulness_score(
-                    self.project_rag.query,
-                    rag_document.answer,
-                    rag_document.citation_context,
-                )
+            cache_key = compute_faithfulness_cache_key(
+                self.project_rag.query,
+                rag_document.document_id,
+                rag_document.answer,
+                rag_document.citation_context,
             )
+
+            cached = FAITH_CACHE.load(cache_key)
+            if cached is not None:
+                score = float(cached.get("score", 0.0))
+            else:
+                # Always compute with a fresh loop per call in workers
+                score = asyncio.run(
+                    get_faithfulness_score(
+                        self.project_rag.query,
+                        rag_document.answer,
+                        rag_document.citation_context,
+                    )
+                )
+                FAITH_CACHE.save(cache_key, {"score": float(score)})
+
+            # Persist to DB regardless of cache path
             rag_document.confidence_score = score
-            rag_document.save()
+            rag_document.save(update_fields=["confidence_score"])
 
     def run_pipeline(
         self,
@@ -867,7 +900,7 @@ class RagAnswersManager:
         self.project_rag.status = "generating_scores"
         self.project_rag.save()
 
-        # Retrieve articles_rag
+        # Retrieve documents_rag
         rag_documents_w_valid_answers = (
             ProjectDocumentRAG.objects.filter(
                 project_rag=self.project_rag,
@@ -889,21 +922,34 @@ class RagAnswersManager:
 
         # Generating a general answer summary
         self.project_rag.status = "generating_summary"
-        self.project_rag.save()
+        self.project_rag.save(update_fields=["status"])
 
         self.question_type = self.query_classifier.get_question_type(
             self.project_rag.query
         )
-
-        create_considerations = "closed" != self.question_type
+        create_considerations = self.question_type != "closed"
 
         documents_rag_w_scores = rag_documents_w_valid_answers.filter(
-            confidence_score__gt=0.0
+            confidence_score__gte=MIN_CONFIDENCE
         )
-        self.project_rag.valid_answer_count = documents_rag_w_scores.count()
 
-        if not documents_rag_w_scores:
+        self.project_rag.valid_answer_count = (
+            rag_documents_w_valid_answers.filter(
+                confidence_score__isnull=False
+            ).count()
+        )
+        self.project_rag.save(update_fields=["valid_answer_count"])
+
+        if not documents_rag_w_scores.exists():
             logger.warning("No valid documents available for evaluation.")
+
+            empty_summary = {
+                "summary": "Résumé non disponible",
+                "considerations": [],
+            }
+            self.project_rag.summary_answer = json.dumps(empty_summary)
+            self.project_rag.status = "completed"
+            self.project_rag.save(update_fields=["summary_answer", "status"])
             return
 
         answers = [
