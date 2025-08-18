@@ -433,7 +433,7 @@ class StatsGenerator:
         closed_answer_gen = get_rag_generator(
             prompt_template=self.classification_template_prompt,
             structured_output=ClosedAnswerClassification,
-            output_max_length=64,
+            output_max_length=256,
         )
 
         categories = []
