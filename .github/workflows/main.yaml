@@ -51,6 +51,7 @@ env:
   REDIS_HOST: localhost
   REDIS_DB: 0
   CLUSTERING_MIN_DOCUMENTS: 20
+  MIN_CONFIDENCE: 0.0
 
 jobs:
   check_branch:
@@ -151,16 +152,13 @@ jobs:
           export HOST_GID=${HOST_GID}
           envsubst < .env.tpl > .env
 
-      - name: Check if poetry.lock is updated
-        run: poetry check
-
       - name: Clean broken certifi metadata
         run: |
           echo "Removing stray certifi dist-info so pip won't choke..."
           rm -rf "${CONDA_PREFIX}/lib/python3.10/site-packages"/certifi-*.dist-info
 
       - name: Install dependencies
-        run: poetry install
+        run: ./scripts/install-dev.sh
 
       - name: Clean-up
         run: |
@@ -278,7 +276,7 @@ jobs:
         rm -rf "${CONDA_PREFIX}/lib/python3.10/site-packages"/certifi-*.dist-info
 
     - name: Install dependencies
-      run: poetry install
+      run: ./scripts/install-dev.sh
 
     - name: Run linter
       run: makim tests.lint
@@ -359,7 +357,7 @@ jobs:
           rm -rf "${CONDA_PREFIX}/lib/python3.10/site-packages"/certifi-*.dist-info
 
       - name: Install dependencies
-        run: poetry install
+        run: ./scripts/install-dev.sh
 
       - name: Clean-up and Setup
         run: |

@@ -41,7 +41,7 @@ jobs:
         run: touch .env
 
       - name: Install dependencies
-        run: poetry install
+        run: ./scripts/install-dev.sh
 
       - name: Set npm proxy configuration
         run: |

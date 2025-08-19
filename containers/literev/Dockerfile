@@ -71,12 +71,19 @@ ENV CONDA_PREFIX /opt/conda/envs/$ENV_NAME
 ENV PATH ${CONDA_PREFIX}/bin:$PATH
 
 # install dependencies
-COPY --chown=literev:literev pyproject.toml poetry.lock /opt/services/literev/
-COPY --chown=literev:literev containers/literev/scripts/install-deps.sh /tmp/install-deps.sh
+RUN mkdir /tmp/scripts
+COPY --chown=literev:literev scripts/install-deps.sh /tmp/scripts/install-deps.sh
+COPY --chown=literev:literev scripts/install-prod.sh /tmp/scripts/install-prod.sh
+COPY --chown=literev:literev scripts/install-dev.sh /tmp/scripts/install-dev.sh
+COPY --chown=literev:literev pyproject.toml /tmp/pyproject.toml
+COPY --chown=literev:literev README.md /tmp/README.md
+
+# create minimum structure for the installation
+RUN mkdir -p /tmp/src
 
 ARG ENV=prod
 
-RUN /tmp/install-deps.sh
+RUN /tmp/scripts/install-deps.sh
 
 COPY --chown=literev:literev containers/literev/scripts/entrypoint.sh /opt/entrypoint.sh
 COPY --chown=literev:literev src/ /opt/services/literev/src

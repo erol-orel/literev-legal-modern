@@ -3,10 +3,10 @@ channels:
   - nodefaults
   - conda-forge
 dependencies:
-  - python 3.10.*
-  - poetry >=2
+  - python 3.11.*
   - gunicorn 21.*
   - pip
+  - uv
   - pip:
     - makim==1.20.0
     # fix issues with distlib

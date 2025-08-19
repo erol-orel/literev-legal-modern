@@ -14,7 +14,7 @@ echo "[II] activate literev"
 source activate literev
 
 # created by docker build
-/tmp/install-deps.sh
+/tmp/scripts/install-deps.sh
 
 set +ex
 

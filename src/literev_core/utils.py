@@ -1,18 +1,19 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 
 from pathlib import Path
 
 import spacy
 
-from gensim.models import phrases
-from gensim.utils import simple_preprocess
 
 # library for lemmatization nlp spacy
 # remove words list of stopwords
 from lingua import Language, LanguageDetectorBuilder
 from sklearn.feature_extraction.text import TfidfVectorizer
+
+from literev_core import phrases_compat as phrases
 
 SUPPORTED_LANGUAGES = [Language.ENGLISH, Language.FRENCH]
 detector = LanguageDetectorBuilder.from_languages(*SUPPORTED_LANGUAGES).build()
@@ -20,6 +21,25 @@ DATA_PATH = Path(__file__).parent / "data"
 
 NLP = spacy.load("fr_core_news_sm", disable=["parser", "ner"])
 NLP.max_length = 10000000
+
+_WORD_RE = re.compile(r"(?u)\b\w+\b")
+
+
+def simple_preprocess(
+    text: str,
+    deacc: bool = False,
+    min_len: int = 2,
+    max_len: int = 15,
+) -> list[str]:
+    if deacc:
+        text = (
+            unicodedata.normalize("NFKD", text)
+            .encode("ascii", "ignore")
+            .decode("ascii")
+        )
+    text = text.lower()
+    toks = _WORD_RE.findall(text)
+    return [t for t in toks if min_len <= len(t) <= max_len]
 
 
 def create_stopwords() -> set[str]:

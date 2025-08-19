@@ -75,7 +75,7 @@ $ conda activate literev-legal
 ```
 3. Install your local project copy into your conda environment:
 ```bash
-$ poetry install
+$ ./scripts/install-dev.sh
 ```
 4. Create a branch for local development:
 ```bash
@@ -382,19 +382,3 @@ makim elasticsearch.count-docs-in-index --index-name chambre_civil_court
 This command retrieves the count of documents currently indexed in `chambre_civil_court`.
 
 Note: When indexing data, the `record_key` is crucial for uniquely identifying each record within the Elasticsearch index. This key should be included in the JSON data being indexed, ensuring that each document can be accurately referenced and updated in Elasticsearch.
-
-
-## Troubleshooting
-
-* Poetry package hash not found: Hash for <package-name> (<package-version>)
-  from archive <package-file> not found in known hashes
-  (was: sha256:<package-hash>).
-
-  If you are experiencing this issue, maybe this command can fix that:
-
-  ```bash
-  $ rm -rf ~/.cache/pypoetry
-  ```
-
-  If it doesn't fix your problem, please check this github issue:
-  https://github.com/python-poetry/poetry/issues/4523

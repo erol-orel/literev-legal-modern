@@ -1,124 +1,121 @@
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=70.1.0,<80.0", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "literev"
 version = "0.12.0"  # semantic-release
 description = "scientific tool"
 readme = "README.md"
-requires-python = ">=3.10,<3.11"
+requires-python = ">=3.11,<3.12"
 authors = [
   {name = "Aziza", email = "FatmaAziza.Merzouki@unige.ch"},
   {name = "Erol", email = "Erol.Orel@unige.ch"},
 ]
+
 dependencies = [
-  "elasticsearch (>=8.12.1,<9.0.0)",
+  "elasticsearch >=8.12.1,<9.0.0",
   "django >=5.0.3",
   "django-environ >=0.10.0",
   "psycopg2-binary >=2.9.9",
   "celery >=5.3.6",
   "redis >=5.0.3",
-  "scikit-learn >=1.4.2",
+  "scikit-learn >=1.5.0",  # NumPy 2 support
   "spacy >=3.8.0,<3.9",
-  "gensim>=4.3.2",
-  "pip>=24.0",
-  "lingua-language-detector>=2.0.2",
-  "hdbscan>=0.8.33",
-  "optuna>=3.6.1",
-  "pacmap>=0.7.2",
-  "bokeh>=3.4.0",
-  "pandas>=2.2.1",
-  "scipy<=1.12.0",
-  "openai>=1.20.0",
-  "tiktoken>=0.8.0",
-  "tbb>=2021.12.0",
-  "distinctipy>=1.3.4",
-  "matplotlib>=3.9.2",
-  "werkzeug>=3",
-  "djangorestframework>=3.15.2",
-  "rago>=0.11.2",
-  "langchain>=0.3.6",
-  "django-filter>=24.3",
-  "jsbeautifier (==1.15.1)",
+  "pip >=24.0",
+  "lingua-language-detector >=2.0.2",
+  "hdbscan >=0.8.33",
+  "optuna >=3.6.1",
+  "pacmap >=0.7.2",
+  "bokeh >=3.4.0",
+  "pandas >=2.2.2",  # recent pandas plays nicer with NumPy 2
+  "scipy >=1.14.0",  # NumPy 2 compatible
+  "openai >=1.20.0",
+  "tiktoken >=0.8.0",
+  "tbb >=2021.12.0",
+  "distinctipy >=1.3.4",
+  "matplotlib >=3.9.2",
+  "werkzeug >=3",
+  "djangorestframework >=3.15.2",
+  "rago[base,ollama] >=0.14.3",  # pulls numpy >=2
+  "langchain >=0.3.6",
+  "django-filter >=24.3",
+  "jsbeautifier ==1.15.1",
   "blis <1.2",
-  "numpy <2",
-  "fr-core-news-sm @ https://github.com/explosion/spacy-models/releases/download/fr_core_news_sm-3.8.0/fr_core_news_sm-3.8.0-py3-none-any.whl",
-  "fr-core-news-md @ https://github.com/explosion/spacy-models/releases/download/fr_core_news_md-3.8.0/fr_core_news_md-3.8.0-py3-none-any.whl",
-  "fr-core-news-lg @ https://github.com/explosion/spacy-models/releases/download/fr_core_news_lg-3.8.0/fr_core_news_lg-3.8.0-py3-none-any.whl",
+  "numpy >=2",  # align with rago
   "torch >=2.5.1",
   "torchvision >=0.20.0",
-  # "torch @ https://download.pytorch.org/whl/cpu/torch-2.5.0%2Bcpu-cp310-cp310-linux_x86_64.whl#sha256=7458180f01525424f8015dcb6051b8233fcf65966697b66f7b732c8a9aa0384f ; platform_machine == 'x86_64'",
-  # "torch @ https://download.pytorch.org/whl/cpu/torch-2.5.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl#sha256=50fcff9f5b9c5102f9f8f5cb3d12bd4d9f1266650e4b8c14f50a5ec589e1eea5 ; platform_machine == 'aarch64'",
-  # "torchvision @ https://download.pytorch.org/whl/cpu/torchvision-0.20.0%2Bcpu-cp310-cp310-linux_x86_64.whl#sha256=9b3b6749f9835f599014256706262b29c6e2b7f5be4d6cd071242385c43a3b51 ; platform_machine == 'x86_64'",
-  # "torchvision @ https://download.pytorch.org/whl/cpu/torchvision-0.20.0-cp310-cp310-linux_aarch64.whl#sha256=e084f50ecbdbe7a9cc2fc51ea0367ae35fde46e84a964bf4046cb1c7feb7e3e6 ; platform_machine == 'aarch64'",
-  "ragas (>=0.2.14,<0.3.0)",
-  "sentry-sdk (>=2.27.0,<3.0.0)",
-  "ollama (>=0.4.7,<0.5.0)",
-  "requests (>=2.32.3,<3.0.0)",
-  "tqdm (>=4.67.1,<5.0.0)",
-  "backoff (>=2.2.1,<3.0.0)"
+  "ragas >=0.2.14,<0.3.0",
+  "sentry-sdk >=2.27.0,<3.0.0",
+  "ollama >=0.4.7,<0.5.0",
+  "requests >=2.32.3,<3.0.0",
+  "tqdm >=4.67.1,<5.0.0",
+  "backoff >=2.2.1,<3.0.0",
 ]
 
-[tool.poetry]
-packages = [
-    { include = "literev/*.py", from = "src" },
+[project.optional-dependencies]
+dev = [
+  "pytest >=8.3.3",
+  "pytest-cov >=5",
+  "pytest-django >=4.9.0",
+  "pre-commit >=3.0.0",
+  "bandit >=1.7.5",
+  "compose-go >=2.23.0",
+  "containers-sugar[tui] ==1.16.1",
+  "django-stubs <4.2.5",
+  "django-stubs-ext <4.2.5",
+  "django-debug-toolbar >=4.1.0",
+  "django-extensions >=3.2.3",
+  "djlint >=1.32.1",
+  "ipython >=8.14.0",
+  "jupyter >=1",
+  "jupyterlab >=4.1.4",
+  "makim ==1.20.0",
+  "mccabe >=0.7.0",
+  "mypy >=1.8",
+  "notebook >=6.5.4",
+  "pdbpp >=0.10.3",
+  "ruff >=0.1.5",
+  "vulture >=2.7",
+  "django-coverage-plugin >=3.1",
+  "djangorestframework-stubs ==3.14.2",
+  "pytest-rerunfailures >=15",
+  # build/publish tools if you want to keep them here:
+  "build >=1.3.0",
+  "twine >=6.1.0",
 ]
-#package-mode = false
 
-[[tool.poetry.source]]
-name = "pytorch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
-priority = "supplemental"
+[project.urls]
+Homepage = "https://github.com/your-org-or-user/literev"
+Issues = "https://github.com/your-org-or-user/literev/issues"
 
-[tool.poetry.dependencies]
-python = ">=3.10,<3.11"
-blis = "<1.2"
-numpy = "<2"
-torch = [
-  {version = ">=2.5.0", source="pytorch-cpu"},
+# --- setuptools (src-layout) ---
+[tool.setuptools]
+package-dir = { "" = "src" }
+include-package-data = true
+
+# Prefer the inline 'find' form to prevent accidental extra keys
+[tool.setuptools.packages]
+find = { where = ["src"], include = ["literev*", "literev_core*"] }
+
+# Ensure non-Python files land in the wheel
+[tool.setuptools.package-data]
+literev = [
+  "templates/**/*.html",
+  "templates/**/*.txt",
+  "templates/**/*.json",
+  "migrations/*.py",
+  "static/**",
 ]
-torchvision = [
-  {version = ">=0.20.0", source="pytorch-cpu"},
-]
+literev_core = ["data/**"]
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.3.3"
-jupyterlab = "^4.1.4"
-pytest-cov = ">=5"
-pytest-django = "^4.9.0"
-pre-commit = ">=3.0.0"
-bandit = ">=1.7.5"
-compose-go = ">=2.23.0"
-containers-sugar = {version = "1.16.1", extras = ["tui"]}
-django-stubs = "<4.2.5"
-django-stubs-ext = "<4.2.5"
-django-debug-toolbar = ">=4.1.0"
-django-extensions = ">=3.2.3"
-djlint = ">=1.32.1"
-ipython = ">=8.14.0"
-jupyter = ">=1"
-makim = "1.20.0"
-mccabe = ">=0.7.0"
-mypy = ">=1.8" # issue: https://github.com/typeddjango/django-stubs/issues/1802
-notebook = ">=6.5.4"
-pdbpp = ">=0.10.3"
-ruff = ">=0.1.5"
-vulture = ">=2.7"
-django-coverage-plugin = ">=3.1"
-djangorestframework-stubs = "3.14.2"
-pytest-rerunfailures = ">=15"
-
-
+# ---------------- Tool configs (copied over) ----------------
 [tool.pytest.ini_options]
 minversion = "6.0"
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 addopts = "--ds=config.settings.test -v -ra --cov=src --reuse-db --import-mode=importlib"
 pythonpath = "src"
-python_files = [
-  "tests.py",
-  "test_*.py",
-]
+python_files = ["tests.py", "test_*.py"]
 
 [tool.coverage.run]
 include = ["src/**"]
@@ -136,8 +133,6 @@ plugins = ["django_coverage_plugin"]
 exclude_dirs = ["tests", "migrations"]
 targets = "src/"
 
-
-
 [tool.vulture]
 exclude = ["tests", "migrations", "scripts"]
 ignore_decorators = []
@@ -145,75 +140,49 @@ ignore_names = []
 make_whitelist = true
 min_confidence = 80
 paths = ["src/"]
-# sort_by_size = true
 verbose = false
-
 
 [tool.ruff]
 line-length = 79
 force-exclude = true
 src = ["./src"]
-exclude = [
-  "docs",
-  "migrations",
-  "urls.py",
-  "scripts",
-]
+exclude = ["docs", "migrations", "urls.py", "scripts"]
 fix = true
 
 [tool.ruff.lint]
 ignore = ["RUF012"]
-select = [
-  # "E",   # pycodestyle
-  "F",   # pyflakes
-  # "D",   # pydocstyle
-  "YTT", # flake8-2020
-  # "PL",  # PL
-  "RUF", # Ruff-specific rules
-  "I001", # isort
-]
+select = ["F","YTT","RUF","I001"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
 
 [tool.ruff.lint.isort]
-# Use a single line between direct and from import
 lines-between-types = 1
 
 [tool.ruff.format]
 quote-style = "double"
 
-[[tool.mypy.overrides]]
-ignore_errors = true
-module = [
-  "requests",
-	"*.migrations.*",
-]
-
-
 [tool.mypy]
 mypy_path = "src/"
-plugins = [
-	"mypy_django_plugin.main",
-	"mypy_drf_plugin.main",
-]
-python_version = "3.10"
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+python_version = "3.11"
 check_untyped_defs = true
 ignore_missing_imports = true
 warn_unused_ignores = true
 warn_redundant_casts = true
 warn_unused_configs = true
 
+[[tool.mypy.overrides]]
+ignore_errors = true
+module = ["requests", "*.migrations.*"]
+
 [tool.django-stubs]
 django_settings_module = "config.settings"
-
 
 [tool.djlint]
 blank_line_after_tag="load,extends,include"
 blank_line_before_tag="load,extends,include,block"
 close_void_tags=true
-# custom_blocks="toc,example"
-# custom_html="mjml,simple-greeting,mj-\w+"
 format_attribute_template_tags=true
 format_css=true
 indent=2
@@ -222,12 +191,7 @@ max_attribute_length=3
 max_blank_lines=1
 max_line_length=80
 profile="django"
-# it is necessary to exclude src/literev/templates/tags because of the
-# following issue:
-#   - https://github.com/Riverside-Healthcare/djLint/issues/703
 exclude="src/workflow/tests,.git,docs,.eggs,src/literev/templates/tags"
-# TODO: remove from the ignore list:
-#       H013,H021,H023,D018
 ignore="H029,H005,H030,H031,H006,H013,H021,H023,D018"
 preserve_blank_lines=false
 

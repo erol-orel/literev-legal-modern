@@ -4,12 +4,11 @@ import spacy
 # library for lemmatization nlp spacy
 # remove words list of stopwords
 from lingua import Language, LanguageDetectorBuilder
-from gensim.models import phrases
-from gensim.utils import simple_preprocess
+from literev_core import phrases_compat as phrases
+from literev_core.utils import simple_preprocess
 from sklearn.feature_extraction.text import TfidfVectorizer
 import joblib
 
-from gensim.utils import simple_preprocess
 
 SUPPORTED_LANGUAGES = [Language.ENGLISH, Language.FRENCH]
 detector = LanguageDetectorBuilder.from_languages(*SUPPORTED_LANGUAGES).build()
@@ -27,7 +26,7 @@ def create_stopwords() -> set[str]:
         reader = f.read()
 
     return set(reader.splitlines())
-    
+
 def define_languages(corpus: str) -> bool:
     """Given an article corpus, determine if the article belongs to
     the list of valid languages
@@ -107,7 +106,7 @@ def lemmatization(
 ) -> str:
     #TODO: change it for french language
     """Lemmatize a list of words.
-    
+
     Parameters
     ----------
     list_words : list[str]
