@@ -129,7 +129,7 @@ class ConvertToBooleanQueryAPIView(APIView):
 
             result = gen.generate(query="", context=[natural_lenguage])
 
-            boolean_query = result.strip()
+            boolean_query = str(result).strip()
 
             return Response(
                 {"query": boolean_query}, status=status.HTTP_200_OK
@@ -168,12 +168,16 @@ class ProjectRAGbyProjectIdAPIView(APIView):
                 "You do not have permission to access this project."
             )
 
+        project_rag: None | ProjectRAG = None
         if rag_id:
             project_rag = get_object_or_404(
                 ProjectRAG, project=project, id=rag_id
             )
         else:
             project_rag = ProjectRAG.objects.filter(project=project).last()
+
+        if not project_rag:
+            return Response({}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = ProjectRAGSerializer(project_rag)
         return Response(serializer.data, status=status.HTTP_200_OK)

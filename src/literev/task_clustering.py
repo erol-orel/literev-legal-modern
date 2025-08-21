@@ -51,12 +51,12 @@ def back_clustering_documents(self, project_id: int):
         pp_documents = [
             document.preprocessed_document
             for document in documents
-            if document.preprocessed_document != ""
+            if document.preprocessed_document
         ]
         list_id_docs = [
             document.pk
             for document in documents
-            if document.preprocessed_document != ""
+            if document.preprocessed_document
         ]
     except Exception as e:
         logger.error("Error getting preprocessed Document from DB")
@@ -104,7 +104,8 @@ def back_clustering_documents(self, project_id: int):
 
     # update project best study values and number neighbour
     project.best_dbcv = best_score
-    project.number_neighbour = number_neighbour
+    # todo: error: "Project" has no attribute "number_neighbour"  [attr-defined]
+    # project.number_neighbour = number_neighbour
     project.save()
 
     # Removing old clusters

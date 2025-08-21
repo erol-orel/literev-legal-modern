@@ -239,9 +239,5 @@ def get_dict_value(dictionary: dict[str, str], key: str) -> str:
 
 @register.filter
 def document_id_by_procedure_type(procedure_type):
-    try:
-        return (
-            Document.objects.filter(procedure_type=procedure_type).first().id
-        )
-    except AttributeError:
-        return None
+    doc = Document.objects.filter(procedure_type=procedure_type).first()
+    return doc.id if doc else None

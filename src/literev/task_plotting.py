@@ -142,7 +142,7 @@ def plot_clusters(
         fig = figure(
             width=fig_width,
             height=fig_height,
-            tools=["box_zoom", "reset", "tap"],
+            tools=["box_zoom", "reset", "tap"],  # type: ignore
         )
 
     config: dict[str, list[Optional[Union[float, str, dt.date]]]] = {}
@@ -315,7 +315,7 @@ def plot_clusters(
     fig.ygrid.grid_line_color = None
 
     # removes logo
-    fig.toolbar.logo = None  # type: ignore
+    fig.toolbar.logo = None
 
     output_file(filename=path)
     save(fig, path)

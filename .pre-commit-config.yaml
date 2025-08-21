@@ -87,8 +87,8 @@ repos:
       types:
         - python
 
-    # - id: mypy
-    #   name: mypy
-    #   entry: mypy .
-    #   language: system
-    #   pass_filenames: false
+    - id: mypy
+      name: mypy
+      entry: mypy .
+      language: system
+      pass_filenames: false

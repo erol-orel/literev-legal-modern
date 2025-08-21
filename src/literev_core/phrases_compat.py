@@ -20,8 +20,8 @@ def _select_bigrams(
     min_count: int,
     pmi_threshold: float,
 ) -> Set[Pair]:
-    unig = Counter()
-    big = Counter()
+    unig: Counter = Counter()
+    big: Counter = Counter()
     total_tokens = 0
     total_bigrams = 0
 

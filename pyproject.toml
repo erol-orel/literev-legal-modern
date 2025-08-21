@@ -17,6 +17,8 @@ dependencies = [
   "elasticsearch >=8.12.1,<9.0.0",
   "django >=5.0.3",
   "django-environ >=0.10.0",
+  "django-stubs[compatible-mypy] >=5.1",
+  "django-stubs-ext >=5.1",
   "psycopg2-binary >=2.9.9",
   "celery >=5.3.6",
   "redis >=5.0.3",
@@ -61,18 +63,16 @@ dev = [
   "pre-commit >=3.0.0",
   "bandit >=1.7.5",
   "compose-go >=2.23.0",
-  "containers-sugar[tui] ==1.16.1",
-  "django-stubs <4.2.5",
-  "django-stubs-ext <4.2.5",
+  "containers-sugar[tui] ==1.18.0",
   "django-debug-toolbar >=4.1.0",
   "django-extensions >=3.2.3",
   "djlint >=1.32.1",
   "ipython >=8.14.0",
   "jupyter >=1",
   "jupyterlab >=4.1.4",
-  "makim ==1.20.0",
+  "makim ==1.27.0",
   "mccabe >=0.7.0",
-  "mypy >=1.8",
+  "mypy >=1.11.2",
   "notebook >=6.5.4",
   "pdbpp >=0.10.3",
   "ruff >=0.1.5",
@@ -163,8 +163,33 @@ lines-between-types = 1
 quote-style = "double"
 
 [tool.mypy]
-mypy_path = "src/"
-plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+mypy_path = "src/backend/"
+exclude = [
+  'tests/*',
+  'docs/*',
+  # todo: fix the following files:
+  'tableselect_workflows.py',
+  'tasks.py',
+  'table_choice.py',
+  'rag_pdf.py',
+  'nlp.py',
+  'pipeline.py',
+  'collectors.py',
+  'select_functions.py',
+  'data_files.py',
+  'literev_core/utils.py',
+  'literev_core/clustering.py  ',
+  'literev_core/preprocessing.py',
+  'document_cluster_optimization.py',
+  'scoring.py',
+  'faithfulness_metrics.py',
+  'etl.py',
+]
+plugins = [
+  "pydantic.mypy",
+  "mypy_django_plugin.main",
+  "mypy_drf_plugin.main",
+]
 python_version = "3.11"
 check_untyped_defs = true
 ignore_missing_imports = true
@@ -172,12 +197,22 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 warn_unused_configs = true
 
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+warn_untyped_fields = true
+
 [[tool.mypy.overrides]]
 ignore_errors = true
-module = ["requests", "*.migrations.*"]
+module = [
+  "requests",
+	"*.migrations.*",
+]
 
 [tool.django-stubs]
-django_settings_module = "config.settings"
+django_settings_module = "config.settings.test"
+strict_settings = false  # todo: turn it to True in the future
 
 [tool.djlint]
 blank_line_after_tag="load,extends,include"

@@ -1,8 +1,9 @@
 import logging
 
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from django.conf import settings
+from django.db.models.query import QuerySet
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -22,7 +23,7 @@ from literev.libs.table_choice import (
     update_check_list_iteration,
     update_checked_document_page,
 )
-from literev.models import Project, RefinementIteration, TableChoice
+from literev.models import Project, RefinementIteration, TableChoice, User
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,7 @@ class TableSelectHandler:
         self.order_by = order_by
         self.context = self._initialize_context()
         self.project = self._get_project()
+
         self.tablechoice = self._get_tablechoice()
         self.tablechoice_to_display = self.tablechoice.filter(to_display=True)
         self.total_documents = (
@@ -83,11 +85,11 @@ class TableSelectHandler:
 
         return project
 
-    def _get_tablechoice(self) -> Optional[TableChoice]:
+    def _get_tablechoice(self) -> QuerySet[TableChoice]:
         """Fetch table choice for the user and project."""
 
         return TableChoice.objects.filter(
-            user=self.request.user, project=self.project
+            user=cast(User, self.request.user), project=self.project
         )
 
     def _handle_iterate_action(
@@ -102,24 +104,24 @@ class TableSelectHandler:
             refinement_id=self.refinement_id
         ).count()
 
+        user = cast(User, self.request.user)
+
         if current_iterations >= iteration_limit:
             self.context["iterations_limit_exceeded"] = True
             logger.warning(f"Iteration limit reached: {current_iterations}")
         else:
             update_checked_document_page(
-                self.request.user,
+                user,
                 self.project,
                 check_list_yes,
                 check_list_no,
                 check_list_maybe,
             )
 
-            update_check_list_iteration(
-                self.request.user, self.project, self.iteration_id
-            )
+            update_check_list_iteration(user, self.project, self.iteration_id)
 
             iterate_check_list(
-                self.request.user,
+                user,
                 self.project,
                 self.refinement_id,
                 self.iteration_id,

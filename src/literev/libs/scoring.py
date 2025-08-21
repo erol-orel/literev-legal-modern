@@ -45,7 +45,7 @@ class HactarFaithfulnessLLM:
             max_tokens=1024,
             temperature=0.0,
         )
-        return resp.choices[0].message.content
+        return resp.choices[0].message.content or ""
 
     async def generate(self, prompts, **_kwargs) -> LLMResult:
         if isinstance(prompts, StringPromptValue):

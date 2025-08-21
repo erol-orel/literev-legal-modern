@@ -76,7 +76,7 @@ def convert_to_target_type(
             return target_type(value)
 
 
-def create_document_db(project: Project, document: MetaData) -> None:
+def create_document_db(project: Project, document: MetaData) -> int:
     """
     Create and save a document object in the database.
 
@@ -94,7 +94,7 @@ def create_document_db(project: Project, document: MetaData) -> None:
 
     Returns
     -------
-    None
+    int
 
     """
 

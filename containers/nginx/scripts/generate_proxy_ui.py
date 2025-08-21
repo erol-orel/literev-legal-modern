@@ -17,7 +17,9 @@ variables = {
     "upstream_port": os.environ.get("FRONTEND_HOST_PORT"),
     "certbot_root": "/var/www/certbot",
     "letsencrypt_root": "/etc/letsencrypt",
-    "domain": os.environ.get("CERTBOT_DOMAIN").split(",")[0],  # Prevents www.
+    "domain": os.environ.get("CERTBOT_DOMAIN", "").split(",")[
+        0
+    ],  # Prevents www.
 }
 
 output = nginx_template.render(variables)

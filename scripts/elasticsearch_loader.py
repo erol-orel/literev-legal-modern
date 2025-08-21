@@ -97,9 +97,9 @@ def load_data(
         )
         logger.info("Parsing raw JSON to final JSON...")
         final_json = final_json or raw_json.with_suffix(".parsed.json")
-        reader = DataReader(file_path=raw_json)
+        reader = DataReader(file_path=str(raw_json))
         data_loader = DataLoader(reader)
-        data_loader.load_into_json_file(export_path=final_json)
+        data_loader.load_into_json_file(export_path=str(final_json))
         logger.info(f"JSON file parsed and saved to {final_json}.")
     else:
         logger.info(f"Using existing final JSON file: {final_json}")
@@ -107,7 +107,7 @@ def load_data(
     logger.info(
         f"Loading data from {final_json} into Elasticsearch index: {index_to_load}"
     )
-    reader = DataReader(file_path=final_json)
+    reader = DataReader(file_path=str(final_json))
     data_loader = DataLoader(reader)
     data_loader.load_into_es(es_client=es_client, index_name=index_to_load)
     logger.info("Data loaded successfully.")

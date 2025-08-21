@@ -1,9 +1,10 @@
 backend: compose
 env-file: .env
 defaults:
-  group: ${{ env.SUGAR_ENV or env.ENV }}
+  profile: ${{ env.SUGAR_ENV or env.ENV or "dev" }}
   project-name: literev-legal${{ env.DOCKER_PROJECT_NAME }}
-groups:
+
+profiles:
   prod:
     config-path:
       - containers/compose.base.yaml
@@ -11,7 +12,13 @@ groups:
       - containers/compose.elasticsearch.yaml
     env-file: .env
     services:
-      default: literev,literev-postgres,literev-redis,literev-celery,literev-nginx,certbot
+      default:
+        - literev
+        - literev-postgres
+        - literev-redis
+        - literev-celery
+        - literev-nginx
+        - certbot
       available:
         - name: literev
         - name: literev-postgres
@@ -32,7 +39,11 @@ groups:
       - containers/compose.elasticsearch.yaml
     env-file: .env
     services:
-      default: literev,literev-postgres,literev-redis,literev-celery
+      default:
+        - literev
+        - literev-postgres
+        - literev-redis
+        - literev-celery
       available:
         - name: literev
         - name: literev-postgres
@@ -47,7 +58,10 @@ groups:
       - containers/compose.dev.yaml
     env-file: .env
     services:
-      default: literev-postgres,literev-redis,literev-celery
+      default:
+        - literev-postgres
+        - literev-redis
+        - literev-celery
       available:
         - name: literev-postgres
         - name: literev-redis
@@ -59,7 +73,9 @@ groups:
       - containers/compose.dev.yaml
     env-file: .env
     services:
-      default: literev-postgres,literev-redis
+      default:
+        - literev-postgres
+        - literev-redis
       available:
         - name: literev-postgres
         - name: literev-redis

@@ -18,7 +18,10 @@ import os
 
 from pathlib import Path
 
+import django_stubs_ext
 import environ
+
+django_stubs_ext.monkeypatch()
 
 # Ensure that logging captures warnings issued by warnings.warn()
 logging.captureWarnings(True)
@@ -78,7 +81,7 @@ DJANGO_APPS = [
     "django.contrib.sites",
 ]
 
-THIRD_PARTY_APPS = []
+THIRD_PARTY_APPS: list[str] = []
 
 LOCAL_CONFIG_APP = ["literev.apps.LiterevConfig"]
 

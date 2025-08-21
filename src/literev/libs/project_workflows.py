@@ -4,10 +4,12 @@ import datetime
 import json
 
 from itertools import chain
-from typing import Any, Optional
+from typing import Any, Optional, TypedDict, cast
 
 from django.conf import settings
 from django.db.models import Count
+from django.db.models.query import QuerySet
+from django_stubs_ext import WithAnnotations
 
 from literev.libs.select_functions import (
     get_filtered_document,
@@ -27,6 +29,16 @@ from literev.task_plotting import get_color_map
 from literev.tasks import (
     get_shared_projects_ids,
 )
+
+
+class _Ann(TypedDict):
+    # only the annotated fields go here
+    total_documents: int
+
+
+class TopicCountRow(TypedDict):
+    topic: str
+    total_documents: int
 
 
 def load_plot_data(project_pk: int) -> dict[str, str]:
@@ -103,7 +115,9 @@ def extract_refined_list(
     return sorted(refined_set)
 
 
-def get_grouped_clusters(project: Project) -> list[dict]:
+def get_grouped_clusters(
+    project: Project,
+) -> QuerySet[WithAnnotations[Cluster, _Ann], TopicCountRow]:
     """
     Return grouped clusters with total documents.
 
@@ -118,19 +132,22 @@ def get_grouped_clusters(project: Project) -> list[dict]:
 
     Returns
     -------
-    list[dict]
+    QuerySet[WithAnnotations[Cluster, _Ann], TopicCountRow]
         A list of dictionaries, each with a "topic" key and a
         "total_documents" key.
     """
-    return (
+    qs = (
         Cluster.objects.filter(project=project)
         .values("topic")
         .annotate(total_documents=Count("clusterelement__document"))
         .order_by("order")
     )
+    return cast("QuerySet[WithAnnotations[Cluster, _Ann], TopicCountRow]", qs)
 
 
-def format_grouped_clusters(grouped_clusters: list[dict]) -> list[str]:
+def format_grouped_clusters(
+    grouped_clusters: QuerySet[WithAnnotations[Cluster, _Ann], TopicCountRow],
+) -> list[str]:
     """
     Format the grouped clusters for display.
 
@@ -151,7 +168,7 @@ def format_grouped_clusters(grouped_clusters: list[dict]) -> list[str]:
     UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
 
     index = 0
-    list_topic_10 = []
+    list_topic_10: list[str] = []
     exists_unclassified = False
 
     for cluster in grouped_clusters:
@@ -297,7 +314,10 @@ def projectpage_load_final_results(user, project: Project) -> dict[str, Any]:
             "NO RESULT",
         ],
         "refinements": refinements,
+        # todo: just used for typing, should be added explicitly
+        "tmp": Cluster.objects.filter(id=-1),
     }
+    del context_data["tmp"]
 
     if project.selected_indices == ["civil_court"]:
         context_data["is_civil_court"] = True

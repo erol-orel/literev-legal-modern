@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 CLUSTERING_MIN_DOCUMENTS = settings.CLUSTERING_MIN_DOCUMENTS
 
 
-def get_shared_projects_ids() -> None:
+def get_shared_projects_ids() -> list[int]:
     return [
         project.id
         for project in Project.objects.filter(

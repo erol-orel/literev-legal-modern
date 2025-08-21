@@ -2,18 +2,15 @@
 import datetime
 import logging
 
-from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 
 from literev.libs.collectors import ElasticSearchCollector
-from literev.models import Project
+from literev.models import Project, User
 from literev.tasks import launch_process
 
 # Configure logging for this script
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
-
-User = get_user_model()
 
 
 def process_all_documents(

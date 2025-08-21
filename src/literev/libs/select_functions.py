@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import json
 import logging
 import os
@@ -11,6 +12,7 @@ import pandas as pd
 
 from django.conf import settings
 from django.db.models import Q
+from django.db.models.query import QuerySet
 from django.http import HttpResponse
 
 from literev.models import (
@@ -53,7 +55,7 @@ def create_final_file(project: Project) -> str:
     )
 
     # create the csv file from a dictionary
-    metadata: dict[str, list[int | str]] = {}
+    metadata: dict[str, list[int | str | None | datetime.date]] = {}
 
     if exist_clusters:
         metadata["number_cluster"] = []
@@ -170,14 +172,14 @@ def add_tooltips_topic(text: str, topic_dict: dict[str, str]) -> str:
 
 
 def get_rendered_filters(
-    filters: dict[str, str],
+    filters: dict[str, dict[str, list[str]]],
 ) -> tuple[str, str]:
     """
     Returns a formatted filter for refinements.
 
     Parameters
     ----------
-    filters : str
+    filters : dict[str, dict[str, list[str]]]
         raw filters
 
     Returns
@@ -195,7 +197,7 @@ def get_rendered_filters(
     for filter_type, filter_content in filters.items():
         if "union" in filter_type:
             row = ""
-            set_items = []
+            set_items: list[str] = []
             for k, v in filter_content.items():
                 for val in v:
                     if k == "Topic":
@@ -398,7 +400,7 @@ def apply_filters(
 
 def get_documents_by_topic(project: Project, topics: list[str]) -> set[int]:
     """Retrieve document IDs filtered by topic."""
-    result = set()
+    result: set[QuerySet[ClusterElement, int]] = set()
 
     for topic in topics:
         if topic == UNCLASSIFIED_PAPERS_TOPIC:

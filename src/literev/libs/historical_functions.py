@@ -41,7 +41,7 @@ def get_projects_list(project_id_list: list[int]) -> QuerySet[Project]:
 
 def filter_and_sort_projects(
     user: User, keywords: list[str], sort_type: str
-) -> list[Project]:
+) -> QuerySet[Project]:
     """
     Filter project by keywords and sort by ClusterElements count.
 
@@ -93,7 +93,7 @@ def filter_and_sort_projects(
     return get_projects_list(sorted_id_list)
 
 
-def sort_all_projects(user: User, sort_type: str) -> list[Project]:
+def sort_all_projects(user: User, sort_type: str) -> QuerySet[Project]:
     """
     Sorts project by ClusterElements count.
 

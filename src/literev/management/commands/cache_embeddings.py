@@ -116,8 +116,8 @@ def process_document_worker(
 
 def _process_documents_with_threadpool(
     documents: list, embedder: HactarAug, max_workers=MAX_WORKERS
-) -> tuple:
-    failed_docs_info = []
+) -> tuple[int, int, int, list[tuple[str, str]]]:
+    failed_docs_info: list[tuple[str, str]] = []
     successful_docs_count = 0
     total_chunks_processed = 0
     total_tokens_processed = 0
@@ -157,8 +157,8 @@ def _process_documents_with_threadpool(
 
 
 def _handle_future(
-    future, original_doc_id: str, failed_docs_info: list, pbar
-) -> tuple:
+    future, original_doc_id: str, failed_docs_info: list[tuple[str, str]], pbar
+) -> tuple[str, bool, int, int]:
     try:
         doc_id, success, message, num_chunks, num_tokens = future.result()
         if not success:

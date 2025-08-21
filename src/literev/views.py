@@ -145,7 +145,7 @@ def search_search(
 def search_continue(
     request: HttpRequest, context: dict[str, Any]
 ) -> dict[str, Any]:
-    user = request.user
+    user = cast(User, request.user)
     project_name = request.session["project_name"]
     query = request.session["query"]
     range_begin_date = datetime.datetime.strptime(
@@ -337,13 +337,14 @@ def projectpage(
     HttpResponse
         Rendered response for the project page.
     """
-    user = request.user
-    context = {"errors": []}
-    actual_user = request.user
+    user = cast(User, request.user)
+    actual_user = cast(User, request.user)
+    errors: list[str] = []
+    context: dict[str, list[str] | bool | int] = {"errors": errors}
 
-    project = validate_project_access(user, project_id)
+    project = validate_project_access(user, project_id) if project_id else None
     if not project:
-        context["errors"].append("Project not found or access denied.")
+        errors.append("Project not found or access denied.")
         return redirect(reverse("search"))
 
     if not (

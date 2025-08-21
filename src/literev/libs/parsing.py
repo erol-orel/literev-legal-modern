@@ -48,12 +48,12 @@ class LogicalOperatorError(ExpressionValidationError):
 class TokenKind(Enum):
     """TokenKind enumeration for known token types."""
 
-    SUBJECT: int = 1
-    CONNECTOR_AND: int = 2
-    CONNECTOR_OR: int = 3
-    NEGATION_NOT: int = 4
-    OPEN_PARENTHESIS: int = 5
-    CLOSE_PARENTHESIS: int = 6
+    SUBJECT = 1
+    CONNECTOR_AND = 2
+    CONNECTOR_OR = 3
+    NEGATION_NOT = 4
+    OPEN_PARENTHESIS = 5
+    CLOSE_PARENTHESIS = 6
 
 
 TOKEN_MAP = {
