@@ -17,7 +17,7 @@ import json
 import statistics
 import time
 
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Sequence, Tuple, cast
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
@@ -184,8 +184,8 @@ class Command(BaseCommand):
                     provider,
                     model_name,
                     project_rag.query,
-                    d["answer"],
-                    d["context"],
+                    cast(str, d["answer"]),
+                    cast(List[str], d["context"]),
                 )
                 for d in docs
             ]

@@ -60,7 +60,7 @@ def update_prepared_document(
 
 
 def prepare_document(document: Document) -> Optional[str]:
-    corpus = document.raw_document_text
+    corpus = document.raw_document_text or ""
     if not define_languages(corpus):
         logging.info(
             f"discarting, not french: {document.raw_document_id} pk: {document.raw_document_id}"
@@ -96,7 +96,9 @@ def preprocess_documents(list_trigrams: list[list[str]]) -> list[str]:
     return corpuses_wo_common_and_unique
 
 
-def preprocessing_mp(pk_list: list[int], corpuses: list[str]) -> list[str]:
+def preprocessing_mp(
+    pk_list: list[int], corpuses: list[str]
+) -> tuple[set[int], list[str]]:
     prepared_for_ngrams_dict = {}
     prepared_for_ngrams = []
     rejected = set()

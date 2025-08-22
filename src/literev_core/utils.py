@@ -210,12 +210,10 @@ def create_ngrams(
 
     sentence_stream = [doc.split(" ") for doc in corpus_list]
 
-    bigram = phrases.Phrases(
-        sentence_stream, min_count=2, threshold=0.85, scoring="npmi"
-    )
+    bigram = phrases.Phrases(sentence_stream, min_count=2, threshold=0.85)
 
     trigram = phrases.Phrases(
-        bigram[sentence_stream], min_count=2, threshold=0.85, scoring="npmi"
+        bigram[sentence_stream], min_count=2, threshold=0.85
     )
 
     bigram_frozen = phrases.FrozenPhrases(bigram)

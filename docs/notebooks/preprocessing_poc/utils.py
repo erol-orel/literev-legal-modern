@@ -178,11 +178,11 @@ def create_ngrams(
     # threshold to 0.85
     # threshold to 0.85
     bigram = phrases.Phrases(
-        sentence_stream, min_count=2, threshold=0.85, scoring="npmi"
+        sentence_stream, min_count=2, threshold=0.85
     )
 
     trigram = phrases.Phrases(
-        bigram[sentence_stream], min_count=2, threshold=0.85, scoring="npmi"
+        bigram[sentence_stream], min_count=2, threshold=0.85
     )
 
     bigram_frozen = phrases.FrozenPhrases(bigram)

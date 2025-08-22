@@ -4,10 +4,29 @@ from __future__ import annotations
 
 from collections import Counter
 from math import log2
-from typing import Iterable, List, Sequence, Set, Tuple
+from typing import (
+    AbstractSet,
+    Dict,
+    FrozenSet,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Protocol,
+    Sequence,
+    Set,
+    Tuple,
+    overload,
+)
 
 Doc = List[str]
+Corpus = Iterable[Doc]
 Pair = Tuple[str, str]
+
+# Optional: shipped by gensim; included here to ease migration
+ENGLISH_CONNECTOR_WORDS: FrozenSet[str] = frozenset(
+    "a an the for of with without at from to in on by and or".split()
+)
 
 
 def _bigrams(doc: Sequence[str]) -> Iterable[Pair]:
@@ -15,13 +34,28 @@ def _bigrams(doc: Sequence[str]) -> Iterable[Pair]:
         yield (doc[i], doc[i + 1])
 
 
+def _is_single(obj: Iterable[object]) -> Tuple[bool, Iterable[object]]:
+    it = iter(obj)
+    tmp = it
+    try:
+        first = next(it)
+        it = (x for x in (first, *it))
+    except StopIteration:
+        return True, obj
+    if isinstance(first, str):
+        return True, it
+    if tmp is obj:
+        return False, it
+    return False, obj
+
+
 def _select_bigrams(
-    docs: Iterable[Doc],
+    docs: Corpus,
     min_count: int,
     pmi_threshold: float,
-) -> Set[Pair]:
-    unig: Counter = Counter()
-    big: Counter = Counter()
+) -> Dict[Pair, float]:
+    unig: Counter[str] = Counter()
+    big: Counter[Pair] = Counter()
     total_tokens = 0
     total_bigrams = 0
 
@@ -32,10 +66,10 @@ def _select_bigrams(
         total_bigrams += len(bs)
         big.update(bs)
 
-    sel: Set[Pair] = set()
     denom_tok = max(1, total_tokens)
     denom_big = max(1, total_bigrams)
 
+    selected: Dict[Pair, float] = {}
     for (w1, w2), c12 in big.items():
         if c12 < min_count:
             continue
@@ -46,11 +80,11 @@ def _select_bigrams(
             continue
         pmi = log2(p12 / (p1 * p2))
         if pmi >= pmi_threshold:
-            sel.add((w1, w2))
-    return sel
+            selected[(w1, w2)] = pmi
+    return selected
 
 
-def _merge(doc: Doc, selected: Set[Pair], sep: str) -> Doc:
+def _merge(doc: Doc, selected: AbstractSet[Pair], sep: str) -> Doc:
     out: Doc = []
     i, n = 0, len(doc)
     while i < n:
@@ -63,31 +97,118 @@ def _merge(doc: Doc, selected: Set[Pair], sep: str) -> Doc:
     return out
 
 
+def _apply(
+    sentences: Corpus, selected: AbstractSet[Pair], sep: str
+) -> Iterator[Doc]:
+    for d in sentences:
+        yield _merge(d, selected, sep)
+
+
+class _HasSelected(Protocol):
+    selected: AbstractSet[Pair]
+    sep: str
+
+
 class Phrases:
     """
-    Gensim-like interface backed by PMI.
-    `threshold` maps to a PMI cutoff (try 5-8 to mimic gensim's 10-ish).
+    Gensim-like interface backed by PMI. Only adjacent bigrams are merged.
+    `threshold` maps roughly to a PMI cutoff (`~0.7 * gensim_threshold`).
     """
 
     def __init__(
         self,
-        sentences: Iterable[Doc],
+        sentences: Optional[Corpus] = None,
         min_count: int = 5,
         threshold: float = 10.0,
-        sep: str = "_",
-    ):
-        self.sep = sep
-        # Heuristic mapping: gensim threshold≈10 → PMI≈6-8 works well in practice.
+        max_vocab_size: int = 0,  # ignored; present for signature compatibility
+        delimiter: str = "_",
+        progress_per: int = 0,  # ignored
+        scoring: str = "default",  # ignored; PMI is used
+        connector_words: AbstractSet[str] = frozenset(),
+    ) -> None:
+        self.sep: str = delimiter
+        self.min_count: int = int(min_count)
+        self.threshold: float = float(threshold)
+        self.connector_words: FrozenSet[str] = frozenset(connector_words)
+
+        # Heuristic mapping: gensim threshold≈10 → PMI≈6-8
         pmi_threshold = max(1.0, float(threshold) * 0.7)
-        self.selected = _select_bigrams(
-            sentences, min_count=min_count, pmi_threshold=pmi_threshold
-        )
+
+        self._selected: Dict[Pair, float] = {}
+        if sentences is not None:
+            sel = _select_bigrams(
+                sentences,
+                min_count=self.min_count,
+                pmi_threshold=pmi_threshold,
+            )
+            self._selected.update(sel)
+
+        # Expose gensim-like attributes
+        self.phrasegrams: Dict[str, float] = {
+            f"{a}{self.sep}{b}": score
+            for (a, b), score in self._selected.items()
+        }
+
+    @property
+    def selected(self) -> Set[Pair]:
+        # set view for merging
+        return set(self._selected.keys())
+
+    def export_phrases(self) -> Dict[str, float]:
+        return dict(self.phrasegrams)
+
+    def freeze(self) -> FrozenPhrases:
+        return FrozenPhrases(self)
+
+    @overload
+    def __getitem__(self, sentence: Doc) -> Doc: ...
+    @overload
+    def __getitem__(self, sentence: Corpus) -> Iterable[Doc]: ...
+    def __getitem__(self, sentence: Doc | Corpus) -> Doc | Iterable[Doc]:
+        is_single, it = _is_single(sentence)
+        if not is_single:
+            return _apply(it, self.selected, self.sep)  # type: ignore[arg-type]
+        return _merge(sentence, self.selected, self.sep)  # type: ignore[arg-type]
 
 
-class Phraser:
-    def __init__(self, phrases: Phrases):
-        self.selected = phrases.selected
-        self.sep = phrases.sep
+class FrozenPhrases:
+    """
+    Read-only applier compatible with gensim's FrozenPhrases for typical usage:
+    - created via Phrases.freeze() or FrozenPhrases(Phrases)
+    - indexable for single sentence or corpus
+    """
 
-    def __getitem__(self, doc: Doc) -> Doc:
-        return _merge(doc, self.selected, self.sep)
+    def __init__(self, phrases_model: Phrases | _HasSelected) -> None:
+        if isinstance(phrases_model, Phrases):
+            self.sep: str = phrases_model.sep
+            self.threshold: float = phrases_model.threshold
+            self.min_count: int = phrases_model.min_count
+            self.connector_words: FrozenSet[str] = (
+                phrases_model.connector_words
+            )
+            self.phrasegrams: Dict[str, float] = phrases_model.export_phrases()
+            self._selected: Set[Pair] = phrases_model.selected
+        else:
+            # Accept a minimal “phraser-like” object (selected + sep)
+            self.sep = phrases_model.sep
+            self.threshold = 0.0
+            self.min_count = 1
+            self.connector_words = frozenset()
+            self._selected = set(phrases_model.selected)
+            self.phrasegrams = {
+                f"{a}{self.sep}{b}": 1.0 for (a, b) in self._selected
+            }
+
+    @overload
+    def __getitem__(self, sentence: Doc) -> Doc: ...
+    @overload
+    def __getitem__(self, sentence: Corpus) -> Iterable[Doc]: ...
+    def __getitem__(self, sentence: Doc | Corpus) -> Doc | Iterable[Doc]:
+        is_single, it = _is_single(sentence)
+        if not is_single:
+            return _apply(it, self._selected, self.sep)  # type: ignore[arg-type]
+        return _merge(sentence, self._selected, self.sep)  # type: ignore[arg-type]
+
+
+# Back-compat alias like gensim:
+Phraser = FrozenPhrases

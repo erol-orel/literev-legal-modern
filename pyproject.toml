@@ -177,13 +177,6 @@ exclude = [
   'collectors.py',
   'select_functions.py',
   'data_files.py',
-  'literev_core/utils.py',
-  'literev_core/clustering.py  ',
-  'literev_core/preprocessing.py',
-  'document_cluster_optimization.py',
-  'scoring.py',
-  'faithfulness_metrics.py',
-  'etl.py',
 ]
 plugins = [
   "pydantic.mypy",

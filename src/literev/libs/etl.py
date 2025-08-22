@@ -274,7 +274,9 @@ class DataLoader:
         logger.info(f"Total documents in the file: {total_documents_in_file}")
 
         if chamber:
-            documents = self.filter_by_chamber(chamber)
+            # TODO: Check if it is still necessary
+            # documents = self.filter_by_chamber(chamber)
+            raise Exception("filter_by_chamber wasn't implemented yet")
         else:
             documents = self.reader.read_data()
 

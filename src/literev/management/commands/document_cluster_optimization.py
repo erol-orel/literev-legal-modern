@@ -49,7 +49,7 @@ def _retrieve_best_study(
     return best_study_clusterer, best_study.score
 
 
-def _pacmap_default(tf_idf: csr_matrix) -> npt.NDArray[np.float_]:
+def _pacmap_default(tf_idf: csr_matrix) -> npt.NDArray[np.float64]:
     np.random.seed(set_seed)
 
     # For random seed check if is needed to set for numpy as well
@@ -70,7 +70,7 @@ def _pacmap_default(tf_idf: csr_matrix) -> npt.NDArray[np.float_]:
     #         n_components=2, copy="FALSE", random_state=set_seed
     #     )
     #     return cast(
-    #         npt.NDArray[np.float_],
+    #         npt.NDArray[np.float64],
     #         embedding_2d_pca.fit_transform(tf_idf.toarray()),
     #     )
 
@@ -86,7 +86,7 @@ def _pacmap_default(tf_idf: csr_matrix) -> npt.NDArray[np.float_]:
     )
 
     return cast(
-        npt.NDArray[np.float_],
+        npt.NDArray[np.float64],
         embedding_2d_pacmap.fit_transform(tf_idf.toarray(), init="random"),
     )
 

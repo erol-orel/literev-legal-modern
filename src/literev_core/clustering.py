@@ -250,7 +250,7 @@ def retrieve_best_study(
 #     return study
 
 
-def pacmap_default(tf_idf: csr_matrix) -> npt.NDArray[np.float_]:
+def pacmap_default(tf_idf: csr_matrix) -> npt.NDArray[np.float64]:
     np.random.seed(set_seed)
 
     # For random seed check if is needed to set for numpy as well
@@ -271,7 +271,7 @@ def pacmap_default(tf_idf: csr_matrix) -> npt.NDArray[np.float_]:
     #         n_components=2, copy="FALSE", random_state=set_seed
     #     )
     #     return cast(
-    #         npt.NDArray[np.float_],
+    #         npt.NDArray[np.float64],
     #         embedding_2d_pca.fit_transform(tf_idf.toarray()),
     #     )
 
@@ -287,7 +287,7 @@ def pacmap_default(tf_idf: csr_matrix) -> npt.NDArray[np.float_]:
     )
 
     return cast(
-        npt.NDArray[np.float_],
+        npt.NDArray[np.float64],
         embedding_2d_pacmap.fit_transform(tf_idf.toarray(), init="random"),
     )
 
@@ -385,7 +385,7 @@ def cluster_corpuses(
     number_trials: int = 30,
     number_jobs: int = 2,
 ) -> tuple[
-    npt.NDArray[np.float_],
+    npt.NDArray[np.float64],
     hdbscan.HDBSCAN,
     scipy.sparse.csr_matrix,
     npt.NDArray[np.str_],
