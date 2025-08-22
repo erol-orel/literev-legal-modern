@@ -6,13 +6,12 @@ import logging
 import os
 import re
 
-from typing import Any
+from typing import Any, Iterable
 
 import pandas as pd
 
 from django.conf import settings
 from django.db.models import Q
-from django.db.models.query import QuerySet
 from django.http import HttpResponse
 
 from literev.models import (
@@ -400,7 +399,7 @@ def apply_filters(
 
 def get_documents_by_topic(project: Project, topics: list[str]) -> set[int]:
     """Retrieve document IDs filtered by topic."""
-    result: set[QuerySet[ClusterElement, int]] = set()
+    result: set[int] = set()
 
     for topic in topics:
         if topic == UNCLASSIFIED_PAPERS_TOPIC:
@@ -416,7 +415,6 @@ def get_documents_by_topic(project: Project, topics: list[str]) -> set[int]:
                 cluster__topic__icontains=prepared_topic,
             ).values_list("document__pk", flat=True)
             result.update(cluster_elements)
-
     return result
 
 
@@ -424,7 +422,7 @@ def get_documents_by_descriptor(
     project: Project, descriptors: list[str]
 ) -> set[int]:
     """Retrieve document IDs filtered by descriptors."""
-    result = set()
+    result: set[int] = set()
     no_clusters = (
         Document.objects.filter(project=project).count()
         < CLUSTERING_MIN_DOCUMENTS
@@ -451,7 +449,7 @@ def get_documents_by_descriptor(
 
 def get_documents_by_norm(project: Project, norms: list[str]) -> set[int]:
     """Retrieve document IDs filtered by norm."""
-    result = set()
+    result: set[int] = set()
     no_clusters = (
         Document.objects.filter(project=project).count()
         < CLUSTERING_MIN_DOCUMENTS
@@ -475,10 +473,10 @@ def get_documents_by_norm(project: Project, norms: list[str]) -> set[int]:
 
 
 def get_documents_by_keyword(
-    project: Project, keywords: list[str]
+    project: Project, keywords: Iterable[str]
 ) -> set[int]:
     """Retrieve document IDs filtered by keyword."""
-    result = set()
+    result: set[int] = set()
     no_clusters = (
         Document.objects.filter(project=project).count()
         < CLUSTERING_MIN_DOCUMENTS
@@ -507,7 +505,7 @@ def get_documents_by_no_decis(
     project: Project, no_decis: list[str]
 ) -> set[int]:
     """Retrieve document IDs filtered by 'no_decis'."""
-    result = set()
+    result: set[int] = set()
     no_clusters = (
         Document.objects.filter(project=project).count()
         < CLUSTERING_MIN_DOCUMENTS
@@ -532,7 +530,7 @@ def get_documents_by_chamber(
     project: Project, chambers: list[str]
 ) -> set[int]:
     """Retrieve document IDs filtered by 'chamber'."""
-    result = set()
+    result: set[int] = set()
     no_clusters = (
         Document.objects.filter(project=project).count()
         < CLUSTERING_MIN_DOCUMENTS
@@ -553,7 +551,7 @@ def get_documents_by_chamber(
 
 def get_documents_by_result(project: Project, results: list[str]) -> set[int]:
     """Retrieve document IDs filtered by result."""
-    result = set()
+    result: set[int] = set()
     no_clusters = (
         Document.objects.filter(project=project).count()
         < CLUSTERING_MIN_DOCUMENTS
@@ -578,7 +576,7 @@ def get_documents_by_year_range(
     project: Project, year_ranges: list[str]
 ) -> set[int]:
     """Retrieve document IDs filtered by year range."""
-    result = set()
+    result: set[int] = set()
     no_clusters = (
         Document.objects.filter(project=project).count()
         < CLUSTERING_MIN_DOCUMENTS

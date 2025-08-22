@@ -175,8 +175,6 @@ exclude = [
   'nlp.py',
   'pipeline.py',
   'collectors.py',
-  'select_functions.py',
-  'data_files.py',
 ]
 plugins = [
   "pydantic.mypy",

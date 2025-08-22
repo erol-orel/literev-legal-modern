@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import cast
+
 import joblib
 import pandas as pd
 
@@ -6,7 +10,7 @@ from django.conf import settings
 from literev.models import Project
 
 
-def load_tfidf_keywords(project: Project) -> set[str]:
+def load_tfidf_keywords(project: Project) -> list[str]:
     """
     Loads saved keywords
 
@@ -20,10 +24,13 @@ def load_tfidf_keywords(project: Project) -> set[str]:
     list[str]
         List of saved tfidif keywords for the project.
     """
+    # TODO: where this file is created?
+    #       it seems the code that create the file is commented out
+    #       in the task_clustering.py
     path = settings.ARTICLE_DATA / f"tfidf_keywords_project_{project.id}.pkl"
 
     if not path.exists():
-        return []
+        return cast(list[str], [])
 
     keywords_list = joblib.load(path)
 
