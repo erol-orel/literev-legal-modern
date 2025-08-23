@@ -169,10 +169,8 @@ exclude = [
   'docs/*',
   # todo: fix the following files:
   'tableselect_workflows.py',
-  'tasks.py',
   'table_choice.py',
   'rag_pdf.py',
-  'nlp.py',
   'pipeline.py',
   'collectors.py',
 ]

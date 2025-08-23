@@ -67,6 +67,11 @@ def running_delete(project_id: str | int) -> None:
         return
 
     project = Project.objects.filter(pk=project_id).first()
+
+    if not project:
+        logging.debug(f"There is no project with id: {project_id}")
+        return
+
     # Using try and except in case the project is finish
     try:
         task_id = project.actual_task_code
@@ -225,8 +230,8 @@ def back_get_documents(self, project_id: int) -> bool:
 
 
 def get_top_docs_by_es(
-    project: Project, documents: QuerySet[Document], n: int = 1
-) -> list[Document] | None:
+    project: Project, documents: list[Document], n: int = 1
+) -> list[Document]:
     scores = get_es_scores(project)
 
     if scores:
@@ -234,14 +239,14 @@ def get_top_docs_by_es(
         top10_docs = sorted_tablechoice[:n]
         return top10_docs
 
-    return None
+    return []
 
 
 @app.task(bind=True)
-def get_nl_rag_ans(self, project_id: int) -> int | None:
+def get_nl_rag_ans(self, project_id: int) -> None:
     project = Project.objects.get(id=project_id)
     if not project.natural_language_query:
-        return
+        return None
 
     project = Project.objects.get(id=project_id)
     project.step = "question-answering"
@@ -257,7 +262,10 @@ def get_nl_rag_ans(self, project_id: int) -> int | None:
 
     upper_limit = number_documents
 
-    top_docs = get_top_docs_by_es(project, documents, upper_limit)
+    top_docs = get_top_docs_by_es(project, list(documents), upper_limit)
+    if not top_docs:
+        return None
+
     docs_ids = [doc.id for doc in top_docs]
 
     rag = RagAnswersManager(
@@ -268,6 +276,8 @@ def get_nl_rag_ans(self, project_id: int) -> int | None:
     max_doc_ans = min(10, number_documents)
 
     rag.run_pipeline(max_doc_ans=max_doc_ans)
+
+    return None
 
 
 @app.task(bind=True)
@@ -556,7 +566,7 @@ def divide_in_chunks_query(
 
     for i in range(0, total, batch_size):
         end = min(i + batch_size, total)
-        yield query_set[i:end]
+        yield list(query_set[i:end])
 
 
 def launch_update_process(

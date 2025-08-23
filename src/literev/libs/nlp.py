@@ -13,7 +13,7 @@ import tiktoken
 
 from django.conf import settings
 from openai import OpenAI
-from rago.augmented import OpenAIAug
+from rago.augmented import AugmentedBase, OpenAIAug
 from rago.extensions.cache import CacheFile
 from rago.retrieval import StringRet
 
@@ -102,7 +102,9 @@ def get_top_documents_from_cluster(
             f"Could not load HDBSCAN data for project {cluster.project.id}"
         )
         logger.error(e)
-        return Document.objects.filter(clusterelement__cluster=cluster)[:n]
+        return list(
+            Document.objects.filter(clusterelement__cluster=cluster)[:n]
+        )
 
 
 # Available models from hactar.unige.ch
@@ -140,7 +142,9 @@ current_model = MODEL_SPECS.get(
     LLM_MODEL, {"context_size": 128000, "encoding": "cl100k_base"}
 )
 LLM_MODEL_MAX_TOKENS = (
-    current_model["context_size"] if USE_HACTAR_LLM else GPT_MODEL_MAX_TOKENS
+    cast(int, current_model["context_size"])
+    if USE_HACTAR_LLM
+    else GPT_MODEL_MAX_TOKENS
 )
 TOKEN_LIMIT = LLM_MODEL_MAX_TOKENS - MAX_TOKENS_RESPONSE - 200
 RELEVANT_K = 10  # Number of relevant documents to consider when asking RAG
@@ -310,7 +314,9 @@ def build_prompt(cluster: Cluster, USE_HACTAR_LLM: bool) -> str:
 
     prompt_fragments: list[str] = []
     enc = tiktoken.get_encoding(
-        MODEL_SPECS.get(LLM_MODEL, {}).get("encoding", "cl100k_base")
+        cast(
+            str, MODEL_SPECS.get(LLM_MODEL, {}).get("encoding", "cl100k_base")
+        )
     )
 
     retrieval_prompt = (
@@ -367,23 +373,30 @@ def build_prompt(cluster: Cluster, USE_HACTAR_LLM: bool) -> str:
     prompt = prompt_template.format(keywords=cluster.topic)
 
     for i, document in enumerate(documents, start=1):
-        chunks = prepare_chunks(document.raw_document_text)
+        chunks = prepare_chunks(document.raw_document_text or "")
 
         retrieval = StringRet(chunks)
 
         if USE_HACTAR_LLM:
-            augmented = HactarAug(
-                api_key=settings.HACTAR_API_KEY,
-                top_k=5,
-                model_name="mxbai-embed-large:latest",  # model_name="nomic-embed-text", # suggested model to embed
-                cache=AUG_CACHE,
+            augmented = cast(
+                AugmentedBase,
+                HactarAug(
+                    api_key=settings.HACTAR_API_KEY,
+                    top_k=5,
+                    model_name="mxbai-embed-large:latest",  # model_name="nomic-embed-text", # suggested model to embed
+                    cache=AUG_CACHE,
+                ),
             )
+
         else:
-            augmented = OpenAIAug(
-                api_key=settings.OPENAI_API_KEY,
-                top_k=5,
-                model_name="text-embedding-ada-002",
-                cache=AUG_CACHE,
+            augmented = cast(
+                AugmentedBase,
+                OpenAIAug(
+                    api_key=settings.OPENAI_API_KEY,
+                    top_k=5,
+                    model_name="text-embedding-ada-002",
+                    cache=AUG_CACHE,
+                ),
             )
 
         # Getting relevant chunks
@@ -391,10 +404,10 @@ def build_prompt(cluster: Cluster, USE_HACTAR_LLM: bool) -> str:
         document_context = augmented.search(rag_query, ret_data)
 
         # For now only get the chunk which got the best score
-        document_context = document_context[-1].replace("\n", "")
-        logger.info(f"document context : {document_context}")
+        document_context_str = document_context[-1].replace("\n", "")
+        logger.info(f"document context : {document_context_str}")
 
-        prompt_fragments.append(f"\ndocument {i} : " + document_context)
+        prompt_fragments.append(f"\ndocument {i} : " + document_context_str)
 
         if (len(enc.encode(prompt + "".join(prompt_fragments)))) > TOKEN_LIMIT:
             logger.warning(
