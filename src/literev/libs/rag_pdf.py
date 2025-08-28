@@ -252,33 +252,25 @@ class OpenAIAnswerClient:
         )
 
         rag_answer = rag.prompt(query)
+
         citation_context = rag.logs.get("augmented", {}).get("result", [])
 
-        if not isinstance(rag_answer, RAGAnswer):
-            return None
-
-        retrieved_answer = rag_answer.answer.strip().lower()
-
-        not_valid_answers = [
-            "réponse non disponible",
-            "no content available",
-            "error generating response",
-            "no content available",
-        ]
-
-        if not retrieved_answer or any(
-            retrieved_answer.startswith(not_valid_answer)
-            for not_valid_answer in not_valid_answers
-        ):
-            return None
-
-        answer_dict.update(
-            {
-                "answer": rag_answer.answer.strip(),
-                "citation": rag_answer.highlight.strip(),
-                "citation_context": citation_context,
-            }
-        )
+        if isinstance(rag_answer, RAGAnswer):
+            answer_dict.update(
+                {
+                    "answer": rag_answer.answer.strip(),
+                    "citation": rag_answer.highlight.strip(),
+                    "citation_context": citation_context,
+                }
+            )
+        else:
+            answer_dict.update(
+                {
+                    "answer": "Error generating response",
+                    "citation": "",
+                    "citation_context": citation_context,
+                }
+            )
 
         return answer_dict
 
@@ -732,20 +724,21 @@ class RagAnswersManager:
         self,
         cache_key: str,
         document: Document,
+        answer_dict: dict[str, str],
         reason: str = "Réponse non disponible",
     ) -> None:
         ProjectDocumentRAG.objects.create(
             project_rag=self.project_rag,
             document=document,
-            citation=reason,
-            answer=reason,
+            citation=answer_dict["citation_context"],
+            answer=answer_dict["answer"],
         )
         DOCUMENT_CACHE.save(
             cache_key,
             {
                 "citation": reason,
-                "answer": reason,
-                "citation_context": [],
+                "answer": answer_dict["answer"],
+                "citation_context": answer_dict["citation_context"],
             },
         )
         logger.info(f"[RAG] Saved result to cache for article #{document.id}")
@@ -808,7 +801,19 @@ class RagAnswersManager:
                 self.project_rag.query, chunks
             )
 
-            if rag_answer_dict:
+            ll_answer = rag_answer_dict["answer"].lower()
+
+            not_valid_answers = [
+                "réponse non disponible",
+                "no content available",
+                "error generating response",
+                "no content available",
+            ]
+
+            if ll_answer and not any(
+                ll_answer.startswith(not_valid_answer)
+                for not_valid_answer in not_valid_answers
+            ):
                 self.save_and_cache_rag_answer(
                     cache_key, document, rag_answer_dict
                 )
@@ -817,7 +822,9 @@ class RagAnswersManager:
                 logger.info(
                     f"There is no answer for query: {self.project_rag.query}, document: {document.id}"
                 )
-                self._create_and_save_empty_response(cache_key, document)
+                self._create_and_save_empty_response(
+                    cache_key, document, rag_answer_dict
+                )
 
             if max_doc_ans and documents_asked > max_doc_ans:
                 self.project_rag.num_documents = documents_asked
