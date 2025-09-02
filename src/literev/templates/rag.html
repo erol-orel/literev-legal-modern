@@ -439,28 +439,12 @@
 
       const citation = document.createElement("div");
       citation.classList.add("mb-2");
-
       const labelCitation = document.createElement("b");
       labelCitation.textContent = "Highlighted in document: ";
       citation.appendChild(labelCitation);
 
-      const textCitation = Array.isArray(documentRag.citation_context)
-        ? documentRag.citation_context.filter(Boolean)
-        : [];
-
-      if (textCitation.length > 0) {
-        const list = document.createElement("ul");
-        list.classList.add("mb-0");
-        for (const snippet of textCitation) {
-          const li = document.createElement("li");
-          li.textContent = String(snippet);
-          list.appendChild(li);
-        }
-        citation.appendChild(list);
-      } else {
-        const simple_citation = document.createTextNode(documentRag.citation || "—");
-        citation.appendChild(simple_citation);
-      }
+      const textCitation = document.createTextNode(`${documentRag.citation}`);
+      citation.appendChild(textCitation);  //to add
 
       // adding all childs
       divContainer.appendChild(citation);
