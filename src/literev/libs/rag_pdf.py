@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import re
+import textwrap
 
 from functools import wraps
 from hashlib import sha256
@@ -265,7 +266,7 @@ class OpenAIAnswerClient:
         if settings.USE_HACTAR_LLM:
             augmented = HactarAug(
                 api_key=settings.HACTAR_API_KEY,
-                top_k=5,
+                top_k=30,
                 model_name="mxbai-embed-large:latest",  # model_name="nomic-embed-text", #Suggested change
                 cache=AUG_CACHE,
             )
@@ -288,7 +289,7 @@ class OpenAIAnswerClient:
         else:
             augmented = OpenAIAug(
                 api_key=self.api_key,
-                top_k=5,
+                top_k=30,
                 model_name="text-embedding-ada-002",
                 cache=AUG_CACHE,
             )
@@ -1097,10 +1098,6 @@ class DocumentCache:
     def _document_cache(self) -> CacheFile:
         return CacheFile(target_dir=self.cache_dir / "documents")
 
-    def _chunk_cache(self, engine: str) -> CacheFile:
-        safe_engine = engine.replace("/", "_")
-        return CacheFile(target_dir=self.cache_dir / f"classify_{safe_engine}")
-
     @staticmethod
     def _safe_raw_key(
         raw_document_id: Optional[str], fallback_numeric_id: Optional[int]
@@ -1139,9 +1136,8 @@ class DocumentCache:
         dir_path = self.cache_dir / "documents"
         self._document_cache().save(key, aggregated)
         logger.debug(
-            f"[CLASSIFY][CACHE-SAVE]: key={key} "
-            f"engine={engine} dir={dir_path} "
-            f"size={len(aggregated.get('results', []))}"
+            f"[CLASSIFY][CACHE-SAVE]: key={key} engine={engine} dir={dir_path} "
+            f"items={len(aggregated.get('results', []))}"
         )
 
 
@@ -1149,7 +1145,7 @@ JuridicField = Literal["majeures", "mineures"]
 
 
 class RAGClassificationBuilder:
-    """Minor/Major classification with trimming to avoid max_tokens."""
+    """Minor/Major classification with line-aware slicing to avoid max_tokens."""
 
     def __init__(self) -> None:
         self.cache_dir: Path = CACHE_DIR
@@ -1195,66 +1191,10 @@ class RAGClassificationBuilder:
         self.classification_user_prompt = 'Texte: "{context}"\n\n{query}\n'
 
     @staticmethod
-    def extract_after_endroit(text: str) -> str:
-        """Extract text after the keyword 'EN DROIT'."""
-        keyword = "EN DROIT"
-        index = text.find(keyword)
-        if index == -1:
-            return text
-        return text[index + len(keyword) :].lstrip("\n")
-
-    @classmethod
-    def get_after_endroit(cls, document_text: Optional[str]) -> List[str]:
-        """Call extract_after_endroit and replace non-breaking spaces."""
-        if not document_text:
-            return []
-        extrait = cls.extract_after_endroit(document_text)
-        return [extrait] if extrait else []
-
-    @staticmethod
     def _clean_ws(text: str) -> str:
         """Clean and normalize whitespace in a string."""
         text = (text or "").replace("\xa0", " ").replace("\u202f", " ")
         return re.sub(r"\s+", " ", text).strip()
-
-    @staticmethod
-    def _estimate_tokens_from_chars(chars: int) -> int:
-        """Estimate the number of tokens from the number of characters."""
-        # Very rough rule: ~4 chars ≈ 1 token
-        return max(1, chars // 4)
-
-    @staticmethod
-    def _trim_to_token_budget(
-        text: str,
-        max_context_tokens: int = 7800,
-        reserve_for_output: int = 512,
-        reserve_for_prompts: int = 400,
-    ) -> Tuple[str, int]:
-        """Sentence-bounded trim to fit within token budget."""
-        budget = max_context_tokens - reserve_for_output - reserve_for_prompts
-        if budget <= 0:
-            return "", 0
-        cleaned = " ".join(
-            text.replace("\xa0", " ").replace("\u202f", " ").split()
-        )
-        parts = re.split(r"(?<=[\.\!\?])\s+", cleaned)
-        acc: List[str] = []
-        char_count = 0
-        for sent in parts:
-            add = len(sent) + (1 if acc else 0)
-            if (
-                RAGClassificationBuilder._estimate_tokens_from_chars(
-                    char_count + add
-                )
-                > budget
-            ):
-                break
-            acc.append(sent)
-            char_count += add
-        clipped = " ".join(acc).strip()
-        return clipped, RAGClassificationBuilder._estimate_tokens_from_chars(
-            len(clipped)
-        )
 
     @staticmethod
     def normalize_field_to_list(value: Any) -> List[str]:
@@ -1279,6 +1219,73 @@ class RAGClassificationBuilder:
             return True
         lowered = [t.strip().lower() for t in texts if isinstance(t, str)]
         return all((not t) or (t in self.invalid_answers) for t in lowered)
+
+    @staticmethod
+    def slice_text_by_lines(text: str, max_chars: int = 1600) -> List[str]:
+        """
+        Line-aware slicer:
+        - Accumulates whole lines until adding the next line would exceed max_chars.
+        - If a single line exceeds max_chars, hard-wrap that line.
+        - Returns contiguous, non-overlapping slices.
+        """
+        normalized = (text or "").replace("\xa0", " ").replace("\u202f", " ")
+        normalized = (
+            normalized.replace("\r\n", "\n").replace("\r", "\n").strip()
+        )
+        if not normalized:
+            return []
+
+        slices: List[str] = []
+        current_buffer_lines: List[str] = []
+        current_length: int = 0
+
+        def flush_current_buffer() -> None:
+            nonlocal current_buffer_lines, current_length
+            if current_buffer_lines:
+                slices.append("\n".join(current_buffer_lines).strip())
+                current_buffer_lines = []
+                current_length = 0
+
+        for raw_line in normalized.split("\n"):
+            line_text = raw_line.rstrip()
+
+            if not line_text:
+                added_length = 1 if current_buffer_lines else 0
+                if current_length + added_length <= max_chars:
+                    current_buffer_lines.append(
+                        ""
+                    )  # keep a blank boundary line
+                    current_length += added_length
+                else:
+                    flush_current_buffer()
+                    current_buffer_lines.append("")
+                    current_length = 0
+                continue
+
+            # Hard-wrap lines that individually exceed max_chars
+            if len(line_text) > max_chars:
+                flush_current_buffer()
+                start_index = 0
+                while start_index < len(line_text):
+                    end_index = min(len(line_text), start_index + max_chars)
+                    chunk = line_text[start_index:end_index].strip()
+                    if chunk:
+                        slices.append(chunk)
+                    start_index = end_index
+                continue
+
+            # Normal case: try to add the whole line to the current buffer
+            added_length = (1 if current_buffer_lines else 0) + len(line_text)
+            if current_length + added_length > max_chars:
+                flush_current_buffer()
+                current_buffer_lines.append(line_text)
+                current_length = len(line_text)
+            else:
+                current_buffer_lines.append(line_text)
+                current_length += added_length
+
+        flush_current_buffer()
+        return [s for s in slices if s]
 
     def _build_generator(self, engine: str) -> Union[OpenAIGen, HactarGen]:
         """Builds and returns a generator instance for the specified engine."""
@@ -1320,153 +1327,83 @@ class RAGClassificationBuilder:
         *,
         engine: str = "openai",
     ) -> Dict[str, Any]:
-        """Classify a document into majeure/mineure with tight, safe slices.
+        """Classify a document into majeure/mineure using line-aware slices.
 
         Strategy
         --------
         1) Extract "EN DROIT" (or entire text if missing).
-        2) Slice that text into small chunks (~1500 chars) to bound both
-        prompt and completion sizes, avoiding max_tokens truncation.
+        2) Slice that text into ~1600-char, line-bounded chunks.
         3) Call the generator once per slice (no retries).
         4) *Normalize output to plural lists in the payload.
         """
 
         def _safe_raw_key(raw_id: Optional[str], doc_id: Optional[int]) -> str:
-            """Generates a safe raw key string from a raw_id or doc_id."""
-
             raw_id = (raw_id or "").strip()
             return raw_id if raw_id else f"doc_{int(doc_id or 0)}"
 
-        def _slice_text(text: str, max_chars: int = 1500) -> List[str]:
-            """Char-based slicer to cap output volume.
-            Keeps sentences together when possible, but stays simple/fast.
-            """
-            text = (
-                (text or "")
-                .replace("\xa0", " ")
-                .replace("\u202f", " ")
-                .strip()
-            )
-            if not text:
-                return []
-
-            pieces: List[str] = []
-            buf: List[str] = []
-            count = 0
-
-            sentences = re.split(r"(?<=[\.\!\?\;])\s+", text)
-
-            for sent in sentences:
-                s = sent.strip()
-                if not s:
-                    continue
-                extra = (1 if buf else 0) + len(s)
-                if count + extra > max_chars:
-                    if buf:
-                        pieces.append(" ".join(buf))
-                    buf, count = [s], len(s)
-                else:
-                    buf.append(s)
-                    count += extra
-
-            if buf:
-                pieces.append(" ".join(buf))
-            return pieces
-
-        query = (
-            "Retourne un fichier JSON pur avec les deux listes 'mineures' et "
-            "'majeures' comme décrit ci-dessus."
-        )
-        base_chunks = self.get_after_endroit(document.raw_document_text)
+        text_after_endroit = extract_after_endroit(document.raw_document_text)
         raw_key = _safe_raw_key(
             getattr(document, "raw_document_id", None),
             getattr(document, "id", None),
         )
+
+        slices = self.slice_text_by_lines(text_after_endroit, max_chars=1600)
         logger.debug(
-            f"[CLASSIFY]: starting "
-            f"raw_id={raw_key} "
-            f"(doc_id={getattr(document, 'id', '?')}) "
-            f"engine={engine} "
-            f"chunks={len(base_chunks)}"
+            f"[CLASSIFY]: start raw_id={raw_key} engine={engine} "
+            f"len_chars={len(text_after_endroit)} slices={len(slices)}"
         )
 
         generator = self._build_generator(engine)
-        per_chunk_cache = self.cache._chunk_cache(engine)
 
         results: List[Dict[str, Any]] = []
+        for idx, slice_text in enumerate(slices):
+            try:
+                structured = generator.generate(
+                    query=(
+                        "Retourne un fichier JSON pur avec les deux listes "
+                        "'mineures' et 'majeures' comme décrit ci-dessus."
+                    ),
+                    context=[slice_text],
+                )
+            except Exception as exc:
+                logger.warning(
+                    f"[CLASSIFY]: raw_id={raw_key} slice={idx} skipped: {exc}"
+                )
+                continue
 
-        for chunk_index, chunk_text in enumerate(base_chunks):
-            slices = _slice_text(chunk_text, max_chars=1500)
-            logger.debug(
-                f"[CLASSIFY]: raw_id={raw_key} chunk={chunk_index} slices={len(slices)}"
+            if not isinstance(structured, BaseModel):
+                logger.warning(
+                    f"[CLASSIFY]: raw_id={raw_key} slice={idx} non-Model: {type(structured)!r}"
+                )
+                continue
+
+            majeures = self.normalize_field_to_list(
+                getattr(structured, "majeure", [])
+            )
+            mineures = self.normalize_field_to_list(
+                getattr(structured, "mineure", [])
             )
 
-            for slice_idx, slice_text in enumerate(slices):
-                try:
-                    structured = generator.generate(
-                        query=query,
-                        context=[slice_text],
-                    )
-                except Exception as exc:
-                    logger.warning(
-                        f"[CLASSIFY]: "
-                        f"raw_id={raw_key} "
-                        f"chunk={chunk_index} "
-                        f"slice={slice_idx} "
-                        f"skipped: {exc}"
-                    )
-                    continue
+            if self.is_invalid_list(majeures) and self.is_invalid_list(
+                mineures
+            ):
+                continue
 
-                if not isinstance(structured, BaseModel):
-                    logger.warning(
-                        f"[CLASSIFY]: "
-                        f"raw_id={raw_key} "
-                        f"chunk={chunk_index} "
-                        f"slice={slice_idx} "
-                        f"non-Model: {type(structured)!r}"
-                    )
-                    continue
-
-                # Pydantic model uses singular fields; payload keeps plural keys.
-                majeures = self.normalize_field_to_list(
-                    getattr(structured, "majeure", [])
-                )
-                mineures = self.normalize_field_to_list(
-                    getattr(structured, "mineure", [])
-                )
-
-                if self.is_invalid_list(majeures) and self.is_invalid_list(
-                    mineures
-                ):
-                    continue
-
-                item = {
-                    "raw_document_id": raw_key,
-                    "document_id": int(getattr(document, "id", 0) or 0),
-                    "chunk_index": int(chunk_index),
-                    "slice_index": int(slice_idx),
-                    "chunk_text": slice_text,
+            results.append(
+                {
                     "majeures": majeures,
                     "mineures": mineures,
-                    "engine": engine,
                 }
-                results.append(item)
-
-                per_chunk_cache.save(
-                    f"doc{raw_key}_chunk{chunk_index}_slice{slice_idx}",
-                    item,
-                )
+            )
 
         aggregated = {
             "raw_document_id": raw_key,
-            "document_id": int(getattr(document, "id", 0) or 0),
-            "engine": engine,
             "results": results,
         }
         self.cache.save(raw_key, engine, aggregated)
 
         logger.debug(
-            f"[CLASSIFY]: done {raw_key} (doc_id={getattr(document, 'id', '?')}) results={len(results)}"
+            f"[CLASSIFY]: done raw_id={raw_key} results={len(results)}"
         )
         return aggregated
 
@@ -1484,43 +1421,33 @@ class RAGClassificationBuilder:
         cached = self.cache.load(raw_key, engine)
         if cached:
             logger.debug(
-                f"[CLASSIFY]: using cached classification "
-                f"raw_id={raw_key} "
-                f"(doc_id={getattr(document, 'id', '?')}) "
-                f"engine={engine} "
+                f"[CLASSIFY]: using cached classification raw_id={raw_key} engine={engine} "
                 f"results={len(cached.get('results', []))}"
             )
             return cached
 
         logger.debug(
-            f"[CLASSIFY]: cache miss, running classification "
-            f"raw_id={raw_key} "
-            f"(doc_id={getattr(document, 'id', '?')}) "
-            f"engine={engine}"
+            f"[CLASSIFY]: cache miss, running classification raw_id={raw_key} engine={engine}"
         )
         return self.classify_document_minor_major(document, engine=engine)
 
     def build_corpus_from_lists(
         self,
-        results_by_document: Dict[int, Dict[str, Any]],
+        results_by_document: Dict[str, Dict[str, Any]],
         field: JuridicField,
-    ) -> List[Tuple[str, int, int, int]]:
-        """Flatten classification for a single field (plural payload key)."""
-        corpus: List[Tuple[str, int, int, int]] = []
-        for doc_id, aggregated in results_by_document.items():
-            for row in aggregated.get("results", []):
-                items = row.get(field) or []
-                for item_index, text in enumerate(items):
+    ) -> List[Tuple[str, str, int]]:
+        """
+        Flatten classification for a single field (plural payload key).
+        Returns a list of (text, raw_document_id, item_index).
+        """
+        corpus: List[Tuple[str, str, int]] = []
+        for raw_id, aggregated in results_by_document.items():
+            rows = aggregated.get("results", []) or []
+            for i, row in enumerate(rows):
+                for item_index, text in enumerate(row.get(field) or []):
                     cleaned = self._clean_ws(text)
                     if cleaned:
-                        corpus.append(
-                            (
-                                cleaned,
-                                int(doc_id),
-                                int(row["chunk_index"]),
-                                int(item_index),
-                            )
-                        )
+                        corpus.append((cleaned, raw_id, item_index))
         return corpus
 
     def get_fragments_for_answering(
@@ -1529,36 +1456,31 @@ class RAGClassificationBuilder:
         *,
         engine: str = "openai",
         field: JuridicField = "mineures",
-        max_chars_per_chunk: int = 1200,
+        max_chars_per_chunk: int = 1600,
     ) -> List[str]:
         """Return cleaned fragments for answering from cached classification."""
         aggregated = self.load_or_classify_document(document, engine=engine)
-        raw_items: List[str] = []
-        for row in aggregated.get("results", []):
-            raw_items.extend(row.get(field, []) or [])
 
-        # Clean, de-duplicate, and shallow wrap if needed
+        rows = aggregated.get("results") or ()
+        raw_items = (t for row in rows for t in (row.get(field) or ()))
+
         seen: Set[str] = set()
         chunks: List[str] = []
+
         for frag in raw_items:
-            frag = self._clean_ws(frag)
-            if not frag or frag in seen:
+            frag_cleaned = self._clean_ws(frag)
+            if not frag_cleaned or frag_cleaned in seen:
                 continue
-            seen.add(frag)
-            if len(frag) <= max_chars_per_chunk:
-                chunks.append(frag)
-            else:
-                tokens = frag.split()
-                buf: List[str] = []
-                count = 0
-                for tok in tokens:
-                    tok_len = len(tok) + (1 if buf else 0)
-                    if count + tok_len > max_chars_per_chunk:
-                        chunks.append(" ".join(buf))
-                        buf, count = [tok], len(tok)
-                    else:
-                        buf.append(tok)
-                        count += tok_len
-                if buf:
-                    chunks.append(" ".join(buf))
+            seen.add(frag_cleaned)
+
+            # textwrap.wrap returns [s] if len(s) <= width
+            for piece in textwrap.wrap(
+                frag_cleaned,
+                width=max_chars_per_chunk,
+                break_long_words=False,
+                break_on_hyphens=False,
+            ):
+                if piece:
+                    chunks.append(piece)
+
         return chunks
