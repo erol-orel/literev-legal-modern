@@ -782,7 +782,7 @@ class RagAnswersManager:
                 "citation_context": answer_dict["citation_context"],
             },
         )
-        logger.info(f"[RAG] Saved result to cache for article #{document.id}")
+        logger.debug(f"[RAG] Saved result to cache for article #{document.id}")
 
     def _create_and_save_empty_response(
         self,
@@ -805,7 +805,7 @@ class RagAnswersManager:
                 "citation_context": answer_dict["citation_context"],
             },
         )
-        logger.info(f"[RAG] Saved result to cache for article #{document.id}")
+        logger.debug(f"[RAG] Saved result to cache for article #{document.id}")
 
     def get_and_save_answers_from_documents(
         self, documents: list[Document], max_doc_ans: int | None = None
@@ -885,7 +885,7 @@ class RagAnswersManager:
                 )
                 ans_counter += 1
             else:
-                logger.info(
+                logger.warning(
                     f"There is no answer for query: {self.project_rag.query}, document: {document.id}"
                 )
                 self._create_and_save_empty_response(
@@ -1098,19 +1098,6 @@ class DocumentCache:
     def _document_cache(self) -> CacheFile:
         return CacheFile(target_dir=self.cache_dir / "documents")
 
-    @staticmethod
-    def _safe_raw_key(
-        raw_document_id: Optional[str], fallback_numeric_id: Optional[int]
-    ) -> str:
-        if raw_document_id and raw_document_id.strip():
-            raw = raw_document_id.strip()
-        else:
-            raw = (
-                f"id_{fallback_numeric_id}" if fallback_numeric_id else "id_?"
-            )
-        safe = re.sub(r"[^A-Za-z0-9._-]+", "_", raw)[:200]
-        return safe or "id_?"
-
     def load(
         self, raw_document_key: str, engine: str
     ) -> Optional[Dict[str, Any]]:
@@ -1189,6 +1176,11 @@ class RAGClassificationBuilder:
         )
 
         self.classification_user_prompt = 'Texte: "{context}"\n\n{query}\n'
+
+    @staticmethod
+    def _safe_raw_key(raw_id: Optional[str], doc_id: Optional[int]) -> str:
+        raw_id = (raw_id or "").strip()
+        return raw_id if raw_id else f"doc_{int(doc_id or 0)}"
 
     @staticmethod
     def _clean_ws(text: str) -> str:
@@ -1321,41 +1313,77 @@ class RAGClassificationBuilder:
             **common,  # type: ignore[arg-type]
         )
 
-    def classify_document_minor_major(
+    def _classify_whole_section(
         self,
-        document,
-        *,
-        engine: str = "openai",
-    ) -> Dict[str, Any]:
-        """Classify a document into majeure/mineure using line-aware slices.
+        engine: str,
+        raw_key: str,
+        endroit_clean: str,
+    ) -> List[Dict[str, List[str]]]:
+        """Return classification rows for the whole EN DROIT section.
 
-        Strategy
-        --------
-        1) Extract "EN DROIT" (or entire text if missing).
-        2) Slice that text into ~1600-char, line-bounded chunks.
-        3) Call the generator once per slice (no retries).
-        4) *Normalize output to plural lists in the payload.
+        Returns a list of rows like:
+        [{"majeures": [...], "mineures": [...]}]
+        or an empty list on failure/no usable output.
         """
-
-        def _safe_raw_key(raw_id: Optional[str], doc_id: Optional[int]) -> str:
-            raw_id = (raw_id or "").strip()
-            return raw_id if raw_id else f"doc_{int(doc_id or 0)}"
-
-        text_after_endroit = extract_after_endroit(document.raw_document_text)
-        raw_key = _safe_raw_key(
-            getattr(document, "raw_document_id", None),
-            getattr(document, "id", None),
-        )
-
-        slices = self.slice_text_by_lines(text_after_endroit, max_chars=1600)
         logger.debug(
-            f"[CLASSIFY]: start raw_id={raw_key} engine={engine} "
-            f"len_chars={len(text_after_endroit)} slices={len(slices)}"
+            f"[CLASSIFY]: start raw_id={raw_key} engine={engine} whole_section"
         )
 
         generator = self._build_generator(engine)
 
-        results: List[Dict[str, Any]] = []
+        try:
+            structured = generator.generate(
+                query=(
+                    "Retourne un fichier JSON pur avec les deux listes "
+                    "'mineures' et 'majeures' comme décrit ci-dessus."
+                ),
+                context=[endroit_clean],
+            )
+        except Exception as exc:
+            logger.warning(
+                f"[CLASSIFY]: raw_id={raw_key} whole_section skipped: {exc}"
+            )
+            return []
+
+        if not isinstance(structured, BaseModel):
+            logger.warning(
+                f"[CLASSIFY]: raw_id={raw_key} whole_section non-Model: "
+                f"{type(structured)!r}"
+            )
+            return []
+
+        majeures = self.normalize_field_to_list(
+            getattr(structured, "majeure", [])
+        )
+        mineures = self.normalize_field_to_list(
+            getattr(structured, "mineure", [])
+        )
+
+        if self.is_invalid_list(majeures) and self.is_invalid_list(mineures):
+            return []
+
+        rows = [{"majeures": majeures, "mineures": mineures}]
+        logger.debug(
+            f"[CLASSIFY]: done by whole section raw_id={raw_key} results={len(rows)}"
+        )
+        return rows
+
+    def _classify_by_slices(
+        self,
+        engine: str,
+        raw_key: str,
+        endroit_clean: str,
+    ) -> List[Dict[str, List[str]]]:
+        """Return classification rows using line-aware slices."""
+        slices = self.slice_text_by_lines(endroit_clean, max_chars=1600)
+        logger.debug(
+            f"[CLASSIFY]: start raw_id={raw_key} engine={engine} "
+            f"len_chars={len(endroit_clean)} slices={len(slices)}"
+        )
+
+        generator = self._build_generator(engine)
+        results: List[Dict[str, List[str]]] = []
+
         for idx, slice_text in enumerate(slices):
             try:
                 structured = generator.generate(
@@ -1365,6 +1393,8 @@ class RAGClassificationBuilder:
                     ),
                     context=[slice_text],
                 )
+                if structured:
+                    logger.debug(f"[CLASSIFY]: raw_id={raw_key} slice={idx}")
             except Exception as exc:
                 logger.warning(
                     f"[CLASSIFY]: raw_id={raw_key} slice={idx} skipped: {exc}"
@@ -1373,7 +1403,8 @@ class RAGClassificationBuilder:
 
             if not isinstance(structured, BaseModel):
                 logger.warning(
-                    f"[CLASSIFY]: raw_id={raw_key} slice={idx} non-Model: {type(structured)!r}"
+                    f"[CLASSIFY]: raw_id={raw_key} slice={idx} non-Model: "
+                    f"{type(structured)!r}"
                 )
                 continue
 
@@ -1389,22 +1420,55 @@ class RAGClassificationBuilder:
             ):
                 continue
 
-            results.append(
-                {
-                    "majeures": majeures,
-                    "mineures": mineures,
-                }
-            )
+            results.append({"majeures": majeures, "mineures": mineures})
 
-        aggregated = {
-            "raw_document_id": raw_key,
-            "results": results,
-        }
+        logger.debug(
+            f"[CLASSIFY]: done by slice raw_id={raw_key} results={len(results)}"
+        )
+        return results
+
+    def classify_document_minor_major(
+        self,
+        document,
+        *,
+        engine: str = "openai",
+    ) -> Dict[str, Any]:
+        """Classify a document with whole-first, then slice fallback."""
+        raw_key = self._safe_raw_key(
+            getattr(document, "raw_document_id", None),
+            getattr(document, "id", None),
+        )
+
+        after_endroit = extract_after_endroit(document.raw_document_text)
+        endroit_clean = self._clean_ws(after_endroit)
+
+        # Whole-section attempt
+        rows = self._classify_whole_section(
+            engine=engine, raw_key=raw_key, endroit_clean=endroit_clean
+        )
+        if rows:
+            aggregated = {"raw_document_id": raw_key, "results": rows}
+
+            self.cache.save(raw_key, engine, aggregated)
+
+            logger.debug(
+                f"[CLASSIFY]: finish whole section raw_id={raw_key} results={len(rows)}"
+            )
+            return aggregated
+
+        # Fallback to slices
+        rows = self._classify_by_slices(
+            engine=engine, raw_key=raw_key, endroit_clean=endroit_clean
+        )
+
+        aggregated = {"raw_document_id": raw_key, "results": rows}
+
         self.cache.save(raw_key, engine, aggregated)
 
         logger.debug(
-            f"[CLASSIFY]: done raw_id={raw_key} results={len(results)}"
+            f"[CLASSIFY]: finish slicing raw_id={raw_key} results={len(rows)}"
         )
+
         return aggregated
 
     def load_or_classify_document(
@@ -1414,7 +1478,7 @@ class RAGClassificationBuilder:
         engine: str = "openai",
     ) -> Dict[str, Any]:
         """Loads a cached document or classifies it if not cached."""
-        raw_key = self.cache._safe_raw_key(
+        raw_key = self._safe_raw_key(
             getattr(document, "raw_document_id", None),
             getattr(document, "id", None),
         )
