@@ -860,7 +860,9 @@ class RagAnswersManager:
             )
 
             if not chunks:
-                logger.info(f"There is no chunks for document: {document.id}")
+                logger.warning(
+                    f"There is no chunks for document: {document.id}"
+                )
                 continue
 
             rag_answer_dict = self.answer_generator.get_answer(
@@ -1279,7 +1281,11 @@ class RAGClassificationBuilder:
         flush_current_buffer()
         return [s for s in slices if s]
 
-    def _build_generator(self, engine: str) -> Union[OpenAIGen, HactarGen]:
+    def _build_generator(
+        self,
+        output_max_length: int = 2048,
+        engine: str = "openai",
+    ) -> Union[OpenAIGen, HactarGen]:
         """Builds and returns a generator instance for the specified engine."""
         if engine not in self.model_config:
             raise ValueError(f"Unknown engine: {engine}")
@@ -1291,7 +1297,7 @@ class RAGClassificationBuilder:
             system_message=self.classification_system_prompt,
             prompt_template=self.classification_user_prompt,
             temperature=0.0,
-            output_max_length=512,
+            output_max_length=output_max_length,
             api_params={
                 "top_p": 0.0,
                 "frequency_penalty": 0.0,
@@ -1329,7 +1335,9 @@ class RAGClassificationBuilder:
             f"[CLASSIFY]: start raw_id={raw_key} engine={engine} whole_section"
         )
 
-        generator = self._build_generator(engine)
+        generator = self._build_generator(
+            output_max_length=16384, engine=engine
+        )
 
         try:
             structured = generator.generate(
@@ -1381,7 +1389,9 @@ class RAGClassificationBuilder:
             f"len_chars={len(endroit_clean)} slices={len(slices)}"
         )
 
-        generator = self._build_generator(engine)
+        generator = self._build_generator(
+            output_max_length=2048, engine=engine
+        )
         results: List[Dict[str, List[str]]] = []
 
         for idx, slice_text in enumerate(slices):

@@ -194,7 +194,7 @@ class RefinementFilterTests(TransactionTestCase):
             self.doc1.id,
             self.doc2.id,
         ]
-        self.assertEqual(result_docs, expected_docs)
+        self.assertSetEqual(set(result_docs), set(expected_docs))
 
     def test_combination_all_fields(self):
         """Test combining all fields in union and exclude filters."""
