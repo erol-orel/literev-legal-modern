@@ -112,34 +112,6 @@ services:
           cpus: '0.25'
           memory: 1024M
 
-  literev-jupyter:
-    user: "${HOST_UID}:${HOST_GID}"
-    extends: literev-base
-    hostname: literev-jupyter
-    command: jupyter lab --ip=0.0.0.0 --allow-root \
-             --NotebookApp.token='${JUPYTER_TOKEN}' \
-             --NotebookApp.password='' \
-             --NotebookApp.base_url=/jupyter \
-             --NotebookApp.allow_origin='*' \
-             --NotebookApp.allow_remote_access=True
-    ports:
-      - "8888:8888"
-    env_file:
-      - ../.env
-    environment:
-      DJANGO_SETTINGS_MODULE: config.settings.dev
-      PYTHONPATH: /opt/services/literev/src
-    volumes:
-      - container_data_dir:${CONTAINER_VOLUME_DATA_DIR}
-      - static_root:${STATIC_ROOT:-/tmp/literev/static}
-      - media_root:${DJANGO_MEDIA_ROOT:-/tmp/literev/media}
-    networks:
-      - literev
-    depends_on:
-      - literev-postgres
-      - literev-redis
-
-
 
 volumes:
   container_data_dir:

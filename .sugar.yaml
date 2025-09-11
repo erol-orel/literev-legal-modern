@@ -37,6 +37,7 @@ profiles:
       - containers/compose.base.yaml
       - containers/compose.dev.yaml
       - containers/compose.elasticsearch.yaml
+      - containers/compose.jupyter.yaml
     env-file: .env
     services:
       default:
