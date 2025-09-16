@@ -63,7 +63,7 @@ dev = [
   "pre-commit >=3.0.0",
   "bandit >=1.7.5",
   "compose-go >=2.23.0",
-  "containers-sugar[tui] ==1.18.0",
+  "containers-sugar[tui] ==1.19.2",
   "django-debug-toolbar >=4.1.0",
   "django-extensions >=3.2.3",
   "djlint >=1.32.1",

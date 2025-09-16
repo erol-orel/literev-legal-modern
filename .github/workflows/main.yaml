@@ -165,13 +165,13 @@ jobs:
           makim clean.all
 
       - name: Remove old database
-        run: sugar compose down --options --volumes || true
+        run: sugar compose down -- --volumes || true
 
       - name: Build images
         run: sugar compose build --services literev-postgres
 
       - name: Start literev-postgres container
-        run: sugar compose-ext start --options -d
+        run: sugar compose-ext start -- -d
 
       - name: Migrate containers
         run: makim django.migrate
@@ -209,12 +209,12 @@ jobs:
 
       - name: Show Logs
         if: ${{ failure() }}
-        run: sugar compose logs --options "-n 100"
+        run: sugar compose logs -- -n 100
 
       - name: Stop services
         run: |
           sugar compose stop
-          sugar compose down --options --volumes
+          sugar compose down -- --volumes
 
       - name: Semantic Release PR Title Check
         uses: osl-incubator/semantic-release-pr-title-check@v1.4.1
@@ -367,13 +367,13 @@ jobs:
           makim clean.all
 
       - name: Remove old database
-        run: sugar compose down --options --volumes || true
+        run: sugar compose down -- --volumes || true
 
       - name: Build images
         run: sugar compose build
 
       - name: Start containers
-        run: sugar compose-ext restart --options -d
+        run: sugar compose-ext restart -- -d
 
       - name: Containers' info
         run: |
@@ -382,9 +382,9 @@ jobs:
 
       - name: Show Logs
         if: ${{ failure() }}
-        run: sugar compose logs --options "-n 100"
+        run: sugar compose logs -- -n 100
 
       - name: Stop services
         run: |
           sugar compose stop
-          sugar compose down --options "--volumes"
+          sugar compose down -- --volumes

@@ -242,14 +242,14 @@ In order to have a simple workflow, LiteRev uses
 These are the steps necessary to have your services up and running:
 
 1. `makim containers.host-setup`
-2. `sugar build`
+2. `sugar compose build`
 3. `makim django.migrate`
-4. `sugar ext restart`
+4. `sugar compose-ext restart`
 
 These three steps should be enough to have the services running
 locally. You can check all available helper commands by running: `makim --help`.
 
-The last command block the prompt, in the same way `docker-compose up` would block it. If you don't want to block the prompt, use: `sugar ext restart --options -d`. `--options` will send all the flags after that directly to the `docker-compose`.
+The last command block the prompt, in the same way `docker-compose up` would block it. If you don't want to block the prompt, use: `sugar compose-ext restart -- -d`. `--` will send all the flags after that directly to the `docker-compose`.
 
 ## Django
 
@@ -298,7 +298,7 @@ If you have any issues while trying to follow the steps presented here, please c
 the PostgreSQL service is running. You can start the server using the following command:
 
 ```bash
-$ sugar ext restart --services literev-postgres --options -d
+$ sugar compose-ext restart --services literev-postgres -- -d
 ```
 
 
