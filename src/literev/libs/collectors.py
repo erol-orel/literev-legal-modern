@@ -59,6 +59,7 @@ class ElasticSearchCollector:
 
     es: Elasticsearch
     ES_PAGE_SIZE: int = 1000
+    ES_SLICES: int = 1
     index_name: str = ""
 
     def __init__(self, index_name: str) -> None:
@@ -109,44 +110,91 @@ class ElasticSearchCollector:
         self,
         es_query: dict[str, int | list[str] | dict[str, str]],
     ) -> list[dict[str, str]]:
-        """Get all articles from elasticsearch response."""
+        """
+        Get all documents from Elasticsearch using sequential sliced-scroll."""
+        keepalive = "15m"
+        page_size = int(es_query.get("size", self.ES_PAGE_SIZE))
+        slices = int(getattr(settings, "ES_SLICES", self.ES_SLICES))
 
-        es_query["size"] = self.ES_PAGE_SIZE
-
-        response = self.es.search(
-            index=self.index_name, body=es_query, scroll="2m"
+        # Build a minimal, scroll body
+        query = es_query.get("query", {"match_all": {}})
+        source_fields = es_query.get(
+            "_source",
+            [
+                "id",
+                "collector_name",
+                "document_text",
+                "procedure_type",
+                "decision_type",
+                "decision_date",
+                "descriptors",
+                "summary",
+                "standards",
+                "result",
+            ],
         )
 
-        scroll_id = response["_scroll_id"]
-        hits = response["hits"]["hits"]
+        base_body = {
+            "query": query,
+            "size": page_size,
+            "sort": ["_doc"],
+            "_source": source_fields,
+        }
 
-        documents = []
+        results: list[dict[str, str]] = []
+        num_slices = slices if slices > 1 else 1
 
-        # process the first page from elasticsearch
-        documents += self._process_documents_from_es_response_page(hits)
+        for slice_id in range(num_slices):
+            body = dict(base_body)
+            if num_slices > 1:
+                body["slice"] = {"id": slice_id, "max": num_slices}
 
-        # then we process the rest of the pages if they exist
-        # by passing the scroll_id to es.scroll
-        while hits:
-            response = self.es.scroll(scroll_id=scroll_id, scroll="2m")
-            hits = response["hits"]["hits"]
-            documents += self._process_documents_from_es_response_page(hits)
+            # first page
+            resp = self.es.search(
+                index=self.index_name,
+                body=body,
+                scroll=keepalive,
+                request_timeout=600,
+            )
+            scroll_id = resp.get("_scroll_id")
+            hits = resp.get("hits", {}).get("hits", [])
+            results += self._process_documents_from_es_response_page(hits)
 
-        return documents
+            # subsequent pages
+            try:
+                while hits:
+                    resp = self.es.scroll(
+                        scroll_id=scroll_id,
+                        scroll=keepalive,
+                        request_timeout=600,
+                    )
+                    scroll_id = resp.get("_scroll_id", scroll_id)
+                    hits = resp.get("hits", {}).get("hits", [])
+                    results += self._process_documents_from_es_response_page(
+                        hits
+                    )
+            finally:
+                try:
+                    if scroll_id:
+                        self.es.clear_scroll(scroll_id=scroll_id)
+                except Exception:
+                    pass
+
+        return results
 
     def _process_documents_from_es_response_page(
         self, hits: list[dict[str, dict[str, str]]]
     ) -> list[dict[str, str]]:
-        """Process all articles from elasticsearch response page."""
+        """Process all documents from elasticsearch response page."""
         documents = []
         for es_hit in hits:
-            # get article from elasticsearch hit _source key
-            es_score = es_hit.get("_score", 0)
-            article = es_hit["_source"]
-            if article:
-                article["es_score"] = es_score
-                documents.append(article)
-
+            # get document from elasticsearch hit _source key
+            es_score = es_hit.get("_score") or 0
+            document = es_hit.get("_source", {}) or {}
+            if document:
+                document.setdefault("id", es_hit.get("_id"))  # fallback id
+                document["es_score"] = es_score
+                documents.append(document)
         return documents
 
     def extract_document_metadata(

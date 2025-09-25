@@ -1,3 +1,4 @@
+# cache_embeddings.py
 import concurrent.futures
 import logging
 import time
@@ -11,6 +12,7 @@ import tiktoken
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
+from rago.augmented import OpenAIAug
 from rago.augmented.base import EmbeddingType
 from rago.extensions.cache import CacheFile
 from requests.exceptions import ConnectionError, RequestException
@@ -26,16 +28,13 @@ CHAMBERS_NAME = ["penal_court", "civil_court", "administrative_court"]
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
 
-#! THE SAME EMBEDDING MODEL NEEDS TO BE USED ACROSS LITEREV
-EMBEDDING_MODEL = (
-    "mxbai-embed-large:latest"  # "nomic-embed-text" #suggested model
-)
+EMBEDDING_MODEL = {
+    "hactar": "mxbai-embed-large:latest",
+    "openai": "text-embedding-ada-002",
+}
 
 MAX_WORKERS = 5
 CACHE_DIR = settings.LITEREV_CACHE_DIR / "rago"
-MODULE_NAME = "hactar"
-AUG_CACHE = CacheFile(target_dir=CACHE_DIR / f"aug_{MODULE_NAME}")
-
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -57,12 +56,11 @@ def count_tokens(text: str) -> int:
     logger=logging.getLogger(__name__),
 )
 def get_embeddings_with_retry(
-    embedder: HactarAug, chunks: list[str]
+    embedder: Any, chunks: list[str]
 ) -> EmbeddingType:
     """Get embeddings with retry logic."""
     try:
         return embedder.get_embedding(chunks)
-
     except (RequestException, ConnectionError) as e:
         logging.warning(f"Network error during embedding: {e!s}")
         raise
@@ -77,17 +75,12 @@ def get_embeddings_with_retry(
 
 
 def process_document_worker(
-    doc: Any, embedder_instance: HactarAug
+    doc: Any, embedder_instance: Any
 ) -> Tuple[str, bool, str, int, int]:
     """
     Worker function to process a single document in a separate thread.
 
-    Args:
-        doc: The document object (assuming it has doc_id and document_text attributes).
-        embedder_instance: The shared instance of HactarAug.
-
     Returns:
-        A tuple containing:
         (doc_id, success_status, message, num_chunks, num_tokens)
     """
     doc_id = getattr(doc, "doc_id", "unknown_id")
@@ -99,7 +92,11 @@ def process_document_worker(
             return doc_id, True, "Processed (no chunks)", 0, 0
 
         cache_key = sha256("".join(chunks).encode("utf-8")).hexdigest()
-        if embedder_instance._get_cache(cache_key) is not None:
+        # Using embedder's cache access method to avoid recompute
+        if (
+            getattr(embedder_instance, "_get_cache", None)
+            and embedder_instance._get_cache(cache_key) is not None
+        ):
             return doc_id, True, "Already cached", len(chunks), 0
 
         num_tokens = count_tokens("".join(chunks))
@@ -115,7 +112,7 @@ def process_document_worker(
 
 
 def _process_documents_with_threadpool(
-    documents: list, embedder: HactarAug, max_workers=MAX_WORKERS
+    documents: list, embedder: Any, max_workers: int = MAX_WORKERS
 ) -> tuple[int, int, int, list[tuple[str, str]]]:
     failed_docs_info: list[tuple[str, str]] = []
     successful_docs_count = 0
@@ -228,33 +225,49 @@ class Command(BaseCommand):
             help="The name of the legal chamber to generate embeddings for.",
         )
         parser.add_argument(
+            "--engine",
+            choices=("hactar", "openai"),
+            default="hactar" if settings.USE_HACTAR_LLM else "openai",
+            help="Embedding backend",
+        )
+        parser.add_argument(
             "--max-workers",
-            type=str,
+            type=int,
             required=False,
             help="How many threads should work in parallel.",
-            default=5,
+            default=MAX_WORKERS,
         )
 
     def handle(self, *args, **options):
         index_name = options["index_name"]
+        engine: str = options["engine"]
+
         if index_name not in CHAMBERS_NAME:
             logging.error(
                 f"index_name must be one of the following : {CHAMBERS_NAME!s}"
             )
-            raise
+            raise SystemExit(2)
 
-        MAX_WORKERS = int(options["max_workers"])
+        MAX_WORKERS = options["max_workers"]
         if MAX_WORKERS > 8:
             logging.error("Please provide a smaller max-workers value")
-            raise
+            raise SystemExit(2)
+
+        aug_cache = CacheFile(CACHE_DIR / f"aug_{engine}")
+        model_name = EMBEDDING_MODEL[engine]
 
         collector = ElasticSearchCollector(index_name=index_name)
-        embedder = HactarAug(
-            api_key=settings.HACTAR_API_KEY,
-            model_name=EMBEDDING_MODEL,
+
+        embedder_cls = HactarAug if engine == "hactar" else OpenAIAug
+        embedder = embedder_cls(
+            api_key=settings.HACTAR_API_KEY
+            if engine == "hactar"
+            else settings.OPENAI_API_KEY,
+            model_name=model_name,
             top_k=5,
-            cache=AUG_CACHE,
+            cache=aug_cache,
         )
+
         try:
             logging.info(
                 f"Collecting all documents from corpus: {collector.index_name} ..."
@@ -267,17 +280,16 @@ class Command(BaseCommand):
                 return
 
             start_time = time.time()
-            results = _process_documents_with_threadpool(
-                documents, embedder, MAX_WORKERS
-            )
-            duration = time.time() - start_time
-
             (
                 successful_count,
                 chunks_processed,
                 tokens_processed,
                 failed_docs,
-            ) = results
+            ) = _process_documents_with_threadpool(
+                documents, embedder, MAX_WORKERS
+            )
+            duration = time.time() - start_time
+
             _log_results(
                 duration,
                 len(documents),
@@ -289,7 +301,7 @@ class Command(BaseCommand):
 
         except Exception as e:
             logging.error(
-                f"An critical error occurred during the process: {e}",
+                f"A critical error occurred during the process: {e}",
                 exc_info=True,
             )
             raise

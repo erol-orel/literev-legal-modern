@@ -69,10 +69,10 @@ DOCUMENT_CACHE = CacheFile(target_dir=CACHE_DIR / "documents")
 FAITH_CACHE = CacheFile(target_dir=CACHE_DIR / f"faith_{MODULE_NAME}")
 
 
-@wraps
 def ret_cache(func: Callable[[str], list[str]]) -> Callable[[str], list[str]]:
     cache = RET_CACHE
 
+    @wraps(func)
     def wrapper(text: str) -> list[str]:
         cached = cache.load(text)
         if cached is not None:

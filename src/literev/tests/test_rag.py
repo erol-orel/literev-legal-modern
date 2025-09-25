@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 from unittest import skip
@@ -636,7 +637,8 @@ def test_document_level_cache(project_factory, document_factory):
     )
 
     # Ensure cache is empty before test
-    cache_entry = Path(DOCUMENT_CACHE.target_dir) / f"{cache_key}.pkl"
+    hashed = sha256(cache_key.encode("utf-8")).hexdigest()
+    cache_entry = Path(DOCUMENT_CACHE.target_dir) / f"{hashed}.pkl"
     cache_entry.unlink(missing_ok=True)
 
     assert DOCUMENT_CACHE.load(cache_key) is None

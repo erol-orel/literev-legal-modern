@@ -20,6 +20,7 @@ from typeguard import typechecked
 logger = logging.getLogger(__name__)
 
 HACTAR_VERIFY_SSL = settings.HACTAR_VERIFY_SSL
+REQUEST_TIMEOUT_S: int = 120
 
 
 class HactarConnectionHelper:
@@ -29,7 +30,10 @@ class HactarConnectionHelper:
         """Test the connection to Hactar API."""
         try:
             response = requests.get(
-                f"{base_url}/models", headers=headers, verify=verify_ssl
+                f"{base_url}/models",
+                headers=headers,
+                verify=verify_ssl,
+                timeout=REQUEST_TIMEOUT_S,
             )
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
