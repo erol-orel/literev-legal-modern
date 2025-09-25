@@ -985,7 +985,9 @@ class RagAnswersManager:
                 answer__in=[
                     "",
                     "No content available.",
+                    "No content available",
                     "Error generating response.",
+                    "Error generating response",
                     "Réponse non disponible",
                     "No content available",
                 ]
@@ -1011,7 +1013,9 @@ class RagAnswersManager:
         self.project_rag.valid_answer_count = (
             rag_documents_w_valid_answers.filter(
                 confidence_score__isnull=False
-            ).count()
+            )
+            .exclude(confidence_score=0.0)
+            .count()
         )
         self.project_rag.save(update_fields=["valid_answer_count"])
 
