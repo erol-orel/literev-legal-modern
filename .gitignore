@@ -97,6 +97,7 @@ __pypackages__/
 # Celery stuff
 celerybeat-schedule
 celerybeat.pid
+containers/redis/redis.pass
 
 # SageMath parsed files
 *.sage.py

@@ -17,6 +17,7 @@ import multiprocessing as mp
 import os
 
 from pathlib import Path
+from urllib.parse import quote
 
 import django_stubs_ext
 import environ
@@ -190,24 +191,28 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+# settings/base.py
+import os
 
-# REDIS
-REDIS_HOST = os.environ.get("REDIS_HOST", default="literev-redis")
-REDIS_PORT = os.environ.get("REDIS_PORT", default="6379")
-REDIS_DB = os.environ.get("REDIS_DB", default="0")
-REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+REDIS_HOST = os.getenv("REDIS_HOST", "literev-redis")
+REDIS_PORT = os.getenv("REDIS_PORT", "6379")
+REDIS_DB = os.getenv("REDIS_DB", "0")
 
-# CELERY SETTINGS
-CELERY_BROKER_URL = REDIS_URL
-CELERY_RESULT_BACKEND = REDIS_URL
+REDIS_USERNAME = quote(os.getenv("REDIS_USERNAME", "app"), safe="")
+REDIS_PASSWORD = quote(os.getenv("REDIS_PASSWORD", ""), safe="")
+
+REDIS_URL = f"redis://{REDIS_USERNAME}:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", REDIS_URL)
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", REDIS_URL)
+
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_TASK_SERIALIZER = "pickle"
 CELERY_RESULT_SERIALIZER = "pickle"
 CELERY_ACCEPT_CONTENT = ["pickle"]
-CELERY_WORKER_CONCURRENCY = os.environ.get(
-    "CELERY_WORKER_CONCURRENCY", default=4
-)
+CELERY_WORKER_CONCURRENCY = os.getenv("CELERY_WORKER_CONCURRENCY", "4")
 CELERY_WORKER_POOL_RESTARTS = True
+
 
 # STATIC / MEDIA
 # ------------------------------------------------------------------------------

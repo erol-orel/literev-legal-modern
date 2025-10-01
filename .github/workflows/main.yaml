@@ -50,6 +50,7 @@ env:
   REDIS_PORT: 6379
   REDIS_HOST: localhost
   REDIS_DB: 0
+  REDIS_USERNAME: app
   CLUSTERING_MIN_DOCUMENTS: 20
   MIN_CONFIDENCE: 0.0
 
@@ -159,6 +160,30 @@ jobs:
 
       - name: Install dependencies
         run: ./scripts/install-dev.sh
+
+      - name: Generate Redis ACL config & password
+        run: |
+          makim containers.redis-setup
+          echo "REDIS_PASSWORD=$(cat containers/redis/config/redis.pass)" >> "$GITHUB_ENV"
+
+      - name: Start test Redis (host-visible)
+        run: |
+          docker rm -f test-redis 2>/dev/null || true
+          docker run -d --name test-redis -p 6379:6379 \
+            -v "$PWD/containers/redis/config:/usr/local/etc/redis:ro" \
+            redis:7-alpine redis-server /usr/local/etc/redis/redis.conf
+          # Wait for Redis to be ready with ACL auth
+          PASS="$(cat containers/redis/config/redis.pass)"
+          for i in {1..30}; do
+            if docker exec test-redis redis-cli --user app --pass "$PASS" PING | grep -q PONG; then
+              echo "Redis is ready"; break
+            fi
+            sleep 1
+          done
+
+      - name: Clean-up
+        run: |
+          makim clean.all
 
       - name: Clean-up
         run: |
@@ -361,6 +386,11 @@ jobs:
 
       - name: Install dependencies
         run: ./scripts/install-dev.sh
+
+      - name: Generate Redis ACL config & password
+        run: |
+          makim containers.redis-setup
+          echo "REDIS_PASSWORD=$(cat containers/redis/config/redis.pass)" >> "$GITHUB_ENV"
 
       - name: Clean-up and Setup
         run: |

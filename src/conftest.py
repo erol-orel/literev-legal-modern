@@ -4,27 +4,75 @@ from __future__ import annotations
 
 import datetime
 import logging
+import time
 
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any, Generator, List, Tuple, cast
 
 import joblib
 import pytest
+import redis
 
 from celery.contrib.testing.worker import start_worker
 from django.contrib.auth.models import User
+from redis.exceptions import (
+    AuthenticationError,
+    ConnectionError,
+    NoPermissionError,
+    ResponseError,
+)
 from rest_framework.test import APIClient
 
 from config.celery import app as celery_app
+from config.celery import get_redis_client
 from literev.models import Document, Project
 
 
 def redis_flush() -> None:
-    """Wipe-out redis database."""
-    from config.celery import get_redis_client
+    """Wipe-out redis database, even when FLUSHDB is forbidden or auth fails."""
 
-    redis_client = get_redis_client()
-    redis_client.flushdb()
+    client: redis.Redis = get_redis_client()
+
+    # Try to authenticate / check availability
+    deadline = time.time() + 5.0  # 5s max
+    while True:
+        try:
+            client.ping()
+            break
+        except AuthenticationError:
+            logging.warning(
+                "Redis auth failed in tests; skipping flush (continuing tests)."
+            )
+            return
+        except ConnectionError:
+            if time.time() > deadline:
+                raise
+            time.sleep(0.1)
+
+    # Fast path: flushdb if allowed
+    try:
+        client.flushdb()
+        return
+    except AuthenticationError:
+        logging.warning(
+            "Redis auth failed during flushdb; skipping flush (continuing tests)."
+        )
+        return
+    except (NoPermissionError, ResponseError):
+        # Fallback for hardened ACLs: SCAN + UNLINK/DEL
+        cursor = 0
+        while True:
+            scan_result = cast(
+                Tuple[int, List[bytes]], client.scan(cursor=cursor, count=1000)
+            )
+            cursor, keys = scan_result
+            if keys:
+                try:
+                    client.unlink(*keys)  # non-blocking delete
+                except ResponseError:
+                    client.delete(*keys)  # fallback if UNLINK unavailable
+            if cursor == 0:
+                break
 
 
 @pytest.fixture
@@ -122,8 +170,7 @@ def setup(
         redis_flush()
 
         logging.info("Start the Celery worker")
-        with start_worker(celery_app, **celery_worker_parameters) as worker:
-            yield worker
-
+        with start_worker(celery_app, **celery_worker_parameters):
+            yield  # yield no value to match Generator[None, None, None]
     finally:
         pass

@@ -79,30 +79,34 @@ services:
   literev-celery:
     extends: literev-base
     hostname: literev-celery
-    build:
-      context: ..
-      dockerfile: containers/literev/Dockerfile
-    command: celery --app=config worker --loglevel=INFO  --concurrency=${CELERY_WORKER_CONCURRENCY}
+    command: >
+      celery -A config worker -l INFO
+      --pool=threads --concurrency=${CELERY_WORKER_CONCURRENCY:-4}
     env_file:
       - ../.env
     depends_on:
-      - literev-redis
-      - literev-postgres
+      literev-redis:
+        condition: service_healthy
+      literev-postgres:
+        condition: service_started
     volumes:
       - container_data_dir:${CONTAINER_VOLUME_DATA_DIR}
       - static_root:${STATIC_ROOT:-/tmp/literev/static}
       - media_root:${DJANGO_MEDIA_ROOT:-/tmp/literev/media}
       - llm_cache:${LITEREV_CACHE_DIR:-/opt/data/literev/cache}
-    networks:
-      - literev
+    networks: [literev]
+
 
   literev-redis:
     image: redis:7-alpine
     hostname: literev-redis
     networks:
-      - literev
-    ports:
-      - ${REDIS_PORT:-6379}:${REDIS_PORT:-6379}
+      literev:
+        aliases: [literev-redis]
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    volumes:
+      - ../containers/redis/config:/usr/local/etc/redis
+      - redis_data:/data
     deploy:
       resources:
         limits:
@@ -111,13 +115,19 @@ services:
         reservations:
           cpus: '0.25'
           memory: 1024M
-
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--user", "app", "--pass", "${REDIS_PASSWORD}", "PING"]
+      interval: 5s
+      timeout: 2s
+      retries: 20
 
 volumes:
   container_data_dir:
   static_root:
   media_root:
   llm_cache:
+  redis_data:
 
 networks:
   literev:

@@ -462,6 +462,13 @@ groups:
           mkdir -p ${CONTAINER_VOLUME_DATA_DIR}/pkl
           mkdir -p ${CONTAINER_VOLUME_DATA_DIR}/static
 
+      redis-setup:
+        help: Generate a random password for Redis and save it to a file
+        env-file: .env
+        run: |
+          bash ./containers/redis/scripts/generate_redis_password.sh
+          echo "Redis password generated and saved containers/redis/redis.pass."
+
       postgres-dump-database:
         backend: bash
         args:
@@ -535,6 +542,8 @@ groups:
               echo "Failed to restore database."
               exit 1
           fi
+
+
 
   nginx:
     tasks:

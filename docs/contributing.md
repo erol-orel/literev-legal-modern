@@ -187,11 +187,19 @@ ES_SSL_CERTS=False
 REDIS_HOST=literev-redis
 REDIS_PORT=6379
 REDIS_DB=0
+REDIS_USERNAME=app
+REDIS_PASSWORD=literevqredis3409po
 
 NUMBER_ARTICLE_BY_PAGE=30
 NUMBER_THREADS_ALLOWED=4
 NUMBER_TRIALS=20
 UPDATE_INTERVAL=2700000
+
+```
+Note: To generate the REDIS PASSWORD you must first execute:
+
+```bash
+ makim containers.redis-setup
 ```
 
 If you don't want to use containers, please use: `USE_CONTAINER=False`.
