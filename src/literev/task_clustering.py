@@ -93,7 +93,7 @@ def back_clustering_documents(self, project_id: int):
             tf_idf,
             columns_name,
             best_score,
-            number_neighbour,
+            _,  # number_neighbour (not used for now)
         ) = cluster_corpuses(
             pp_documents, study_name, storage, number_trials, number_jobs
         )

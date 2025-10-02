@@ -307,7 +307,7 @@ def _process_documents_with_threadpool(
                 for i, doc in enumerate(documents)
             }
             for future in concurrent.futures.as_completed(futures):
-                doc_id, success, chunks, tokens = _handle_future(
+                _, success, chunks, tokens = _handle_future(
                     future, futures[future], failed_docs_info, pbar
                 )
                 if success:

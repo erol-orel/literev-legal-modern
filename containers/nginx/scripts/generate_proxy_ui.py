@@ -21,7 +21,7 @@ templates = Environment(
 )
 
 nginx_template = templates.get_template("nginx.template.conf")
-domains = cast(str, os.environ.get("CERTBOT_DOMAIN", ""))
+domains = os.environ.get("CERTBOT_DOMAIN", "")
 
 # Define variables for the template
 variables = {

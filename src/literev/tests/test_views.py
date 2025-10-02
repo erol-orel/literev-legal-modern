@@ -361,7 +361,7 @@ class ProjectRAGTests(TestCase):
             username="testuser", password="testpass"
         )
         self.project = Project.objects.create(name="Test Project")
-        self.document, created = Document.objects.get_or_create(
+        self.document, _ = Document.objects.get_or_create(
             project=self.project,
             defaults={"raw_document_text": "Test document text"},
         )
