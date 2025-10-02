@@ -121,28 +121,44 @@ automatically.
 For more information, check its GitHub repository: https://github.com/pdbpp/pdbpp
 
 
-# .env
+## .env
 
-LiteRev-Legal manages the environment variables using `.env`. In order to have
-the services running, it is necessary to have a `.env` files, one in which
-of the following folder: `./` (root of the project).
-
-The `.env` file is not presented in the git repository, so it is necessary to
-create it locally. The easiest way to create that is from the `.env.tpl` inside
-which of that folders for example: `cp .env.tpl .env`. Next, change the values
-of the variables in which file for their desired values.
-
-These are examples of values used by all the three `.env` files:
+LiteRev-Legal reads environment variables from a single `.env` file at the
+project root (`./`). This file is not committed to git.
 
 
-`./.env`:
+Create it from the template:
 
-```.env
+```bash
+cp .env.tpl .env
+````
+
+```env
+# System / Host
 HOST_UID=1001
 HOST_GID=1001
+USE_CONTAINER=True
+
+# Runtime / Django
 ENV=dev
 DEBUG=True
+DJANGO_SETTINGS_MODULE=config.settings.dev
+DJANGO_SECRET_KEY='django-testeforq09uh20(^i4sdxqh3n_v#d-$o=**7zrri&k-j3@f10hm88)django-insecure-96*'
+ALLOWED_HOSTS='localhost'
+GUNICORN_WORKERS=1
+FRONTEND_HOST_PORT=8000
 
+# Resources
+DOCKER_CPU_LIMIT=1.0
+DOCKER_CPU_RESERVATION=0.5
+
+# Paths
+CONTAINER_VOLUME_DATA_DIR=/opt/data/literev
+STATIC_ROOT=/opt/data/literev/static
+MEDIA_ROOT=/opt/data/literev/static/media
+POSTGRES_DATA=/opt/data/literev/postgres
+
+# Postgres
 POSTGRES_HOST=literev-postgres
 POSTGRES_PORT=35432
 POSTGRES_DB=postgres
@@ -151,93 +167,98 @@ POSTGRES_PASSWORD=postgres
 POSTGRES_DB_LITEREV=literev
 POSTGRES_USER_LITEREV=literev
 POSTGRES_PASSWORD_LITEREV=literevqsx3409po
-POSTGRES_DATA=/opt/data/literev/postgres
 
-FRONTEND_HOST_PORT=8000
-DJANGO_SECRET_KEY='django-testeforq09uh20(^i4sdxqh3n_v#d-$o=**7zrri&k-j3@f10hm88)django-insecure-96*'
+# Elasticsearch
+ES_HOST_URL=http://95.216.201.202:9200/
+ES_USERNAME=elastic
+ES_PASSWORD=I39hAE_bvikcbRHNhyvf
+ES_SSL_CERTS=False
 
-CONTAINER_VOLUME_DATA_DIR=/opt/data/literev
-STATIC_ROOT=/opt/data/literev/static
+# Redis
+REDIS_HOST=literev-redis
+REDIS_PORT=6379
+REDIS_DB=0
+REDIS_PASSWORD=""
 
-OPENAI_API_KEY=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
-
-ALLOWED_HOSTS='localhost'
-DJANGO_SETTINGS_MODULE=config.settings.dev
-
-MEDIA_ROOT=/opt/data/literev/static/media
-
-USE_CONTAINER=True
-
-GUNICORN_WORKERS=1
-
-DOCKER_CPU_LIMIT=1.0
-DOCKER_CPU_RESERVATION=0.5
-
+# Certbot / Nginx
 CERTBOT_DOMAIN=myapp.domain.com
 CERTBOT_EMAIL=myapp@gmail.com
 CERTBOT_CONF=./containers/nginx/data/certbot/conf
 CERTBOT_WWW=./containers/nginx/data/certbot/www
 NGNIX_CONF=./containers/nginx/data/config/prod
 
-ES_USERNAME=elastic
-ES_PASSWORD=I39hAE_bvikcbRHNhyvf
-ES_HOST_URL=http://95.216.201.202:9200/
-ES_SSL_CERTS=False
+# Integrations
+OPENAI_API_KEY=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
 
-REDIS_HOST=literev-redis
-REDIS_PORT=6379
-REDIS_DB=0
-REDIS_USERNAME=app
-REDIS_PASSWORD=literevqredis3409po
-
+# App tuning
 NUMBER_ARTICLE_BY_PAGE=30
 NUMBER_THREADS_ALLOWED=4
 NUMBER_TRIALS=20
 UPDATE_INTERVAL=2700000
-
 ```
-Note: To generate the REDIS PASSWORD you must first execute:
+
+### Generate Redis credentials
+
+Run this once to create a strong password, write the Redis ACL config, and
+synchronize `REDIS_PASSWORD` in your `.env`:
 
 ```bash
- makim containers.redis-setup
+makim containers.redis-setup
 ```
 
-If you don't want to use containers, please use: `USE_CONTAINER=False`.
-And you probably should set `POSTGRES_HOST=localhost`. But, in general,
-it would be better to use container as much as possible.
+This command creates:
 
-`./containers/literev/.env`:
+* `containers/redis/config/redis.pass` (the generated password)
+* `containers/redis/config/redis.conf` (ACLs with the `app` user)
+* Updates `./.env` so `REDIS_PASSWORD` matches `redis.pass`
 
-```.env
+If your host drops inter-container traffic to port 6379 via `DOCKER-USER`,
+you can add an allow rule limited to the project’s Docker bridge:
+
+```bash
+*With cached sudo (no prompt):*
+sudo -v && makim containers.redis-setup --set-iptables
+
+*Or pass the password explicitly:*
+makim containers.redis-setup --set-iptables --sudo-password 'yourpass'
+
+*Or via env (keeps CLI args cleaner):*
+SUDO_PASSWORD='yourpass' makim containers.redis-setup --set-iptables
+```
+
+The iptables script will use cached sudo if available, otherwise it reads
+`SUDO_PASSWORD` when provided. If neither is available, it skips the rule and
+prints a warning.
+
+### Not using containers
+
+If you don’t want to use containers, set `USE_CONTAINER=False` and
+`POSTGRES_HOST=localhost` in `.env` and point Redis to your local instance.
+
+### Optional container-specific files
+
+If you keep per-service env files, start from their templates as well:
+
+`./containers/literev/.env` (Django service inside the container):
+
+```env
+DJANGO_SETTINGS_MODULE=config.settings.dev
 ALLOWED_HOSTS=localhost
 DB_HOST=literev-postgres
 DB_NAME=literev
-DB_PASSWORD=literevqsx3409po
 DB_USER=literev
-DJANGO_SECRET_KEY='django-insecure-96*q09uh20(^i4sdxqh3n_v#d-$o=**7zrri&k-j3@f10hm88)'
-DJANGO_ENV=dev
+DB_PASSWORD=literevqsx3409po
 MEDIA_ROOT=/opt/data/literev/static/media
-DJANGO_SETTINGS_MODULE=config.settings.dev
 GUNICORN_WORKERS=1
-NUMBER_ARTICLE_BY_PAGE=30
-NUMBER_THREADS_ALLOWED=4
-NUMBER_TRIALS=2
-OPENAI_API_KEY=<YOUR OPEN AI KEY HERE>
 ```
 
-If you have a domain for your service, set to `ALLOWED_HOSTS` the domain name
-you need.
+`./containers/postgresql/.env` (Postgres service):
 
-`./containers/postgresql/.env`:
-
-```.env
-POSTGRES_PORT=25432
-POSTGRES_DB=literevdb
-POSTGRES_DB_LITEREV=literev
-POSTGRES_PASSWORD=awxdr230po
-POSTGRES_PASSWORD_LITEREV=literevqsx3409po
+```env
+POSTGRES_PORT=35432
+POSTGRES_DB=postgres
 POSTGRES_USER=postgres
-POSTGRES_USER_LITEREV=literev
+POSTGRES_PASSWORD=postgres
 ```
 
 ## Docker

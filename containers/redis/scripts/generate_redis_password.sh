@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if ROOT_DIR="$(git -C "$BASE_DIR" rev-parse --show-toplevel 2>/dev/null)"; then :; else
   ROOT_DIR="$(cd "$BASE_DIR/../../.." && pwd)"
 fi
+
 RDIR="$ROOT_DIR/containers/redis"
 CFG_DIR="$RDIR/config"
 CONF="$CFG_DIR/redis.conf"
 PASS_FILE="$CFG_DIR/redis.pass"
+ENV_FILE="$ROOT_DIR/.env"
 
 umask 077
 mkdir -p "$CFG_DIR"
@@ -45,9 +46,26 @@ EOF
 mv "$TMP_CONF" "$CONF"
 
 chmod 0644 "$CONF"
-chmod 0644 "$PASS_FILE"   # change to 0600 if the container never reads this file
+chmod 0644 "$PASS_FILE"   # change to 0600 if only the host reads this file
+
+# --- Update .env REDIS_PASSWORD (append if missing) ---
+touch "$ENV_FILE"
+cp -a "$ENV_FILE" "$ENV_FILE.bak"
+
+awk -v val="$PASS" '
+BEGIN{done=0}
+# Match optional leading spaces, optional "export", then REDIS_PASSWORD=
+/^[[:space:]]*(export[[:space:]]+)?REDIS_PASSWORD=/ {
+  print "REDIS_PASSWORD=" val; done=1; next
+}
+{print}
+END{
+  if(!done) print "REDIS_PASSWORD=" val
+}
+' "$ENV_FILE.bak" > "$ENV_FILE"
 
 # --- Minimal status (mask the secret) ---
 echo "redis.conf -> $CONF"
 echo "redis.pass -> $PASS_FILE"
 awk '/^user[[:space:]]+app[[:space:]]+on/ {sub(/>[^ ]+/,">******"); print}' "$CONF"
+echo ".env updated: REDIS_PASSWORD=********"
