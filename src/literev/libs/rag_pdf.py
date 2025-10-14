@@ -5,8 +5,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import re
-import textwrap
 
 from functools import wraps
 from hashlib import sha256
@@ -18,9 +16,6 @@ from typing import (
     List,
     Literal,
     Optional,
-    Set,
-    Tuple,
-    Union,
     cast,
 )
 
@@ -41,6 +36,16 @@ from rago.extensions.cache import CacheFile
 from rago.generation import OpenAIGen
 from rago.retrieval import StringRet
 
+from literev.legal.extract_minor_major import (
+    Classification,
+    classify_chunks_llm,
+    get_sentences,
+    materialize_classification,
+    normalize_text,
+    openai_llm_call,
+    pack_chunks,
+    split_sentences_fr_legal,
+)
 from literev.libs.parsing import extract_after_endroit
 from literev.libs.rag_classes import HactarAug, HactarGen
 from literev.libs.scoring import (
@@ -232,7 +237,7 @@ def get_rag_generator(
     else:
         return OpenAIGen(
             api_key=settings.OPENAI_API_KEY,
-            model_name=model_name or "gpt-4o-mini",
+            model_name=model_name or "gpt-4.1-mini",
             **common_params,  # type: ignore
         )
 
@@ -290,12 +295,12 @@ class OpenAIAnswerClient:
             augmented = OpenAIAug(
                 api_key=self.api_key,
                 top_k=30,
-                model_name="text-embedding-ada-002",
+                model_name="text-embedding-3-large",
                 cache=AUG_CACHE,
             )
             generation = OpenAIGen(
                 api_key=self.api_key,
-                model_name="gpt-4o-mini",
+                model_name="gpt-4.1-mini",
                 system_message=self.document_answering_system_prompt,
                 prompt_template=self.document_answering_user_prompt,
                 temperature=0.0,
@@ -810,16 +815,16 @@ class RagAnswersManager:
     def get_and_save_answers_from_documents(
         self, documents: list[Document], max_doc_ans: int | None = None
     ) -> None:
-        # Getting individual answers per document
+        """Generate and store answers for each document in the project."""
         if max_doc_ans:
             self.project_rag.num_documents = max_doc_ans
         else:
             self.project_rag.num_documents = len(self.documents_ids)
-
         self.project_rag.save()
 
         documents_asked = 0
         ans_counter = 0
+        builder = RAGClassificationBuilder()
 
         for document in documents:
             documents_asked += 1
@@ -839,38 +844,55 @@ class RagAnswersManager:
                     answer=cached_result["answer"],
                     citation_context=cached_result.get("citation_context", []),
                 )
-
-                cached_answer = cached_result["answer"].lower()
+                cached_answer = (cached_result["answer"] or "").lower()
                 not_valid_answers = [
                     "réponse non disponible",
                     "no content available",
                     "error generating response",
                     "no content available",
                 ]
-
                 if cached_answer and not any(
-                    cached_answer.startswith(not_valid_answer)
-                    for not_valid_answer in not_valid_answers
+                    cached_answer.startswith(bad) for bad in not_valid_answers
                 ):
                     ans_counter += 1
                 continue
 
-            chunks = RAGClassificationBuilder().get_fragments_for_answering(
-                document
-            )
+            try:
+                aggregated = builder.load_or_classify_document(
+                    document, engine="openai"
+                )
+                rows = aggregated.get("results", [])
+                chunks = [
+                    frag.strip()
+                    for row in rows
+                    for frag in row.get("mineures", [])
+                    if frag and isinstance(frag, str)
+                ]
+            except Exception as exc:
+                logger.warning(
+                    f"Classification failed for doc {document.id}: {exc}"
+                )
+                chunks = []
 
             if not chunks:
                 logger.warning(
-                    f"There is no chunks for document: {document.id}"
+                    f"There are no chunks for document: {document.id}"
+                )
+                self._create_and_save_empty_response(
+                    cache_key,
+                    document,
+                    {
+                        "answer": "Réponse non disponible",
+                        "citation": "",
+                        "citation_context": [],
+                    },
                 )
                 continue
 
             rag_answer_dict = self.answer_generator.get_answer(
                 self.project_rag.query, chunks
             )
-
-            ll_answer = rag_answer_dict["answer"].lower()
-
+            llm_answer = (rag_answer_dict.get("answer") or "").lower()
             not_valid_answers = [
                 "réponse non disponible",
                 "no content available",
@@ -878,9 +900,8 @@ class RagAnswersManager:
                 "no content available",
             ]
 
-            if ll_answer and not any(
-                ll_answer.startswith(not_valid_answer)
-                for not_valid_answer in not_valid_answers
+            if llm_answer and not any(
+                llm_answer.startswith(bad) for bad in not_valid_answers
             ):
                 self.save_and_cache_rag_answer(
                     cache_key, document, rag_answer_dict
@@ -888,7 +909,7 @@ class RagAnswersManager:
                 ans_counter += 1
             else:
                 logger.warning(
-                    f"There is no answer for query: {self.project_rag.query}, document: {document.id}"
+                    f"No valid answer for query: {self.project_rag.query}, document: {document.id}"
                 )
                 self._create_and_save_empty_response(
                     cache_key, document, rag_answer_dict
@@ -901,6 +922,7 @@ class RagAnswersManager:
             if max_doc_ans and ans_counter >= max_doc_ans:
                 logger.debug("Max document answers reached.")
                 break
+
         return
 
     def get_and_save_answers_scores(
@@ -1093,9 +1115,7 @@ class RagAnswersManager:
 
 
 class DocumentCache:
-    """Cache for classification artifacts under /tmp/rago, keyed by
-    raw_document_id + engine.
-    """
+    """Cache for document classifications."""
 
     def __init__(self) -> None:
         self.cache_dir: Path = CACHE_DIR
@@ -1112,13 +1132,9 @@ class DocumentCache:
         dir_path = self.cache_dir / "documents"
         data = self._document_cache().load(key)
         if data is not None:
-            logger.debug(
-                f"[CLASSIFY][CACHE-HIT]: key={key} engine={engine} dir={dir_path}"
-            )
+            logger.debug(f"[CLASSIFY][CACHE-HIT]: key={key} dir={dir_path}")
         else:
-            logger.debug(
-                f"[CLASSIFY][CACHE-MISS]: key={key} engine={engine} dir={dir_path}"
-            )
+            logger.debug(f"[CLASSIFY][CACHE-MISS]: key={key} dir={dir_path}")
         return data
 
     def save(
@@ -1129,7 +1145,7 @@ class DocumentCache:
         dir_path = self.cache_dir / "documents"
         self._document_cache().save(key, aggregated)
         logger.debug(
-            f"[CLASSIFY][CACHE-SAVE]: key={key} engine={engine} dir={dir_path} "
+            f"[CLASSIFY][CACHE-SAVE]: key={key} dir={dir_path} "
             f"items={len(aggregated.get('results', []))}"
         )
 
@@ -1138,7 +1154,7 @@ JuridicField = Literal["majeures", "mineures"]
 
 
 class RAGClassificationBuilder:
-    """Minor/Major classification with line-aware slicing to avoid max_tokens."""
+    """Minor/Major classification with sentence-first, legal-split fallback."""
 
     def __init__(self) -> None:
         self.cache_dir: Path = CACHE_DIR
@@ -1146,53 +1162,22 @@ class RAGClassificationBuilder:
         self.cache = DocumentCache()
 
         self.model_config: Dict[str, Dict[str, str]] = {
-            "openai": {"provider": "openai", "chat": "gpt-4o-mini"},
+            "openai": {"provider": "openai", "chat": "gpt-4.1-mini"},
             "hactar": {"provider": "hactar", "chat": "mistral-small3.1:24b"},
         }
 
-        self.invalid_answers: Set[str] = {
+        self.invalid_answers: set[str] = {
             "",
             "réponse non disponible",
             "reponse non disponible",
-            "no content available.",
             "no content available",
-            "error generating response.",
+            "error generating response",
         }
-
-        self.classification_system_prompt = (
-            "Tu es un expert en droit. Je te donne un texte de jurisprudence "
-            "et les définitions suivantes :\n\n"
-            "Majeure : C'est la règle de droit applicable au cas d'espèce. "
-            "Elle peut être une loi, un règlement, un contrat, ou même une "
-            "jurisprudence. La majeure énonce une règle générale et "
-            "abstraite.\n"
-            "Mineure : C'est la description des faits pertinents de l'affaire. "
-            "Il s'agit de qualifier les faits de l'espèce et de les faire "
-            "rentrer dans une catégorie juridique définie. C'est également le "
-            "résultat de l'application de la règle de droit aux faits.\n\n"
-            "Ta tâche :\n"
-            "- Découpe le texte en segments de phrases si nécessaire.\n"
-            "- Si une phrase contient à la fois des éléments de majeure et de "
-            "  mineure, sépare-la en segments distincts pour que chaque "
-            "  segment corresponde uniquement à l'une ou l'autre catégorie.\n"
-            "- Ne modifie jamais le texte original : conserve les "
-            "  formulations exactes.\n"
-            "- Pour chaque segment, indique clairement s'il relève de la "
-            "  majeure ou de la mineure.\n"
-        )
-
-        self.classification_user_prompt = 'Texte: "{context}"\n\n{query}\n'
 
     @staticmethod
     def _safe_raw_key(raw_id: Optional[str], doc_id: Optional[int]) -> str:
         raw_id = (raw_id or "").strip()
         return raw_id if raw_id else f"doc_{int(doc_id or 0)}"
-
-    @staticmethod
-    def _clean_ws(text: str) -> str:
-        """Clean and normalize whitespace in a string."""
-        text = (text or "").replace("\xa0", " ").replace("\u202f", " ")
-        return re.sub(r"\s+", " ", text).strip()
 
     @staticmethod
     def normalize_field_to_list(value: Any) -> List[str]:
@@ -1212,234 +1197,94 @@ class RAGClassificationBuilder:
         return []
 
     def is_invalid_list(self, texts: List[str]) -> bool:
-        """Checks if a list of texts is invalid based on predefined invalid answers."""
+        """True if the list is empty or only contains invalid placeholders."""
         if not texts:
             return True
         lowered = [t.strip().lower() for t in texts if isinstance(t, str)]
         return all((not t) or (t in self.invalid_answers) for t in lowered)
 
-    @staticmethod
-    def slice_text_by_lines(text: str, max_chars: int = 1600) -> List[str]:
-        """
-        Line-aware slicer:
-        - Accumulates whole lines until adding the next line would exceed max_chars.
-        - If a single line exceeds max_chars, hard-wrap that line.
-        - Returns contiguous, non-overlapping slices.
-        """
-        normalized = (text or "").replace("\xa0", " ").replace("\u202f", " ")
-        normalized = (
-            normalized.replace("\r\n", "\n").replace("\r", "\n").strip()
-        )
-        if not normalized:
-            return []
-
-        slices: List[str] = []
-        current_buffer_lines: List[str] = []
-        current_length: int = 0
-
-        def flush_current_buffer() -> None:
-            nonlocal current_buffer_lines, current_length
-            if current_buffer_lines:
-                slices.append("\n".join(current_buffer_lines).strip())
-                current_buffer_lines = []
-                current_length = 0
-
-        for raw_line in normalized.split("\n"):
-            line_text = raw_line.rstrip()
-
-            if not line_text:
-                added_length = 1 if current_buffer_lines else 0
-                if current_length + added_length <= max_chars:
-                    current_buffer_lines.append(
-                        ""
-                    )  # keep a blank boundary line
-                    current_length += added_length
-                else:
-                    flush_current_buffer()
-                    current_buffer_lines.append("")
-                    current_length = 0
-                continue
-
-            # Hard-wrap lines that individually exceed max_chars
-            if len(line_text) > max_chars:
-                flush_current_buffer()
-                start_index = 0
-                while start_index < len(line_text):
-                    end_index = min(len(line_text), start_index + max_chars)
-                    chunk = line_text[start_index:end_index].strip()
-                    if chunk:
-                        slices.append(chunk)
-                    start_index = end_index
-                continue
-
-            # Normal case: try to add the whole line to the current buffer
-            added_length = (1 if current_buffer_lines else 0) + len(line_text)
-            if current_length + added_length > max_chars:
-                flush_current_buffer()
-                current_buffer_lines.append(line_text)
-                current_length = len(line_text)
-            else:
-                current_buffer_lines.append(line_text)
-                current_length += added_length
-
-        flush_current_buffer()
-        return [s for s in slices if s]
-
-    def _build_generator(
-        self,
-        output_max_length: int = 2048,
-        engine: str = "openai",
-    ) -> Union[OpenAIGen, HactarGen]:
-        """Builds and returns a generator instance for the specified engine."""
-        if engine not in self.model_config:
-            raise ValueError(f"Unknown engine: {engine}")
-        conf = self.model_config[engine]
-        model_name = conf["chat"]
-
-        # Critical: keep output small to leave room for input
-        common = dict(
-            system_message=self.classification_system_prompt,
-            prompt_template=self.classification_user_prompt,
-            temperature=0.0,
-            output_max_length=output_max_length,
-            api_params={
-                "top_p": 0.0,
-                "frequency_penalty": 0.0,
-                "presence_penalty": 0.0,
-            },
-            structured_output=MinorMajorPair,
-            cache=CacheFile(target_dir=self.cache_dir / f"gen_{engine}"),
-        )
-
-        if conf["provider"] == "hactar":
-            return HactarGen(
-                api_key=getattr(settings, "HACTAR_API_KEY", ""),
-                model_name=model_name,
-                **common,  # type: ignore[arg-type]
-            )
-        return OpenAIGen(
-            api_key=getattr(settings, "OPENAI_API_KEY", ""),
-            model_name=model_name,
-            **common,  # type: ignore[arg-type]
-        )
-
-    def _classify_whole_section(
+    def _classify_by_sentences(
         self,
         engine: str,
         raw_key: str,
-        endroit_clean: str,
-    ) -> List[Dict[str, List[str]]]:
-        """Return classification rows for the whole EN DROIT section.
-
-        Returns a list of rows like:
-        [{"majeures": [...], "mineures": [...]}]
-        or an empty list on failure/no usable output.
-        """
+        raw_text: str,
+    ) -> list[dict[str, list[str]]]:
+        """Primary path: sentence split → one-shot chunk-ID classification."""
         logger.debug(
-            f"[CLASSIFY]: start raw_id={raw_key} engine={engine} whole_section"
+            f"[CLASSIFY]: start sentence classification raw_id={raw_key}"
         )
 
-        generator = self._build_generator(
-            output_max_length=16384, engine=engine
-        )
+        text = normalize_text(raw_text or "")
+        chunks = get_sentences(text)
 
-        try:
-            structured = generator.generate(
-                query=(
-                    "Retourne un fichier JSON pur avec les deux listes "
-                    "'mineures' et 'majeures' comme décrit ci-dessus."
-                ),
-                context=[endroit_clean],
-            )
-        except Exception as exc:
-            logger.warning(
-                f"[CLASSIFY]: raw_id={raw_key} whole_section skipped: {exc}"
-            )
+        if not chunks:
             return []
 
-        if not isinstance(structured, BaseModel):
-            logger.warning(
-                f"[CLASSIFY]: raw_id={raw_key} whole_section non-Model: "
-                f"{type(structured)!r}"
-            )
-            return []
+        result: Classification = classify_chunks_llm(chunks, openai_llm_call)
+        maj_texts, min_texts = materialize_classification(
+            result, chunks, "document"
+        )
 
-        majeures = self.normalize_field_to_list(
-            getattr(structured, "majeure", [])
-        )
-        mineures = self.normalize_field_to_list(
-            getattr(structured, "mineure", [])
-        )
+        majeures = self.normalize_field_to_list(maj_texts)
+        mineures = self.normalize_field_to_list(min_texts)
 
         if self.is_invalid_list(majeures) and self.is_invalid_list(mineures):
             return []
 
         rows = [{"majeures": majeures, "mineures": mineures}]
         logger.debug(
-            f"[CLASSIFY]: done by whole section raw_id={raw_key} results={len(rows)}"
+            f"[CLASSIFY]: done sentence classification raw_id={raw_key} results={len(rows)}"
         )
         return rows
 
     def _classify_by_slices(
         self,
-        engine: str,
         raw_key: str,
-        endroit_clean: str,
-    ) -> List[Dict[str, List[str]]]:
-        """Return classification rows using line-aware slices."""
-        slices = self.slice_text_by_lines(endroit_clean, max_chars=1600)
-        logger.debug(
-            f"[CLASSIFY]: start raw_id={raw_key} engine={engine} "
-            f"len_chars={len(endroit_clean)} slices={len(slices)}"
-        )
+        raw_text: str,
+    ) -> list[dict[str, list[str]]]:
+        """Fallback: legal-aware split → token packer → one classification."""
+        logger.debug(f"[CLASSIFY]: start raw_id={raw_key}")
 
-        generator = self._build_generator(
-            output_max_length=2048, engine=engine
-        )
-        results: List[Dict[str, List[str]]] = []
+        rows: list[dict[str, list[str]]] = []
+        try:
+            text = normalize_text(raw_text or "")
+            sents = split_sentences_fr_legal(text)
+            chunks = pack_chunks(sents, max_tokens=900, overlap_tokens=80)
 
-        for idx, slice_text in enumerate(slices):
-            try:
-                structured = generator.generate(
-                    query=(
-                        "Retourne un fichier JSON pur avec les deux listes "
-                        "'mineures' et 'majeures' comme décrit ci-dessus."
-                    ),
-                    context=[slice_text],
+            if not chunks:
+                logger.debug(
+                    f"[CLASSIFY]: raw_id={raw_key} no chunks produced"
                 )
-                if structured:
-                    logger.debug(f"[CLASSIFY]: raw_id={raw_key} slice={idx}")
-            except Exception as exc:
-                logger.warning(
-                    f"[CLASSIFY]: raw_id={raw_key} slice={idx} skipped: {exc}"
-                )
-                continue
+                return rows
 
-            if not isinstance(structured, BaseModel):
-                logger.warning(
-                    f"[CLASSIFY]: raw_id={raw_key} slice={idx} non-Model: "
-                    f"{type(structured)!r}"
-                )
-                continue
-
-            majeures = self.normalize_field_to_list(
-                getattr(structured, "majeure", [])
+            result: Classification = classify_chunks_llm(
+                chunks, openai_llm_call
             )
-            mineures = self.normalize_field_to_list(
-                getattr(structured, "mineure", [])
+            maj_texts, min_texts = materialize_classification(
+                result, chunks, "document"
             )
+
+            majeures = self.normalize_field_to_list(maj_texts)
+            mineures = self.normalize_field_to_list(min_texts)
 
             if self.is_invalid_list(majeures) and self.is_invalid_list(
                 mineures
             ):
-                continue
+                logger.debug(
+                    f"[CLASSIFY]: raw_id={raw_key} empty classification"
+                )
+                return rows
 
-            results.append({"majeures": majeures, "mineures": mineures})
+            rows.append({"majeures": majeures, "mineures": mineures})
+
+        except Exception as exc:
+            logger.warning(f"[CLASSIFY]: raw_id={raw_key} skipped: {exc}")
 
         logger.debug(
-            f"[CLASSIFY]: done by slice raw_id={raw_key} results={len(results)}"
+            f"[CLASSIFY]: done by slice raw_id={raw_key} results={len(rows)}",
         )
-        return results
+
+        return rows
 
     def classify_document_minor_major(
         self,
@@ -1447,42 +1292,35 @@ class RAGClassificationBuilder:
         *,
         engine: str = "openai",
     ) -> Dict[str, Any]:
-        """Classify a document with whole-first, then slice fallback."""
+        """Classify a document into 'majeures' and 'mineures' using LLM."""
         raw_key = self._safe_raw_key(
             getattr(document, "raw_document_id", None),
             getattr(document, "id", None),
         )
 
-        after_endroit = extract_after_endroit(document.raw_document_text)
-        endroit_clean = self._clean_ws(after_endroit)
-
-        # Whole-section attempt
-        rows = self._classify_whole_section(
-            engine=engine, raw_key=raw_key, endroit_clean=endroit_clean
+        rows = self._classify_by_sentences(
+            engine=engine, raw_key=raw_key, raw_text=document.raw_document_text
         )
         if rows:
             aggregated = {"raw_document_id": raw_key, "results": rows}
-
             self.cache.save(raw_key, engine, aggregated)
-
             logger.debug(
-                f"[CLASSIFY]: finish whole section raw_id={raw_key} results={len(rows)}"
+                f"[CLASSIFY]: finish by sentence raw_id={raw_key} results={len(rows)}"
             )
             return aggregated
 
-        # Fallback to slices
+        # Fallback to legal-aware slices
+        logger.warning(f"[CLASSIFY]: fallback to slicing raw_id={raw_key}")
         rows = self._classify_by_slices(
-            engine=engine, raw_key=raw_key, endroit_clean=endroit_clean
+            raw_key=raw_key, raw_text=document.raw_document_text
         )
 
         aggregated = {"raw_document_id": raw_key, "results": rows}
-
         self.cache.save(raw_key, engine, aggregated)
 
         logger.debug(
             f"[CLASSIFY]: finish slicing raw_id={raw_key} results={len(rows)}"
         )
-
         return aggregated
 
     def load_or_classify_document(
@@ -1491,7 +1329,7 @@ class RAGClassificationBuilder:
         *,
         engine: str = "openai",
     ) -> Dict[str, Any]:
-        """Loads a cached document or classifies it if not cached."""
+        """Load cached classification or run it if not cached."""
         raw_key = self._safe_raw_key(
             getattr(document, "raw_document_id", None),
             getattr(document, "id", None),
@@ -1499,66 +1337,11 @@ class RAGClassificationBuilder:
         cached = self.cache.load(raw_key, engine)
         if cached:
             logger.debug(
-                f"[CLASSIFY]: using cached classification raw_id={raw_key} engine={engine} "
-                f"results={len(cached.get('results', []))}"
+                f"[CLASSIFY]: using cached classification raw_id={raw_key} results={len(cached.get('results', []))}"
             )
             return cached
 
         logger.debug(
-            f"[CLASSIFY]: cache miss, running classification raw_id={raw_key} engine={engine}"
+            f"[CLASSIFY]: cache miss, running classification raw_id={raw_key}"
         )
         return self.classify_document_minor_major(document, engine=engine)
-
-    def build_corpus_from_lists(
-        self,
-        results_by_document: Dict[str, Dict[str, Any]],
-        field: JuridicField,
-    ) -> List[Tuple[str, str, int]]:
-        """
-        Flatten classification for a single field (plural payload key).
-        Returns a list of (text, raw_document_id, item_index).
-        """
-        corpus: List[Tuple[str, str, int]] = []
-        for raw_id, aggregated in results_by_document.items():
-            rows = aggregated.get("results", []) or []
-            for i, row in enumerate(rows):
-                for item_index, text in enumerate(row.get(field) or []):
-                    cleaned = self._clean_ws(text)
-                    if cleaned:
-                        corpus.append((cleaned, raw_id, item_index))
-        return corpus
-
-    def get_fragments_for_answering(
-        self,
-        document,
-        *,
-        engine: str = "openai",
-        field: JuridicField = "mineures",
-        max_chars_per_chunk: int = 1600,
-    ) -> List[str]:
-        """Return cleaned fragments for answering from cached classification."""
-        aggregated = self.load_or_classify_document(document, engine=engine)
-
-        rows = aggregated.get("results") or ()
-        raw_items = (t for row in rows for t in (row.get(field) or ()))
-
-        seen: Set[str] = set()
-        chunks: List[str] = []
-
-        for frag in raw_items:
-            frag_cleaned = self._clean_ws(frag)
-            if not frag_cleaned or frag_cleaned in seen:
-                continue
-            seen.add(frag_cleaned)
-
-            # textwrap.wrap returns [s] if len(s) <= width
-            for piece in textwrap.wrap(
-                frag_cleaned,
-                width=max_chars_per_chunk,
-                break_long_words=False,
-                break_on_hyphens=False,
-            ):
-                if piece:
-                    chunks.append(piece)
-
-        return chunks
