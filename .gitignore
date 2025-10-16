@@ -162,3 +162,8 @@ docs/notebooks/judiciary_data.jsonl
 # temporary data
 tmp/
 *.whl
+
+# redis
+redis.pass
+redis.conf
+.env.bak
