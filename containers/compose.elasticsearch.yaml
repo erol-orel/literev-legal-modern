@@ -152,7 +152,7 @@ services:
         echo "[*] Disabling ILM..." &&
         curl -u elastic:${ES_PASSWORD} -X POST http://es-legal-1:9200/_ilm/stop &&
         echo "[*] Blocking write/deletion on core indexes..." &&
-        for idx in civil_court penal_court administrative_court; do
+        for idx in chambre_penale chambre_civile chambre_administrative; do
           curl -u elastic:${ES_PASSWORD} -X PUT http://es-legal-1:9200/$$idx/_settings -H "Content-Type: application/json" \
             -d "{\"index.blocks.write\": true, \"index.blocks.read_only_allow_delete\": false}"
         done

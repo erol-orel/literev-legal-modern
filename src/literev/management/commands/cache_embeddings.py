@@ -23,7 +23,7 @@ from literev.libs.collectors import ElasticSearchCollector
 from literev.libs.rag_classes import HactarAug
 from literev.libs.rag_pdf import prepare_chunks
 
-CHAMBERS_NAME = ["penal_court", "civil_court", "administrative_court"]
+CHAMBER_NAMES = settings.LITEREV_CHAMBER_NAMES
 
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
@@ -242,9 +242,9 @@ class Command(BaseCommand):
         index_name = options["index_name"]
         engine: str = options["engine"]
 
-        if index_name not in CHAMBERS_NAME:
+        if index_name not in CHAMBER_NAMES:
             logging.error(
-                f"index_name must be one of the following : {CHAMBERS_NAME!s}"
+                f"index_name must be one of the following : {CHAMBER_NAMES!s}"
             )
             raise SystemExit(2)
 

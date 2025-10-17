@@ -12,6 +12,9 @@ REQUIRED_INDICES = [
     "civil_court",
     "penal_court",
     "administrative_court",
+    "chambre_penale",
+    "chambre_civile",
+    "chambre_administrative",
 ]
 
 

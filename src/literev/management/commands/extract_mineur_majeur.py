@@ -20,18 +20,11 @@ from .utils.classify_mineur_majeur import (
 )
 
 CACHE_DIR = settings.LITEREV_CACHE_DIR
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 CACHE_STRUCTURED_DOCUMENTS = CACHE_DIR / "structured_data_documents"
 CACHE_STRUCTURED_DOCUMENTS.mkdir(parents=True, exist_ok=True)
 
-CHAMBERS_NAME = [
-    "penal_court",
-    "civil_court",
-    "administrative_court",
-    "chambre_penale",
-]
-
+CHAMBER_NAMES = settings.LITEREV_CHAMBER_NAMES
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -153,9 +146,9 @@ class Command(BaseCommand):
             custom_log(f"Document to process {len(documents)}")
 
         else:
-            if index_name not in CHAMBERS_NAME:
+            if index_name not in CHAMBER_NAMES:
                 logging.error(
-                    f"index_name must be one of the following: {CHAMBERS_NAME}"
+                    f"index_name must be one of the following: {CHAMBER_NAMES}"
                 )
                 raise
 
