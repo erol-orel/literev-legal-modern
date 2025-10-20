@@ -356,11 +356,9 @@ PROCESS_ALL_CORPUS_QUERY = os.environ.get(
 LITEREV_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # LITEREV CHAMBERS
-LITEREV_CHAMBER_NAMES = env.list(
-    "LITEREV_CHAMBER_NAMES",
-    default=[
-        "chambre_penale",
-        "chambre_civile",
-        "chambre_administrative",
-    ],
-)
+LITEREV_CHAMBER_NAMES = [
+    "chambre_penale",
+    "chambre_civile",
+    "chambre_administrative",
+    *env("LITEREV_CHAMBER_NAMES", default="").split(","),
+]

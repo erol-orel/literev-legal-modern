@@ -114,11 +114,12 @@ class Command(BaseCommand):
         self, *args, **options
     ) -> None:  # removed *args: Any, **options: Any because linter
         index_name = options["index_name"]
+        max_workers_test: int = 2
 
         start_time = time.time()
 
         if index_name == "test":
-            max_workers = 2
+            max_workers = max_workers_test
             start_date = datetime(2023, 6, 1)
             end_date = datetime(2023, 6, 10)
 
@@ -153,10 +154,6 @@ class Command(BaseCommand):
                 raise
 
             max_workers = int(options["max_workers"])
-
-            if max_workers > 8:
-                logging.error("Please provide a smaller max-workers")
-                raise
 
             collector = ElasticSearchCollector(index_name=index_name)
             documents = collector.collect_all_documents()

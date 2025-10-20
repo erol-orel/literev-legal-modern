@@ -53,7 +53,8 @@ env:
   REDIS_USERNAME: app
   CLUSTERING_MIN_DOCUMENTS: 20
   MIN_CONFIDENCE: 0.0
-  CHAMBER_NAMES: ["chambre_penale", "chambre_civile", "chambre_administrative"]
+  LITEREV_CHAMBER_NAMES: 'chambre_penale,chambre_civile'
+
 
 jobs:
   check_branch:
