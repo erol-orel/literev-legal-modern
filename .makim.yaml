@@ -431,6 +431,31 @@ groups:
           fi
           echo "[II] Embedding done."
 
+      get-record-keys:
+        help: get record keys and insert it into chromadb.
+        env-file: .env
+        args:
+          index-name:
+            help: |
+              The name of the legal chamber to extract chunk for.
+            type: string
+            default: "penal_court"
+            required: true
+        run: |
+          sugar compose-ext start \
+            --services literev-postgres -- -d
+
+          CMD="python manage.py get_record_keys --index-name ${{ args.index_name }}"
+
+          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
+            sugar compose run --service literev --cmd "$CMD" -- --rm
+          else
+            cd ./src/
+            export POSTGRES_HOST=localhost
+            $CMD
+          fi
+          echo "[II] Records inserting done."
+
   containers:
     tasks:
       wait:
