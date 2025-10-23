@@ -40,7 +40,7 @@ dependencies = [
   "werkzeug >=3",
   "djangorestframework >=3.15.2",
   "rago[base,ollama] >=0.14.3",  # pulls numpy >=2
-  "langchain >=0.3.6",
+  "langchain >=0.3.6,<0.4.0",
   "django-filter >=24.3",
   "jsbeautifier ==1.15.1",
   "blis <1.2",

@@ -32,6 +32,9 @@ class Document(models.Model):
     chamber = models.CharField(
         max_length=256, default="", null=True, blank=True
     )
+    record_key = models.CharField(
+        max_length=256, default="no-record-key", null=True, blank=True
+    )  # unique identifier from raw json corpus, it is used in ElasticSearch
     decision_type = models.CharField(
         max_length=256, default="", null=True, blank=True
     )

@@ -109,6 +109,7 @@ def create_document_db(project: Project, document: MetaData) -> int:
         descriptors=convert_to_target_type(document.descriptors),
         standards=convert_to_target_type(document.standards),
         result=convert_to_target_type(document.result),
+        record_key=document.record_key,
     )
 
     return new_document.id

@@ -52,6 +52,7 @@ class MetaData:
     standards: str  # normes
     result: str  # resultat
     es_score: float  # elastic search score given by _score field
+    record_key: str  # unique id for every document
 
 
 class ElasticSearchCollector:
@@ -131,6 +132,7 @@ class ElasticSearchCollector:
                 "summary",
                 "standards",
                 "result",
+                "record_key",
             ],
         )
 
@@ -233,6 +235,7 @@ class ElasticSearchCollector:
         standards = document.get("standards", "")
         result = document.get("result", "")
         es_score = document.get("es_score", 0)
+        record_key = document.get("record_key", "no record key")
 
         if document_text:
             metadata = MetaData(
@@ -247,6 +250,7 @@ class ElasticSearchCollector:
                 standards=standards,
                 result=result,
                 es_score=es_score,
+                record_key=record_key,
             )
 
             return metadata
