@@ -1,6 +1,5 @@
 services:
   literev-jupyter:
-    image: literev-legal-literev:latest
     user: "${HOST_UID}:${HOST_GID}"
     hostname: literev-jupyter
     command: >
@@ -16,12 +15,18 @@ services:
       - ../.env
     working_dir: ${LITEREV_NOTEBOOKS_DIR}
     environment:
+      ENV: dev
       DJANGO_SETTINGS_MODULE: config.settings.dev
       PYTHONPATH: /opt/services/literev/src
     volumes:
       - jupyter_notebook:${LITEREV_NOTEBOOKS_DIR}
     networks:
       - literev
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8888/jupyter/api/sessions?token=${JUPYTER_TOKEN}"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
 
 volumes:
   jupyter_notebook:

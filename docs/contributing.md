@@ -411,3 +411,64 @@ makim elasticsearch.count-docs-in-index --index-name chambre_civil_court
 This command retrieves the count of documents currently indexed in `chambre_civil_court`.
 
 Note: When indexing data, the `record_key` is crucial for uniquely identifying each record within the Elasticsearch index. This key should be included in the JSON data being indexed, ensuring that each document can be accurately referenced and updated in Elasticsearch.
+
+---
+
+## Production deployment (Makim)
+
+Use the Makim task to bring up the production stack **and** ensure Jupyter is available for the Nginx `/jupyter/` upstream.
+
+```bash
+makim deploy-production.all-containers
+```
+
+**What this does**
+
+1. Starts **Jupyter** (using the `dev` profile) so the upstream `literev-jupyter` resolves.
+2. Builds & restarts the **essential prod containers** (using the `prod` profile).
+
+**Verify**
+
+```bash
+# Prod services
+sugar --profile prod compose ps
+
+# Jupyter (dev profile)
+sugar --profile dev compose ps literev-jupyter
+```
+
+**Notes**
+
+* Jupyter must run with a base URL of `/jupyter/` to work behind Nginx.
+
+---
+
+## Database backup & restore (Makim)
+
+### Create a dump (backup)
+
+This generates a gzipped dump (via `pg_dumpall`) inside the Postgres container and writes it to the provided path:
+
+```bash
+makim containers.postgres-dump-database \
+  --path /opt/data/literev/backup
+```
+
+**Output**
+
+```
+/opt/data/literev/backup/<dump-name>.sql.gz
+```
+
+### Restore a dump
+
+Provide the same path and file name you created during backup.
+Use `--drop-all true` to drop roles/db before restoring (destructive).
+
+```bash
+makim containers.postgres-restore-database \
+  --path /opt/data/literev/backup \
+  --dump-name "literev-legal-<dd-mm-yy_HH-MM>.sql.gz" \
+  --drop-all true
+```
+---

@@ -713,6 +713,34 @@ groups:
             eval "$CMD"
           fi
 
+  deploy-production:
+    tasks:
+      essential-containers:
+        help: Deploy all containers to production server
+        env-file: .env
+        env:
+          ENV: prod
+        backend: bash
+        run: |
+          sugar --profile prod compose-ext build
+          sugar --profile prod compose-ext restart  -- -d
+
+      jupyter-notebook:
+        help: Deploy jupyter notebook container to production server
+        env-file: .env
+        env:
+          ENV: dev
+        backend: bash
+        run: |
+          sugar --profile dev compose-ext build litrev-base
+          sugar --profile dev compose-ext restart --services literev-jupyter -- -d
+
+      all-containers:
+        hooks:
+          pre-run:
+            - task: deploy-production.jupyter-notebook
+            - task: deploy-production.essential-containers
+
   release:
     vars:
       app: |
