@@ -141,6 +141,7 @@ class ElasticSearchCollector:
             "size": page_size,
             "sort": ["_doc"],
             "_source": source_fields,
+            "track_scores": True,
         }
 
         results: list[dict[str, str]] = []
