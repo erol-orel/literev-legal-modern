@@ -59,16 +59,23 @@ env:
 jobs:
   check_branch:
     name: Check if branch is ahead of main
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: self-hosted setup
+      # - name: self-hosted setup
+      #   run: |
+      #     export HOST_UID=$(id -u)
+      #     export HOST_GID=$(id -g)
+      #     sudo mkdir -p /home/ci/actions-runner/_work/literev-legal/literev-legal/
+      #     sudo chown -R ${HOST_UID}:${HOST_GID} /home/ci/actions-runner/_work/literev-legal/literev-legal/
+      #     sudo mkdir -p  /tmp/literev/
+      #     sudo chown -R ${HOST_UID}:${HOST_GID} /tmp/literev
+
+      - name: dir setup
         run: |
           export HOST_UID=$(id -u)
           export HOST_GID=$(id -g)
-          sudo mkdir -p /home/ci/actions-runner/_work/literev-legal/literev-legal/
-          sudo chown -R ${HOST_UID}:${HOST_GID} /home/ci/actions-runner/_work/literev-legal/literev-legal/
           sudo mkdir -p  /tmp/literev/
           sudo chown -R ${HOST_UID}:${HOST_GID} /tmp/literev
 
@@ -253,7 +260,7 @@ jobs:
   linter:
     name: Linter
     needs: check_branch
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash -el {0}
@@ -269,11 +276,16 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: self-hosted setup
+    # - name: self-hosted setup
+    #   run: |
+    #     export HOST_UID=$(id -u)
+    #     export HOST_GID=$(id -g)
+    #     sudo chown -R ${HOST_UID}:${HOST_GID} /home/ci/actions-runner/_work/literev-legal/literev-legal/
+
+    - name: dir setup
       run: |
         export HOST_UID=$(id -u)
         export HOST_GID=$(id -g)
-        sudo chown -R ${HOST_UID}:${HOST_GID} /home/ci/actions-runner/_work/literev-legal/literev-legal/
         sudo mkdir -p /opt/data/literev
         sudo chown -R ${HOST_UID}:${HOST_GID} /opt/data/literev
 
