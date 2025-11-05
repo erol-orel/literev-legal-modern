@@ -710,6 +710,9 @@ def rag(
             reverse("project-rag-page", kwargs={"project_id": project_id})
         )
 
+    has_section_ans = False
+    regle_droit = ""
+
     project_rag = None
     show_closed_stats = False
     counts = {"oui": 0, "non": 0, "peut_etre": 0, "mixte": 0}
@@ -719,6 +722,18 @@ def rag(
         project_rag = get_object_or_404(
             ProjectRAG, project_id=project_id, id=rag_id
         )
+
+        if "chambre_penale" in project.selected_indices:
+            has_section_ans = True
+            project_rag.summary_answer
+            answer_block = (
+                json.loads(project_rag.summary_answer)
+                if project_rag.summary_answer
+                else {}
+            )
+
+            regle_droit = answer_block.get("regle_droit", "")
+
         stats = getattr(project_rag, "stats", None)
 
         if stats and stats.classification_stats:
@@ -820,6 +835,8 @@ def rag(
         "mixte_percent": percentages.get("mixte", 0),
         "show_closed_stats": show_closed_stats,
         "has_confidence_score": has_confidence_score,
+        "has_section_ans": has_section_ans,
+        "regle_droit": regle_droit,
     }
 
     return render(request, "rag.html", context)

@@ -172,6 +172,7 @@ class ProjectDocumentRAG(models.Model):
     citation = models.TextField()
     citation_context = models.JSONField(default=list)
     answer = models.TextField()
+    # answer_section = models.JSONField(default=dict) # To store answers form sections
     confidence_score = models.FloatField(default=None, null=True, blank=True)
 
     def __str__(self) -> str:

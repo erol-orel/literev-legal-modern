@@ -19,8 +19,11 @@ from typing import (
     cast,
 )
 
+import joblib
+
 from django.conf import settings
 from django.db.models.query import QuerySet
+from joblib import Parallel, delayed
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from pydantic import (
     BaseModel,
@@ -45,6 +48,13 @@ from literev.legal.extract_minor_major import (
     openai_llm_call,
     pack_chunks,
     split_sentences_fr_legal,
+)
+from literev.libs.chroma_utils import (
+    chroma_client,
+    get_best_section_chunks,
+    get_majeures_summary,
+    llm_answer,
+    openai_client,
 )
 from literev.libs.parsing import extract_after_endroit
 from literev.libs.rag_classes import HactarAug, HactarGen
@@ -72,6 +82,9 @@ AUG_CACHE = CacheFile(target_dir=CACHE_DIR / f"aug_{MODULE_NAME}")
 GEN_CACHE = CacheFile(target_dir=CACHE_DIR / f"gen_{MODULE_NAME}")
 DOCUMENT_CACHE = CacheFile(target_dir=CACHE_DIR / "documents")
 FAITH_CACHE = CacheFile(target_dir=CACHE_DIR / f"faith_{MODULE_NAME}")
+
+EMBEDDING_MODEL = "text-embedding-3-large"
+MAX_WORKERS_RAG = 10
 
 
 def ret_cache(func: Callable[[str], list[str]]) -> Callable[[str], list[str]]:
@@ -613,6 +626,73 @@ class StatsGenerator:
             if frequencies.get(c.strip(), 0) > 0
         ]
 
+    def generate_open_answer_statistics_fait(
+        self, query, subsommation_dict, considerations
+    ) -> dict[str, Any]:
+        """
+        Evaluate support for considerations across valid RAG answers.
+
+        Notes
+        -----
+        Uses structured output format to detect affirmed considerations.
+        Results include frequencies and supporting document IDs.
+        """
+
+        logger.debug("Generating open-ended answer statistics...")
+
+        if not considerations:
+            logger.warning("No considerations found in summary to evaluate.")
+            return {}
+
+        considerations = [c.strip() for c in considerations]
+        results = {c: 0 for c in considerations}
+
+        docs_affirmed: dict[str, Any] = {c: set() for c in considerations}
+
+        EvaluationModel = build_consideration_model(len(considerations))
+
+        for d_id, ans in subsommation_dict.items():
+            try:
+                arguments_block = "\n".join(
+                    f"* argument_{i + 1}: {c}"
+                    for i, c in enumerate(considerations)
+                )
+
+                context_block = (
+                    f"Excerpt:\n{ans}\n\nConsiderations:\n{arguments_block}"
+                )
+
+                consideration_gen = get_rag_generator(
+                    prompt_template=self.evaluate_consideration_template_prompt,
+                    structured_output=EvaluationModel,
+                    output_max_length=1024,
+                )
+
+                consideration_obj = consideration_gen.generate(
+                    query=query,
+                    context=[context_block],
+                )
+
+                for idx, cons_text in enumerate(considerations):
+                    if getattr(
+                        consideration_obj, f"argument_{idx + 1}", False
+                    ):
+                        results[cons_text] += 1
+                        docs_affirmed[cons_text].add(d_id)
+
+            except Exception as e:
+                logger.warning(f"Evaluation failed for doc {d_id}: {e}")
+
+        stats = {
+            "total_documents": len(subsommation_dict),
+            "consideration_frequencies": results,
+            "affirmed_docs_by_consideration": {
+                k: list(v) for k, v in docs_affirmed.items()
+            },
+        }
+
+        return stats
+
     def generate_open_answer_statistics(
         self, query, valid_rags, considerations
     ) -> dict[str, Any]:
@@ -682,6 +762,70 @@ class StatsGenerator:
         }
 
         return stats
+
+    def tag_answers_considerations_v2(
+        self,
+        considerations: list[str],
+        procedure_type_dict,
+        classification_stats: dict[str, Any],
+    ) -> list[Any]:
+        """
+        Associate considerations with top procedure types.
+
+        Notes
+        -----
+        Tags up to 3 procedure types from valid affirming documents.
+        Updates `summary_answer` with enriched considerations.
+        """
+
+        logger.debug("Tagging considerations based on affirmed documents...")
+
+        if not considerations:
+            logger.warning("No summary or considerations available.")
+            return []
+
+        tagged_data = {
+            d_id: {"procedure_type": procedure_type or "Inconnu"}
+            for d_id, procedure_type in procedure_type_dict.items()  # valid_rags
+        }
+
+        total_docs = len(tagged_data)
+
+        frequencies = classification_stats.get("consideration_frequencies", {})
+        affirmed_docs: dict[str, Any] = classification_stats.get(
+            "affirmed_docs_by_consideration", {}
+        )
+
+        tagged_considerations = []
+
+        for consideration in considerations:
+            consideration_text = consideration.strip()
+            doc_ids = affirmed_docs.get(consideration_text, [])
+
+            procedure_types = [
+                tagged_data[doc_id]["procedure_type"]
+                for doc_id in doc_ids
+                if doc_id in tagged_data
+            ]
+
+            top_procedure_types = procedure_types[:3] or ["Inconnu"]
+
+            count = frequencies.get(consideration_text, 0)
+            percent = (
+                round((count / total_docs) * 100, 1) if total_docs else 0.0
+            )
+
+            tagged_considerations.append(
+                {
+                    "text": consideration_text,
+                    "procedure_types": top_procedure_types,
+                    "tagged": f"{consideration_text} ({', '.join(top_procedure_types)})",
+                    "frequency": count,
+                    "percent": percent,
+                }
+            )
+
+        return tagged_considerations
 
     def tag_answers_considerations(
         self,
@@ -1345,3 +1489,173 @@ class RAGClassificationBuilder:
             f"[CLASSIFY]: cache miss, running classification raw_id={raw_key}"
         )
         return self.classify_document_minor_major(document, engine=engine)
+
+
+def get_answer_document_worker(
+    payload, question, embedded_question, collection
+):
+    record_key = payload["record_key"]
+    try:
+        block_section = get_best_section_chunks(
+            record_key, question, embedded_question, collection
+        )
+        answer = llm_answer(question, block_section)
+    except Exception as e:
+        logging.info(f"No ans chroma: {e}")
+        answer = "No answer from chromadb"
+        block_section = {"Majueres": [], "Mineur": []}
+
+    return payload["id"], block_section, answer
+
+
+class CustomRagAnswersGenerator:
+    def __init__(self, project_rag_id: int, documents_ids: list[int]) -> None:
+        self.api_key: str = getattr(settings, "OPENAI_API_KEY")
+
+        self.project_rag = ProjectRAG.objects.get(id=project_rag_id)
+        self.project_rag.status = "in-progress"
+        self.project_rag.save()
+
+        self.documents_ids = documents_ids
+
+        self.query_classifier = QuestionClassifier(self.api_key)
+
+        self.stats_generator = StatsGenerator(self.api_key)
+
+        self.summary_generator = OpenAISummaryGenerator(self.api_key)
+
+    def get_and_save_answers_from_documents(self):
+        self.project_rag.status = "questioning_documents"
+        self.project_rag.save()
+        question = self.project_rag.query
+        documents = list(
+            Document.objects.filter(id__in=self.documents_ids).order_by("id")
+        )
+        self.project_rag.num_documents = len(self.documents_ids)
+        self.project_rag.save()
+        payloads = [
+            {"id": d.id, "record_key": d.record_key} for d in documents
+        ]
+
+        embedded_query = (
+            openai_client.embeddings.create(
+                model=EMBEDDING_MODEL, input=[question]
+            )
+            .data[0]
+            .embedding
+        )
+
+        collection = chroma_client.get_collection(name="chambre_penale")
+
+        with joblib.parallel_backend("threading", n_jobs=MAX_WORKERS_RAG):
+            results = Parallel()(
+                delayed(get_answer_document_worker)(
+                    pl, question, embedded_query, collection
+                )
+                for pl in payloads
+            )
+
+        for doc_id, block_section, answer in results:
+            ProjectDocumentRAG.objects.create(
+                project_rag=self.project_rag,
+                document_id=doc_id,  # or document=Document.objects.get(id=doc_id)
+                citation_context=block_section,
+                answer=answer,
+            )
+
+        # Generating a general answer summary
+        self.project_rag.status = "generating_summary"
+        self.project_rag.save(update_fields=["status"])
+
+        self.question_type = self.query_classifier.get_question_type(
+            self.project_rag.query
+        )
+        create_considerations = self.question_type != "closed"
+
+        documents_rags = ProjectDocumentRAG.objects.filter(
+            project_rag=self.project_rag
+        )
+
+        majeure_list = []
+        fait_list = []
+        subsommation_list = []
+        conclusion_list = []
+        subsommation_dict = {}
+        procedure_type_dict = {}
+
+        for doc_rag in documents_rags:
+            answer_block = json.loads(doc_rag.answer)
+            majeure_list.extend(answer_block.get("Majeure", ""))
+            fait_list.extend(answer_block.get("Mineure-Faits", ""))
+            subsommation_list.extend(
+                answer_block.get("Mineure-Subsommation", "")
+            )
+            subsommation_dict[doc_rag.document.id] = "\n".join(
+                answer_block.get("Mineure-Subsommation", "")
+            )
+            procedure_type_dict[doc_rag.document.id] = (
+                doc_rag.document.procedure_type
+            )
+
+            conclusion_list.extend(answer_block.get("Conclusion", ""))
+
+        self.project_rag.valid_answer_count = documents_rags.count()
+
+        summary_dict = self.summary_generator.get_summary(
+            self.project_rag.query, subsommation_list, create_considerations
+        )
+
+        regle_droit = get_majeures_summary(
+            self.project_rag.query, majeure_list
+        )
+
+        summary_dict["regle_droit"] = regle_droit
+
+        self.project_rag.summary_answer = json.dumps(summary_dict)
+        self.project_rag.save()
+
+        self.project_rag.status = "generating_statistics"
+        self.project_rag.save()
+        if self.question_type == "closed":
+            stats = self.stats_generator.generate_closed_answer_statistics(
+                self.project_rag.query, subsommation_list
+            )
+            ProjectRAGStats.objects.create(
+                project_rag=self.project_rag,
+                classification_stats=stats,
+                user=self.project_rag.project.user,
+            )
+        else:
+            stats = self.stats_generator.generate_open_answer_statistics_fait(
+                query=self.project_rag.query,
+                subsommation_dict=subsommation_dict,
+                considerations=summary_dict["considerations"],
+            )
+
+            # TODO: Check what happens when stats are empty
+            ProjectRAGStats.objects.create(
+                project_rag=self.project_rag,
+                classification_stats=stats,
+                user=self.project_rag.project.user,
+            )
+            logger.debug(f"Open-ended statistics generated: {stats}")
+
+            self.project_rag.status = "tagging_considerations"
+            self.project_rag.save()
+
+            tagged_considerations = (
+                self.stats_generator.tag_answers_considerations_v2(
+                    considerations=summary_dict["considerations"],
+                    procedure_type_dict=procedure_type_dict,
+                    classification_stats=stats,
+                )
+            )
+
+            # TODO: Check what happens when tagged_considerations are empty
+            summary_dict["considerations"] = tagged_considerations
+            self.project_rag.summary_answer = json.dumps(summary_dict)
+            self.project_rag.save()
+            logger.debug("Completed tagging considerations.")
+
+        self.project_rag.status = "completed"
+        self.project_rag.save()

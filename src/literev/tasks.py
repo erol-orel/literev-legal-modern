@@ -20,7 +20,7 @@ from literev.libs.data_files import get_es_scores
 from literev.libs.pipeline import (
     update_pp_document,
 )
-from literev.libs.rag_pdf import RagAnswersManager
+from literev.libs.rag_pdf import CustomRagAnswersGenerator, RagAnswersManager
 from literev.libs.scoring import (
     sort_documents_by_es_score,
 )
@@ -245,6 +245,10 @@ def get_top_docs_by_es(
 @app.task(bind=True)
 def get_nl_rag_ans(self, project_id: int) -> None:
     project = Project.objects.get(id=project_id)
+
+    if "chambre_penale" in project.selected_indices:
+        return None
+
     if not project.natural_language_query:
         return None
 
@@ -451,11 +455,15 @@ def task_rag_result_table(
     """Run RAG for the data from result table."""
     try:
         project_rag = ProjectRAG.objects.get(id=project_rag_id)
-        rag = RagAnswersManager(
-            project_rag_id=project_rag.id,
-            documents_ids=document_ids,
-        )
-        rag.run_pipeline()
+        if "chambre_penale" in project_rag.project.selected_indices:
+            rag = CustomRagAnswersGenerator(project_rag_id, document_ids)
+            rag.get_and_save_answers_from_documents()
+        else:
+            rag = RagAnswersManager(  # type: ignore
+                project_rag_id=project_rag.id,
+                documents_ids=document_ids,
+            )
+            rag.run_pipeline()  # type: ignore
 
     except Exception as e:
         logging.error(f"[task_rag_result_table] (#{project_rag_id}): {e}")

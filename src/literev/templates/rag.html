@@ -143,6 +143,15 @@
                   </div>
                 </div>
               {% endif %}
+              {% if has_section_ans %}
+                <div class="container mb-4 px-4">
+                  <div class="alert alert-info">
+                    <p id="general-ans">
+                      <strong>Règle de droit:</strong> {{ regle_droit }}
+                    </p>
+                  </div>
+                </div>
+              {% endif %}
             </div>
             {% if show_closed_stats %}
 
@@ -373,7 +382,17 @@
       }
       // For polar questions when the confidence score is 0 and the answer
       // is classified as negative polar the answer is not shown
-      if (!(documentRag.confidence_score > 0)) return null;
+      // if (!(documentRag.confidence_score > 0)) return null;
+      // answers = documentRag.answer
+
+      let has_section_answers = false
+      let sectionsAnwers
+      try {
+        sectionsAnwers = JSON.parse(documentRag.answer);
+        has_section_answers = true
+      } catch (e) {
+        has_section_answers = false
+      }
 
       const divContainer = document.createElement("div");
       divContainer.classList.add("mb-3");
@@ -426,28 +445,73 @@
         divContainer.appendChild(standards);
       }
 
-      const answer = document.createElement("div");
-      answer.classList.add("mb-2");
-      const labelAnswer = document.createElement("b");
-      labelAnswer.textContent = "Answer: ";
-      answer.appendChild(labelAnswer);
+      if (has_section_answers) {
+        const faitAnswer = sectionsAnwers["Mineure-Faits"].join(" ") || "answer-not-available";
+        if (faitAnswer!="answer-not-available") {
+          const enFait = document.createElement("div");
+          enFait.classList.add("mb-2");
+          const labelenFait = document.createElement("b");
+          labelenFait.textContent = "En fait: ";
+          enFait.appendChild(labelenFait);
+          const textenFait = document.createTextNode(`${faitAnswer}`);
+          enFait.appendChild(textenFait);  //to add
 
-      const textAnswer = document.createTextNode(`${documentRag.answer}`);
-      answer.appendChild(textAnswer);  //to add
+          divContainer.appendChild(enFait)
+        }
 
-      divContainer.appendChild(answer)
+        const subsomptionAnwer = sectionsAnwers["Mineure-Subsommation"].join(" ") || "answer-not-available";
+        if (subsomptionAnwer!="answer-not-available"){
+          const subsomption = document.createElement("div");
+          subsomption.classList.add("mb-2");
+          const labelsubsomption = document.createElement("b");
+          labelsubsomption.textContent = "Subsomption: ";
+          subsomption.appendChild(labelsubsomption);
+          const textsubsomption = document.createTextNode(`${subsomptionAnwer}`);
+          subsomption.appendChild(textsubsomption);  //to add
 
-      const citation = document.createElement("div");
-      citation.classList.add("mb-2");
-      const labelCitation = document.createElement("b");
-      labelCitation.textContent = "Highlighted in document: ";
-      citation.appendChild(labelCitation);
+          divContainer.appendChild(subsomption)
+        }
 
-      const textCitation = document.createTextNode(`${documentRag.citation}`);
-      citation.appendChild(textCitation);  //to add
+        const conclusionAnswer = sectionsAnwers["Conclusion"].join(" ") || "answer-not-available";
 
-      // adding all childs
-      divContainer.appendChild(citation);
+        if (conclusionAnswer!="answer-not-available"){
+          const Conclusion = document.createElement("div");
+          Conclusion.classList.add("mb-2");
+          const labelConclusion = document.createElement("b");
+          labelConclusion.textContent = "Conclusion: ";
+          Conclusion.appendChild(labelConclusion);
+          const textenConclusion = document.createTextNode(`${conclusionAnswer}`);
+          Conclusion.appendChild(textenConclusion);  //to add
+
+          divContainer.appendChild(Conclusion)
+        }
+      }
+      else {
+        const answer = document.createElement("div");
+        answer.classList.add("mb-2");
+        const labelAnswer = document.createElement("b");
+        labelAnswer.textContent = "Answer: ";
+        answer.appendChild(labelAnswer);
+
+        const textAnswer = document.createTextNode(`${documentRag.answer}`);
+        answer.appendChild(textAnswer);  //to add
+
+        divContainer.appendChild(answer)
+      }
+
+      if (!has_section_answers) {
+        const citation = document.createElement("div");
+        citation.classList.add("mb-2");
+        const labelCitation = document.createElement("b");
+        labelCitation.textContent = "Highlighted in document: ";
+        citation.appendChild(labelCitation);
+
+        const textCitation = document.createTextNode(`${documentRag.citation}`);
+        citation.appendChild(textCitation);  //to add
+
+        // adding all childs
+        divContainer.appendChild(citation);
+      }
 
       // add hr
       const hrLine = document.createElement('hr');
