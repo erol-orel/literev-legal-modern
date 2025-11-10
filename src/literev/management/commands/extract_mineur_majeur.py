@@ -37,12 +37,12 @@ def custom_log(message):
 
 
 def extract_mineur_majeur(document: str, index_name: str):
-    doc_id = getattr(document, "doc_id", "")
+    record_key = getattr(document, "record_key", "")
     document_text = getattr(document, "document_text", "")
     decision_type = getattr(document, "decision_type", "")
     chamber = getattr(document, "chamber", "")
 
-    if not doc_id:
+    if not record_key:
         logging.info("There is no doc_id")
         procedure_type = getattr(document, "procedure_type", "")
         logging.info(
@@ -54,41 +54,45 @@ def extract_mineur_majeur(document: str, index_name: str):
         logging.info("There is no decision type code")
         procedure_type = getattr(document, "procedure_type", "")
         logging.info(
-            f"document id: {doc_id}, procedure_type: {procedure_type}, decision type: {decision_type}"
+            f"record key: {record_key}, procedure_type: {procedure_type}, decision type: {decision_type}"
         )
         return
 
     try:
         # check if the doc has been processed
-        document_filename = get_filename(doc_id, decision_type, index_name)
+        document_filename = get_filename(record_key, decision_type, index_name)
         document_path = CACHE_STRUCTURED_DOCUMENTS / document_filename
 
         if document_path.is_file():
             logging.info(
-                f"skipping doc_id: {doc_id} with decision type:{decision_type} in chamber {chamber} because is cached"
+                f"skipping doc_id: {record_key} with decision type:{decision_type} in chamber {chamber} because is cached"
             )
             custom_log(
-                f"\nskipping doc_id: {doc_id} with decision type:{decision_type} in chamber {chamber} because is cached"
+                f"\nskipping doc_id: {record_key} with decision type:{decision_type} in chamber {chamber} because is cached"
             )
             return
 
         struct_json_doc = classify_decision(document_text)
 
         output = {
-            "id": doc_id,
+            "record_key": record_key,
             "structured_sentences": struct_json_doc,
         }
 
-        logging.info(f"Extracted chunks for [Doc {doc_id} {decision_type}]")
+        logging.info(
+            f"Extracted chunks for [Doc record_key: {record_key} {decision_type}]"
+        )
 
         with open(document_path, "w", encoding="utf-8") as f:
             json.dump(output, f, ensure_ascii=False, indent=2)
 
     except Exception as e:
         logging.error(f"An error has ocurred {e}")
-        logging.info(f"document failed to extract mineur and majeur {doc_id}")
+        logging.info(
+            f"document failed to extract mineur and majeur {record_key}"
+        )
         custom_log(
-            f"\nAn error has ocurred {e} \ndocument failed to extract mineur and majeur {doc_id}"
+            f"\nAn error has ocurred {e} \ndocument failed to extract mineur and majeur {record_key}"
         )
 
 
