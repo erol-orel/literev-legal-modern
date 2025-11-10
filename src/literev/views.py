@@ -347,10 +347,7 @@ def projectpage(
         errors.append("Project not found or access denied.")
         return redirect(reverse("search"))
 
-    if not (
-        project.is_finish
-        or project.step in ["question-answering", "clustering", "plotting"]
-    ):
+    if project.step == "getting_documents":
         return redirect(reverse("search"))
 
     context["is_finish"] = project.is_finish
@@ -599,7 +596,12 @@ def tableselect(
             context["error_message"] = (
                 "An error occurred while processing filters. Please try again later."
             )
-
+    step_not_valid_to_iterate = [
+        "getting_documents",
+        "question-answering",
+        "preparing",
+        "preprocessing",
+    ]
     # Add project details to the context
     context.update(
         {
@@ -607,6 +609,7 @@ def tableselect(
             "iteration_id": iteration_id,
             "project": project,
             "sort_by": order_by,
+            "step_not_valid_to_iterate": step_not_valid_to_iterate,
         }
     )
     return render(request, "tableselect.html", context)

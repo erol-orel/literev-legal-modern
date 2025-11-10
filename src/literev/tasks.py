@@ -148,10 +148,10 @@ def launch_process(project: Project) -> bool:
         # Pass the selected_indices as an argument to the first task
         task_chain = chain(
             back_get_documents.si(project.id),
+            get_nl_rag_ans.si(project.id),
             back_preparing_documents.si(project.id),
             back_preprocess_documents.si(project.id),
             back_get_early_results.si(project.id),
-            get_nl_rag_ans.si(project.id),
             back_clustering_documents.si(project.id),
             back_plotting_documents.si(project.id),
         )
@@ -182,6 +182,9 @@ def back_get_documents(self, project_id: int) -> bool:
     process_all_corpus_query = str(settings.PROCESS_ALL_CORPUS_QUERY)
 
     project = Project.objects.get(id=project_id)
+    project.step = "getting_documents"
+    project.save()
+
     update_task_code(project, self.request.id)
 
     indices = project.selected_indices
@@ -246,9 +249,6 @@ def get_top_docs_by_es(
 def get_nl_rag_ans(self, project_id: int) -> None:
     project = Project.objects.get(id=project_id)
 
-    if "chambre_penale" in project.selected_indices:
-        return None
-
     if not project.natural_language_query:
         return None
 
@@ -271,15 +271,20 @@ def get_nl_rag_ans(self, project_id: int) -> None:
         return None
 
     docs_ids = [doc.id for doc in top_docs]
-
-    rag = RagAnswersManager(
-        project_rag_id=project_rag.id,
-        documents_ids=docs_ids,
-    )
-
     max_doc_ans = min(10, number_documents)
 
-    rag.run_pipeline(max_doc_ans=max_doc_ans)
+    if "chambre_penale" in project.selected_indices:
+        rag_op = CustomRagAnswersGenerator(
+            project_rag_id=project_rag.id,
+            documents_ids=docs_ids,
+        )
+        rag_op.get_and_save_answers_from_documents(max_doc_ans=max_doc_ans)
+    else:
+        rag = RagAnswersManager(
+            project_rag_id=project_rag.id,
+            documents_ids=docs_ids,
+        )
+        rag.run_pipeline(max_doc_ans=max_doc_ans)
 
     return None
 

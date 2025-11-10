@@ -318,8 +318,12 @@ def get_filtered_document(
     ):
         documents = Document.objects.filter(project=project)
 
-        if documents.count() < settings.CLUSTERING_MIN_DOCUMENTS:
+        if (
+            documents.count() < settings.CLUSTERING_MIN_DOCUMENTS
+            or not project.is_finish
+        ):
             union_documents = set(documents.values_list("pk", flat=True))
+
         else:
             union_documents = set(
                 ClusterElement.objects.filter(
@@ -426,6 +430,7 @@ def get_documents_by_descriptor(
     no_clusters = (
         Document.objects.filter(project=project).count()
         < CLUSTERING_MIN_DOCUMENTS
+        or not project.is_finish
     )
 
     for descriptor in descriptors:
@@ -453,6 +458,7 @@ def get_documents_by_norm(project: Project, norms: list[str]) -> set[int]:
     no_clusters = (
         Document.objects.filter(project=project).count()
         < CLUSTERING_MIN_DOCUMENTS
+        or not project.is_finish
     )
 
     for norm in norms:
@@ -480,6 +486,7 @@ def get_documents_by_keyword(
     no_clusters = (
         Document.objects.filter(project=project).count()
         < CLUSTERING_MIN_DOCUMENTS
+        or not project.is_finish
     )
 
     for keyword in keywords:
@@ -509,6 +516,7 @@ def get_documents_by_no_decis(
     no_clusters = (
         Document.objects.filter(project=project).count()
         < CLUSTERING_MIN_DOCUMENTS
+        or not project.is_finish
     )
 
     for no_d in no_decis:
@@ -534,6 +542,7 @@ def get_documents_by_chamber(
     no_clusters = (
         Document.objects.filter(project=project).count()
         < CLUSTERING_MIN_DOCUMENTS
+        or not project.is_finish
     )
 
     for chamb in chambers:
@@ -555,6 +564,7 @@ def get_documents_by_result(project: Project, results: list[str]) -> set[int]:
     no_clusters = (
         Document.objects.filter(project=project).count()
         < CLUSTERING_MIN_DOCUMENTS
+        or not project.is_finish
     )
     for result_value in results:
         if result_value == "NO RESULT":
@@ -580,6 +590,7 @@ def get_documents_by_year_range(
     no_clusters = (
         Document.objects.filter(project=project).count()
         < CLUSTERING_MIN_DOCUMENTS
+        or not project.is_finish
     )
 
     for year_range in year_ranges:

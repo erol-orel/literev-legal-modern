@@ -140,7 +140,7 @@
             </div>
           </div>
           <div>
-            {% if project.step == 'clustering' or project.step == 'question-answering' %}
+            {% if project.step != 'getting_documents' %}
               <a class="ms-2 fw-bold"
                  href="/project/{{ project.id }}">{{ project.name }}
               </a>

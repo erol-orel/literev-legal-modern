@@ -178,7 +178,7 @@ def render_table_choice(
             "is_initial": tablechoice_e.is_initial,
         }
 
-        if has_hdbscan_scores:
+        if has_hdbscan_scores and topic_scores:
             topic = topic_scores[tablechoice_e.document.id]["topic"]
             if topic != UNCLASSIFIED_PAPERS_TOPIC:
                 topic_key = topic.split(" : ")[1]
@@ -210,6 +210,8 @@ def render_table_choice(
                     topic_keywords[:10],
                     color_code,
                 )
+        else:
+            has_hdbscan_scores = False
 
         if has_es_scores:
             render_e.update({"es_score": es_scores[tablechoice_e.document.id]})

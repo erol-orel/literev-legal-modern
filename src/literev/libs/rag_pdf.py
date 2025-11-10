@@ -1502,8 +1502,21 @@ def get_answer_document_worker(
         answer = llm_answer(question, block_section)
     except Exception as e:
         logging.info(f"No ans chroma: {e}")
-        answer = "No answer from chromadb"
-        block_section = {"Majueres": [], "Mineur": []}
+
+        answer = """{
+            "Majeure": ["N/A"],
+            "Mineure-Faits": ["N/A"],
+            "Mineure-Subsommation": ["N/A"],
+            "Conclusion": ["N/A"],
+            "Metadata": ["N/A"]
+            }"""
+        block_section = {
+            "Majeure": [],
+            "Mineure-Faits": [],
+            "Mineure-Subsommation": [],
+            "Conclusion": [],
+            "Metadata": [],
+        }
 
     return payload["id"], block_section, answer
 
@@ -1524,15 +1537,25 @@ class CustomRagAnswersGenerator:
 
         self.summary_generator = OpenAISummaryGenerator(self.api_key)
 
-    def get_and_save_answers_from_documents(self):
+    def get_and_save_answers_from_documents(self, max_doc_ans=None):
         self.project_rag.status = "questioning_documents"
         self.project_rag.save()
         question = self.project_rag.query
-        documents = list(
-            Document.objects.filter(id__in=self.documents_ids).order_by("id")
-        )
-        self.project_rag.num_documents = len(self.documents_ids)
+
+        documents = Document.objects.filter(
+            id__in=self.documents_ids
+        ).order_by("id")
+        if max_doc_ans:
+            documents = sort_documents_by_es_score(
+                self.project_rag.project, documents
+            )[:max_doc_ans]
+            self.project_rag.num_documents = max_doc_ans
+        else:
+            documents = list(documents)
+            self.project_rag.num_documents = len(self.documents_ids)
+
         self.project_rag.save()
+
         payloads = [
             {"id": d.id, "record_key": d.record_key} for d in documents
         ]
@@ -1562,6 +1585,7 @@ class CustomRagAnswersGenerator:
                 citation_context=block_section,
                 answer=answer,
             )
+        # Implement answers for missing
 
         # Generating a general answer summary
         self.project_rag.status = "generating_summary"

@@ -641,9 +641,11 @@
                   <option value="No_decis">
                     No Decision
                   </option>
-                  <option value="Keyword">
-                    Keyword Search
-                  </option>
+                  {% if project.is_finish or project.step == "clustering" or project.step == "plotting" %}
+                    <option value="Keyword">
+                      Keyword Search
+                    </option>
+                  {% endif %}
                   <option value="year_range">
                     Decision Year
                   </option>

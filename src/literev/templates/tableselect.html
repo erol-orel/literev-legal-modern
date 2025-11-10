@@ -166,12 +166,14 @@
               </div>
               <div class="mx-auto">
                 <div class="row justify-content-center mt-3 gap-md-3 gap-sm-2 gap-lg-3">
-                  <button type="submit"
-                          name="submit"
-                          value="iterate"
-                          class="col-md-2 col-sm-12 btn btn-secondary mb-2">
-                    Iterate
-                  </button>
+                  {% if project.is_finish or project.step == 'clustering' or project.step == 'plotting' %}
+                    <button type="submit"
+                            name="submit"
+                            value="iterate"
+                            class="col-md-2 col-sm-12 btn btn-secondary mb-2">
+                      Iterate
+                    </button>
+                  {% endif %}
                   <button type="submit"
                           name="submit"
                           value="reset"
@@ -487,12 +489,14 @@
             </div>
             <div class="col-8 mx-auto mb-5">
               <div class="row justify-content-center mt-3 gap-md-3 gap-sm-2 gap-lg-5">
-                <button type="submit"
-                        name="submit"
-                        value="iterate"
-                        class="col-md-3 col-sm-12 btn btn-secondary mb-2 btn-lg">
-                  Iterate
-                </button>
+                {% if project.step not in step_not_valid_to_iterate %}
+                  <button type="submit"
+                          name="submit"
+                          value="iterate"
+                          class="col-md-3 col-sm-12 btn btn-secondary mb-2 btn-lg">
+                    Iterate
+                  </button>
+                {% endif %}
                 <button type="submit"
                         name="submit"
                         value="reset"
