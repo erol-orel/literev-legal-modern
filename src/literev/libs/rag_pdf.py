@@ -1504,18 +1504,15 @@ def get_answer_document_worker(
         logging.info(f"No ans chroma: {e}")
 
         answer = """{
-            "Majeure": ["N/A"],
             "Mineure-Faits": ["N/A"],
             "Mineure-Subsommation": ["N/A"],
             "Conclusion": ["N/A"],
-            "Metadata": ["N/A"]
             }"""
         block_section = {
             "Majeure": [],
             "Mineure-Faits": [],
             "Mineure-Subsommation": [],
             "Conclusion": [],
-            "Metadata": [],
         }
 
     return payload["id"], block_section, answer
@@ -1609,17 +1606,18 @@ class CustomRagAnswersGenerator:
 
         for doc_rag in documents_rags:
             answer_block = json.loads(doc_rag.answer)
-            majeure_list.extend(answer_block.get("Majeure", ""))
-            fait_list.extend(answer_block.get("Mineure-Faits", ""))
+            fait_list.extend(answer_block.get("Mineure-Faits", []))
             subsommation_list.extend(
-                answer_block.get("Mineure-Subsommation", "")
+                answer_block.get("Mineure-Subsommation", [])
             )
             subsommation_dict[doc_rag.document.id] = "\n".join(
-                answer_block.get("Mineure-Subsommation", "")
+                answer_block.get("Mineure-Subsommation", [])
             )
             procedure_type_dict[doc_rag.document.id] = (
                 doc_rag.document.procedure_type
             )
+            # Getting majeures directly from the context not using the answer section majeure
+            majeure_list.extend(doc_rag.citation_context.get("Majeure", []))
 
             conclusion_list.extend(answer_block.get("Conclusion", ""))
 

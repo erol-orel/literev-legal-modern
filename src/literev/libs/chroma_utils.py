@@ -14,7 +14,6 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY)
 chroma_client = PersistentClient(CHROMA_DIR)
 
 DOCUMENT_SECTIONS = [
-    "Metadata",
     "Majeure",
     "Mineure-Faits",
     "Mineure-Subsommation",
@@ -28,12 +27,10 @@ You are a Swiss legal reasoning assistant. Use the syllogistic structure of Swis
 When answering:
 - Always reply ONLY as a valid JSON object.
 - Answer the following query strictly as a JSON object matching the Python type dict[str, list[str]]. The keys should be strings, and their values lists of strings.
-- Use these JSON keys as applicable: "Majeure", "Faits", "Subsommation", "Conclusion", "Metadata".
-- If about legal rules → use Majeure.
+- Use these JSON keys as applicable: "Faits", "Subsommation", "Conclusion".
 - If about facts → use Mineure-Faits.
 - If about application → use Mineure-Subsommation.
 - If about decision → use Conclusion.
-- If about procedural/context → use Metadata.
 - Explain reasoning explicitly and cite the sections you used.
 - Do NOT invent facts or legal rules not present.
 
@@ -140,6 +137,10 @@ def llm_answer(question: str, blocks: dict[str, list[str]]) -> str:
     # building structured context
     parts = []
     for sec, items in blocks.items():
+        if (
+            sec == "Majeure"
+        ):  # Adding this to avoid retrieving answers from majeure section
+            continue
         if items:
             parts.append(f"## {sec}\n" + "\n".join(f"- {i}" for i in items))
     ctx = "\n\n".join(parts)
@@ -187,8 +188,8 @@ def get_best_section_chunks(
     return blocks
 
 
-def get_majeures_summary(query, answers):
-    context = "\n\n".join(answers)
+def get_majeures_summary(query, majeures):
+    context = "\n\n".join(majeures)
 
     prompt = (
         "Based on ALL of the given answers extracted from the documents, "
