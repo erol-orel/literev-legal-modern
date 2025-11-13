@@ -372,6 +372,25 @@
 {% block jscode %}
   {{ documents_ids|json_script:"documents_ids" }}
   <script>
+    const asText = (v) => {
+      if (Array.isArray(v)) {
+        return v.length ? v.join(" ") : "";
+        }
+      if (typeof v === "string") {
+        return v.trim();
+      }
+        return "";
+      };
+
+    const pickText = (obj, keys) => {
+      if (!obj) return "";
+      for (const k of keys) {
+        const t = asText(obj[k]);
+        if (t) return t;
+      }
+      return "";
+    };
+
     const ansRowFactory = (documentRag) => {
       if (
         documentRag.answer.includes("No content available") ||
@@ -386,10 +405,22 @@
       // answers = documentRag.answer
 
       let has_section_answers = false
-      let sectionsAnwers
+      let sectionsAnswers
+
       try {
-        sectionsAnwers = JSON.parse(documentRag.answer);
+        sectionsAnswers = JSON.parse(documentRag.answer);
         has_section_answers = true
+        const hasAny =
+          sectionsAnswers["Faits"] !== undefined ||
+          sectionsAnswers["Mineure-Faits"] !== undefined ||
+          sectionsAnswers["Subsomption"] !== undefined ||       // common
+          sectionsAnswers["Subsommation"] !== undefined ||       // variant
+          sectionsAnswers["Mineure-Subsomption"] !== undefined ||// common
+          sectionsAnswers["Mineure-Subsommation"] !== undefined ||// variant
+          sectionsAnswers["Conclusion"] !== undefined;
+        if (!hasAny) {
+          return null;
+        }
       } catch (e) {
         has_section_answers = false
       }
@@ -402,7 +433,7 @@
       const procedureType = document.createElement("a");
       procedureType.classList.add("fs-5", "text-white", "badge", "text-bg-dark");
       procedureType.setAttribute("href", documentRag.document.url_document);
-      procedureType.setAttribute("target", "_blanck");
+      procedureType.setAttribute("target", "_blank");
       procedureType.textContent = documentRag.document.procedure_type;
       header.appendChild(procedureType); //to add
 
@@ -446,8 +477,12 @@
       }
 
       if (has_section_answers) {
-        const faitAnswer = sectionsAnwers["Mineure-Faits"].join(" ") || "answer-not-available";
-        if (faitAnswer!="answer-not-available") {
+        const faitAnswer = pickText(sectionsAnswers, [
+          "Faits",
+          "Mineure-Faits",
+        ]);
+
+        if (faitAnswer) {
           const enFait = document.createElement("div");
           enFait.classList.add("mb-2");
           const labelenFait = document.createElement("b");
@@ -459,22 +494,29 @@
           divContainer.appendChild(enFait)
         }
 
-        const subsomptionAnwer = sectionsAnwers["Mineure-Subsommation"].join(" ") || "answer-not-available";
-        if (subsomptionAnwer!="answer-not-available"){
+        const subsomptionAnswer = pickText(sectionsAnswers, [
+          "Subsomption",
+          "Mineure-Subsomption",
+          "Subsommation",
+          "Mineure-Subsommation",
+        ]);
+        if (subsomptionAnswer){
           const subsomption = document.createElement("div");
           subsomption.classList.add("mb-2");
-          const labelsubsomption = document.createElement("b");
-          labelsubsomption.textContent = "Subsomption: ";
-          subsomption.appendChild(labelsubsomption);
-          const textsubsomption = document.createTextNode(`${subsomptionAnwer}`);
+          const labelSubsomption = document.createElement("b");
+          labelSubsomption.textContent = "Subsomption: ";
+          subsomption.appendChild(labelSubsomption);
+          const textsubsomption = document.createTextNode(`${subsomptionAnswer}`);
           subsomption.appendChild(textsubsomption);  //to add
 
           divContainer.appendChild(subsomption)
         }
 
-        const conclusionAnswer = sectionsAnwers["Conclusion"].join(" ") || "answer-not-available";
+        //const conclusionAnswer = sectionsAnswers["Conclusion"]?.join(" ") || "answer-not-available";
+        const conclusionAnswer = asText(sectionsAnswers["Conclusion"]);
 
-        if (conclusionAnswer!="answer-not-available"){
+
+        if (conclusionAnswer){
           const Conclusion = document.createElement("div");
           Conclusion.classList.add("mb-2");
           const labelConclusion = document.createElement("b");
