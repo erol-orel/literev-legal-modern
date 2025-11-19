@@ -59,9 +59,9 @@ def prepare_docs_from_item(document, decision_type):
     docs: list[str] = []
     embedded_ids: list[str | int] = []
     metas: list[dict[str, Any]] = []
-    document_id = document["id"]
+    record_key = document["record_key"]
 
-    if not document_id:
+    if not record_key:
         return docs, embedded_ids, metas
 
     for section, sentence_list in document["structured_sentences"].items():
@@ -69,13 +69,13 @@ def prepare_docs_from_item(document, decision_type):
             text = (raw or "").strip()
             if not text:
                 continue
-            embedded_sentence_doc_id = f"{decision_type}|{section}|{idx}"
+            embedded_sentence_doc_id = f"{record_key}|{section}|{idx}"
             embedded_ids.append(embedded_sentence_doc_id)
             docs.append(text)
             metas.append(
                 {
                     "decision_type": decision_type,
-                    "document_id": document_id,
+                    "record_key": record_key,
                     "section": section,
                     "position": idx,
                 }
@@ -156,10 +156,10 @@ def upsert_document_chunks(document_path, collection, max_workers):
     found = existing_ids_in_collection(collection, ids)
     if len(found) == len(ids):
         logging.info(
-            f"Document {document['id']} decision type: {decision_type} already fully indexed; skipping."
+            f"Document {document['record_key']} decision type: {decision_type} already fully indexed; skipping."
         )
         custom_log(
-            f"\nDocument: {document['id']} decision type: {decision_type} is already indexed"
+            f"\nDocument: {document['record_key']} decision type: {decision_type} is already indexed"
         )
         return
 
@@ -172,7 +172,7 @@ def upsert_document_chunks(document_path, collection, max_workers):
             missing_metas.append(m)
 
     logging.info(
-        f"Embedding {len(missing_docs)} docs for item {document['id']}"
+        f"Embedding {len(missing_docs)} docs for item {document['record_key']}"
     )
 
     embs = embed_texts_parallel(texts=missing_docs, max_workers=max_workers)
@@ -187,7 +187,7 @@ def upsert_document_chunks(document_path, collection, max_workers):
         )
 
     logging.info(
-        f"Upserted {len(embs)} sentences for document_id={document['id']}, decision type: {decision_type}"
+        f"Upserted {len(embs)} sentences for document record key ={document['record_key']}, decision type: {decision_type}"
     )
 
 

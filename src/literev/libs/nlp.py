@@ -132,7 +132,7 @@ MODEL_SPECS = {
     },
 }
 
-GPT_MODEL = "gpt-4o-mini"
+GPT_MODEL = "gpt-4.1-mini"
 GPT_MODEL_MAX_TOKENS = 128000
 LLM_MODEL = "mistral-small3.1:24b"
 MAX_TOKENS_RESPONSE = 250

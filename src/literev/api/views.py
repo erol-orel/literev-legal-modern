@@ -116,7 +116,7 @@ class ConvertToBooleanQueryAPIView(APIView):
         try:
             gen = OpenAIGen(
                 prompt_template=PROMPT_TEMPLATE,
-                model_name="gpt-4o-mini",
+                model_name="gpt-4.1-mini",
                 api_key=api_key,
                 output_max_length=2048,
                 temperature=0,
