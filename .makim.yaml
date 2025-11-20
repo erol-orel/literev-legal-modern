@@ -732,7 +732,7 @@ groups:
           ENV: dev
         backend: bash
         run: |
-          sugar --profile dev compose-ext build litrev-base
+          sugar --profile dev compose-ext build literev-base
           sugar --profile dev compose-ext restart --services literev-jupyter -- -d
 
       all-containers:

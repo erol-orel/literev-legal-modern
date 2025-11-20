@@ -76,7 +76,7 @@ class ConvertToBooleanQueryAPIView(APIView):
         Strictly follow these rules to ensure accuracy, logical correctness, and reproducibility:
         **GENERAL RULES:**
         - Do NOT remove, modify, reorder, or omit any terms unless necessary for logical correctness.
-        - Ensure all key concepts and terms from the question are included in the Bolean query.
+        - Ensure all key concepts and terms from the question are included in the Boolean query.
         - Ensure the boolean query is valid and includes all relevant terms from the question.
         - Wrap multi-word phrases in double quotes (e.g., `"breach of contract"`).
         - NEVER wrap single-word terms in double quotes.

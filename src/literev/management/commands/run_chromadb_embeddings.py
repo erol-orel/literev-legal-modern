@@ -7,7 +7,6 @@ from typing import Any
 import joblib
 
 from chromadb import PersistentClient
-from chromadb.config import Settings
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from joblib import Parallel, delayed
@@ -41,9 +40,7 @@ UPSERT_BATCH = 200  # number of docs per upsert to Chroma
 
 
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
-chroma = PersistentClient(
-    path=CHROMA_DIR, settings=Settings(anonymized_telemetry=False)
-)
+chroma = PersistentClient(path=CHROMA_DIR)
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
