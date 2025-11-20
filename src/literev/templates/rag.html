@@ -143,10 +143,10 @@
                   </div>
                 </div>
               {% endif %}
-              {% if has_section_ans %}
+              {% if has_section_ans and summary_text %}
                 <div class="container mb-4 px-4">
                   <div class="alert alert-info">
-                    <p id="general-ans">
+                    <p id="general-regle">
                       <strong>Règle de droit:</strong> {{ regle_droit }}
                     </p>
                   </div>
@@ -417,7 +417,10 @@
           sectionsAnswers["Subsommation"] !== undefined ||       // variant
           sectionsAnswers["Mineure-Subsomption"] !== undefined ||// common
           sectionsAnswers["Mineure-Subsommation"] !== undefined ||// variant
-          sectionsAnswers["Conclusion"] !== undefined;
+          sectionsAnswers["Conclusion"] !== undefined ||
+          sectionsAnswers["Analyse juridique (subsomption)"] !== undefined ||
+          sectionsAnswers["Examen des faits"]  !== undefined ||
+          sectionsAnswers["Décision finale"] !== undefined;
         if (!hasAny) {
           return null;
         }
@@ -480,6 +483,7 @@
         const faitAnswer = pickText(sectionsAnswers, [
           "Faits",
           "Mineure-Faits",
+          "Examen des faits",
         ]);
 
         if (faitAnswer) {
@@ -499,6 +503,7 @@
           "Mineure-Subsomption",
           "Subsommation",
           "Mineure-Subsommation",
+          "Analyse juridique (subsomption)",
         ]);
         if (subsomptionAnswer){
           const subsomption = document.createElement("div");
@@ -513,8 +518,10 @@
         }
 
         //const conclusionAnswer = sectionsAnswers["Conclusion"]?.join(" ") || "answer-not-available";
-        const conclusionAnswer = asText(sectionsAnswers["Conclusion"]);
-
+        const conclusionAnswer = pickText(sectionsAnswers,[
+          "Conclusion",
+          "Décision finale",
+        ])
 
         if (conclusionAnswer){
           const Conclusion = document.createElement("div");

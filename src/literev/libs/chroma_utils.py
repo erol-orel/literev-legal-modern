@@ -1,3 +1,5 @@
+from typing import cast
+
 from chromadb import PersistentClient
 from django.conf import settings
 from openai import OpenAI
@@ -6,7 +8,7 @@ EMBEDDING_MODEL = "text-embedding-3-large"
 CHAT_MODEL = "gpt-4.1-mini"
 OPENAI_API_KEY = settings.OPENAI_API_KEY
 
-N_TOP_CHUNKS = 5
+N_TOP_CHUNKS = 8
 CACHE_DIR = settings.LITEREV_CACHE_DIR
 CHROMA_DIR = CACHE_DIR / "chroma_db"
 
@@ -20,27 +22,29 @@ DOCUMENT_SECTIONS = [
     "Conclusion",
 ]
 
-
-SYLLOGISM_QA_TEMPLATE = """
-You are a Swiss legal reasoning assistant. Use the syllogistic structure of Swiss judgments to answer.
-
-When answering:
-- Always reply ONLY as a valid JSON object.
-- Answer the following query strictly as a JSON object matching the Python type dict[str, list[str]]. The keys should be strings, and their values lists of strings.
-- Use these JSON keys as applicable: "Faits", "Subsommation", "Conclusion".
-- If about facts → use Mineure-Faits.
-- If about application → use Mineure-Subsommation.
-- If about decision → use Conclusion.
-- Explain reasoning explicitly and cite the sections you used.
-- Do NOT invent facts or legal rules not present.
-
-Question: {question}
-
-Context:
-{context}
-
-Answer (respond ONLY as valid JSON with the above keys):
+STRICT_GUARD = """
+Vous etes un expert du droit suisse specialise dans la jurisprudence.
+Vous devez fonder votre raisonnement uniquement sur le contexte fourni.
+Si quelque chose ne peut pas etre deduit strictement de celui-ci, repondez: "L'information requise n'est pas indiquee dans le contexte".
+N'ajoutez jamais de connaissances generales ni d'hypotheses.
+Repondez uniquement en francais.
 """
+
+PROMPTS = [
+    {
+        "name": "A_strict_context",
+        "system": STRICT_GUARD,
+        "user_template": """
+        Question: {question}\n\nContexte: {context}\n\nInstruction: Répond à la question ci-dessus en te basant sur le contexte fourni. Structure ta réponse en un objet JSON contenant strictement les trois sections suivantes : "Examen des faits", "Analyse juridique (subsomption)".
+        et "Décision finale" : résumé de la conclusion.""",
+        "max_tokens": 600,
+        "temperature": 0.1,
+    },
+]
+
+
+# Keeping ROUTING_HINTS to future implementation
+
 ROUTING_HINTS = {
     "majeure": [
         "règle",
@@ -142,24 +146,38 @@ def llm_answer(question: str, blocks: dict[str, list[str]]) -> str:
         ):  # Adding this to avoid retrieving answers from majeure section
             continue
         if items:
-            parts.append(f"## {sec}\n" + "\n".join(f"- {i}" for i in items))
+            parts.append(f"## {sec}\n" + "\n".join(f"{i}" for i in items))
     ctx = "\n\n".join(parts)
 
+    if not ctx.strip():
+        return "No relevant context was found for this document."
+
     # getting the ans
-    prompt = SYLLOGISM_QA_TEMPLATE.format(question=question, context=ctx)
-    resp = openai_client.chat.completions.create(
-        model=CHAT_MODEL,
-        response_format={"type": "json_object"},
-        messages=[
-            {
-                "role": "system",
-                "content": "You are a careful Swiss legal assistant.",
-            },
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0,
+    prompt = PROMPTS[0]
+    max_tokens = cast(int, prompt["max_tokens"])
+    temperature = cast(float, prompt["temperature"])
+
+    # Prepare messages for the API
+    system_message = cast(
+        dict[str, str], {"role": "system", "content": prompt["system"]}
     )
-    answer = resp.choices[0].message.content
+    user_template = cast(str, prompt["user_template"])
+    user_message = {
+        "role": "user",
+        "content": user_template.format(question=question, context=ctx),
+    }
+
+    # Call the OpenAI ChatCompletion endpoint
+    response = openai_client.chat.completions.create(  # type: ignore
+        model=CHAT_MODEL,
+        messages=[system_message, user_message],
+        response_format={"type": "json_object"},
+        max_tokens=max_tokens,
+        temperature=temperature,
+    )
+
+    answer = response.choices[0].message.content
+
     return answer if answer else ""
 
 

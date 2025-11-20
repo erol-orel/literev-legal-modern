@@ -1534,6 +1534,81 @@ class CustomRagAnswersGenerator:
 
         self.summary_generator = OpenAISummaryGenerator(self.api_key)
 
+    def get_mineures_faits_answers(self, answers_block):
+        """
+        Returns the list of answers from the fait section,
+        using all the alternatives from the keys
+        """
+        ALTERNATIVES_MINEURES_KEY = [
+            "Mineure-Faits",
+            "Faits",
+            "Examen des faits",
+        ]
+        for key in ALTERNATIVES_MINEURES_KEY:
+            if key in answers_block:
+                fait = answers_block[key]
+                return fait if isinstance(fait, list) else [fait]
+        return []
+
+    def get_mineure_subsommation_ans(self, answers_block):
+        """
+        Returns the list of answers from the Subsommation section,
+        using all the alternatives from the keys
+        """
+        ALTERNATIVES_MINEURES_SUBSOMPTION_KEYS = [
+            "Mineure-Subsommation",
+            "Subsommation",
+            "Mineure-Subsomption",
+            "Subsomption",
+            "Analyse juridique (subsomption)",
+        ]
+        for key in ALTERNATIVES_MINEURES_SUBSOMPTION_KEYS:
+            if key in answers_block:
+                subsomption = answers_block[key]
+                return (
+                    subsomption
+                    if isinstance(subsomption, list)
+                    else [subsomption]
+                )
+        return []
+
+    def get_conclusion_ans(self, answers_block):
+        """
+        Returns the list of answers from the Conclusion section,
+        using all the alternatives from the keys
+        """
+        ALTERNATIVES_CONCLUSION_KEYS = [
+            "Conclusion",
+            "Décision finale",
+        ]
+        for key in ALTERNATIVES_CONCLUSION_KEYS:
+            if key in answers_block:
+                conclusion = answers_block[key]
+                return (
+                    conclusion
+                    if isinstance(conclusion, list)
+                    else [conclusion]
+                )
+        return []
+
+    def count_valid_rags(self, documents_rags):
+        """
+        Count valid rag answers to display.
+        """
+        counter = 0
+        for rag in documents_rags:
+            try:
+                answers_block = json.loads(rag.answer)
+            except:
+                continue
+            if (
+                self.get_mineures_faits_answers(answers_block)
+                or self.get_mineure_subsommation_ans(answers_block)
+                or self.get_conclusion_ans(answers_block)
+            ):
+                counter += 1
+        return counter
+
     def get_and_save_answers_from_documents(self, max_doc_ans=None):
         self.project_rag.status = "questioning_documents"
         self.project_rag.save()
@@ -1606,12 +1681,13 @@ class CustomRagAnswersGenerator:
 
         for doc_rag in documents_rags:
             answer_block = json.loads(doc_rag.answer)
-            fait_list.extend(answer_block.get("Mineure-Faits", []))
-            subsommation_list.extend(
-                answer_block.get("Mineure-Subsommation", [])
+            fait_list.extend(self.get_mineures_faits_answers(answer_block))
+            subsomption_doc_ans = self.get_mineure_subsommation_ans(
+                answer_block
             )
+            subsommation_list.extend(subsomption_doc_ans)
             subsommation_dict[doc_rag.document.id] = "\n".join(
-                answer_block.get("Mineure-Subsommation", [])
+                subsomption_doc_ans
             )
             procedure_type_dict[doc_rag.document.id] = (
                 doc_rag.document.procedure_type
@@ -1619,9 +1695,11 @@ class CustomRagAnswersGenerator:
             # Getting majeures directly from the context not using the answer section majeure
             majeure_list.extend(doc_rag.citation_context.get("Majeure", []))
 
-            conclusion_list.extend(answer_block.get("Conclusion", ""))
+            conclusion_list.extend(self.get_conclusion_ans(answer_block))
 
-        self.project_rag.valid_answer_count = documents_rags.count()
+        self.project_rag.valid_answer_count = self.count_valid_rags(
+            documents_rags
+        )
 
         summary_dict = self.summary_generator.get_summary(
             self.project_rag.query, subsommation_list, create_considerations
