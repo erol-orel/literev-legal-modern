@@ -40,7 +40,9 @@ UPSERT_BATCH = 200  # number of docs per upsert to Chroma
 
 
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
-chroma = PersistentClient(path=CHROMA_DIR)
+chroma = PersistentClient(
+    path=CHROMA_DIR,
+)
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"

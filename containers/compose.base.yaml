@@ -124,6 +124,9 @@ services:
 
   literev-jupyter:
     extends: literev-base
+    volumes:
+      - llm_cache:${LITEREV_CACHE_DIR:-/opt/data/literev/cache}
+    networks: [literev]
 
 
 volumes:
