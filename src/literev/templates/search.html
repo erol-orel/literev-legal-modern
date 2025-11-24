@@ -125,6 +125,21 @@
                         Chambre Penale
                       </label>
                     </div>
+                    <div class="form-check">
+                      <input class="form-check-input index-radio"
+                             type="radio"
+                             name="index_names"
+                             value="chambre_civile"
+                             id="chambrePenalCourtRadio"
+                             {% if "chambre_civile" in selected_indices %}
+                               checked
+                             {% endif %}
+                             required />
+                      <label class="form-check-label"
+                             for="cambrePenalCourtRadio">
+                        Chambre Civile
+                      </label>
+                    </div>
                   </div>
                 </div>
 

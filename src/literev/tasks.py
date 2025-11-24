@@ -273,10 +273,14 @@ def get_nl_rag_ans(self, project_id: int) -> None:
     docs_ids = [doc.id for doc in top_docs]
     max_doc_ans = min(10, number_documents)
 
-    if "chambre_penale" in project.selected_indices:
+    if (
+        "chambre_penale" in project.selected_indices
+        or "chambre_civile" in project.selected_indices
+    ):
         rag_op = CustomRagAnswersGenerator(
             project_rag_id=project_rag.id,
             documents_ids=docs_ids,
+            chambre_name=project.selected_indices[0],
         )
         rag_op.get_and_save_answers_from_documents(max_doc_ans=max_doc_ans)
     else:
@@ -460,8 +464,15 @@ def task_rag_result_table(
     """Run RAG for the data from result table."""
     try:
         project_rag = ProjectRAG.objects.get(id=project_rag_id)
-        if "chambre_penale" in project_rag.project.selected_indices:
-            rag = CustomRagAnswersGenerator(project_rag_id, document_ids)
+        if (
+            "chambre_penale" in project_rag.project.selected_indices
+            or "chambre_civile" in project_rag.project.selected_indices
+        ):
+            rag = CustomRagAnswersGenerator(
+                project_rag_id,
+                document_ids,
+                project_rag.project.selected_indices[0],
+            )
             rag.get_and_save_answers_from_documents()
         else:
             rag = RagAnswersManager(  # type: ignore

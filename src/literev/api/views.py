@@ -56,61 +56,38 @@ class ConvertToBooleanQueryAPIView(APIView):
         Response
             A JSON response containing the translated boolean query.
         """
-        # PROMPT_TEMPLATE = """
-        # Translate the following question into a boolean query suitable for jurisprudence.
-        # Adhere to the following rules:
-        # - Ensure all key concepts and terms from the question are included in the query.
-        # - Use "AND" to combine distinct concepts.
-        # - Use "OR" to include synonyms or related terms for a concept.
-        # - Use "NOT" to exclude terms, where negations such as "sans" should exclude the associated terms.
-        # - "NOT" must directly precede the term it excludes, and avoid using "AND NOT".
-        # - Wrap multi-word terms (composed words) in double quotes.
-        # - Use parentheses to group terms where appropriate.
-        # - Ensure the boolean query is valid and includes all relevant terms from the question, properly handling negations like "sans."
-        # - Return only the boolean query, without any explanation or extra text.
 
-        # Question:
-        # {context}
         PROMPT_TEMPLATE = """
-        Translate the following question into a Boolean query suitable for jurisprudence.
-        Strictly follow these rules to ensure accuracy, logical correctness, and reproducibility:
-        **GENERAL RULES:**
-        - Do NOT remove, modify, reorder, or omit any terms unless necessary for logical correctness.
-        - Ensure all key concepts and terms from the question are included in the Boolean query.
-        - Ensure the boolean query is valid and includes all relevant terms from the question.
-        - Wrap multi-word phrases in double quotes (e.g., `"breach of contract"`).
-        - NEVER wrap single-word terms in double quotes.
-        - Boolean operators MUST be UPPER CASE: AND, OR, NOT.
-        - Use `AND` to combine distinct legal concepts.
-        - Group synonyms with `OR`, wrapped in parentheses, even with only two terms.
-        - Do NOT use `AND` inside `OR` groups.
-        - Avoid extra or unnecessary parentheses.
-        - Maintain the original term order unless required for clarity.
-        - The SAME input MUST ALWAYS produce the SAME Boolean query.
-        **NEGATIONS (`NOT`):**
-        - Express negations like `sans`, `excluding`, or `without` using `NOT`.
-        - Multi-word exclusions MUST be in double quotes (e.g., `NOT "faute grave"`).
-        - Apply `NOT` INDIVIDUALLY to each excluded term.
-        - If the excluded terms form a multi-word phrase, they MUST remain enclosed in double quotes.
-        - Correct: `"résolution amiable" AND "obligation contractuelle" NOT "défaut de paiement"`
-        - Incorrect: `("résolution amiable" AND "obligation contractuelle") NOT défaut de paiement`
-        - NEVER use `AND NOT` in the Boolean query.
-        - Correct: `indemnisation NOT "retard injustifié"`
-        - Incorrect: `indemnisation AND NOT "retard injustifié"`
-        **SYNONYMS (`OR`):**
-        - Group related terms inside parentheses with `OR`.
-        - Example: `("préjudice moral" OR "dommage corporel") AND "responsabilité civile"`.
-        **LEGAL CONTEXT:**
-        - Preserve key legal expressions.
-        - Example: `"absence de consentement"` must be represented as `("absence de consentement" OR "défaut de consentement" OR "vice du consentement")`.
-        - Ensure precise, valid, and contextually accurate queries.
+        You are an expert in legal information retrieval.
 
-        Return only the Boolean query, with no extra text.
+        Your task is to transform a natural-language legal question or sentence in French into a robust Boolean query for an Elasticsearch search engine, specialized in Swiss jurisprudence.
+        **Rules:**
+        - Both the input and the Boolean query output are in French. Use only French legal terms, synonyms, and common legal formulations.
+        - Focus on semantic meaning, not literal word-for-word translation.
+        - Always include all key legal concepts, relevant synonyms, and common legal formulations found in Swiss jurisprudence.
+        - Never include more than 3 - 5 core concepts or main legal terms, or the search will return zero documents.
+        - For multi-word expressions, use double quotes (e.g., "vice du consentement").
+        - Never use double quotes for single-word terms.
+        - Boolean operators must be UPPER CASE: AND, OR, NOT.
+
+        **Query construction:**
+        - Combine distinct legal concepts with AND.
+        - Group synonyms or related expressions inside parentheses with OR (even if only two terms).
+        - Do NOT use AND inside an OR group.
+        - For negations (such as "sans", "excluant", "sans que"): use NOT directly before each excluded term. If it's a multi-word phrase, use double quotes (e.g., NOT "faute grave"). Apply NOT to each term separately.
+        - Never use AND NOT; always use NOT by itself.
+        - Maintain the original order of concepts unless logic or clarity require a change.
+        - Avoid unnecessary parentheses.
+        - Use fuzzy (~) or proximity (~N) operators where helpful (e.g., "menace"~3) for legal formulations or common variants.
+
+        **Always:**
+        - Include all relevant French synonyms and legal phrases, not only the exact terms found in the question.
+        - Ensure the query is broad enough to return relevant documents, but specific enough to filter noise.
+
+        **Return only the final Boolean query in French, with no extra commentary or translation.**
 
         Question:
         {context}
-
-        Boolean Query:
         """
 
         try:

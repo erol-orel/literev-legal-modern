@@ -133,7 +133,7 @@ MODEL_SPECS = {
 }
 
 GPT_MODEL = "gpt-4.1-mini"
-GPT_MODEL_MAX_TOKENS = 128000
+GPT_MODEL_MAX_TOKENS = 128000  # Check the limit It seems that for the model gpt 4.1 mini is around 1M
 LLM_MODEL = "mistral-small3.1:24b"
 MAX_TOKENS_RESPONSE = 250
 

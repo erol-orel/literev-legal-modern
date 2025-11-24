@@ -27,7 +27,7 @@ Vous etes un expert du droit suisse specialise dans la jurisprudence.
 Vous devez fonder votre raisonnement uniquement sur le contexte fourni.
 Si quelque chose ne peut pas etre deduit strictement de celui-ci, repondez: "L'information requise n'est pas indiquee dans le contexte".
 N'ajoutez jamais de connaissances generales ni d'hypotheses.
-Repondez uniquement en francais.
+Veuillez répondre strictement en français.
 """
 
 PROMPTS = [

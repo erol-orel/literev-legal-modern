@@ -726,7 +726,10 @@ def rag(
             ProjectRAG, project_id=project_id, id=rag_id
         )
 
-        if "chambre_penale" in project.selected_indices:
+        if (
+            "chambre_penale" in project.selected_indices
+            or "chambre_civile" in project.selected_indices
+        ):
             has_section_ans = True
             project_rag.summary_answer
             answer_block = (

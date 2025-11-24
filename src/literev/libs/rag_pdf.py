@@ -1519,7 +1519,9 @@ def get_answer_document_worker(
 
 
 class CustomRagAnswersGenerator:
-    def __init__(self, project_rag_id: int, documents_ids: list[int]) -> None:
+    def __init__(
+        self, project_rag_id: int, documents_ids: list[int], chambre_name: str
+    ) -> None:
         self.api_key: str = getattr(settings, "OPENAI_API_KEY")
 
         self.project_rag = ProjectRAG.objects.get(id=project_rag_id)
@@ -1533,6 +1535,8 @@ class CustomRagAnswersGenerator:
         self.stats_generator = StatsGenerator(self.api_key)
 
         self.summary_generator = OpenAISummaryGenerator(self.api_key)
+
+        self.chambre_name = chambre_name
 
     def get_mineures_faits_answers(self, answers_block):
         """
@@ -1640,7 +1644,7 @@ class CustomRagAnswersGenerator:
             .embedding
         )
 
-        collection = chroma_client.get_collection(name="chambre_penale")
+        collection = chroma_client.get_collection(name=self.chambre_name)
 
         with joblib.parallel_backend("threading", n_jobs=MAX_WORKERS_RAG):
             results = Parallel()(

@@ -38,7 +38,10 @@ def count_processed_documents(project: Project) -> int:
     if documents_count < CLUSTERING_MIN_DOCUMENTS:
         return documents_count
 
-    if "chambre_penale" in project.selected_indices:
+    if (
+        "chambre_penale" in project.selected_indices
+        or "chambre_civile" in project.selected_indices
+    ):
         return documents_count
 
     return ClusterElement.objects.filter(cluster__project=project).count()
