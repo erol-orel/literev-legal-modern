@@ -721,6 +721,9 @@ def rag(
     counts = {"oui": 0, "non": 0, "peut_etre": 0, "mixte": 0}
     percentages = {"oui": 0, "non": 0, "peut_etre": 0, "mixte": 0}
 
+    key_elements = ""
+    law_articles = ""
+
     if rag_id:
         project_rag = get_object_or_404(
             ProjectRAG, project_id=project_id, id=rag_id
@@ -739,6 +742,10 @@ def rag(
             )
 
             regle_droit = answer_block.get("regle_droit", "")
+
+            key_elements = answer_block.get("key_elements", "")
+
+            law_articles = answer_block.get("law_articles", "")
 
         stats = getattr(project_rag, "stats", None)
 
@@ -827,8 +834,6 @@ def rag(
         "number_documents": len(documents_ids),
         "refinement_id": last_refinement.id if last_refinement else 0,
         "iteration_id": last_iteration.id if last_iteration else 0,
-        "summary_text": summary_text,
-        "considerations": considerations,
         "natural_language_query": project.natural_language_query or "",
         "classification_total": sum(counts.values()),
         "oui_count": counts.get("oui", 0),
@@ -842,7 +847,11 @@ def rag(
         "show_closed_stats": show_closed_stats,
         "has_confidence_score": has_confidence_score,
         "has_section_ans": has_section_ans,
+        "summary_text": summary_text,
         "regle_droit": regle_droit,
+        "considerations": considerations,
+        "key_elements": key_elements,
+        "law_articles": law_articles,
     }
 
     return render(request, "rag.html", context)

@@ -52,7 +52,6 @@ from literev.legal.extract_minor_major import (
 from literev.libs.chroma_utils import (
     chroma_client,
     get_best_section_chunks,
-    get_majeures_summary,
     llm_answer,
     openai_client,
 )
@@ -68,6 +67,8 @@ from literev.models import (
     ProjectRAG,
     ProjectRAGStats,
 )
+
+MODEL_CHAT = "gpt-4.1-mini"
 
 logging.basicConfig(level=settings.LOGGING_LEVEL)
 logger = logging.getLogger(__name__)
@@ -100,6 +101,32 @@ def ret_cache(func: Callable[[str], list[str]]) -> Callable[[str], list[str]]:
         return result
 
     return wrapper
+
+
+INVALID_CHARS = ["\x00"]
+
+
+def sanitize_text_replace(s: str) -> str:
+    if not isinstance(s, str):
+        return s
+    for ch in INVALID_CHARS:
+        s = s.replace(ch, "")  # or ' ' or '\uFFFD'
+    return s
+
+
+def sanitize_replace(obj):
+    if isinstance(obj, str):
+        return sanitize_text_replace(obj)
+    if isinstance(obj, list):
+        return [sanitize_replace(x) for x in obj]
+    if isinstance(obj, dict):
+        return {
+            (
+                sanitize_text_replace(k) if isinstance(k, str) else k
+            ): sanitize_replace(v)
+            for k, v in obj.items()
+        }
+    return obj
 
 
 def compute_document_cache_key(query: str, document_id: int) -> str:
@@ -1613,6 +1640,65 @@ class CustomRagAnswersGenerator:
                 counter += 1
         return counter
 
+    def get_prompt_summary(
+        self, question: str, subsommation_dict: dict[str | int, str]
+    ):
+        text = ""
+        for doc_id, resp in subsommation_dict.items():
+            text += f"[{doc_id}]:\n{resp}\n\n"
+
+        return (
+            f"Question: {question}\n\n"
+            f"Réponses des experts:\n{text}\n---\n\n"
+            "En t'appuyant UNIQUEMENT sur ces réponses, génère un objet JSON strictement respecté ayant la structure suivante :\n\n"
+            "{\n"
+            '  "summary": "Résumé synthétique en un paragraphe répondant à la question. Pas d\'exemple.",\n'
+            '  "key_elements": [ \n'
+            "     {\n"
+            '       "element": "Nom de l\'élément clé",\n'
+            '       "description": "Description de l\'élément en relation avec la question",\n'
+            '       "references": [1,3,5]    // Liste des numéros de documents\n'
+            "     }, ...\n"
+            "   ],\n"
+            '  "law_articles": [\n'
+            "     {\n"
+            '       "article": "Numéro ou titre d\'article",\n'
+            '       "content": "Contenu pertinent résumé ou extrait",\n'
+            '       "references": [2,4]    // Liste des numéros de documents\n'
+            "     }, ...\n"
+            "   ]\n"
+            "}\n"
+            "Donne seulement l'objet JSON, sans aucun texte autour.\n"
+        )
+
+    def create_table_summary(
+        self, question: str, subsommation_dict: list[str]
+    ) -> str:
+        prompt = self.get_prompt_summary(question, subsommation_dict)
+
+        try:
+            resp = openai_client.chat.completions.create(
+                model=MODEL_CHAT,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "Expert juridique specialise en synthese jurisprudentielle.",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.1,
+                max_tokens=1200,
+            )
+            summary = resp.choices[0].message.content.strip()
+            logging.info("[OK] Summary generated")
+
+        except Exception as e:
+            logging.info(f"[ERROR] {e}")
+            summary = "[ERROR]"
+
+        return summary
+
     def get_and_save_answers_from_documents(self, max_doc_ans=None):
         self.project_rag.status = "questioning_documents"
         self.project_rag.save()
@@ -1658,8 +1744,8 @@ class CustomRagAnswersGenerator:
             ProjectDocumentRAG.objects.create(
                 project_rag=self.project_rag,
                 document_id=doc_id,  # or document=Document.objects.get(id=doc_id)
-                citation_context=block_section,
-                answer=answer,
+                citation_context=sanitize_replace(block_section),
+                answer=sanitize_replace(answer),
             )
         # Implement answers for missing
 
@@ -1667,99 +1753,31 @@ class CustomRagAnswersGenerator:
         self.project_rag.status = "generating_summary"
         self.project_rag.save(update_fields=["status"])
 
-        self.question_type = self.query_classifier.get_question_type(
-            self.project_rag.query
-        )
-        create_considerations = self.question_type != "closed"
-
         documents_rags = ProjectDocumentRAG.objects.filter(
             project_rag=self.project_rag
         )
 
-        majeure_list = []
-        fait_list = []
-        subsommation_list = []
-        conclusion_list = []
         subsommation_dict = {}
-        procedure_type_dict = {}
 
         for doc_rag in documents_rags:
             answer_block = json.loads(doc_rag.answer)
-            fait_list.extend(self.get_mineures_faits_answers(answer_block))
             subsomption_doc_ans = self.get_mineure_subsommation_ans(
                 answer_block
             )
-            subsommation_list.extend(subsomption_doc_ans)
             subsommation_dict[doc_rag.document.id] = "\n".join(
                 subsomption_doc_ans
             )
-            procedure_type_dict[doc_rag.document.id] = (
-                doc_rag.document.procedure_type
-            )
-            # Getting majeures directly from the context not using the answer section majeure
-            majeure_list.extend(doc_rag.citation_context.get("Majeure", []))
-
-            conclusion_list.extend(self.get_conclusion_ans(answer_block))
 
         self.project_rag.valid_answer_count = self.count_valid_rags(
             documents_rags
         )
-
-        summary_dict = self.summary_generator.get_summary(
-            self.project_rag.query, subsommation_list, create_considerations
+        # Résultats obtenus à partir des documents.
+        summary_dict_str = self.create_table_summary(
+            self.project_rag.query, subsommation_dict
         )
 
-        regle_droit = get_majeures_summary(
-            self.project_rag.query, majeure_list
-        )
-
-        summary_dict["regle_droit"] = regle_droit
-
-        self.project_rag.summary_answer = json.dumps(summary_dict)
+        self.project_rag.summary_answer = summary_dict_str
         self.project_rag.save()
-
-        self.project_rag.status = "generating_statistics"
-        self.project_rag.save()
-        if self.question_type == "closed":
-            stats = self.stats_generator.generate_closed_answer_statistics(
-                self.project_rag.query, subsommation_list
-            )
-            ProjectRAGStats.objects.create(
-                project_rag=self.project_rag,
-                classification_stats=stats,
-                user=self.project_rag.project.user,
-            )
-        else:
-            stats = self.stats_generator.generate_open_answer_statistics_fait(
-                query=self.project_rag.query,
-                subsommation_dict=subsommation_dict,
-                considerations=summary_dict["considerations"],
-            )
-
-            # TODO: Check what happens when stats are empty
-            ProjectRAGStats.objects.create(
-                project_rag=self.project_rag,
-                classification_stats=stats,
-                user=self.project_rag.project.user,
-            )
-            logger.debug(f"Open-ended statistics generated: {stats}")
-
-            self.project_rag.status = "tagging_considerations"
-            self.project_rag.save()
-
-            tagged_considerations = (
-                self.stats_generator.tag_answers_considerations_v2(
-                    considerations=summary_dict["considerations"],
-                    procedure_type_dict=procedure_type_dict,
-                    classification_stats=stats,
-                )
-            )
-
-            # TODO: Check what happens when tagged_considerations are empty
-            summary_dict["considerations"] = tagged_considerations
-            self.project_rag.summary_answer = json.dumps(summary_dict)
-            self.project_rag.save()
-            logger.debug("Completed tagging considerations.")
 
         self.project_rag.status = "completed"
         self.project_rag.save()

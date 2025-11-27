@@ -143,7 +143,7 @@
                   </div>
                 </div>
               {% endif %}
-              {% if has_section_ans and summary_text %}
+              {% if has_section_ans and summary_text and regle_droit %}
                 <div class="container mb-4 px-4">
                   <div class="alert alert-info">
                     <p id="general-regle">
@@ -151,6 +151,97 @@
                     </p>
                   </div>
                 </div>
+              {% endif %}
+              {% if key_elements and has_section_ans and summary_text %}
+                <h3 class="mb-3">
+                  Tableau des éléments clés
+                </h3>
+                <table class="table mb-5">
+                  <thead class="thead-dark">
+                    <tr>
+                      <th scope="col">
+                        Élément clé
+                      </th>
+                      <th scope="col">
+                        Description
+                      </th>
+                      <th scope="col">
+                        Références
+                      </th>
+                      <!-- {% for key in key_elements.0.keys %}
+                        <th scope="col">
+                          {{ key }}
+                        </th>
+                      {% endfor %} -->
+                    </tr>
+                  </thead>
+                  <tbody class="table-group-divider">
+                    {% for row in key_elements %}
+                      <tr>
+                        {% for key, value in row.items %}
+                          {% if key == 'references' %}
+                            <td>
+                              {% with data_doc=value|extract_doc_data %}
+                                {% for doc_id, procedure_type in data_doc.items %}
+                                  <a href="{% url 'contentdocument' doc_id %}"
+                                     class="badge bg-secondary text-white small ms-1"
+                                     target="_blank">
+                                    {{ procedure_type }}
+                                  </a>
+                                {% endfor %}
+                              {% endwith %}
+                            </td>
+                          {% else %}
+                            <td>
+                              {{ value }}
+                            </td>
+                          {% endif %}
+                        {% endfor %}
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              {% endif %}
+              {% if law_articles %}
+                <h3>
+                  Tableau des articles de loi
+                </h3>
+                <table class="table mb-5">
+                  <thead class="thead-dark">
+                    <tr>
+                      {% for key in law_articles.0.keys %}
+                        <th scope="col">
+                          {{ key }}
+                        </th>
+                      {% endfor %}
+                    </tr>
+                  </thead>
+                  <tbody class="table-group-divider">
+                    {% for row in law_articles %}
+                      <tr>
+                        {% for key, value in row.items %}
+                          {% if key == 'references' %}
+                            <td>
+                              {% with data_doc=value|extract_doc_data %}
+                                {% for doc_id, procedure_type in data_doc.items %}
+                                  <a href="{% url 'contentdocument' doc_id %}"
+                                     class="badge bg-secondary text-white small ms-1"
+                                     target="_blank">
+                                    {{ procedure_type }}
+                                  </a>
+                                {% endfor %}
+                              {% endwith %}
+                            </td>
+                          {% else %}
+                            <td>
+                              {{ value }}
+                            </td>
+                          {% endif %}
+                        {% endfor %}
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
               {% endif %}
             </div>
             {% if show_closed_stats %}
@@ -235,6 +326,9 @@
                 </div>
               </div>
             {% endif %}
+            <h3 class="mb-5">
+              Résultats obtenus à partir des documents
+            </h3>
             <div class="col-4 d-flex align-items-center mb-3">
               <label for="update_order_by"
                      class="form-label me-2 mb-0">

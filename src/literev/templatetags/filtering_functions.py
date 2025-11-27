@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from typing import Any, Union
 
 from django import template
@@ -247,3 +249,17 @@ def get_dict_value(dictionary: dict[str, str], key: str) -> str:
 def document_id_by_procedure_type(procedure_type):
     doc = Document.objects.filter(procedure_type=procedure_type).first()
     return doc.id if doc else None
+
+
+@register.filter
+def extract_doc_data(value):
+    """Extract numbers from a string like '[1], [3], [4]' into a list of integers."""
+    doc_ids = [int(num) for num in re.findall(r"\d+", str(value))]
+    document_data = {}
+
+    for doc_id in doc_ids:
+        document = Document.objects.filter(id=doc_id).first()
+        if document:
+            document_data[document.id] = document.procedure_type
+
+    return document_data
