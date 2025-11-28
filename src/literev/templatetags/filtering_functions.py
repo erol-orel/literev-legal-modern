@@ -254,7 +254,11 @@ def document_id_by_procedure_type(procedure_type):
 @register.filter
 def extract_doc_data(value):
     """Extract numbers from a string like '[1], [3], [4]' into a list of integers."""
-    doc_ids = [int(num) for num in re.findall(r"\d+", str(value))]
+    if isinstance(value, list):
+        doc_ids = [int(num) for num in value]
+    else:
+        doc_ids = [int(num) for num in re.findall(r"\d+", str(value))]
+
     document_data = {}
 
     for doc_id in doc_ids:

@@ -1641,40 +1641,61 @@ class CustomRagAnswersGenerator:
         return counter
 
     def get_prompt_summary(
-        self, question: str, subsommation_dict: dict[str | int, str]
+        self,
+        question: str,
+        subsommation_dict: dict[str | int, str],
+        majeures_dict: dict[str | int, str],
     ):
         text = ""
+        majeures_text = ""
         for doc_id, resp in subsommation_dict.items():
             text += f"[{doc_id}]:\n{resp}\n\n"
 
+        for doc_id, content in majeures_dict.items():
+            majeures_text += f"[{doc_id}]:\n{content}\n\n"
+
         return (
             f"Question: {question}\n\n"
-            f"Réponses des experts:\n{text}\n---\n\n"
-            "En t'appuyant UNIQUEMENT sur ces réponses, génère un objet JSON strictement respecté ayant la structure suivante :\n\n"
+            f"Réponses des experts:\n{text}\n"
+            f"Contexte supplémentaire (Majeure) par document:\n{majeures_text}\n ---\n\n"
+            "Instructions :\n"
+            "- Utilise UNIQUEMENT les réponses ci-dessus ET les phrases majeures associées à chaque document ci-dessus.\n"
+            "- Pour chaque élément produit dans 'key_elements' et 'law_articles', la clé 'references' doit être une LISTE des doc_id utilisés, choisis uniquement parmi ceux présents dans les réponses ou la majeure ci-dessus. Même s'il n'y a qu'un seul doc_id, la liste doit contenir un élément.\n"
+            "- Pour les 'law_articles', prends en compte à la fois la réponse et la majeure liée au doc_id.\n"
+            "- Réponds strictement au format suivant :\n"
             "{\n"
             '  "summary": "Résumé synthétique en un paragraphe répondant à la question. Pas d\'exemple.",\n'
-            '  "key_elements": [ \n'
+            '  "key_elements": [\n'
             "     {\n"
             '       "element": "Nom de l\'élément clé",\n'
             '       "description": "Description de l\'élément en relation avec la question",\n'
-            '       "references": [1,3,5]    // Liste des numéros de documents\n'
+            '       "references": [1,3,5]    // Liste (array) de doc_id UNIQUEMENT issus des réponses/majeure ci-dessus\n'
             "     }, ...\n"
             "   ],\n"
             '  "law_articles": [\n'
             "     {\n"
             '       "article": "Numéro ou titre d\'article",\n'
-            '       "content": "Contenu pertinent résumé ou extrait",\n'
-            '       "references": [2,4]    // Liste des numéros de documents\n'
+            '       "content": "Contenu pertinent résumé ou extrait, basé sur la question, les réponses et la majeure du ou des doc_id référencés.",\n'
+            '       "references": [2,4]    // Liste (array) de doc_id UNIQUEMENT issus des réponses/majeure ci-dessus\n'
             "     }, ...\n"
             "   ]\n"
             "}\n"
-            "Donne seulement l'objet JSON, sans aucun texte autour.\n"
+            "\nIMPORTANT :\n"
+            "- Donne uniquement l'objet JSON, sans rien avant ni après.\n"
+            "- Les champs 'references' sont TOUJOURS une liste, même avec un seul élément.\n"
+            "- Utilise seulement les doc_id explicitement présentés ci-dessus dans les réponses ou la majeure comme références.\n"
+            "- Toutes les réponses doivent être rédigées en français.\n"
         )
 
     def create_table_summary(
-        self, question: str, subsommation_dict: list[str]
+        self,
+        question: str,
+        subsommation_dict: dict[str | int, str],
+        majeures_dict: dict[str | int, str],
     ) -> str:
-        prompt = self.get_prompt_summary(question, subsommation_dict)
+        prompt = self.get_prompt_summary(
+            question, subsommation_dict, majeures_dict
+        )
 
         try:
             resp = openai_client.chat.completions.create(
@@ -1688,7 +1709,7 @@ class CustomRagAnswersGenerator:
                 ],
                 response_format={"type": "json_object"},
                 temperature=0.1,
-                max_tokens=1200,
+                max_completion_tokens=2400,
             )
             summary = resp.choices[0].message.content.strip()
             logging.info("[OK] Summary generated")
@@ -1758,6 +1779,7 @@ class CustomRagAnswersGenerator:
         )
 
         subsommation_dict = {}
+        majueres_dict = {}
 
         for doc_rag in documents_rags:
             answer_block = json.loads(doc_rag.answer)
@@ -1767,13 +1789,16 @@ class CustomRagAnswersGenerator:
             subsommation_dict[doc_rag.document.id] = "\n".join(
                 subsomption_doc_ans
             )
+            majueres_dict[doc_rag.document.id] = "\n".join(
+                doc_rag.citation_context.get("Majeure", [])
+            )
 
         self.project_rag.valid_answer_count = self.count_valid_rags(
             documents_rags
         )
         # Résultats obtenus à partir des documents.
         summary_dict_str = self.create_table_summary(
-            self.project_rag.query, subsommation_dict
+            self.project_rag.query, subsommation_dict, majueres_dict
         )
 
         self.project_rag.summary_answer = summary_dict_str
