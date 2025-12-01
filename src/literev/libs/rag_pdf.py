@@ -22,6 +22,7 @@ from typing import (
 import joblib
 
 from django.conf import settings
+from django.db.models import F
 from django.db.models.query import QuerySet
 from joblib import Parallel, delayed
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -1768,15 +1769,24 @@ class CustomRagAnswersGenerator:
                 citation_context=sanitize_replace(block_section),
                 answer=sanitize_replace(answer),
             )
+            # Update de counter safely
+            ProjectRAG.objects.filter(pk=self.project_rag.pk).update(
+                valid_answer_count=F("valid_answer_count") + 1
+            )
+
         # Implement answers for missing
+        documents_rags = ProjectDocumentRAG.objects.filter(
+            project_rag=self.project_rag
+        )
+
+        self.project_rag.valid_answer_count = self.count_valid_rags(
+            documents_rags
+        )
+        self.project_rag.save(update_fields=["valid_answer_count"])
 
         # Generating a general answer summary
         self.project_rag.status = "generating_summary"
         self.project_rag.save(update_fields=["status"])
-
-        documents_rags = ProjectDocumentRAG.objects.filter(
-            project_rag=self.project_rag
-        )
 
         subsommation_dict = {}
         majueres_dict = {}
@@ -1793,9 +1803,6 @@ class CustomRagAnswersGenerator:
                 doc_rag.citation_context.get("Majeure", [])
             )
 
-        self.project_rag.valid_answer_count = self.count_valid_rags(
-            documents_rags
-        )
         # Résultats obtenus à partir des documents.
         summary_dict_str = self.create_table_summary(
             self.project_rag.query, subsommation_dict, majueres_dict

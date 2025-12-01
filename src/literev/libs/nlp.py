@@ -329,25 +329,33 @@ def build_prompt(cluster: Cluster, USE_HACTAR_LLM: bool) -> str:
         "query — no explanation, no commentary, nothing else."
     )
 
-    prompt_template = (
-        "Provide a clear and concise general description based on the following "
-        "most important keywords: {keywords} from a cluster containing "
-        "law cases from the canton of Geneva in Switzerland. The summary must "
-        "represent all law cases collectively and not be based only on a single one. "
+    prompt_template = """
+        You are a Swiss lawyer specializing in the analysis of case law from the Geneva Court of Justice.
+        Your task is to produce a concise, neutral, and factual summary in a single paragraph of a few sentences,
+        based solely on the content of the provided text cluster keywords and additional context.
+        Cluster keywords: {keywords}.
+
+        Instructions:
+        Do not make any assumptions or add any elements not present in the cluster.
+
+        Identify only:
+        the recurring central facts,
+        the legal issues examined,
+        the legal principles applied,
+        the trends or solutions adopted.
+        Do not cite any names, full dates, or superfluous details; maintain a sober and formal style.
+        The summary should be no more than 4 to 6 sentences, in a single paragraph.
+
+        If the cluster is heterogeneous, summarize the common theme or dominant issues.
+        Expected output:
+        A single paragraph accurately and concisely summarizing the content of the cluster.
+
         "In addition to the most important keywords, use "
         "the following additional context coming from the law cases contained in this cluster:"
         "\n"
-    )
+        """
 
-    prompt_constraints = (
-        "Ensure the response maintains a narrative voice suitable for a general "
-        "description while minimizing the use of pronouns. "
-        "Avoid: unnecessary introductions and redundancies, using quotes, backticks, "
-        "cluster's keywords and names of individuals, and words such as topic, case, "
-        "we propose, proposing, we, this report. Summarize in exactly "
-        "two sentences, ensuring no redundancy between sentences. "
-        "Write the response in French."
-    )
+    prompt_constraints = "Write the response in French."
 
     cluster_documents = Document.objects.filter(
         clusterelement__cluster=cluster
