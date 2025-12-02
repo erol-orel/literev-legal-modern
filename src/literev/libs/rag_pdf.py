@@ -115,6 +115,27 @@ def sanitize_text_replace(s: str) -> str:
     return s
 
 
+def flatten_and_sanitize(answer):
+    answer = sanitize_replace(answer)
+    json_value = json.loads(answer)
+    flatten = flatten_json_values(json_value)
+
+    return json.dumps(flatten)
+
+
+def flatten_json_values(d):
+    for k, v in d.items():
+        if isinstance(v, dict):
+            # Join inner dict as lines of key: value
+            d[k] = "\n".join(f"{ik}: {iv}" for ik, iv in v.items())
+        elif isinstance(v, list):
+            # Join list as a single string (comma or bullet points)
+            d[k] = "\n".join(str(item) for item in v)
+        else:
+            d[k] = str(v)
+    return d
+
+
 def sanitize_replace(obj):
     if isinstance(obj, str):
         return sanitize_text_replace(obj)
@@ -1528,13 +1549,14 @@ def get_answer_document_worker(
             record_key, question, embedded_question, collection
         )
         answer = llm_answer(question, block_section)
+        _ = json.loads(answer)
     except Exception as e:
-        logging.info(f"No ans chroma: {e}")
+        logging.info(f"Error during generating answer: {e}")
 
         answer = """{
-            "Mineure-Faits": ["N/A"],
-            "Mineure-Subsommation": ["N/A"],
-            "Conclusion": ["N/A"],
+            "Examen des faits": [],
+            "Analyse juridique (subsomption)": [],
+            "Décision finale": []
             }"""
         block_section = {
             "Majeure": [],
@@ -1579,7 +1601,12 @@ class CustomRagAnswersGenerator:
         for key in ALTERNATIVES_MINEURES_KEY:
             if key in answers_block:
                 fait = answers_block[key]
-                return fait if isinstance(fait, list) else [fait]
+                if isinstance(fait, list):
+                    return fait
+                elif isinstance(fait, dict):
+                    return [value for value in fait.values()]
+                else:
+                    return [fait]
         return []
 
     def get_mineure_subsommation_ans(self, answers_block):
@@ -1597,11 +1624,12 @@ class CustomRagAnswersGenerator:
         for key in ALTERNATIVES_MINEURES_SUBSOMPTION_KEYS:
             if key in answers_block:
                 subsomption = answers_block[key]
-                return (
-                    subsomption
-                    if isinstance(subsomption, list)
-                    else [subsomption]
-                )
+                if isinstance(subsomption, list):
+                    return subsomption
+                elif isinstance(subsomption, dict):
+                    return [value for value in subsomption.values()]
+                else:
+                    return [subsomption]
         return []
 
     def get_conclusion_ans(self, answers_block):
@@ -1640,6 +1668,25 @@ class CustomRagAnswersGenerator:
             ):
                 counter += 1
         return counter
+
+    def valid_rags(self, documents_rags):
+        """
+        Return valid document rags
+        """
+        valid_rags = []
+        for rag in documents_rags:
+            try:
+                answers_block = json.loads(rag.answer)
+            except:
+                continue
+            if (
+                self.get_mineures_faits_answers(answers_block)
+                or self.get_mineure_subsommation_ans(answers_block)
+                or self.get_conclusion_ans(answers_block)
+            ):
+                valid_rags.append(rag)
+
+        return valid_rags
 
     def get_prompt_summary(
         self,
@@ -1710,7 +1757,6 @@ class CustomRagAnswersGenerator:
                 ],
                 response_format={"type": "json_object"},
                 temperature=0.1,
-                max_completion_tokens=2400,
             )
             summary = resp.choices[0].message.content.strip()
             logging.info("[OK] Summary generated")
@@ -1767,7 +1813,7 @@ class CustomRagAnswersGenerator:
                 project_rag=self.project_rag,
                 document_id=doc_id,  # or document=Document.objects.get(id=doc_id)
                 citation_context=sanitize_replace(block_section),
-                answer=sanitize_replace(answer),
+                answer=flatten_and_sanitize(answer),
             )
             # Update de counter safely
             ProjectRAG.objects.filter(pk=self.project_rag.pk).update(
@@ -1791,7 +1837,7 @@ class CustomRagAnswersGenerator:
         subsommation_dict = {}
         majueres_dict = {}
 
-        for doc_rag in documents_rags:
+        for doc_rag in self.valid_rags(documents_rags):
             answer_block = json.loads(doc_rag.answer)
             subsomption_doc_ans = self.get_mineure_subsommation_ans(
                 answer_block
@@ -1808,8 +1854,18 @@ class CustomRagAnswersGenerator:
             self.project_rag.query, subsommation_dict, majueres_dict
         )
 
-        self.project_rag.summary_answer = summary_dict_str
-        self.project_rag.save()
+        try:
+            _ = json.loads(summary_dict_str)
+            self.project_rag.summary_answer = summary_dict_str
+            self.project_rag.save()
+        except:
+            empty_summary = {
+                "summary": "Error getting answer from openai",
+                "key_elements": [],
+                "law_articles": [],
+            }
+            self.project_rag.summary_answer = json.dumps(empty_summary)
+            self.project_rag.save()
 
         self.project_rag.status = "completed"
         self.project_rag.save()

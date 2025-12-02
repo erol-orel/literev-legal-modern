@@ -743,9 +743,9 @@ def rag(
 
             regle_droit = answer_block.get("regle_droit", "")
 
-            key_elements = answer_block.get("key_elements", "")
+            key_elements = answer_block.get("key_elements", [])
 
-            law_articles = answer_block.get("law_articles", "")
+            law_articles = answer_block.get("law_articles", [])
 
         stats = getattr(project_rag, "stats", None)
 

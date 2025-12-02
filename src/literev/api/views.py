@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 
 from django.conf import settings
-from django.db.models.functions import Lower, Trim
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rago.generation import OpenAIGen
@@ -66,8 +65,8 @@ class ConvertToBooleanQueryAPIView(APIView):
         - Focus on semantic meaning, not literal word-for-word translation.
         - Always include all key legal concepts, relevant synonyms, and common legal formulations found in Swiss jurisprudence.
         - Never include more than 3 - 5 core concepts or main legal terms, or the search will return zero documents.
-        - For multi-word expressions, use double quotes (e.g., "vice du consentement").
-        - Never use double quotes for single-word terms.
+        - For any expression containing a space or an apostrophe (e.g., "demandeur d'asile", "droit d'auteur", "vice du consentement"), use double quotes.
+        - Never use double quotes for single-word terms (i.e., those with no space or apostrophe).
         - Boolean operators must be UPPER CASE: AND, OR, NOT.
 
         **Query construction:**
@@ -190,24 +189,25 @@ class ProjectRAGbyProjectIdAPIView(APIView):
                 "You do not have permission to access this project."
             )
 
-        normalized_query = normalize_query(query)
-        matching_rags = (
-            ProjectRAG.objects.filter(project=project)
-            .annotate(normalized_query_db=Lower(Trim("query")))
-            .filter(normalized_query_db=normalized_query)
-        )
+        # Disabled to avoid cache results
+        # normalized_query = normalize_query(query)
+        # matching_rags = (
+        #     ProjectRAG.objects.filter(project=project)
+        #     .annotate(normalized_query_db=Lower(Trim("query")))
+        #     .filter(normalized_query_db=normalized_query)
+        # )
 
-        doc_id_set = set(document_ids)
-        for rag in matching_rags:
-            existing_doc_ids = set(
-                ProjectDocumentRAG.objects.filter(project_rag=rag).values_list(
-                    "document_id", flat=True
-                )
-            )
-            if doc_id_set == existing_doc_ids:
-                # Reuse existing RAG
-                serializer = ProjectRAGSerializer(rag)
-                return Response(serializer.data, status=status.HTTP_200_OK)
+        # doc_id_set = set(document_ids)
+        # for rag in matching_rags:
+        #     existing_doc_ids = set(
+        #         ProjectDocumentRAG.objects.filter(project_rag=rag).values_list(
+        #             "document_id", flat=True
+        #         )
+        #     )
+        #     if doc_id_set == existing_doc_ids:
+        #         # Reuse existing RAG
+        #         serializer = ProjectRAGSerializer(rag)
+        #         return Response(serializer.data, status=status.HTTP_200_OK)
 
         project_rag = ProjectRAG.objects.create(
             query=query.strip(),

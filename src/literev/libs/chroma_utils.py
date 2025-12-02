@@ -35,9 +35,24 @@ PROMPTS = [
         "name": "A_strict_context",
         "system": STRICT_GUARD,
         "user_template": """
-        Question: {question}\n\nContexte: {context}\n\nInstruction: Répond à la question ci-dessus en te basant sur le contexte fourni. Structure ta réponse en un objet JSON contenant strictement les trois sections suivantes : "Examen des faits", "Analyse juridique (subsomption)".
-        et "Décision finale" : résumé de la conclusion.""",
-        "max_tokens": 600,
+        Question: {question}
+
+        Contexte: {context}
+
+        **Instruction** : Réponds à la question ci-dessus en te basant uniquement sur le contexte fourni.
+
+        Structure ta réponse **strictement** en un objet JSON où chaque clé ("Examen des faits", "Analyse juridique (subsomption)", "Décision finale") a pour valeur une unique chaîne de caractères résumant la section concernée. N'utilise ni listes, ni dictionnaires imbriqués. Si tu veux séparer des éléments, utilise des points, des puces, ou des retours à la ligne dans la chaîne, mais jamais d'autres structures.
+
+        Exemple attendu :
+        {{
+            "Examen des faits": "Résumé des faits ici, sous forme de texte.",
+            "Analyse juridique (subsomption)": "Résumé de l'analyse ici, sous forme de texte.",
+            "Décision finale": "Résumé de la décision finale ici, sous forme de texte."
+        }}
+
+        Retourne uniquement ce JSON, sans ajout d'explications ni de texte supplémentaire.
+        """,
+        "max_tokens": 2400,
         "temperature": 0.1,
     },
 ]
@@ -154,7 +169,7 @@ def llm_answer(question: str, blocks: dict[str, list[str]]) -> str:
 
     # getting the ans
     prompt = PROMPTS[0]
-    max_tokens = cast(int, prompt["max_tokens"])
+    # max_tokens = cast(int, prompt["max_tokens"]) # Commenting this line to avoid having trunkated answers
     temperature = cast(float, prompt["temperature"])
 
     # Prepare messages for the API
@@ -172,7 +187,7 @@ def llm_answer(question: str, blocks: dict[str, list[str]]) -> str:
         model=CHAT_MODEL,
         messages=[system_message, user_message],
         response_format={"type": "json_object"},
-        max_tokens=max_tokens,
+        # max_completion_tokens=max_tokens, # Commenting this line to avoid having trunkated answers
         temperature=temperature,
     )
 
