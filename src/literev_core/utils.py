@@ -235,8 +235,14 @@ def remove_common_and_unique(list_trigrams: list[list[str]]) -> list[str]:
     # .fit(" ".join(doc) for doc in list_trigrams)
     joined_corpus = [" ".join(corpus) for corpus in list_trigrams]
     # threshold max_df to 0.70
-    common_and_unique_words = TfidfVectorizer(min_df=2, max_df=0.7)
+
+    if len(joined_corpus) < 5:
+        common_and_unique_words = TfidfVectorizer(min_df=1, max_df=1.0)
+    else:
+        common_and_unique_words = TfidfVectorizer(min_df=2, max_df=0.7)
+
     common_and_unique_words.fit(joined_corpus)
+
     # common_and_unique_words = TfidfVectorizer(min_df=2, max_df=0.60).fit(
     #    " ".join(list(set(doc))) for doc in list_trigrams
     # )
