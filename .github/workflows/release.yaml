@@ -2,9 +2,9 @@ name: Release
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches:  [ main ]
+    branches: [main]
 
 jobs:
   release:
@@ -35,7 +35,7 @@ jobs:
           init-shell: >-
             bash
           # cache-environment: true
-          post-cleanup: 'all'
+          post-cleanup: "all"
 
       - name: Create file with environment variables
         run: touch .env

@@ -19,19 +19,24 @@ repos:
       - id: check-docstring-first
       - id: detect-private-key
 
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: "v3.0.2"
+    hooks:
+      - id: prettier
+
   - repo: https://github.com/Riverside-Healthcare/djLint
     rev: v1.32.1
     hooks:
       - id: djlint-reformat-django
         files: "\\.html"
-        types_or: ['html']
+        types_or: ["html"]
         # it is necessary to exclude src/literev/templates/tags because of the
         # following issue:
         #   - https://github.com/Riverside-Healthcare/djLint/issues/703
         exclude: "src/workflow/tests|.git|docs|.eggs|src/literev/templates/tags"
       - id: djlint-django
         files: "\\.html"
-        types_or: ['html']
+        types_or: ["html"]
         # it is necessary to exclude src/literev/templates/tags because of the
         # following issue:
         #   - https://github.com/Riverside-Healthcare/djLint/issues/703
@@ -39,56 +44,55 @@ repos:
 
   - repo: local
     hooks:
+      - id: ruff-format
+        name: ruff-format
+        entry: ruff format --no-force-exclude
+        language: system
+        pass_filenames: true
+        types:
+          - python
 
-    - id: ruff-format
-      name: ruff-format
-      entry: ruff format --no-force-exclude
-      language: system
-      pass_filenames: true
-      types:
-        - python
+      - id: ruff-linter
+        name: ruff-linter
+        entry: ruff check
+        language: system
+        exclude: "docs/|migrations/.*|literev/urls.py"
+        pass_filenames: true
+        types:
+          - python
 
-    - id: ruff-linter
-      name: ruff-linter
-      entry: ruff check
-      language: system
-      exclude: "docs/|migrations/.*|literev/urls.py"
-      pass_filenames: true
-      types:
-        - python
+      - id: bandit
+        name: bandit
+        entry: bandit
+        language: system
+        args: ["--configfile", "pyproject.toml", "-iii", "-lll"]
+        pass_filenames: true
+        types:
+          - python
 
-    - id: bandit
-      name: bandit
-      entry: bandit
-      language: system
-      args: ['--configfile', 'pyproject.toml', '-iii', '-lll']
-      pass_filenames: true
-      types:
-        - python
+      - id: vulture
+        name: vulture
+        entry: python scripts/run-vulture.py
+        language: system
+        description: Find unused Python code.
+        pass_filenames: false
+        types:
+          - python
 
-    - id: vulture
-      name: vulture
-      entry: python scripts/run-vulture.py
-      language: system
-      description: Find unused Python code.
-      pass_filenames: false
-      types:
-        - python
+      # note: mccabe doesn't return a error code 1 when it finds functions with
+      #       high complexity
+      - id: mccabe
+        name: mccabe
+        # note: it would be nice to move this threshold to 10
+        entry: python -m mccabe --min 25
+        language: system
+        files: "src/"
+        pass_filenames: true
+        types:
+          - python
 
-    # note: mccabe doesn't return a error code 1 when it finds functions with
-    #       high complexity
-    - id: mccabe
-      name: mccabe
-      # note: it would be nice to move this threshold to 10
-      entry: python -m mccabe --min 25
-      language: system
-      files: "src/"
-      pass_filenames: true
-      types:
-        - python
-
-    - id: mypy
-      name: mypy
-      entry: mypy .
-      language: system
-      pass_filenames: false
+      - id: mypy
+        name: mypy
+        entry: mypy .
+        language: system
+        pass_filenames: false

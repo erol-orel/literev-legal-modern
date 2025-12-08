@@ -589,8 +589,6 @@ groups:
               exit 1
           fi
 
-
-
   nginx:
     tasks:
       proxydomain:

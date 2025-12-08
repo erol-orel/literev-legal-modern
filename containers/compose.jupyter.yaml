@@ -23,7 +23,13 @@ services:
     networks:
       - literev
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8888/jupyter/api/sessions?token=${JUPYTER_TOKEN}"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "-qO-",
+          "http://127.0.0.1:8888/jupyter/api/sessions?token=${JUPYTER_TOKEN}",
+        ]
       interval: 10s
       timeout: 3s
       retries: 12

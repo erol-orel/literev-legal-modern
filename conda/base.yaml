@@ -8,8 +8,8 @@ dependencies:
   - pip
   - uv
   - pip:
-    - makim==1.20.0
-    # fix issues with distlib
-    - paginate
-    # fix issues with distlib
-    - jsbeautifier==1.15.1
+      - makim==1.20.0
+      # fix issues with distlib
+      - paginate
+      # fix issues with distlib
+      - jsbeautifier==1.15.1

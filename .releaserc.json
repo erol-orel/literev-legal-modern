@@ -3,14 +3,16 @@
   "tagFormat": "${version}",
   "plugins": [
     [
-      "@semantic-release/commit-analyzer", {
+      "@semantic-release/commit-analyzer",
+      {
         "preset": "conventionalcommits"
-    }],
+      }
+    ],
     [
       "semantic-release-replace-plugin",
       {
         "replacements": [
-	        {
+          {
             "files": ["pyproject.toml"],
             "from": "version = \".*\"  # semantic-release",
             "to": "version = \"${nextRelease.version}\"  # semantic-release",
@@ -42,7 +44,8 @@
       }
     ],
     [
-      "@semantic-release/release-notes-generator", {
+      "@semantic-release/release-notes-generator",
+      {
         "preset": "conventionalcommits"
       }
     ],
