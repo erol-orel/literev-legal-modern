@@ -472,3 +472,47 @@ makim containers.postgres-restore-database \
   --drop-all true
 ```
 ---
+
+## Additional Commands
+
+### Extract Mineurs and Majeur from Documents
+
+This command downloads documents from Elasticsearch and requests OpenAI to 
+extract the minor, minor, major, and conclusion sections from each document's 
+content. Once OpenAI returns the classified document in JSON format, it is 
+saved to a JSON file whose name is composed of record_key, decision_type, 
+and chamber_name. The JSON file also contains the record_key field and a 
+structured_sentences dictionary with the classified content. Make sure that 
+<index_name> is present in ElasticSearch Indexes. The variable <max_workers> 
+refers to the cores that will be used to make request to openai.
+
+```bash
+makim django.extract-chunks \
+  --index-name <index_name> \
+  --max-worker <max_workers> \
+```
+
+### Embedd documents
+
+This command embeds documents whose content has already been classified. 
+It reads the JSON content of already classified documents and assigns an ID 
+code to each statement within the documents. This ID is formed from the 
+section, the document's record_key, and the statement's position within the 
+section. The content of each document is embedded and vectorized within a 
+chromadb database. The collection name in chromadb corresponds to the 
+chamber_name. Make sure that exists json files (classified documents) with 
+names composed with the <chamber_name>, 
+Check `Extract Mineurs and Majeurs from Document`. 
+The variable <max_workers> refers to the cores that will be used to make 
+request to openai.
+
+
+```bash
+makim django.run-embeddings \
+  --index-name <index_name> \
+  --max-worker <max_workers> \
+```
+
+It is possible to run this commands in second plane using 
+`makim_command > output.log 2>&1 &`, this is useful when executing for 
+large documents.

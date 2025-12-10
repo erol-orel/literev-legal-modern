@@ -1,5 +1,3 @@
-# New command to extract mineur majeur
-
 import json
 import logging
 import time
@@ -37,6 +35,12 @@ def custom_log(message):
 
 
 def extract_mineur_majeur(document: str, index_name: str):
+    """
+    Extract Majeures, Mineure-Fait, Mineure-subsommation and conclusion.
+
+    Uses documents retrieved from Elastic Search and saves the results as json
+    file with its record_key (equivalent to cle fiches).
+    """
     record_key = getattr(document, "record_key", "")
     document_text = getattr(document, "document_text", "")
     decision_type = getattr(document, "decision_type", "")
@@ -97,7 +101,7 @@ def extract_mineur_majeur(document: str, index_name: str):
 
 
 class Command(BaseCommand):
-    help = "Extract mineur and majeur from documents"
+    help = "Extract mineur and majeur from documents and saves it into a json file."
 
     def add_arguments(self, parser):
         parser.add_argument(

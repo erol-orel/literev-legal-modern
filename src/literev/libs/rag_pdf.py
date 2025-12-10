@@ -108,6 +108,7 @@ INVALID_CHARS = ["\x00"]
 
 
 def sanitize_text_replace(s: str) -> str:
+    """Remove null chars from a string."""
     if not isinstance(s, str):
         return s
     for ch in INVALID_CHARS:
@@ -116,6 +117,11 @@ def sanitize_text_replace(s: str) -> str:
 
 
 def flatten_and_sanitize(answer):
+    """
+    Transform list and dicts to its equivalent string.
+
+    Every string is sanitized(removes null chars in the text).
+    """
     answer = sanitize_replace(answer)
     json_value = json.loads(answer)
     flatten = flatten_json_values(json_value)
@@ -124,6 +130,7 @@ def flatten_and_sanitize(answer):
 
 
 def flatten_json_values(d):
+    """Flatten values from a dictionary."""
     for k, v in d.items():
         if isinstance(v, dict):
             # Join inner dict as lines of key: value
@@ -137,6 +144,7 @@ def flatten_json_values(d):
 
 
 def sanitize_replace(obj):
+    """Sanitize string from object."""
     if isinstance(obj, str):
         return sanitize_text_replace(obj)
     if isinstance(obj, list):
@@ -173,7 +181,8 @@ def compute_faithfulness_cache_key(
 
 
 class MinorMajorPair(BaseModel):
-    """Structured output for Minor/Major classification.
+    """
+    Structured output for Minor/Major classification.
 
     Accepts several key variants from LLMs and normalizes to:
     - majeure: List[str]
@@ -276,7 +285,9 @@ def get_rag_generator(
     model_name: str | None = None,
 ) -> HactarGen | OpenAIGen:
     """
-    Returns an LLM generator (OpenAI or Hactar) for the given prompt and output schema.
+    Return an LLM generator (OpenAI or Hactar).
+
+    The result is according to the given prompt and output schema.
     """
     common_params = dict(
         prompt_template=prompt_template,
@@ -1589,10 +1600,7 @@ class CustomRagAnswersGenerator:
         self.chambre_name = chambre_name
 
     def get_mineures_faits_answers(self, answers_block):
-        """
-        Returns the list of answers from the fait section,
-        using all the alternatives from the keys
-        """
+        """Return the list of answers from the fait section."""
         ALTERNATIVES_MINEURES_KEY = [
             "Mineure-Faits",
             "Faits",
@@ -1610,10 +1618,7 @@ class CustomRagAnswersGenerator:
         return []
 
     def get_mineure_subsommation_ans(self, answers_block):
-        """
-        Returns the list of answers from the Subsommation section,
-        using all the alternatives from the keys
-        """
+        """Return the list of answers from the Subsommation section."""
         ALTERNATIVES_MINEURES_SUBSOMPTION_KEYS = [
             "Mineure-Subsommation",
             "Subsommation",
@@ -1633,10 +1638,7 @@ class CustomRagAnswersGenerator:
         return []
 
     def get_conclusion_ans(self, answers_block):
-        """
-        Returns the list of answers from the Conclusion section,
-        using all the alternatives from the keys
-        """
+        """Return the list of answers from the Conclusion section."""
         ALTERNATIVES_CONCLUSION_KEYS = [
             "Conclusion",
             "Décision finale",
@@ -1652,9 +1654,7 @@ class CustomRagAnswersGenerator:
         return []
 
     def count_valid_rags(self, documents_rags):
-        """
-        Count valid rag answers to display.
-        """
+        """Count valid rag answers to display."""
         counter = 0
         for rag in documents_rags:
             try:
@@ -1670,9 +1670,7 @@ class CustomRagAnswersGenerator:
         return counter
 
     def valid_rags(self, documents_rags):
-        """
-        Return valid document rags
-        """
+        """Return valid document rags."""
         valid_rags = []
         for rag in documents_rags:
             try:
@@ -1694,6 +1692,13 @@ class CustomRagAnswersGenerator:
         subsommation_dict: dict[str | int, str],
         majeures_dict: dict[str | int, str],
     ):
+        """
+        Return a prompt to create general summary and summary tables.
+
+        Create a general summary from subsommation sections answers,
+        create a table with key_elements from the cases and another table with
+        key article law from majueres sections.
+        """
         text = ""
         majeures_text = ""
         for doc_id, resp in subsommation_dict.items():
@@ -1741,6 +1746,7 @@ class CustomRagAnswersGenerator:
         subsommation_dict: dict[str | int, str],
         majeures_dict: dict[str | int, str],
     ) -> str:
+        """Return a json with a general summary and summary table."""
         prompt = self.get_prompt_summary(
             question, subsommation_dict, majeures_dict
         )
@@ -1768,6 +1774,13 @@ class CustomRagAnswersGenerator:
         return summary
 
     def get_and_save_answers_from_documents(self, max_doc_ans=None):
+        """
+        Save answers from openai in database.
+
+        Get answers from documents given a query,
+        Get a summary from all subsommation section answers
+        and summary tables showing key elements and key articles law.
+        """
         self.project_rag.status = "questioning_documents"
         self.project_rag.save()
         question = self.project_rag.query

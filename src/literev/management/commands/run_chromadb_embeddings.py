@@ -55,6 +55,13 @@ def custom_log(message):
 
 
 def prepare_docs_from_item(document, decision_type):
+    """
+    Prepare docs from item.
+
+    Prepare document to do the embeddings.
+    Prepares unique id, metadata containing:
+    decition_type, record_key, section, position, and raw sentence.
+    """
     docs: list[str] = []
     embedded_ids: list[str | int] = []
     metas: list[dict[str, Any]] = []
@@ -86,6 +93,11 @@ def prepare_docs_from_item(document, decision_type):
 def existing_ids_in_collection(
     collection, candidate_ids: list[str]
 ) -> set[str]:
+    """
+    Check if ids are already present in the chroma db.
+
+    It returns the found ids.
+    """
     found: set[str] = set()
     BATCH = 1000
     for i in range(0, len(candidate_ids), BATCH):
@@ -98,8 +110,9 @@ def existing_ids_in_collection(
 
 def embed_batch_request(texts_batch: list[str]):
     """
-    Embeds one batch of texts with retries and backoff.
-    Runs inside worker threads (create client per thread).
+    Embed one batch of texts with retries and backoff.
+
+    Run inside worker threads (create client per thread).
     """
     try:
         resp = openai_client.embeddings.create(
@@ -118,6 +131,8 @@ def embed_texts_parallel(
     batch_size: int = EMBED_BATCH,
 ) -> list[list[float]]:
     """
+    Embed texts in parallel.
+
     Split texts into batches, embed batches in parallel (threading backend),
     and return embeddings aligned to the input order.
     """
@@ -142,6 +157,11 @@ def embed_texts_parallel(
 
 
 def upsert_document_chunks(document_path, collection, max_workers):
+    """
+    Upsert Cocument chunks.
+
+    Save the embedded version of document (from document_path) into chroma db.
+    """
     with open(document_path, "r", encoding="utf-8") as f:
         document = json.load(f)
 
@@ -191,7 +211,7 @@ def upsert_document_chunks(document_path, collection, max_workers):
 
 
 class Command(BaseCommand):
-    help = "Load mineurs chunks to embedd into chromadb"
+    help = "Loads documents to embedd into chromadb."
 
     def add_arguments(self, parser):
         parser.add_argument(
