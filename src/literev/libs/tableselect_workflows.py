@@ -424,4 +424,14 @@ class TableSelectHandler:
                 )
             )
 
+        elif submit == "redo":
+            return redirect(
+                reverse(
+                    "projectpage",
+                    kwargs={
+                        "project_id": self.project_id,
+                    },
+                )
+            )
+
         return None
