@@ -49,9 +49,6 @@ def run_vulture_on_files(file_paths: List[str]) -> None:
 
 # Example usage
 SOURCE_PATH = "."  # Set your source path here
-EXCLUDE_PATTERN = (
-    "docs/|migrations/.*|urls.py"  # Set your exclude pattern here
-)
-
+EXCLUDE_PATTERN = "docs/|migrations/.*|urls.py|\.venv/|venv/|site-packages/"  # Set your exclude pattern here
 python_files = find_python_files(SOURCE_PATH, EXCLUDE_PATTERN)
 run_vulture_on_files(python_files)

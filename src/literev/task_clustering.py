@@ -9,7 +9,7 @@ from django.conf import settings
 from django.db.models import Count
 
 from config.celery import app
-from literev.libs.nlp import nlp_topic_description
+from literev.libs.nlp import get_cluster_summary, nlp_topic_description
 from literev.libs.utils import (
     get_database_uri,
     get_study_name,
@@ -183,9 +183,31 @@ def back_clustering_documents(self, project_id: int):
             )
 
         # After the clustering is done, we generate the topic description
-        topic_summary_text = (
-            nlp_topic_description(cluster) if cluster_num != -1 else ""
-        )
+        new_chambres = settings.LITEREV_CHAMBER_NAMES
+        if project.selected_indices[0] in new_chambres:
+            try:
+                chamber_name = project.selected_indices[0]
+                question = (
+                    project.natural_language_query
+                    if project.natural_language_query
+                    else project.query
+                )
+                topic_summary_text = (
+                    get_cluster_summary(cluster, chamber_name, question)
+                    if cluster_num != -1
+                    else ""
+                )
+            except Exception as e:
+                logging.info(
+                    f"An error ocurred when creating cluster summary: {e}"
+                )
+                topic_summary_text = (
+                    f"Error during creating cluster summary: {e}"
+                )
+        else:
+            topic_summary_text = (
+                nlp_topic_description(cluster) if cluster_num != -1 else ""
+            )
 
         cluster.summary = topic_summary_text
         cluster.save()

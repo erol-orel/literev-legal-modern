@@ -12,11 +12,11 @@ import requests
 import tiktoken
 
 from django.conf import settings
-from openai import OpenAI
 from rago.augmented import AugmentedBase, OpenAIAug
 from rago.extensions.cache import CacheFile
 from rago.retrieval import StringRet
 
+from literev.libs.chroma_utils import chroma_client, openai_client
 from literev.libs.rag_classes import HactarAug
 from literev.libs.rag_pdf import prepare_chunks
 from literev.models import (
@@ -24,6 +24,8 @@ from literev.models import (
     ClusterElement,
     Document,
 )
+
+EMBEDDING_MODEL = "text-embedding-3-large"
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +37,6 @@ AUG_CACHE = CacheFile(target_dir=CACHE_DIR / f"aug_nlp_{MODULE_NAME}")
 
 USE_HACTAR_LLM = settings.USE_HACTAR_LLM
 HACTAR_VERIFY_SSL = settings.HACTAR_VERIFY_SSL
-
-openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 
 def get_top_documents_from_cluster(
@@ -146,7 +146,7 @@ LLM_MODEL_MAX_TOKENS = (
     if USE_HACTAR_LLM
     else GPT_MODEL_MAX_TOKENS
 )
-TOKEN_LIMIT = LLM_MODEL_MAX_TOKENS - MAX_TOKENS_RESPONSE - 200
+TOKEN_LIMIT = LLM_MODEL_MAX_TOKENS - MAX_TOKENS_RESPONSE - 400
 RELEVANT_K = 10  # Number of relevant documents to consider when asking RAG
 
 
@@ -431,6 +431,129 @@ def build_prompt(cluster: Cluster, USE_HACTAR_LLM: bool) -> str:
     )
 
     return full_prompt
+
+
+PROMPT_CLUSTER_SUMMARY = """
+        Les documents fournis sont des extraits ou résumés de décisions du Pouvoir judiciaire
+        du canton de Genève (Suisse).
+
+        Ta mission est de produire une synthèse factuelle et prudente du cluster de décisions,
+        strictement limitée au contenu fourni.
+
+        QUESTION / RECHERCHE (formulée en question, mots-clés ou requête booléenne) :
+        {question}
+
+        RÈGLES STRICTES (ANTI-HALLUCINATIONS) :
+        Tu NE DOIS PAS inventer ou supposer des faits, dates, parties, lois, jurisprudences ou principes
+        qui NE FIGURENT PAS explicitement dans les documents.
+        Tu NE DOIS PAS déduire des normes du droit suisse ou genevois si le texte ne les mentionne pas.
+        Tu NE DOIS PAS résumer en t'appuyant sur des connaissances externes ou générales :
+        base-toi EXCLUSIVEMENT sur les documents fournis.
+        Lie toujours tes affirmations à ce qui apparaît dans le cluster (même implicitement).
+        Adopte un ton juridique neutre, prudent et descriptif.
+
+        INSTRUCTIONS POUR LE RÉSUMÉ :
+        Rédige un paragraphe court qui répond à la question à partir du contenu du cluster.
+        Mets en lumière les motifs, principes ou tendances qui apparaissent dans les décisions.
+        S'il y a divergence entre les décisions, mentionne-la.
+        Reformule les informations sans citer textuellement sauf si essentiel.
+
+        - Si la requête prend la forme d'une recherche par mots-clés ou booléenne (ex : "police and fils and cambriolage") :
+            1. Indique clairement si, selon les documents fournis, la combinaison ou la co-occurrence recherchée des éléments est présente, partiellement présente, ou absente.
+            2. Justifie brièvement la réponse en explicitant l'information pertinente trouvée (exemples, contexte).
+
+        DOCUMENTS (DÉCISIONS DU POUVOIR JUDICIAIRE DE GENÈVE) :
+        {context}
+
+        RÉSUMÉ (STRICTEMENT BASÉ SUR LES DOCUMENTS) :
+        """
+
+
+def get_best_chunk_documents(collection, embedded_query, record_keys):
+    """
+    Return best ranked chunks sentences given embedded query.
+    """
+    documents = []
+    for record_key in record_keys:
+        results = collection.query(
+            query_embeddings=embedded_query,
+            where={
+                "$and": [
+                    {"record_key": record_key},
+                    {"section": "Mineure-Subsommation"},
+                ]
+            },
+            n_results=8,
+            include=["documents"],
+        )
+        sentences = results.get("documents", [])
+        documents.append(sentences[0] if sentences else [])
+
+    return documents
+
+
+def create_context(documents):
+    """
+    Create the context from documents senteces for prompt summary.
+    """
+    ctx = ""
+    for idx, sents in enumerate(documents):
+        sentences = "\n".join(sents)
+        ctx += f"document {idx}:\n{sentences}\n"
+
+
+def get_cluster_summary(
+    cluster: Cluster,
+    chamber_name: str,
+    question: str,
+    api_key: str = settings.HACTAR_API_KEY,
+) -> str:
+    """
+    Return summary for a given cluster.
+    """
+    if settings.DEBUG and not api_key:
+        # returns dummy text if dev mode and there's no openai api key
+        return (
+            "This is a dev mode dummy summary text for topic keywords: "
+            f"{cluster.topic}."
+        )
+    top_docs = get_top_documents_from_cluster(cluster)
+
+    record_keys = []
+    for doc in top_docs:
+        record_keys.append(doc.record_key)
+
+    collection = chroma_client.get_collection(chamber_name)
+    embedded_query = (
+        openai_client.embeddings.create(
+            model=EMBEDDING_MODEL, input=[question]
+        )
+        .data[0]
+        .embedding
+    )
+    documents = get_best_chunk_documents(
+        collection, embedded_query, record_keys
+    )
+
+    ctx = create_context(documents)
+    resp = openai_client.chat.completions.create(
+        model=GPT_MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": "Tu es un modèle spécialisé dans l'analyse de jurisprudence suisse.",
+            },
+            {
+                "role": "user",
+                "content": PROMPT_CLUSTER_SUMMARY.format(
+                    question=question, context=ctx
+                ),
+            },
+        ],
+        temperature=0,
+    )
+    answer = resp.choices[0].message.content
+    return answer if answer else ""
 
 
 def nlp_topic_description(

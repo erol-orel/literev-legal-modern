@@ -11,7 +11,7 @@ def split_into_sentences(text):
     return sents
 
 
-def highlight_sentences_fuzzy(document_text, highlight_sents, threshold=50):
+def highlight_sentences_fuzzy(document_text, highlight_sents, threshold=65):
     """Highlights sentences in `document_text` that are similar to those in `highlight_sents`."""
     doc_sents = split_into_sentences(document_text)
     matches = []
