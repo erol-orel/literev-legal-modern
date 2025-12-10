@@ -21,6 +21,7 @@ from django.views.generic import TemplateView
 
 from literev.forms import HistoricalForm, SearchForm
 from literev.libs.data_files import get_es_scores
+from literev.libs.document_content import highlight_sentences_fuzzy
 from literev.libs.historical_functions import (
     filter_and_sort_projects,
     sort_all_projects,
@@ -627,6 +628,39 @@ def contentdocument(request: HttpRequest, document_id: int) -> HttpResponse:
     context["document"] = document
 
     return render(request, "contentdocument.html", context)
+
+
+@login_required(login_url="/accounts/login/")
+def contentdocumenthl(
+    request: HttpRequest, document_rag_id: int
+) -> HttpResponse:
+    context: dict[str, Any] = {}
+
+    if not document_rag_id:
+        return redirect(reverse("search"))
+
+    document_rag = get_object_or_404(ProjectDocumentRAG, id=document_rag_id)
+
+    highlight_sents = document_rag.citation_context.get("Mineure-Faits", [])
+    highlight_sents += document_rag.citation_context.get(
+        "Mineure-Subsommation", []
+    )
+    raw_document_text = cast(str, document_rag.document.raw_document_text)
+
+    if highlight_sents:
+        html_text = highlight_sentences_fuzzy(
+            raw_document_text.replace("\n", "<br>"), highlight_sents
+        )
+    else:
+        html_text = raw_document_text
+
+    context["document"] = document_rag.document
+    context = {
+        "document": document_rag.document,
+        "html_text": html_text.replace("\n", "<br>"),
+    }
+
+    return render(request, "hldocument.html", context)
 
 
 def historicalpage(request: HttpRequest) -> HttpResponse:

@@ -8,6 +8,7 @@ from literev.views import (
     generate_summary,
     tableselect,
     contentdocument,
+    contentdocumenthl,
     historicalpage,
     rag,
     product,
@@ -61,6 +62,11 @@ urlpatterns = [
         "contentdocument/<int:document_id>",
         contentdocument,
         name="contentdocument",
+    ),
+    path(
+        "contentdocument_highlighted/<int:document_rag_id>/",
+        contentdocumenthl,
+        name="contentdocument_highlighted",
     ),
     path(
         "generatesummary/<int:cluster_id>/",

@@ -58,9 +58,9 @@ class ProjectDocumentRAGSerializer(serializers.ModelSerializer):
             "standards": instance.document.standards,
             "procedure_year": instance.document.procedure_year,
             "url_document": reverse(
-                "contentdocument",
+                "contentdocument_highlighted",
                 kwargs={
-                    "document_id": instance.document.id,
+                    "document_rag_id": instance.id,
                 },
             ),
         }
