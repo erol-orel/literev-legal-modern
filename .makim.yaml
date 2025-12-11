@@ -431,6 +431,37 @@ groups:
           fi
           echo "[II] Embedding done."
 
+      prepare-input:
+        help: Get documents raw content given the index_name.
+        env-file: .env
+        args:
+          index-name:
+            help: |
+              The name of the legal chamber.
+            type: string
+            default: "penal_court"
+            required: true
+          max-workers:
+            help: |
+              How many threads should work in parallel.
+            type: string
+            default: "2"
+            required: false
+        run: |
+          sugar compose-ext start \
+            --services literev-postgres -- -d
+
+          CMD="python manage.py prepare_input --index-name ${{ args.index_name }} --max-workers ${{ args.max_workers }}"
+
+          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
+            sugar compose run --service literev --cmd "$CMD" -- --rm
+          else
+            cd ./src/
+            export POSTGRES_HOST=localhost
+            $CMD
+          fi
+          echo "[II] Prepare input done."
+
       get-record-keys:
         help: get record keys and insert it into chromadb.
         env-file: .env
