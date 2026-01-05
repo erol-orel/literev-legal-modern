@@ -69,15 +69,15 @@
                       <input class="form-check-input index-radio"
                              type="radio"
                              name="index_names"
-                             value="administrative_court"
-                             id="adminCourtRadio"
-                             {% if "administrative_court" in selected_indices %}
+                             value="chambre_administrative"
+                             id="chambreAdminCourtRadio"
+                             {% if "chambre_administrative" in selected_indices %}
                                checked
                              {% endif %}
                              required />
                       <label class="form-check-label"
-                             for="adminCourtRadio">
-                        Administrative Court
+                             for="chambreAdminCourtRadio">
+                        Chambre Administrative
                       </label>
                     </div>
                     <div class="form-check">
@@ -91,7 +91,7 @@
                              {% endif %}
                              required />
                       <label class="form-check-label"
-                             for="cambrePenalCourtRadio">
+                             for="chambrePenalCourtRadio">
                         Chambre Penale
                       </label>
                     </div>
@@ -100,13 +100,13 @@
                              type="radio"
                              name="index_names"
                              value="chambre_civile"
-                             id="chambrePenalCourtRadio"
+                             id="chambreCivileCourtRadio"
                              {% if "chambre_civile" in selected_indices %}
                                checked
                              {% endif %}
                              required />
                       <label class="form-check-label"
-                             for="cambrePenalCourtRadio">
+                             for="chambreCivileCourtRadio">
                         Chambre Civile
                       </label>
                     </div>
