@@ -487,6 +487,33 @@ groups:
           fi
           echo "[II] Records inserting done."
 
+      get-count-chambers:
+        help: count the document in chambers given index name
+        env-file: .env
+        args:
+          index-name:
+            help: |
+              The name of the legal chamber.
+            type: string
+            default: "penal_court"
+            required: true
+        run: |
+          sugar compose-ext start \
+            --services literev-postgres -- -d
+
+          CMD="python manage.py count_documents_chambre --index-name ${{ args.index_name }}"
+
+          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
+            sugar compose run --service literev --cmd "$CMD" -- --rm
+          else
+            cd ./src/
+            export POSTGRES_HOST=localhost
+            $CMD
+          fi
+          echo "[II] Chunks Extracted."
+
+          echo "Counter Done"
+
   containers:
     tasks:
       wait:
