@@ -521,6 +521,28 @@
       } catch (e) {
         has_section_answers = false
       }
+      if (has_section_answers) {
+        const faitAnswer = pickText(sectionsAnswers, [
+          "Faits",
+          "Mineure-Faits",
+          "Examen des faits",
+        ]);
+        const subsomptionAnswer = pickText(sectionsAnswers, [
+          "Subsomption",
+          "Mineure-Subsomption",
+          "Subsommation",
+          "Mineure-Subsommation",
+          "Analyse juridique (subsomption)",
+        ]);
+        const conclusionAnswer = pickText(sectionsAnswers,[
+          "Conclusion",
+          "Décision finale",
+        ]);
+
+        if (!faitAnswer && ! subsomptionAnswer && !conclusionAnswer ){
+          return null;
+        }
+      }
 
       const divContainer = document.createElement("div");
       divContainer.classList.add("mb-3");

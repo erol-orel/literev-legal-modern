@@ -1563,18 +1563,26 @@ def get_answer_document_worker(
         _ = json.loads(answer)
     except Exception as e:
         logging.info(f"Error during generating answer: {e}")
+        logging.info(f"Answer : {answer}")
+        logging.info("block section")
+        logging.info(block_section)
 
         answer = """{
             "Examen des faits": [],
             "Analyse juridique (subsomption)": [],
             "Décision finale": []
-            }"""
-        block_section = {
+            }
+            """
+
+        block_section_fallback = {
             "Majeure": [],
             "Mineure-Faits": [],
             "Mineure-Subsommation": [],
             "Conclusion": [],
         }
+
+        if not block_section:
+            block_section = block_section_fallback
 
     return payload["id"], block_section, answer
 
@@ -1613,6 +1621,8 @@ class CustomRagAnswersGenerator:
                     return fait
                 elif isinstance(fait, dict):
                     return [value for value in fait.values()]
+                elif isinstance(fait, str) and fait == "":
+                    return []
                 else:
                     return [fait]
         return []
@@ -1633,6 +1643,8 @@ class CustomRagAnswersGenerator:
                     return subsomption
                 elif isinstance(subsomption, dict):
                     return [value for value in subsomption.values()]
+                elif isinstance(subsomption, str) and subsomption == "":
+                    return []
                 else:
                     return [subsomption]
         return []
@@ -1646,11 +1658,14 @@ class CustomRagAnswersGenerator:
         for key in ALTERNATIVES_CONCLUSION_KEYS:
             if key in answers_block:
                 conclusion = answers_block[key]
-                return (
-                    conclusion
-                    if isinstance(conclusion, list)
-                    else [conclusion]
-                )
+                if isinstance(conclusion, list):
+                    return conclusion
+                elif isinstance(conclusion, dict):
+                    return [value for value in conclusion.values()]
+                elif isinstance(conclusion, str) and conclusion == "":
+                    return []
+                else:
+                    return [conclusion]
         return []
 
     def count_valid_rags(self, documents_rags):
@@ -1862,22 +1877,35 @@ class CustomRagAnswersGenerator:
                 doc_rag.citation_context.get("Majeure", [])
             )
 
-        # Résultats obtenus à partir des documents.
-        summary_dict_str = self.create_table_summary(
-            self.project_rag.query, subsommation_dict, majueres_dict
-        )
+        if not subsommation_dict and not majueres_dict:
+            # Assign and empty summary
+            summary_dict_str = json.dumps(
+                {
+                    "summary": "No relevant context was found.",
+                    "key_elements": [],
+                    "law_articles": [],
+                }
+            )
+
+        else:
+            # Résultats obtenus à partir des documents.
+            summary_dict_str = self.create_table_summary(
+                self.project_rag.query, subsommation_dict, majueres_dict
+            )
 
         try:
             _ = json.loads(summary_dict_str)
             self.project_rag.summary_answer = summary_dict_str
             self.project_rag.save()
-        except:
-            empty_summary = {
+
+        except Exception as e:
+            logging.info(f"Error generating summary answer. {e}")
+            error_summary = {
                 "summary": "Error getting answer from openai",
                 "key_elements": [],
                 "law_articles": [],
             }
-            self.project_rag.summary_answer = json.dumps(empty_summary)
+            self.project_rag.summary_answer = json.dumps(error_summary)
             self.project_rag.save()
 
         self.project_rag.status = "completed"
