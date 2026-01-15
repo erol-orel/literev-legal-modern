@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", function () {
   const translateButton = document.getElementById("translate-button");
-  const naturalLanguageQueryInput = document.querySelector("input[name='natural_language_query']");
-  const booleanQueryInput = document.querySelector("input[name='query']");
+  const naturalLanguageQueryInput = document.querySelector("#id_natural_language_query");
+  const booleanQueryInput = document.querySelector("#id_query");
 
   translateButton.addEventListener("click", async function (event) {
     event.preventDefault();

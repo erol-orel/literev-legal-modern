@@ -32,8 +32,9 @@ class SearchForm(forms.Form):
 
     natural_language_query = forms.CharField(
         max_length=4096,
-        widget=forms.TextInput(
+        widget=forms.Textarea(
             attrs={
+                "rows": "3",
                 "class": "fs-5 form-control",
                 "placeholder": "Write your question (e.g., 'Quels sont les droits du locataire en cas d'expulsion ?')",
             }
@@ -44,8 +45,9 @@ class SearchForm(forms.Form):
 
     query = forms.CharField(
         max_length=4096,
-        widget=forms.TextInput(
+        widget=forms.Textarea(
             attrs={
+                "rows": "3",
                 "class": "fs-5 form-control",
                 "placeholder": 'Enter your boolean query (e.g., "contrat" AND "résiliation" NOT "litige")',
             }
