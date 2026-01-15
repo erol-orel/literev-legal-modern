@@ -276,6 +276,7 @@ def get_nl_rag_ans(self, project_id: int) -> None:
     if (
         "chambre_penale" in project.selected_indices
         or "chambre_civile" in project.selected_indices
+        or "chambre_administrative" in project.selected_indices
     ):
         rag_op = CustomRagAnswersGenerator(
             project_rag_id=project_rag.id,
@@ -467,6 +468,7 @@ def task_rag_result_table(
         if (
             "chambre_penale" in project_rag.project.selected_indices
             or "chambre_civile" in project_rag.project.selected_indices
+            or "chambre_administrative" in project_rag.project.selected_indices
         ):
             rag = CustomRagAnswersGenerator(
                 project_rag_id,

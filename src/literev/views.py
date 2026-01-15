@@ -766,6 +766,7 @@ def rag(
         if (
             "chambre_penale" in project.selected_indices
             or "chambre_civile" in project.selected_indices
+            or "chambre_administrative" in project.selected_indices
         ):
             has_section_ans = True
             project_rag.summary_answer

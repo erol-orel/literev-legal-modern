@@ -43,6 +43,7 @@ def count_processed_documents(project: Project) -> int:
     if (
         "chambre_penale" in project.selected_indices
         or "chambre_civile" in project.selected_indices
+        or "chambre_administrative" in project.selected_indices
     ):
         return documents_count
 
