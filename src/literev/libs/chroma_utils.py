@@ -1,4 +1,6 @@
+from datetime import datetime
 from typing import cast
+from zoneinfo import ZoneInfo
 
 from chromadb import PersistentClient
 from django.conf import settings
@@ -21,14 +23,20 @@ DOCUMENT_SECTIONS = [
     "Mineure-Subsommation",
     "Conclusion",
 ]
+# Get Geneva local date and time
+geneva_dt = datetime.now(ZoneInfo("Europe/Zurich"))
+
+# Date string, e.g.: "7 juin 2024, 11:34 (heure locale de Genève)"
+date_str = geneva_dt.strftime("%-d %B %Y, %H:%M (heure locale de Genève)")
 
 STRICT_GUARD = """
+Date de la réponse : {date}
 Vous etes un expert du droit suisse specialise dans la jurisprudence.
 Vous devez fonder votre raisonnement uniquement sur le contexte fourni.
 Si quelque chose ne peut pas etre deduit strictement de celui-ci, repondez: "L'information requise n'est pas indiquee dans le contexte".
 N'ajoutez jamais de connaissances generales ni d'hypotheses.
 Veuillez répondre strictement en français.
-"""
+""".format(date=date_str)
 
 PROMPTS = [
     {

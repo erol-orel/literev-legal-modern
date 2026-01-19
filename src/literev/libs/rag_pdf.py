@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 
+from datetime import datetime
 from functools import wraps
 from hashlib import sha256
 from pathlib import Path
@@ -18,6 +19,7 @@ from typing import (
     Optional,
     cast,
 )
+from zoneinfo import ZoneInfo
 
 import joblib
 
@@ -1714,6 +1716,14 @@ class CustomRagAnswersGenerator:
         create a table with key_elements from the cases and another table with
         key article law from majueres sections.
         """
+        # Get Geneva local date and time
+        geneva_dt = datetime.now(ZoneInfo("Europe/Zurich"))
+
+        # Date string, e.g.: "7 juin 2024, 11:34 (heure locale de Genève)"
+        date_str = geneva_dt.strftime(
+            "%-d %B %Y, %H:%M (heure locale de Genève)"
+        )
+
         text = ""
         majeures_text = ""
         for doc_id, resp in subsommation_dict.items():
@@ -1723,7 +1733,8 @@ class CustomRagAnswersGenerator:
             majeures_text += f"[{doc_id}]:\n{content}\n\n"
 
         return (
-            f"Question: {question}\n\n"
+            "Date de la réponse : {date}".format(date=date_str)
+            + f"Question: {question}\n\n"
             f"Réponses des experts:\n{text}\n"
             f"Contexte supplémentaire (Majeure) par document:\n{majeures_text}\n ---\n\n"
             "Instructions :\n"

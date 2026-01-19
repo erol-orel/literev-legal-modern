@@ -32,16 +32,18 @@
     </div>
     <hr />
   </div>
+  <div class="container p-3">
+    {% if html_text %}
+      {{ html_text | safe }}
+    {% else %}
+      <div class="m-3"
+           style="white-space: pre-line">
+        {{ document.raw_document_text }}
+      </div>
+      <div style="background-color: #e6f1f0">
+      </div>
 
-  <div class="container p-3"
-       style="background-color: #f8f9fa">
-    <div class="m-3"
-         style="white-space: pre-line">
-      {{ document.raw_document_text }}
-    </div>
-    <div style="background-color: #e6f1f0">
-
-    </div>
+    {% endif %}
   </div>
   <div class="container-fluid px-4 py-5 my-5">
 

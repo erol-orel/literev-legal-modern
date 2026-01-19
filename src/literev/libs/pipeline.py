@@ -103,6 +103,7 @@ def create_document_db(project: Project, document: MetaData) -> int:
         raw_document_id=convert_to_target_type(document.doc_id),
         chamber=document.chamber,
         raw_document_text=convert_to_target_type(document.document_text),
+        document_html_text=document.document_html_text,
         decision_date=document.decision_date,
         decision_type=convert_to_target_type(document.decision_type),
         procedure_type=convert_to_target_type(document.procedure_type),

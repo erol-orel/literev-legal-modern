@@ -626,6 +626,7 @@ def contentdocument(request: HttpRequest, document_id: int) -> HttpResponse:
     document = Document.objects.get(pk=document_id)
 
     context["document"] = document
+    context["html_text"] = document.document_html_text
 
     return render(request, "contentdocument.html", context)
 
@@ -646,18 +647,20 @@ def contentdocumenthl(
         "Mineure-Subsommation", []
     )
     raw_document_text = cast(str, document_rag.document.raw_document_text)
+    html_text = cast(str, document_rag.document.document_html_text)
 
     if highlight_sents:
-        html_text = highlight_sentences_fuzzy(
+        document_text = highlight_sentences_fuzzy(
             raw_document_text.replace("\n", "<br>"), highlight_sents
         )
     else:
-        html_text = raw_document_text
+        document_text = raw_document_text
 
     context["document"] = document_rag.document
     context = {
         "document": document_rag.document,
-        "html_text": html_text.replace("\n", "<br>"),
+        "document_text": document_text.replace("\n", "<br>"),
+        "html_text": html_text,
     }
 
     return render(request, "hldocument.html", context)

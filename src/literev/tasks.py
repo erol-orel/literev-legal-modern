@@ -647,6 +647,7 @@ def launch_update_process(
                     result=document.result,
                     raw_document_id=document.raw_document_id,
                     raw_document_text=document.raw_document_text,
+                    document_html_text=document.document_html_text,
                     prepared_for_ngrams=document.prepared_for_ngrams,
                     procedure_year=document.procedure_year,
                 )
