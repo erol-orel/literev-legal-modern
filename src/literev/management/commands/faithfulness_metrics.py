@@ -79,7 +79,7 @@ async def _timed_score(
     llm = HactarFaithfulnessLLM(
         api_key=api_key, base_url=base_url, model=model
     )
-    scorer = Faithfulness(llm=llm)  # type: ignore
+    scorer = Faithfulness(llm=llm)
 
     sample = SingleTurnSample(
         user_input=query, response=answer, retrieved_contexts=context

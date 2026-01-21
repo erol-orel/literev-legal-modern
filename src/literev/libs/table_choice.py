@@ -181,6 +181,11 @@ def render_table_choice(
         if has_hdbscan_scores and topic_scores:
             topic = topic_scores[tablechoice_e.document.id]["topic"]
             if topic != UNCLASSIFIED_PAPERS_TOPIC:
+                if " : " not in topic:
+                    # todo: workaround, we need to investigate
+                    # why there is no " : " inside the topic
+                    continue
+
                 topic_key = topic.split(" : ")[1]
             else:
                 topic_key = UNCLASSIFIED_PAPERS_TOPIC

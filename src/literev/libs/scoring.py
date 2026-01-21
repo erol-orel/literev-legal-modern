@@ -109,7 +109,7 @@ async def get_faithfulness_score(
     )
 
     Scorer = FaithfulnesswithHHEM if use_HHEM else Faithfulness
-    scorer = Scorer(llm=llm)  # type: ignore
+    scorer = Scorer(llm=llm)
 
     faithfulnesswh_score = await scorer.single_turn_ascore(sample)
 
