@@ -136,7 +136,7 @@ def render_table_choice(
 
     hdbscan_scores = load_hdbscan_prob(project)
 
-    if hdbscan_scores:
+    if hdbscan_scores and project.step != "clustering":
         has_hdbscan_scores = True
         topic_scores = get_topic_and_hdbscan_score(
             hdbscan_scores, project, tablechoice

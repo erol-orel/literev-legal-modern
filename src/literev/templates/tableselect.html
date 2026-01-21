@@ -423,8 +423,8 @@
                   {% if hdbscan_scores %}
                     <div class="col-2">
                     </div>
-                    <div class="col-10 text-center fs-5 mb-3">
-                      <span class="badge text-dark"
+                    <div class="col-10 text-center fs-5 mb-3 overflow-auto">
+                      <span class="badge text-dark overflow-auto"
                             style="background-color: {{ tablechoice.color }}80"> {{ tablechoice.topic }}</span>
                       <span class="badge bg-light text-dark"> Topic score : {{ tablechoice.hdbscan_score | floatformat:"1" }} %</span>
                     </div>
