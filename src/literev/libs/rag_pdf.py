@@ -54,7 +54,9 @@ from literev.legal.extract_minor_major import (
 )
 from literev.libs.chroma_utils import (
     chroma_client,
-    get_best_section_chunks,
+    # chroma_client_adm,
+    chroma_client_penal,
+    get_best_section_chunks_new,
     llm_answer,
     openai_client,
 )
@@ -1558,11 +1560,21 @@ def get_answer_document_worker(
 ):
     record_key = payload["record_key"]
     try:
-        block_section = get_best_section_chunks(
+        logging.info(
+            f"Getting best chunks from chroma db, record key:{record_key}"
+        )
+        block_section = get_best_section_chunks_new(
             record_key, question, embedded_question, collection
         )
+        logging.info(
+            f"DONE Getting best chunks from chroma db , record key:{record_key}"
+        )
+        logging.info(f"Getting answers from document record key:{record_key}")
         answer = llm_answer(question, block_section)
         _ = json.loads(answer)
+        logging.info(
+            f"DONE Getting answers from document record key:{record_key}"
+        )
     except Exception as e:
         logging.info(f"Error during generating answer: {e}")
         logging.info(f"Answer : {answer}")
@@ -1810,7 +1822,7 @@ class CustomRagAnswersGenerator:
         self.project_rag.status = "questioning_documents"
         self.project_rag.save()
         question = self.project_rag.query
-
+        logging.info("Getting answers from documents")
         documents = Document.objects.filter(
             id__in=self.documents_ids
         ).order_by("id")
@@ -1837,7 +1849,16 @@ class CustomRagAnswersGenerator:
             .embedding
         )
 
-        collection = chroma_client.get_collection(name=self.chambre_name)
+        if self.chambre_name == "chambre_penale":
+            collection = chroma_client_penal.get_collection(
+                name=self.chambre_name
+            )
+        # elif self.chambre_name == "chambre_administrative":
+        #     collection = chroma_client_adm.get_collection(
+        #         name=self.chambre_name
+        #     )
+        else:
+            collection = chroma_client.get_collection(name=self.chambre_name)
 
         with joblib.parallel_backend("threading", n_jobs=MAX_WORKERS_RAG):
             results = Parallel()(
@@ -1846,7 +1867,7 @@ class CustomRagAnswersGenerator:
                 )
                 for pl in payloads
             )
-
+        logging.info("DONE Getting answers from documents")
         for doc_id, block_section, answer in results:
             ProjectDocumentRAG.objects.create(
                 project_rag=self.project_rag,
@@ -1869,6 +1890,7 @@ class CustomRagAnswersGenerator:
         )
         self.project_rag.save(update_fields=["valid_answer_count"])
 
+        logging.info("Generating summary table")
         # Generating a general answer summary
         self.project_rag.status = "generating_summary"
         self.project_rag.save(update_fields=["status"])
@@ -1918,6 +1940,6 @@ class CustomRagAnswersGenerator:
             }
             self.project_rag.summary_answer = json.dumps(error_summary)
             self.project_rag.save()
-
+        logging.info("DONE Generating summary table")
         self.project_rag.status = "completed"
         self.project_rag.save()

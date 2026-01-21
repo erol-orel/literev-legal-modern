@@ -247,6 +247,7 @@ def get_top_docs_by_es(
 
 @app.task(bind=True)
 def get_nl_rag_ans(self, project_id: int) -> None:
+    logging.info("Starting NL RAG ANS")
     project = Project.objects.get(id=project_id)
 
     if not project.natural_language_query:

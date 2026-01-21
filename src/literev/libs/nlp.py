@@ -16,7 +16,12 @@ from rago.augmented import AugmentedBase, OpenAIAug
 from rago.extensions.cache import CacheFile
 from rago.retrieval import StringRet
 
-from literev.libs.chroma_utils import chroma_client, openai_client
+from literev.libs.chroma_utils import (
+    chroma_client,
+    # chroma_client_adm,
+    chroma_client_penal,
+    openai_client,
+)
 from literev.libs.rag_classes import HactarAug
 from literev.libs.rag_pdf import prepare_chunks
 from literev.models import (
@@ -523,7 +528,13 @@ def get_cluster_summary(
     for doc in top_docs:
         record_keys.append(doc.record_key)
 
-    collection = chroma_client.get_collection(chamber_name)
+    if chamber_name == "chambre_penale":
+        collection = chroma_client_penal.get_collection(chamber_name)
+    # elif chamber_name == "chambre_administrative":
+    #     collection = chroma_client_adm.get_collection(chamber_name)
+    else:
+        collection = chroma_client.get_collection(chamber_name)
+
     embedded_query = (
         openai_client.embeddings.create(
             model=EMBEDDING_MODEL, input=[question]

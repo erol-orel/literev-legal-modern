@@ -13,9 +13,13 @@ OPENAI_API_KEY = settings.OPENAI_API_KEY
 N_TOP_CHUNKS = 8
 CACHE_DIR = settings.LITEREV_CACHE_DIR
 CHROMA_DIR = CACHE_DIR / "chroma_db"
+CHROMA_DIR_PENAL = CACHE_DIR / "chroma_db_penal"
+CHROMA_DIR_ADM = CACHE_DIR / "chroma_db_adm"
 
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 chroma_client = PersistentClient(CHROMA_DIR)
+chroma_client_penal = PersistentClient(CHROMA_DIR_PENAL)
+# chroma_client_adm = PersistentClient(CHROMA_DIR_ADM)
 
 DOCUMENT_SECTIONS = [
     "Majeure",
@@ -225,6 +229,40 @@ def get_best_section_chunks(
         sentences = results.get("documents", [])
 
         blocks[section] = sentences[0] if sentences else []
+
+    return blocks
+
+
+def get_best_section_chunks_new(
+    record_key, question, embedded_question, collection
+):
+    # Perform one query for all sections for this record_key
+    results = collection.query(
+        query_embeddings=embedded_question,
+        where={
+            "record_key": record_key,
+        },
+        include=["documents", "metadatas"],
+    )
+
+    # Initialize a dict for chunks per section
+    blocks: dict[str, list[str]] = {
+        section: [] for section in DOCUMENT_SECTIONS
+    }
+
+    documents = results.get("documents", [])
+    metadatas = results.get("metadatas", [])
+
+    # Group documents by section (using metadata["section"])
+    for doc, meta in zip(documents[0], metadatas[0]):
+        section = meta.get("section")
+
+        if section in blocks:
+            blocks[section].append(doc)
+
+    # Trim each section to N_TOP_CHUNKS
+    for section in blocks:
+        blocks[section] = blocks[section][:N_TOP_CHUNKS]
 
     return blocks
 
