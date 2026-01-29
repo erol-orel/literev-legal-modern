@@ -207,7 +207,10 @@ def back_get_documents(self, project_id: int) -> bool:
                 documents = collector.collect_all_documents()
             else:
                 documents = collector.collect_documents(
-                    project_query, start_date, end_date
+                    project_query,
+                    start_date,
+                    end_date,
+                    project.elastic_search_query,
                 )
 
             save_documents_to_db(project, documents)
@@ -543,7 +546,7 @@ def back_get_update_documents(
             collector = ElasticSearchCollector(index_name=index)
 
             documents = collector.collect_documents(
-                new_project_query, start_date, end_date
+                new_project_query, start_date, end_date, ""
             )
 
             save_documents_to_db(new_project, documents)

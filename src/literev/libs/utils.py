@@ -89,12 +89,13 @@ def get_number_documents(
     query: str,
     range_begin_date: datetime.date,
     range_end_date: datetime.date,
+    es_query: str,
 ) -> int:
     es_collector = ElasticSearchCollector(index_name=index_name)
     result = 0
     try:
         result += es_collector.get_max_documents(
-            query, range_begin_date, range_end_date
+            query, range_begin_date, range_end_date, es_query
         )
     except Exception as e:
         logging.warning(e)

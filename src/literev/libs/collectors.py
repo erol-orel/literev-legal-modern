@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 import logging
 
 from dataclasses import dataclass
@@ -81,18 +82,41 @@ class ElasticSearchCollector:
         )
 
     def collect_documents(
-        self, search: str, date_begin: datetime.date, date_end: datetime.date
+        self,
+        search: str,
+        date_begin: datetime.date,
+        date_end: datetime.date,
+        es_query: str,
     ) -> list[MetaData]:
         """Retrieve articles based on the provided search parameters."""
-
-        es_query = process_search_query_elasticsearch(
-            search_query=search,
-            start_date=date_begin,
-            end_date=date_end,
-        )
+        if es_query:
+            try:
+                created_es_query = json.loads(es_query)
+                date_from = date_begin.strftime("%Y-%m-%d")
+                date_to = date_end.strftime("%Y-%m-%d")
+                created_es_query["query"]["bool"]["filter"] = [
+                    {
+                        "range": {
+                            "decision_date": {"gte": date_from, "lte": date_to}
+                        }
+                    }
+                ]
+            except Exception as e:
+                logging.info(f"Error using the ES query: {e}")
+                created_es_query = process_search_query_elasticsearch(
+                    search_query=search,
+                    start_date=date_begin,
+                    end_date=date_end,
+                )
+        else:
+            created_es_query = process_search_query_elasticsearch(
+                search_query=search,
+                start_date=date_begin,
+                end_date=date_end,
+            )
 
         # get all documents from every page response from elasticsearch
-        documents = self.get_all_documents_from_es_response(es_query)
+        documents = self.get_all_documents_from_es_response(created_es_query)
 
         result = []
 
@@ -263,16 +287,23 @@ class ElasticSearchCollector:
         return None
 
     def get_max_documents(
-        self, search: str, begin: datetime.date, end: datetime.date
+        self,
+        search: str,
+        begin: datetime.date,
+        end: datetime.date,
+        es_query: str,
     ) -> int:
         """Counts total number of articles for a given query."""
-        es_query = process_search_query_elasticsearch(
-            search_query=search,
-            start_date=begin,
-            end_date=end,
-        )
+        if es_query:
+            created_es_query = json.loads(es_query)
+        else:
+            created_es_query = process_search_query_elasticsearch(
+                search_query=search,
+                start_date=begin,
+                end_date=end,
+            )
 
-        response = self.es.count(index=self.index_name, body=es_query)
+        response = self.es.count(index=self.index_name, body=created_es_query)
 
         return int(response["count"])
 

@@ -26,7 +26,7 @@ def estimate_new_documents(project: Project) -> int:
         collector = ElasticSearchCollector(index_name)
         today = date.today()
         count += collector.get_max_documents(
-            project.query, project.range_end_date, today
+            project.query, project.range_end_date, today, ""
         )
 
     return count
