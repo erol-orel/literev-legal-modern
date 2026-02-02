@@ -118,25 +118,6 @@
                        name="selected_indices"
                        id="selectedIndicesField"
                        value="" />
-                <!-- Hidden Field to Store ES query -->
-                <input type="hidden"
-                       name="es_query"
-                       id="esQueryField"
-                       {% if es_query %}
-                         value="{{ es_query }}"
-                       {% else %}
-                         value=""
-                       {% endif %} />
-
-                <!-- Hidden Field to Store cache bool query -->
-                <input type="hidden"
-                       name="cache_bool_query"
-                       id="cacheBoolQueryField"
-                       {% if cache_bool_query %}
-                         value="{{ cache_bool_query }}"
-                       {% else %}
-                         value=""
-                       {% endif %} />
 
                 <!-- Natural Language Query -->
                 <div class="row mt-3 justify-content-center">

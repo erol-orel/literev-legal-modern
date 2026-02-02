@@ -105,14 +105,6 @@ def search_search(
     selected_indices = request.POST.get("selected_indices", "").split(",")
     context["selected_indices"] = selected_indices
 
-    es_query = request.POST.get("es_query", "")
-    context["es_query"] = es_query
-
-    cache_bool_query = request.POST.get("cache_bool_query", "")
-    context["cache_bool_query"] = cache_bool_query
-
-    # Extract from an input the calue of elastic search query
-
     if search_form.is_valid():
         project_name = search_form.cleaned_data["project_name"]
         query = search_form.cleaned_data["query"]
@@ -123,15 +115,9 @@ def search_search(
         range_begin_date = search_form.cleaned_data["range_begin_date"]
         range_end_date = search_form.cleaned_data["range_end_date"]
 
-        # Check if the cache bool query is equal to the cached bool query
-        if cache_bool_query and cache_bool_query != query:
-            es_query = ""
-            context["es_query"] = es_query
-
         total_documents = sum(
-            # here in get document include elastic search query
             get_number_documents(
-                index_name, query, range_begin_date, range_end_date, es_query
+                index_name, query, range_begin_date, range_end_date
             )
             for index_name in selected_indices
         )
@@ -142,7 +128,6 @@ def search_search(
             "project_name": project_name,
             "selected_indices": selected_indices,
             "query": query,
-            "es_query": es_query,
             "natural_language_query": natural_language_query,
             "range_begin_date": range_begin_date.strftime("%Y/%m/%d"),
             "range_end_date": range_end_date.strftime("%Y/%m/%d"),
@@ -177,15 +162,12 @@ def search_continue(
 
     natural_language_query = request.session["natural_language_query"]
 
-    es_query = request.session["es_query"]
-
     project = Project.objects.create(
         user=user,
         name=project_name,
         creation_date=datetime.datetime.now(),
         query=query,
         natural_language_query=natural_language_query,
-        elastic_search_query=es_query,
         range_begin_date=range_begin_date,
         range_end_date=range_end_date,
         total_documents=total_documents,
@@ -229,25 +211,16 @@ def search_evaluate(
     # Capture the selected indices from the POST request
     selected_indices = request.POST.get("selected_indices", "").split(",")
     context["selected_indices"] = selected_indices
-    es_query = request.POST.get("es_query", "")
-    context["es_query"] = es_query
-    cache_bool_query = request.POST.get("cache_bool_query", "")
-    context["cache_bool_query"] = cache_bool_query
 
     if search_form.is_valid():
         query = search_form.cleaned_data["query"]
         range_begin_date = search_form.cleaned_data["range_begin_date"]
         range_end_date = search_form.cleaned_data["range_end_date"]
 
-        # Check if the cached bool query is equal to the bool query
-        if cache_bool_query and query != cache_bool_query:
-            es_query = ""
-            context["es_query"] = ""
-
         # Calculate total documents for each selected index
         total_documents = sum(
             get_number_documents(
-                index_name, query, range_begin_date, range_end_date, es_query
+                index_name, query, range_begin_date, range_end_date
             )
             for index_name in selected_indices
         )

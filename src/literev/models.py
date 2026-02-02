@@ -15,7 +15,6 @@ class Project(models.Model):
     natural_language_query = models.CharField(
         max_length=4096, default="", blank=True, null=True
     )
-    elastic_search_query = models.JSONField(default=dict)
     range_begin_date = models.DateField(default=datetime.date(1900, 1, 1))
     range_end_date = models.DateField(default=datetime.date(1900, 1, 1))
     total_documents = models.IntegerField(default=0)

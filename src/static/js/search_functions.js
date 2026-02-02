@@ -2,7 +2,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const translateButton = document.getElementById("translate-button");
   const naturalLanguageQueryInput = document.querySelector("#id_natural_language_query");
   const booleanQueryInput = document.querySelector("#id_query");
-  const esQueryInput = document.querySelector("#esQueryField");
 
   translateButton.addEventListener("click", async function (event) {
     event.preventDefault();
@@ -11,22 +10,13 @@ document.addEventListener("DOMContentLoaded", function () {
     return;
     }
 
-    // Sanitize input (replace /, ?, #, &, %, =, +)
-    function sanitizeQuery(query) {
-        return query.replace(/[\/?#&=%+]/g, ' ');
-    }
-
-    const rawQuery = naturalLanguageQueryInput.value;
-    const safeQuery = sanitizeQuery(rawQuery);
-
     translateButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Translating...`;
     translateButton.disabled = true;
 
     try {
-    const response = await axios.get(`/api/nl-to-bool-query/${encodeURIComponent(safeQuery)}/`);
+    const response = await axios.get(`/api/nl-to-bool-query/${encodeURIComponent(naturalLanguageQueryInput.value)}/`);
     if (response.status === 200 && response.data.query) {
         booleanQueryInput.value = response.data.query;
-        esQueryInput.value = response.data.es_query;
     } else {
         alert("Error translating the natural language query.");
     }

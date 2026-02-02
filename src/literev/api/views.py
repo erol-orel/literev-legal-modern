@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-import json
 import logging
-
-from typing import Any
 
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from openai import OpenAI
+from rago.generation import OpenAIGen
 from rest_framework import status, viewsets
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
@@ -26,9 +23,6 @@ from literev.libs.table_choice import update_check_list_iteration
 from literev.models import Project, ProjectDocumentRAG, ProjectRAG, TableChoice
 from literev.tasks import get_shared_projects_ids, task_rag_result_table
 
-MODEL_OPENAI = "gpt-4.1-mini"
-OPENAI_API_KEY = settings.OPENAI_API_KEY
-
 
 class ConvertToBooleanQueryAPIView(APIView):
     """
@@ -37,125 +31,11 @@ class ConvertToBooleanQueryAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def extract_json(self, text: str) -> dict:
-        """Extract json text from the openai response."""
-        text = text.strip()
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            start, end = text.find("{"), text.rfind("}")
-            if start == -1 or end == -1:
-                raise ValueError("No JSON found")
-            return json.loads(text[start : end + 1])
-
-    def concepts_to_es_query(self, concepts_json: dict) -> dict:
-        """Convert concept_json to a valid elastic search query dict."""
-        must: list[dict[str, Any]] = []
-        should: list[dict[str, Any]] = []
-        for c in concepts_json["concepts"]:
-            group = {
-                "bool": {
-                    "should": [
-                        {"match_phrase": {"document_text": s}}
-                        for s in c["synonyms"]
-                    ],
-                    # "minimum_should_match": 1, # commented because the criteria to search is match_phrase instead of match
-                }
-            }
-            (must if c["importance"] == "must" else should).append(group)
-
-        query = {"query": {"bool": {"must": must}}}
-        if should:
-            query["query"]["bool"]["should"] = should
-            query["query"]["bool"]["minimum_should_match"] = 1  # type: ignore
-
-        return query
-
-    def extract_legal_concepts(self, question: str) -> dict:
-        """Ask to openai extract dict concepts from a question."""
-        SYSTEM_PROMPT = """
-            You are a legal information retrieval expert.
-
-            Extract key legal concepts from a French legal question.
-            For each concept, produce legally equivalent expressions used in jurisprudence.
-
-            Rules:
-            - Deterministic output only
-            - Normalize accents and hyphens
-            - Lowercase everything
-            - Output valid JSON only
-
-            Schema:
-            {
-            "concepts": [
-                {
-                "core": "canonical concept",
-                "synonyms": ["variant 1", "variant 2"],
-                "importance": "must | should",
-                "explanation": "why this concept matters for retrieval"
-                }
-            ]
-            }
-            """
-        openai_client = OpenAI(api_key=OPENAI_API_KEY)
-        response = openai_client.chat.completions.create(
-            model=MODEL_OPENAI,
-            temperature=0,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": question},
-            ],
-        )
-
-        concepts = response.choices[0].message.content
-        return self.extract_json(concepts) if concepts else {}
-
-    def render_es_clause(self, clause: dict) -> str:
-        """Render an Elasticsearch clause into a Boolean string."""
-
-        if "match_phrase" in clause:
-            term = next(iter(clause["match_phrase"].values()))
-            return f'"{term}"'
-
-        if "bool" in clause:
-            bool_part = clause["bool"]
-            parts = []
-
-            if "must" in bool_part:
-                must_rendered = [
-                    self.render_es_clause(c) for c in bool_part["must"]
-                ]
-                parts.append(" AND ".join(must_rendered))
-
-            if "should" in bool_part:
-                should_rendered = [
-                    self.render_es_clause(c) for c in bool_part["should"]
-                ]
-                parts.append("(" + " OR ".join(should_rendered) + ")")
-
-            return " AND ".join(parts)
-
-        raise ValueError(f"Unsupported ES clause structure: {clause}")
-
-    def es_query_to_boolean_string(self, es_query: dict) -> str:
-        """Convert a valid Elastic Search query dict to a boolean query string."""
-        bool_query = es_query["query"]["bool"]
-
-        parts = []
-
-        for clause in bool_query.get("must", []):
-            parts.append(self.render_es_clause(clause))
-
-        for clause in bool_query.get("should", []):
-            parts.append(self.render_es_clause(clause))
-
-        return " AND ".join(parts)
-
     def get(
         self,
         request: Request,
         natural_lenguage: str,
+        api_key: str = settings.OPENAI_API_KEY,
     ) -> Response:
         """
         Handles GET requests to translate a natural language query
@@ -167,6 +47,8 @@ class ConvertToBooleanQueryAPIView(APIView):
             The HTTP request object.
         natural_lenguage : str
             The natural language query string to convert.
+        api_key : str
+            OpenAI API key for the language model.
 
         Returns
         -------
@@ -174,18 +56,59 @@ class ConvertToBooleanQueryAPIView(APIView):
             A JSON response containing the translated boolean query.
         """
 
-        try:
-            concepts = self.extract_legal_concepts(natural_lenguage)
-            es_query = self.concepts_to_es_query(concepts)
+        PROMPT_TEMPLATE = """
+        You are an expert in legal information retrieval.
 
-            boolean_query = self.es_query_to_boolean_string(es_query)
+        Your task is to transform a natural-language legal question or sentence in French into a robust Boolean query for an Elasticsearch search engine, specialized in Swiss jurisprudence.
+        **Rules:**
+        - Both the input and the Boolean query output are in French. Use only French legal terms, synonyms, and common legal formulations.
+        - Focus on semantic meaning, not literal word-for-word translation.
+        - Always include all key legal concepts, relevant synonyms, and common legal formulations found in Swiss jurisprudence.
+        - Never include more than 3 - 5 core concepts or main legal terms, or the search will return zero documents.
+        - For any expression containing a space or an apostrophe (e.g., "demandeur d'asile", "droit d'auteur", "vice du consentement"), use double quotes.
+        - Never use double quotes for single-word terms (i.e., those with no space or apostrophe).
+        - Boolean operators must be UPPER CASE: AND, OR, NOT.
+
+        **Query construction:**
+        - Combine distinct legal concepts with AND.
+        - Group synonyms or related expressions inside parentheses with OR (even if only two terms).
+        - Do NOT use AND inside an OR group.
+        - For negations (such as "sans", "excluant", "sans que"): use NOT directly before each excluded term. If it's a multi-word phrase, use double quotes (e.g., NOT "faute grave"). Apply NOT to each term separately.
+        - Never use AND NOT; always use NOT by itself.
+        - Maintain the original order of concepts unless logic or clarity require a change.
+        - Avoid unnecessary parentheses.
+        - Use fuzzy (~) or proximity (~N) operators where helpful (e.g., "menace"~3) for legal formulations or common variants.
+
+        **Always:**
+        - Include all relevant French synonyms and legal phrases, not only the exact terms found in the question.
+        - Ensure the query is broad enough to return relevant documents, but specific enough to filter noise.
+
+        **Return only the final Boolean query in French, with no extra commentary or translation.**
+
+        Question:
+        {context}
+        """
+
+        try:
+            gen = OpenAIGen(
+                prompt_template=PROMPT_TEMPLATE,
+                model_name="gpt-4.1-mini",
+                api_key=api_key,
+                output_max_length=2048,
+                temperature=0,
+                api_params={
+                    "top_p": 0.0,
+                    "frequency_penalty": 0.0,
+                    "presence_penalty": 0.0,
+                },
+            )
+
+            result = gen.generate(query="", context=[natural_lenguage])
+
+            boolean_query = str(result).strip()
 
             return Response(
-                {
-                    "query": boolean_query,
-                    "es_query": json.dumps(es_query),
-                },
-                status=status.HTTP_200_OK,
+                {"query": boolean_query}, status=status.HTTP_200_OK
             )
 
         except Exception as e:

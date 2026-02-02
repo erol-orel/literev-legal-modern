@@ -65,7 +65,7 @@ class Command(BaseCommand):
             collector = ElasticSearchCollector(index_name="chambre_penale")
 
             es_documents = collector.collect_documents(
-                search_query, start_date, end_date, ""
+                search_query, start_date, end_date
             )
         else:
             if index_name not in CHAMBER_NAMES:

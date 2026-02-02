@@ -112,7 +112,7 @@ def get_splitted_documents(
         collector = ElasticSearchCollector(index_name="chambre_penale")
 
         documents = collector.collect_documents(
-            search_query, start_date, end_date, ""
+            search_query, start_date, end_date
         )
 
     logging.info(f"Document to process {len(documents)}")
