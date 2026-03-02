@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 import multiprocessing as mp
 import os
+import secrets
 
 from pathlib import Path
 from urllib.parse import quote
@@ -82,15 +83,21 @@ DJANGO_APPS = [
     "django.contrib.sites",
 ]
 
-THIRD_PARTY_APPS: list[str] = []
+THIRD_PARTY_APPS: list[str] = [
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+]
 
 LOCAL_CONFIG_APP = ["literev.apps.LiterevConfig"]
 
 LOCAL_APPS = [
     "literev",
 ]
-
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+# LOCAL_APPS must come before THIRD_PARTY_APPS to ensure that our
+# custom templates override the default templates
+# provided by django-allauth.
+INSTALLED_APPS = LOCAL_APPS + DJANGO_APPS + THIRD_PARTY_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -100,6 +107,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -285,6 +293,7 @@ X_FRAME_OPTIONS = "DENY"
 AUTHENTICATION_BACKENDS = [
     # Needed to login by username in Django admin, regardless of `allauth`
     "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
 # To sent emails from the webapp in the terminal
@@ -294,6 +303,28 @@ SITE_ID = 1
 
 LOGIN_REDIRECT_URL = "/search/"
 LOGOUT_REDIRECT_URL = "/"
+
+# Allauth configuration
+SIGNUP_SECRET_CODE = os.environ.get(
+    "SIGNUP_SECRET_CODE", secrets.token_urlsafe(32)
+)
+
+if "SIGNUP_SECRET_CODE" not in os.environ:
+    print("#" * 80)
+    print(
+        "WARNING: SIGNUP_SECRET_CODE is not set in the environment variables."
+    )
+    print(f"Generated a temporary secret code: {SIGNUP_SECRET_CODE}")
+    print("Please define SIGNUP_SECRET_CODE in the .env file for persistence.")
+    print("#" * 80)
+
+ACCOUNT_AUTHENTICATION_METHOD = "email"
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_EMAIL_VERIFICATION = env(
+    "ACCOUNT_EMAIL_VERIFICATION", default="optional"
+)
+ACCOUNT_SIGNUP_FORM_CLASS = "literev.signup_forms.LegalSignupForm"
 
 DOWNLOAD_PDF_ARTICLE = False
 

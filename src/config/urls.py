@@ -16,7 +16,7 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import URLPattern, URLResolver, include, path
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -24,21 +24,24 @@ from literev.urls import (
     api_urlpatterns as project_api_urlpatterns,
 )
 
-static_url = static(
-    str(settings.STATIC_URL),
-    document_root=settings.STATIC_ROOT,  # NOQA
-)
+URL = URLPattern | URLResolver
 
-urlpatterns = [
+urlpatterns: list[URL] = [
     path("", include("literev.urls")),
-    path("accounts/", include("django.contrib.auth.urls")),
+    path("accounts/", include("allauth.urls")),
     path("admin/", admin.site.urls),
     path("api/project/", include(project_api_urlpatterns)),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(
+        settings.STATIC_URL, document_root=settings.STATIC_ROOT
+    )
 
 if "debug_toolbar" in settings.INSTALLED_APPS:
     import debug_toolbar
 
     urlpatterns = [
-        path("__debug__/", include(debug_toolbar.urls))
-    ] + urlpatterns
+        path("__debug__/", include(debug_toolbar.urls)),
+        *urlpatterns,
+    ]

@@ -16,6 +16,7 @@ authors = [
 dependencies = [
   "elasticsearch >=8.12.1,<9.0.0",
   "django >=5.0.3",
+  "django-allauth >=0.61.0",
   "django-environ >=0.10.0",
   "django-stubs[compatible-mypy] >=5.1",
   "django-stubs-ext >=5.1",

@@ -61,7 +61,9 @@ def highlight_words(
         # The `re.sub` will handle all matches of the pattern in the text
         text = re.sub(
             pattern,
-            lambda match: f'<span class="{style_class}">{match.group(1)}</span>',
+            lambda match: (
+                f'<span class="{style_class}">{match.group(1)}</span>'
+            ),
             text,
             flags=re.IGNORECASE,
         )
@@ -97,7 +99,9 @@ def highlight_words_topic(
         # The `re.sub` will handle all matches of the pattern in the text
         text = re.sub(
             pattern,
-            lambda match: f'<span style="background-color: {color_code}40">{match.group(1)}</span>',
+            lambda match: (
+                f'<span style="background-color: {color_code}40">{match.group(1)}</span>'
+            ),
             text,
             flags=re.IGNORECASE,
         )

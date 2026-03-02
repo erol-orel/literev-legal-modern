@@ -163,7 +163,9 @@ def add_tooltips_topic(text: str, topic_dict: dict[str, str]) -> str:
         # The `re.sub` will handle all matches of the pattern in the text
         text = re.sub(
             pattern,
-            lambda match: f'<span data-toggle="tooltip" data-placement="bottom" title="{topic_dict[word]}">{match.group(1)}</span>',
+            lambda match: (
+                f'<span data-toggle="tooltip" data-placement="bottom" title="{topic_dict[word]}">{match.group(1)}</span>'
+            ),
             text,
             flags=re.IGNORECASE,
         )

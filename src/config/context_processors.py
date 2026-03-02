@@ -17,6 +17,9 @@ def settings_context(request: HttpRequest) -> Dict[str, Any]:
     context = {
         "DEBUG": settings.DEBUG,
         "VERSION": __version__,
+        "SIGNUP_SECRET_REQUIRED": bool(
+            getattr(settings, "SIGNUP_SECRET_CODE", None)
+        ),
     }
 
     return context
