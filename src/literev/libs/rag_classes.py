@@ -127,7 +127,7 @@ class HactarAug(HactarConnectionHelper, AugmentedBase):
         }
 
         logger.info(f"Confidence : {scores}")
-        retrieved_docs = [documents[i] for i in indices if i >= 0]
+        retrieved_docs = [documents[int(i)] for i in indices if int(i) >= 0]
 
         return retrieved_docs
 
