@@ -3,10 +3,10 @@
 All application configuration is managed through environment variables loaded from a `.env` file. Never hardcode secrets or environment-specific values in source code.
 
 Source files:
-- Base settings: [src/config/settings/base.py](../src/config/settings/base.py)
-- Dev settings: [src/config/settings/dev.py](../src/config/settings/dev.py)
-- Test settings: [src/config/settings/test.py](../src/config/settings/test.py)
-- Prod settings: [src/config/settings/prod.py](../src/config/settings/prod.py)
+- Base settings: [src/config/settings/base.py](../../src/config/settings/base.py)
+- Dev settings: [src/config/settings/dev.py](../../src/config/settings/dev.py)
+- Test settings: [src/config/settings/test.py](../../src/config/settings/test.py)
+- Prod settings: [src/config/settings/prod.py](../../src/config/settings/prod.py)
 
 ---
 
@@ -233,11 +233,79 @@ EMAIL_HOST = ...
 
 ## Setting Up Your `.env` File
 
-1. Copy the template from `docs/contributing.md` (the `.env` template section)
-2. Fill in the required values
-3. Never commit `.env` to git (it is in `.gitignore`)
+Copy the template below, fill in required values, and save as `.env` at the project root. Never commit this file to git (it is in `.gitignore`).
 
-Minimum required variables for local development:
+```bash
+cp .env.tpl .env
+```
+
+**Full template:**
+
+```env
+# System / Host
+HOST_UID=1001
+HOST_GID=1001
+USE_CONTAINER=True
+
+# Runtime / Django
+ENV=dev
+DEBUG=True
+DJANGO_SETTINGS_MODULE=config.settings.dev
+DJANGO_SECRET_KEY='django-insecure-change-this-in-production'
+ALLOWED_HOSTS='localhost'
+GUNICORN_WORKERS=1
+FRONTEND_HOST_PORT=8000
+
+# Resources
+DOCKER_CPU_LIMIT=1.0
+DOCKER_CPU_RESERVATION=0.5
+
+# Paths
+CONTAINER_VOLUME_DATA_DIR=/opt/data/literev
+STATIC_ROOT=/opt/data/literev/static
+MEDIA_ROOT=/opt/data/literev/static/media
+POSTGRES_DATA=/opt/data/literev/postgres
+
+# Postgres
+POSTGRES_HOST=literev-postgres
+POSTGRES_PORT=35432
+POSTGRES_DB=postgres
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB_LITEREV=literev
+POSTGRES_USER_LITEREV=literev
+POSTGRES_PASSWORD_LITEREV=change-this-password
+
+# Elasticsearch
+ES_HOST_URL=http://localhost:9200/
+ES_USERNAME=elastic
+ES_PASSWORD=change-this-password
+ES_SSL_CERTS=False
+
+# Redis
+REDIS_HOST=literev-redis
+REDIS_PORT=6379
+REDIS_DB=0
+REDIS_PASSWORD=""
+
+# Certbot / Nginx
+CERTBOT_DOMAIN=myapp.domain.com
+CERTBOT_EMAIL=myapp@gmail.com
+CERTBOT_CONF=./containers/nginx/data/certbot/conf
+CERTBOT_WWW=./containers/nginx/data/certbot/www
+NGNIX_CONF=./containers/nginx/data/config/prod
+
+# Integrations
+OPENAI_API_KEY=sk-...
+
+# App tuning
+NUMBER_ARTICLE_BY_PAGE=30
+NUMBER_THREADS_ALLOWED=4
+NUMBER_TRIALS=20
+UPDATE_INTERVAL=2700000
+```
+
+**Minimum required variables for local development (without containers):**
 
 ```bash
 DJANGO_SETTINGS_MODULE=config.settings.dev
@@ -269,21 +337,30 @@ NUMBER_OPTUNA_JOBS=2
 
 ---
 
-## Configuration Validation
+## Per-Service `.env` Files (Optional)
 
-Django will raise `ImproperlyConfigured` at startup if required settings are missing. The pattern used:
+If you prefer to keep per-service env files, start from their templates.
 
-```python
-import os
-from django.core.exceptions import ImproperlyConfigured
+`./containers/literev/.env` (Django service inside the container):
 
-def get_env_var(var_name: str, default=None) -> str:
-    value = os.environ.get(var_name, default)
-    if value is None:
-        raise ImproperlyConfigured(f"Set the {var_name} environment variable")
-    return value
+```env
+DJANGO_SETTINGS_MODULE=config.settings.dev
+ALLOWED_HOSTS=localhost
+DB_HOST=literev-postgres
+DB_NAME=literev
+DB_USER=literev
+DB_PASSWORD=change-this-password
+MEDIA_ROOT=/opt/data/literev/static/media
+GUNICORN_WORKERS=1
+```
 
-SECRET_KEY = get_env_var("DJANGO_SECRET_KEY")
+`./containers/postgresql/.env` (Postgres service):
+
+```env
+POSTGRES_PORT=35432
+POSTGRES_DB=postgres
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
 ```
 
 ---
@@ -304,3 +381,22 @@ services:
 ```
 
 Container-specific overrides (like `POSTGRES_HOST`) are set in the compose file and take precedence over `.env`.
+
+---
+
+## Configuration Validation
+
+Django will raise `ImproperlyConfigured` at startup if required settings are missing. The pattern used:
+
+```python
+import os
+from django.core.exceptions import ImproperlyConfigured
+
+def get_env_var(var_name: str, default=None) -> str:
+    value = os.environ.get(var_name, default)
+    if value is None:
+        raise ImproperlyConfigured(f"Set the {var_name} environment variable")
+    return value
+
+SECRET_KEY = get_env_var("DJANGO_SECRET_KEY")
+```
