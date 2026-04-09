@@ -54,6 +54,7 @@ class HactarAug(HactarConnectionHelper, AugmentedBase):
         if not self.api_key:
             raise ValueError("API key for Hactar is required.")
 
+        self.api_base_url = settings.HACTAR_BASE_URL
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -149,6 +150,7 @@ class HactarGen(HactarConnectionHelper, GenerationBase):
         if not self.api_key:
             raise ValueError("API key for Hactar is required.")
 
+        self.api_base_url = settings.HACTAR_BASE_URL
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",

@@ -91,7 +91,7 @@ async def get_faithfulness_score(
 
     if settings.USE_HACTAR_LLM:
         api_key = settings.HACTAR_API_KEY
-        base_url = "https://hactar.unige.ch/api"
+        base_url = f"{settings.HACTAR_BASE_URL}/api"
         model = "mistral-small3.1:24b"
     else:
         api_key = settings.OPENAI_API_KEY

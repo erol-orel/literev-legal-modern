@@ -85,7 +85,8 @@ The dual-credential setup follows least-privilege principles: the running applic
 | `OPENAI_API_KEY` | yes (if not using Hactar) | OpenAI API key |
 | `USE_HACTAR_LLM` | no | `true` to use Hactar/Ollama instead of OpenAI |
 | `HACTAR_API_KEY` | if Hactar | Hactar API authentication key |
-| `HACTAR_VERIFY_SSL` | no | `true` (default) to verify SSL for Hactar endpoint |
+| `HACTAR_BASE_URL` | no | Hactar root URL — default `https://hactar.unige.ch`. Set to `https://legal-literev.unige.ch/hactar` for local development outside the UNIGE network |
+| `HACTAR_VERIFY_SSL` | no | `true` to verify SSL for Hactar endpoint (default `false`) |
 
 ### File Paths
 

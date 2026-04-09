@@ -186,7 +186,7 @@ def call_model(prompt: str, api_key: str):
     'The capital of France is Paris.'
     """
 
-    url = "https://hactar.unige.ch/api/chat/completions"
+    url = f"{settings.HACTAR_BASE_URL}/api/chat/completions"
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",

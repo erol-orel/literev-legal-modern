@@ -60,6 +60,8 @@ HACTAR_API_KEY = os.environ.get("HACTAR_API_KEY", "")
 
 USE_HACTAR_LLM = env.bool("USE_HACTAR_LLM", default=False)
 
+HACTAR_BASE_URL = os.environ.get("HACTAR_BASE_URL", "https://hactar.unige.ch")
+
 HACTAR_VERIFY_SSL = env.bool("HACTAR_VERIFY_SSL", default=False)
 
 APP_NAME = "literev"

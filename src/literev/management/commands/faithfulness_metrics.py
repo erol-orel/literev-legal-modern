@@ -71,7 +71,7 @@ async def _timed_score(
     Return (score, time_spent_s) for a single document.
     """
     api_key, base_url = (
-        (settings.HACTAR_API_KEY, "https://hactar.unige.ch/api")
+        (settings.HACTAR_API_KEY, f"{settings.HACTAR_BASE_URL}/api")
         if provider == "hactar"
         else (settings.OPENAI_API_KEY, "https://api.openai.com/v1")
     )
