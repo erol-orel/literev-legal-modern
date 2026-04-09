@@ -970,7 +970,13 @@ class RagAnswersManager:
         self.documents_ids = documents_ids
         self.answer_generator = OpenAIAnswerClient(self.api_key)
         self.summary_generator = OpenAISummaryGenerator(self.api_key)
-        self.loop = asyncio.get_event_loop()
+        try:
+            self.loop = asyncio.get_event_loop()
+            if self.loop.is_closed():
+                raise RuntimeError("Event loop is closed")
+        except RuntimeError:
+            self.loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self.loop)
         self.query_classifier = QuestionClassifier(self.api_key)
         self.stats_generator = StatsGenerator(self.api_key)
 

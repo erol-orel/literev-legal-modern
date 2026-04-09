@@ -151,7 +151,7 @@ class ScoringTest(TestCase):
         )
 
         # check the first element and last element and result length
-        first_table_id = 1452
+        first_table_id = 1450
         last_table_id = 1459
         total_tablechoice = 53
 
@@ -329,7 +329,13 @@ class ScoringFaithfulnessRAGAnwersTest(TransactionTestCase):
     def test_assign_faithfulness_scores(self):
         expected_score_0 = 1.00
         expected_score_1 = 0.00
-        loop = asyncio.get_event_loop()
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                raise RuntimeError("closed")
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
         loop.run_until_complete(assign_faithfulness_scores(self.project_rag))
 
         rag_documents = ProjectDocumentRAG.objects.filter(

@@ -130,10 +130,17 @@ def document_real(project: Project) -> Document:
         Path(__file__).parent / "literev" / "tests" / "data" / "doc1.pkl"
     )
     doc = joblib.load(path_test)
-    doc.pk = None
-    doc.project = project
-    doc.save()
-    return doc
+    # Build kwargs from fields that are already loaded in the pickle
+    # (avoids triggering deferred-field DB lookups on doc).
+    model_field_names = {
+        f.attname
+        for f in Document._meta.fields
+        if f.attname not in ("id", "project_id")
+    }
+    doc_data = {
+        k: v for k, v in doc.__dict__.items() if k in model_field_names
+    }
+    return Document.objects.create(project=project, **doc_data)
 
 
 @pytest.fixture

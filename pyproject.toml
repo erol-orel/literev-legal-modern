@@ -40,7 +40,7 @@ dependencies = [
   "matplotlib >=3.9.2",
   "werkzeug >=3",
   "djangorestframework >=3.15.2",
-  "rago[base,ollama] >=0.14.3", # pulls numpy >=2
+  "rago[base,ollama] >=0.14.3,<0.14.5", # 0.14.5 renamed generate(context=) to generate(data=)
   "langchain >=0.3.6,<0.4.0",
   "django-filter >=24.3",
   "jsbeautifier ==1.15.1",
@@ -116,7 +116,7 @@ literev_core = ["data/**"]
 [tool.pytest.ini_options]
 minversion = "6.0"
 DJANGO_SETTINGS_MODULE = "config.settings.test"
-addopts = "--ds=config.settings.test -v -ra --cov=src --reuse-db --import-mode=importlib"
+addopts = "--ds=config.settings.test -v -ra --cov=src --reuse-db"
 pythonpath = "src"
 python_files = ["tests.py", "test_*.py"]
 

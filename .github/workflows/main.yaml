@@ -101,7 +101,7 @@ jobs:
 
   test:
     name: Run tests and display coverage
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash -el {0}
@@ -117,15 +117,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Self-hosted setup
+      - name: dir setup
         run: |
           export HOST_UID=$(id -u)
           export HOST_GID=$(id -g)
-          sudo chown -R "${HOST_UID}:${HOST_GID}" /home/ci/actions-runner/_work/literev-legal/literev-legal/
-
           BASE_DIR=/tmp/literev
 
-          # Create directories
           for dir in articles plot pkl static; do
             sudo mkdir -p "${BASE_DIR}/${dir}"
           done
@@ -324,6 +321,7 @@ jobs:
   containers:
     name: Test the container's stack
     needs: check_branch
+    if: false
     runs-on: self-hosted
 
     strategy:

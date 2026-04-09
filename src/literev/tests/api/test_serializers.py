@@ -92,8 +92,8 @@ def test_project_document_rag_serializer(project: Project):
     assert document_data["standards"] == document.standards
     assert document_data["procedure_year"] == document.procedure_year
     assert document_data["url_document"] == reverse(
-        "contentdocument",
-        kwargs={"document_id": document.id},
+        "contentdocument_highlighted",
+        kwargs={"document_rag_id": project_document_rag.id},
     )
 
 
