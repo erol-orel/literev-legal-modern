@@ -7,7 +7,6 @@ import logging
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from rago.generation import OpenAIGen
 from rest_framework import status, viewsets
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
@@ -22,6 +21,7 @@ from literev.api.serializers import (
 from literev.libs.table_choice import update_check_list_iteration
 from literev.models import Project, ProjectDocumentRAG, ProjectRAG, TableChoice
 from literev.tasks import get_shared_projects_ids, task_rag_result_table
+from literev_core.boolean_query import convert_nl_to_boolean
 
 
 class ConvertToBooleanQueryAPIView(APIView):
@@ -35,7 +35,6 @@ class ConvertToBooleanQueryAPIView(APIView):
         self,
         request: Request,
         natural_lenguage: str,
-        api_key: str = settings.OPENAI_API_KEY,
     ) -> Response:
         """
         Handles GET requests to translate a natural language query
@@ -47,8 +46,6 @@ class ConvertToBooleanQueryAPIView(APIView):
             The HTTP request object.
         natural_lenguage : str
             The natural language query string to convert.
-        api_key : str
-            OpenAI API key for the language model.
 
         Returns
         -------
@@ -56,68 +53,20 @@ class ConvertToBooleanQueryAPIView(APIView):
             A JSON response containing the translated boolean query.
         """
 
-        PROMPT_TEMPLATE = """
-        You are an expert in legal information retrieval.
-
-        Your task is to transform a natural-language legal question or sentence in French into a robust Boolean query for an Elasticsearch search engine, specialized in Swiss jurisprudence.
-        **Rules:**
-        - Both the input and the Boolean query output are in French. Use only French legal terms, synonyms, and common legal formulations.
-        - Focus on semantic meaning, not literal word-for-word translation.
-        - Always include all key legal concepts, relevant synonyms, and common legal formulations found in Swiss jurisprudence.
-        - Never include more than 3 - 5 core concepts or main legal terms, or the search will return zero documents.
-        - For any expression containing a space or an apostrophe (e.g., "demandeur d'asile", "droit d'auteur", "vice du consentement"), use double quotes.
-        - Never use double quotes for single-word terms (i.e., those with no space or apostrophe).
-        - Boolean operators must be UPPER CASE: AND, OR, NOT.
-
-        **Query construction:**
-        - Combine distinct legal concepts with AND.
-        - Group synonyms or related expressions inside parentheses with OR (even if only two terms).
-        - Do NOT use AND inside an OR group.
-        - For negations (such as "sans", "excluant", "sans que"): use NOT directly before each excluded term. If it's a multi-word phrase, use double quotes (e.g., NOT "faute grave"). Apply NOT to each term separately.
-        - Never use AND NOT; always use NOT by itself.
-        - Maintain the original order of concepts unless logic or clarity require a change.
-        - Avoid unnecessary parentheses.
-        - Use fuzzy (~) or proximity (~N) operators where helpful (e.g., "menace"~3) for legal formulations or common variants.
-
-        **Always:**
-        - Include all relevant French synonyms and legal phrases, not only the exact terms found in the question.
-        - Ensure the query is broad enough to return relevant documents, but specific enough to filter noise.
-
-        **Return only the final Boolean query in French, with no extra commentary or translation.**
-
-        Question:
-        {context}
-        """
-
         try:
-            gen = OpenAIGen(
-                prompt_template=PROMPT_TEMPLATE,
-                model_name="gpt-4.1-mini",
-                api_key=api_key,
-                output_max_length=2048,
-                temperature=0,
-                api_params={
-                    "top_p": 0.0,
-                    "frequency_penalty": 0.0,
-                    "presence_penalty": 0.0,
-                },
+            boolean_query = convert_nl_to_boolean(
+                natural_lenguage,
+                model_name="ollama/" + settings.OLLAMA_MODEL,
+                base_url=settings.OLLAMA_BASE_URL,
             )
-
-            result = gen.generate(query="", context=[natural_lenguage])
-
-            boolean_query = str(result).strip()
 
             return Response(
                 {"query": boolean_query}, status=status.HTTP_200_OK
             )
-
         except Exception as e:
             logging.error(f"Error generating boolean query: {e!s}")
-
             return Response(
-                {
-                    "error": "An error occurred while processing the request. Please try again later."
-                },
+                {"error": "An error occurred while processing the request"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 

@@ -18,6 +18,7 @@ profiles:
         - literev-redis
         - literev-celery
         - literev-nginx
+        - literev-ollama
         - certbot
       available:
         - name: literev
@@ -26,6 +27,7 @@ profiles:
         - name: literev-celery
         - name: literev-nginx
         - name: certbot
+        - name: literev-ollama
         - name: es-legal-setup
         - name: es-restore
         - name: es-legal-1
@@ -45,6 +47,7 @@ profiles:
         - literev-postgres
         - literev-redis
         - literev-celery
+        - literev-ollama
       available:
         - name: literev
         - name: literev-postgres
@@ -52,6 +55,7 @@ profiles:
         - name: literev-celery
         - name: literev-elasticsearch
         - name: literev-jupyter
+        - name: literev-ollama
 
   dev-host:
     config-path:
