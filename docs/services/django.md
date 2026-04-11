@@ -51,7 +51,7 @@ makim tests.import-boundaries
 Guidance:
 
 - Use `tests.app` when the change touches Django models, repositories, views, serializers, permissions, or Celery tasks.
-- Use `tests.lib --lib <name>` for framework-free package changes under `libs/lt_*/src` and `libs/lt_*/tests`.
+- Use `tests.lib --lib <name>` for framework-free package changes under `libs/lt_*/src` and `libs/lt_*/tests`; the task now records per-library coverage for the PR summary comment.
 - Run `tests.import-boundaries` whenever moving logic between `src/` and `libs/`.
 
 ## CI Layout
@@ -62,5 +62,6 @@ The main GitHub Actions workflow now mirrors the architecture:
 - `import_boundaries`: ensures `libs/` stays free of Django imports.
 - `lib_tests`: matrix job over changed `lt_*` packages on pull requests.
 - `app_tests`: Django regression suite when app-side code or shared tooling changes.
+- `coverage_report`: sticky pull-request comment that aggregates the app and per-library coverage summaries, even when one of the test jobs fails, and includes run metadata so reruns visibly refresh the same comment.
 
 On pushes to `main`, the workflow runs the full regression set across all libraries plus the app suite.

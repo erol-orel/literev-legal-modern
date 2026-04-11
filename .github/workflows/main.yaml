@@ -82,108 +82,6 @@ jobs:
             exit 1
           fi
 
-  detect_changes:
-    name: Detect changed scopes
-    needs: check_branch
-    runs-on: ubuntu-latest
-    outputs:
-      lib_matrix: ${{ steps.matrix.outputs.lib_matrix }}
-      run_libs: ${{ steps.matrix.outputs.run_libs }}
-      run_app: ${{ steps.matrix.outputs.run_app }}
-      run_import_boundaries: ${{ steps.matrix.outputs.run_import_boundaries }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            full_regression:
-              - 'libs/lt_contracts/**'
-              - 'pyproject.toml'
-              - '.makim.yaml'
-              - '.pre-commit-config.yaml'
-              - '.github/workflows/**'
-              - 'conda/**'
-              - 'scripts/install-dev.sh'
-              - 'scripts/check_import_boundaries.py'
-              - 'tests/import_boundaries/**'
-            app:
-              - 'src/literev/**'
-              - 'src/config/**'
-              - 'src/conftest.py'
-            import_boundaries:
-              - 'libs/**'
-              - 'scripts/check_import_boundaries.py'
-              - 'tests/import_boundaries/**'
-            lt_contracts:
-              - 'libs/lt_contracts/**'
-            lt_query:
-              - 'libs/lt_query/**'
-            lt_search:
-              - 'libs/lt_search/**'
-            lt_preprocessing:
-              - 'libs/lt_preprocessing/**'
-            lt_clustering:
-              - 'libs/lt_clustering/**'
-            lt_rag:
-              - 'libs/lt_rag/**'
-            lt_refinement:
-              - 'libs/lt_refinement/**'
-            lt_legal:
-              - 'libs/lt_legal/**'
-
-      - id: matrix
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          all_libs='["lt_contracts","lt_query","lt_search","lt_preprocessing","lt_clustering","lt_rag","lt_refinement","lt_legal"]'
-          run_libs=false
-          run_app=false
-          run_import_boundaries=false
-
-          if [[ "${{ github.event_name }}" == "push" || "${{ steps.filter.outputs.full_regression }}" == "true" ]]; then
-            lib_matrix="{\"lib\":${all_libs}}"
-            run_libs=true
-            run_app=true
-            run_import_boundaries=true
-          else
-            selected=()
-            [[ "${{ steps.filter.outputs.lt_contracts }}" == "true" ]] && selected+=('"lt_contracts"')
-            [[ "${{ steps.filter.outputs.lt_query }}" == "true" ]] && selected+=('"lt_query"')
-            [[ "${{ steps.filter.outputs.lt_search }}" == "true" ]] && selected+=('"lt_search"')
-            [[ "${{ steps.filter.outputs.lt_preprocessing }}" == "true" ]] && selected+=('"lt_preprocessing"')
-            [[ "${{ steps.filter.outputs.lt_clustering }}" == "true" ]] && selected+=('"lt_clustering"')
-            [[ "${{ steps.filter.outputs.lt_rag }}" == "true" ]] && selected+=('"lt_rag"')
-            [[ "${{ steps.filter.outputs.lt_refinement }}" == "true" ]] && selected+=('"lt_refinement"')
-            [[ "${{ steps.filter.outputs.lt_legal }}" == "true" ]] && selected+=('"lt_legal"')
-
-            if (( ${#selected[@]} > 0 )); then
-              lib_json=$(printf '%s\n' "${selected[@]}" | paste -sd, -)
-              lib_matrix="{\"lib\":[${lib_json}]}"
-              run_libs=true
-              run_import_boundaries=true
-            else
-              lib_matrix='{"lib":[]}'
-            fi
-
-            if [[ "${{ steps.filter.outputs.app }}" == "true" ]]; then
-              run_app=true
-            fi
-
-            if [[ "${{ steps.filter.outputs.import_boundaries }}" == "true" ]]; then
-              run_import_boundaries=true
-            fi
-          fi
-
-          echo "lib_matrix=${lib_matrix}" >> "$GITHUB_OUTPUT"
-          echo "run_libs=${run_libs}" >> "$GITHUB_OUTPUT"
-          echo "run_app=${run_app}" >> "$GITHUB_OUTPUT"
-          echo "run_import_boundaries=${run_import_boundaries}" >> "$GITHUB_OUTPUT"
-
   linter:
     name: Linter
     needs: check_branch
@@ -250,8 +148,7 @@ jobs:
 
   import_boundaries:
     name: Import Boundaries
-    needs: [check_branch, detect_changes]
-    if: ${{ needs.detect_changes.outputs.run_import_boundaries == 'true' }}
+    needs: check_branch
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -259,8 +156,26 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            should_run:
+              - 'libs/**'
+              - 'scripts/check_import_boundaries.py'
+              - 'tests/import_boundaries/**'
+              - 'pyproject.toml'
+              - '.makim.yaml'
+              - '.github/workflows/**'
+              - 'conda/**'
+              - 'scripts/install-dev.sh'
 
       - name: Dir setup
+        if: ${{ github.event_name == 'push' || steps.filter.outputs.should_run == 'true' }}
         run: |
           export HOST_UID=$(id -u)
           export HOST_GID=$(id -g)
@@ -274,11 +189,13 @@ jobs:
           sudo chown -R "${HOST_UID}:${HOST_GID}" "${BASE_DIR}" /opt/data/literev
 
       - name: Install Operating System dependencies
+        if: ${{ github.event_name == 'push' || steps.filter.outputs.should_run == 'true' }}
         run: |
           sudo apt-get update
           sudo apt-get install gettext-base
 
-      - uses: mamba-org/setup-micromamba@v2
+      - if: ${{ github.event_name == 'push' || steps.filter.outputs.should_run == 'true' }}
+        uses: mamba-org/setup-micromamba@v2
         with:
           environment-file: conda/base.yaml
           condarc-file: .github/workflows/.condarc
@@ -291,6 +208,7 @@ jobs:
           post-cleanup: all
 
       - name: Create environment variables files
+        if: ${{ github.event_name == 'push' || steps.filter.outputs.should_run == 'true' }}
         run: |
           export FRONTEND_HOST_PORT=${FRONTEND_HOST_PORT}
           export POSTGRES_PORT=${POSTGRES_PORT}
@@ -300,20 +218,22 @@ jobs:
           envsubst < .env.tpl > .env
 
       - name: Clean broken certifi metadata
+        if: ${{ github.event_name == 'push' || steps.filter.outputs.should_run == 'true' }}
         run: |
           echo "Removing stray certifi dist-info so pip won't choke..."
           rm -rf "${CONDA_PREFIX}/lib/python3.10/site-packages"/certifi-*.dist-info
 
       - name: Install dependencies
+        if: ${{ github.event_name == 'push' || steps.filter.outputs.should_run == 'true' }}
         run: ./scripts/install-dev.sh
 
       - name: Run import boundary suite
+        if: ${{ github.event_name == 'push' || steps.filter.outputs.should_run == 'true' }}
         run: makim tests.import-boundaries
 
   lib_tests:
     name: Lib Tests (${{ matrix.lib }})
-    needs: [check_branch, detect_changes]
-    if: ${{ needs.detect_changes.outputs.run_libs == 'true' }}
+    needs: check_branch
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -321,7 +241,16 @@ jobs:
     timeout-minutes: 60
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.detect_changes.outputs.lib_matrix) }}
+      matrix:
+        lib:
+          - lt_contracts
+          - lt_query
+          - lt_search
+          - lt_preprocessing
+          - lt_clustering
+          - lt_rag
+          - lt_refinement
+          - lt_legal
     steps:
       - uses: actions/checkout@v4
 
@@ -375,10 +304,36 @@ jobs:
       - name: Run lib suite
         run: makim tests.lib --lib ${{ matrix.lib }}
 
+      - name: Build coverage summary
+        if: ${{ always() && !cancelled() }}
+        run: |
+          mkdir -p coverage-reports
+          OUT="coverage-reports/coverage-lib-${{ matrix.lib }}.md"
+          {
+            echo "### Lib \`${{ matrix.lib }}\`"
+            echo ""
+            if [[ -f .coverage ]]; then
+              echo '```'
+              coverage report -m --skip-empty \
+                --include="libs/${{ matrix.lib }}/src/**" 2>&1 || true
+              echo '```'
+            else
+              echo "_No coverage data produced._"
+            fi
+          } > "$OUT"
+
+      - name: Upload coverage summary
+        if: ${{ always() && !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lib-${{ matrix.lib }}
+          path: coverage-reports/coverage-lib-${{ matrix.lib }}.md
+          if-no-files-found: warn
+          retention-days: 7
+
   app_tests:
     name: App Tests
-    needs: [check_branch, detect_changes]
-    if: ${{ needs.detect_changes.outputs.run_app == 'true' }}
+    needs: check_branch
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -480,6 +435,33 @@ jobs:
       - name: Run app suite
         run: makim tests.app
 
+      - name: Build coverage summary
+        if: ${{ always() && !cancelled() }}
+        run: |
+          mkdir -p coverage-reports
+          OUT="coverage-reports/coverage-app.md"
+          {
+            echo "### App tests"
+            echo ""
+            if [[ -f .coverage ]]; then
+              echo '```'
+              coverage report -m --skip-empty \
+                --include="src/**" 2>&1 || true
+              echo '```'
+            else
+              echo "_No coverage data produced._"
+            fi
+          } > "$OUT"
+
+      - name: Upload coverage summary
+        if: ${{ always() && !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-app
+          path: coverage-reports/coverage-app.md
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: Show Logs
         if: ${{ failure() }}
         run: sugar compose logs -- -n 100
@@ -490,6 +472,74 @@ jobs:
           docker rm -f test-redis 2>/dev/null || true
           sugar compose stop
           sugar compose down -- --volumes
+
+  coverage_report:
+    name: Coverage PR Comment
+    needs: [lib_tests, app_tests]
+    if: ${{ always() && !cancelled() && github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          path: coverage-reports
+          merge-multiple: true
+
+      - name: Build comment body
+        shell: bash
+        run: |
+          set -euo pipefail
+          BODY=/tmp/coverage-comment.md
+          libs=(
+            lt_contracts
+            lt_query
+            lt_search
+            lt_preprocessing
+            lt_clustering
+            lt_rag
+            lt_refinement
+            lt_legal
+          )
+          {
+            echo "## Coverage summary"
+            echo ""
+            echo "_Per-job coverage report for this pull request._"
+            echo ""
+            echo "- Run: [#${GITHUB_RUN_NUMBER}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo ""
+
+            if [[ -f coverage-reports/coverage-app.md ]]; then
+              cat coverage-reports/coverage-app.md
+            else
+              echo "### App tests"
+              echo ""
+              echo "_Not run in this PR._"
+            fi
+            echo ""
+
+            for lib in "${libs[@]}"; do
+              f="coverage-reports/coverage-lib-${lib}.md"
+              if [[ -f "$f" ]]; then
+                cat "$f"
+              else
+                echo "### Lib \`${lib}\`"
+                echo ""
+                echo "_Not run in this PR._"
+              fi
+              echo ""
+            done
+          } > "$BODY"
+
+      - name: Post sticky comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: coverage-report
+          path: /tmp/coverage-comment.md
 
   semantic_release_pr_title_check:
     name: Semantic Release PR Title Check

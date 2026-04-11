@@ -89,7 +89,16 @@ groups:
           REDIS_HOST: localhost
           SUGAR_ENV: test
         run: |
-          pytest --ds=config.settings.test -vvv libs/${{ args.lib }}/tests
+          pytest_args=(
+            --cov=libs/${{ args.lib }}/src
+            --cov-report
+            term-missing
+            --no-cov-on-fail
+            --ds=config.settings.test
+            -vvv
+            libs/${{ args.lib }}/tests
+          )
+          pytest "${pytest_args[@]}"
 
       libs-all:
         help: Run all extracted lib suites
@@ -99,7 +108,16 @@ groups:
           REDIS_HOST: localhost
           SUGAR_ENV: test
         run: |
-          pytest --ds=config.settings.test -vvv libs
+          pytest_args=(
+            --cov=libs
+            --cov-report
+            term-missing
+            --no-cov-on-fail
+            --ds=config.settings.test
+            -vvv
+            libs
+          )
+          pytest "${pytest_args[@]}"
 
       app:
         help: Run Django app tests
