@@ -1,5 +1,3 @@
-"""Celery application configuration and Redis client helper."""
-
 import os
 
 from typing import Optional
@@ -8,7 +6,6 @@ import redis
 
 from celery import Celery
 
-# Keep default consistent with production unless overridden by the environment.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.prod")
 
 app = Celery("literev-celery", include=["literev.tasks"])
@@ -16,9 +13,7 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()
 
 
-def get_redis_client() -> "redis.Redis":
-    """Get a Redis client based on environment variables."""
-
+def get_redis_client() -> redis.Redis:
     redis_url: Optional[str] = os.getenv("REDIS_URL")
     if redis_url:
         return redis.from_url(redis_url)

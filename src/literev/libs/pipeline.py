@@ -1,12 +1,13 @@
+from __future__ import annotations
+
 import logging
 
-from datetime import datetime
 from threading import Thread
 
 from literev.libs.collectors import MetaData
 from literev.models import Document, Project
 
-thread_dict = {}
+thread_dict: dict[int, Thread] = {}
 
 
 def running_restart(project_id: str) -> None:
@@ -23,81 +24,36 @@ def running_restart(project_id: str) -> None:
         )
         thread_dict[project.id].start()
         logging.info(f"Restoring project, id: {project_id}")
-
         return
 
-    t = thread_dict[project.id]
-    if not t.is_alive():
+    thread = thread_dict[project.id]
+    if not thread.is_alive():
         # if the thread is not alive, recreate thread
         thread_dict[project.id] = Thread(
             target=back_process, args=[project], daemon=True
         )
         thread_dict[project.id].start()
 
-    return
-
 
 def convert_to_target_type(
-    value: str, target_type: type = str
-) -> str | int | datetime:
+    value: object | None,
+    target_type: type[str] = str,
+) -> str:
+    """Normalize metadata values before creating a Document row.
+
+    The current pipeline stores the incoming Elasticsearch metadata in text
+    fields, so `None` becomes an empty string and everything else is coerced to
+    `str`.
     """
-    Convert the given value to the specified target type, handling `None` values appropriately.
-
-    This function ensures data conforms to the expected type in Django model fields,
-    especially when dealing with potentially nullable fields in database operations.
-
-    Parameters
-    ----------
-    value : str
-        The value to be converted. Can be a string representation of any type including `None`.
-    target_type : type, optional
-        The target data type to which the value should be converted. Supports `str`, `int`,
-        and `datetime`. Default is `str`.
-
-    Returns
-    -------
-    str | int | datetime
-        The value converted to the target type. If the original value is `None`,
-        returns a default value appropriate for the specified `target_type`: an
-        empty string for `str`, `0` for `int`, and the current datetime for `datetime`.
-    """
-
-    if value is None or value == "":
-        if target_type == str:
-            return ""
-        elif target_type == int:
-            return 0
-        elif target_type == datetime:
-            return datetime.now()
-    else:
-        if target_type == datetime:
-            return datetime.strptime(value, "%Y-%m-%d")
-        else:
-            return target_type(value)
+    if target_type is not str:
+        raise TypeError("convert_to_target_type only supports str targets")
+    if value is None:
+        return ""
+    return str(value)
 
 
 def create_document_db(project: Project, document: MetaData) -> int:
-    """
-    Create and save a document object in the database.
-
-    This function takes a project instance and a MetaData instance containing document
-    metadata. It transforms the metadata values to ensure they are stored correctly in the
-    database, particularly converting None values to empty strings where necessary, and then
-    creates a new Document object in the database.
-
-    Parameters
-    ----------
-    project : Project
-        The project instance to which the document belongs.
-    document : MetaData
-        The MetaData instance containing the document's metadata.
-
-    Returns
-    -------
-    int
-
-    """
-
+    """Create and save a document object in the database."""
     new_document = Document.objects.create(
         project=project,
         raw_document_id=convert_to_target_type(document.doc_id),

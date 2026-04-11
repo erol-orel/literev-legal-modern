@@ -68,7 +68,7 @@ def get_dataframe_project(project: Project) -> pd.DataFrame:
     return df
 
 
-def get_es_scores(project: Project) -> dict[int, str]:
+def get_es_scores(project: Project) -> dict[int, float]:
     """
     Loads saved elasticsearch scores.
     Parameters
@@ -78,7 +78,7 @@ def get_es_scores(project: Project) -> dict[int, str]:
 
     Returns
     -------
-    dict[int, str]
+    dict[int, float]
         Dictionary with document_id as key and elasticsearch
         score as value for the project.
     """
@@ -89,7 +89,7 @@ def get_es_scores(project: Project) -> dict[int, str]:
 
     scores = joblib.load(path)
 
-    return scores
+    return cast(dict[int, float], scores)
 
 
 def load_hdbscan_prob(project: Project) -> list[float]:

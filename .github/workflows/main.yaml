@@ -25,7 +25,7 @@ env:
   ES_USERNAME: "elastic"
   FRONTEND_HOST_PORT: 8000
   POSTGRES_PORT: 35432
-  POSTGRES_HOST: localhost # literev-postgres
+  POSTGRES_HOST: localhost
   POSTGRES_DB: postgres
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: postgres
@@ -60,35 +60,18 @@ jobs:
     name: Check if branch is ahead of main
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Skip on push
+        if: ${{ github.event_name != 'pull_request' }}
+        run: echo "Branch freshness check only applies to pull requests."
 
-      # - name: self-hosted setup
-      #   run: |
-      #     export HOST_UID=$(id -u)
-      #     export HOST_GID=$(id -g)
-      #     sudo mkdir -p /home/ci/actions-runner/_work/literev-legal/literev-legal/
-      #     sudo chown -R ${HOST_UID}:${HOST_GID} /home/ci/actions-runner/_work/literev-legal/literev-legal/
-      #     sudo mkdir -p  /tmp/literev/
-      #     sudo chown -R ${HOST_UID}:${HOST_GID} /tmp/literev
-
-      - name: dir setup
-        run: |
-          export HOST_UID=$(id -u)
-          export HOST_GID=$(id -g)
-          sudo mkdir -p  /tmp/literev/
-          sudo chown -R ${HOST_UID}:${HOST_GID} /tmp/literev
-
-      - name: Prune Docker system
-        if: ${{ always() && github.event_name != 'pull_request' && github.event_name != 'pull_request_target' && env.ci_enable_debugging != 'true' }}
-        run: docker system prune -a -f
-
-      - name: Git checkout
-        uses: actions/checkout@v4
+      - name: Checkout
         if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Fetch main
+        if: ${{ github.event_name == 'pull_request' }}
         run: git fetch origin main
 
       - name: Check if branch is ahead of main
@@ -99,31 +82,129 @@ jobs:
             exit 1
           fi
 
-  test:
-    name: Run tests and display coverage
+  detect_changes:
+    name: Detect changed scopes
+    needs: check_branch
+    runs-on: ubuntu-latest
+    outputs:
+      lib_matrix: ${{ steps.matrix.outputs.lib_matrix }}
+      run_libs: ${{ steps.matrix.outputs.run_libs }}
+      run_app: ${{ steps.matrix.outputs.run_app }}
+      run_import_boundaries: ${{ steps.matrix.outputs.run_import_boundaries }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            full_regression:
+              - 'libs/lt_contracts/**'
+              - 'pyproject.toml'
+              - '.makim.yaml'
+              - '.pre-commit-config.yaml'
+              - '.github/workflows/**'
+              - 'conda/**'
+              - 'scripts/install-dev.sh'
+              - 'scripts/check_import_boundaries.py'
+              - 'tests/import_boundaries/**'
+            app:
+              - 'src/literev/**'
+              - 'src/config/**'
+              - 'src/conftest.py'
+            import_boundaries:
+              - 'libs/**'
+              - 'scripts/check_import_boundaries.py'
+              - 'tests/import_boundaries/**'
+            lt_contracts:
+              - 'libs/lt_contracts/**'
+            lt_query:
+              - 'libs/lt_query/**'
+            lt_search:
+              - 'libs/lt_search/**'
+            lt_preprocessing:
+              - 'libs/lt_preprocessing/**'
+            lt_clustering:
+              - 'libs/lt_clustering/**'
+            lt_rag:
+              - 'libs/lt_rag/**'
+            lt_refinement:
+              - 'libs/lt_refinement/**'
+            lt_legal:
+              - 'libs/lt_legal/**'
+
+      - id: matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          all_libs='["lt_contracts","lt_query","lt_search","lt_preprocessing","lt_clustering","lt_rag","lt_refinement","lt_legal"]'
+          run_libs=false
+          run_app=false
+          run_import_boundaries=false
+
+          if [[ "${{ github.event_name }}" == "push" || "${{ steps.filter.outputs.full_regression }}" == "true" ]]; then
+            lib_matrix="{\"lib\":${all_libs}}"
+            run_libs=true
+            run_app=true
+            run_import_boundaries=true
+          else
+            selected=()
+            [[ "${{ steps.filter.outputs.lt_contracts }}" == "true" ]] && selected+=('"lt_contracts"')
+            [[ "${{ steps.filter.outputs.lt_query }}" == "true" ]] && selected+=('"lt_query"')
+            [[ "${{ steps.filter.outputs.lt_search }}" == "true" ]] && selected+=('"lt_search"')
+            [[ "${{ steps.filter.outputs.lt_preprocessing }}" == "true" ]] && selected+=('"lt_preprocessing"')
+            [[ "${{ steps.filter.outputs.lt_clustering }}" == "true" ]] && selected+=('"lt_clustering"')
+            [[ "${{ steps.filter.outputs.lt_rag }}" == "true" ]] && selected+=('"lt_rag"')
+            [[ "${{ steps.filter.outputs.lt_refinement }}" == "true" ]] && selected+=('"lt_refinement"')
+            [[ "${{ steps.filter.outputs.lt_legal }}" == "true" ]] && selected+=('"lt_legal"')
+
+            if (( ${#selected[@]} > 0 )); then
+              lib_json=$(printf '%s\n' "${selected[@]}" | paste -sd, -)
+              lib_matrix="{\"lib\":[${lib_json}]}"
+              run_libs=true
+              run_import_boundaries=true
+            else
+              lib_matrix='{"lib":[]}'
+            fi
+
+            if [[ "${{ steps.filter.outputs.app }}" == "true" ]]; then
+              run_app=true
+            fi
+
+            if [[ "${{ steps.filter.outputs.import_boundaries }}" == "true" ]]; then
+              run_import_boundaries=true
+            fi
+          fi
+
+          echo "lib_matrix=${lib_matrix}" >> "$GITHUB_OUTPUT"
+          echo "run_libs=${run_libs}" >> "$GITHUB_OUTPUT"
+          echo "run_app=${run_app}" >> "$GITHUB_OUTPUT"
+          echo "run_import_boundaries=${run_import_boundaries}" >> "$GITHUB_OUTPUT"
+
+  linter:
+    name: Linter
+    needs: check_branch
     runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash -el {0}
-    timeout-minutes: 120
+    timeout-minutes: 60
     concurrency:
-      group: ci-main-tests-${{ github.ref }}
+      group: ci-main-linter-${{ github.ref }}
       cancel-in-progress: true
-    permissions:
-      pull-requests: write
-      contents: write
-      actions: read
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: dir setup
+      - name: Dir setup
         run: |
           export HOST_UID=$(id -u)
           export HOST_GID=$(id -g)
           BASE_DIR=/tmp/literev
 
-          for dir in articles plot pkl static; do
+          for dir in articles cache logs plot pkl static; do
             sudo mkdir -p "${BASE_DIR}/${dir}"
           done
 
@@ -144,159 +225,8 @@ jobs:
           environment-name: literev
           generate-run-shell: false
           create-args: -v
-          init-shell: >-
-            bash
-          # cache-environment: true
-          post-cleanup: "all"
-
-      - name: Create environment variables files
-        run: |
-          export FRONTEND_HOST_PORT=${FRONTEND_HOST_PORT}
-          export POSTGRES_PORT=${POSTGRES_PORT}
-          export DOCKER_PROJECT_NAME=$RANDOM
-          export HOST_UID=${HOST_UID}
-          export HOST_GID=${HOST_GID}
-          envsubst < .env.tpl > .env
-
-      - name: Clean broken certifi metadata
-        run: |
-          echo "Removing stray certifi dist-info so pip won't choke..."
-          rm -rf "${CONDA_PREFIX}/lib/python3.10/site-packages"/certifi-*.dist-info
-
-      - name: Install dependencies
-        run: ./scripts/install-dev.sh
-
-      - name: Generate Redis ACL config & password
-        run: |
-          makim containers.redis-setup
-          echo "REDIS_PASSWORD=$(cat containers/redis/config/redis.pass)" >> "$GITHUB_ENV"
-
-      - name: Start test Redis (host-visible)
-        run: |
-          docker rm -f test-redis 2>/dev/null || true
-          docker run -d --name test-redis -p 6379:6379 \
-            -v "$PWD/containers/redis/config:/usr/local/etc/redis:ro" \
-            redis:7-alpine redis-server /usr/local/etc/redis/redis.conf
-          # Wait for Redis to be ready with ACL auth
-          PASS="$(cat containers/redis/config/redis.pass)"
-          for i in {1..30}; do
-            if docker exec test-redis redis-cli --user app --pass "$PASS" PING | grep -q PONG; then
-              echo "Redis is ready"; break
-            fi
-            sleep 1
-          done
-
-      - name: Clean-up
-        run: |
-          makim clean.all
-
-      - name: Clean-up
-        run: |
-          makim clean.all
-
-      - name: Remove old database
-        run: sugar compose down -- --volumes || true
-
-      - name: Build images
-        run: sugar compose build --services literev-postgres
-
-      - name: Start literev-postgres container
-        run: sugar compose-ext start -- -d
-
-      - name: Migrate containers
-        run: makim django.migrate
-
-      - name: Check migration files
-        if: ${{ success() || failure() }}
-        run: makim --verbose django.makemigrations --check
-
-      - name: Run tests
-        run: makim tests.unit --clean-cov
-
-      - name: Set coverage report
-        id: parse-coverage-report
-        run: |
-          COVERAGE_REPORT=$(makim tests.coverage-report)
-          COVERAGE_PERCENTAGE=$(echo $COVERAGE_REPORT | grep -oP "TOTAL.* \K(\d{1,3})%")
-          COVERAGE_PERCENTAGE=${COVERAGE_PERCENTAGE%?}
-          STATE=$(if ((COVERAGE_PERCENTAGE<50)); then echo "critical"; elif ((50<=COVERAGE_PERCENTAGE && COVERAGE_PERCENTAGE<=74)); then echo "yellow"; elif ((75<=COVERAGE_PERCENTAGE)); then echo "success"; fi)
-          COVERAGE_REPORT="${COVERAGE_REPORT//'%'/'%25'}"
-          COVERAGE_REPORT="${COVERAGE_REPORT//$'\n'/'%0A'}"
-          COVERAGE_REPORT="${COVERAGE_REPORT//$'\r'/'%0D'}"
-          DABGE="https://img.shields.io/static/v1?label=Code%20Coverage&message=${COVERAGE_PERCENTAGE}%&color=${STATE}"
-          echo "::set-output name=COVERAGE_REPORT::$COVERAGE_REPORT"
-          echo "::set-output name=DABGE::$DABGE"
-
-      - uses: mshick/add-pr-comment@v1
-        with:
-          message: |
-            ![Code Coverage](${{ steps.parse-coverage-report.outputs.DABGE }})
-            ```
-            ${{ steps.parse-coverage-report.outputs.COVERAGE_REPORT }}
-            ```
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          repo-token-user-login: "github-actions[bot]"
-
-      - name: Show Logs
-        if: ${{ failure() }}
-        run: sugar compose logs -- -n 100
-
-      - name: Stop services
-        run: |
-          sugar compose stop
-          sugar compose down -- --volumes
-
-      - name: Semantic Release PR Title Check
-        uses: osl-incubator/semantic-release-pr-title-check@v1.4.1
-        if: ${{ success() || failure() }}
-        with:
-          convention-name: conventionalcommits
-
-  linter:
-    name: Linter
-    needs: check_branch
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash -el {0}
-    timeout-minutes: 60
-    concurrency:
-      group: ci-main-linter-${{ github.ref }}
-      cancel-in-progress: true
-    permissions:
-      pull-requests: write
-      contents: write
-      actions: read
-
-    steps:
-      - uses: actions/checkout@v4
-
-      # - name: self-hosted setup
-      #   run: |
-      #     export HOST_UID=$(id -u)
-      #     export HOST_GID=$(id -g)
-      #     sudo chown -R ${HOST_UID}:${HOST_GID} /home/ci/actions-runner/_work/literev-legal/literev-legal/
-
-      - name: dir setup
-        run: |
-          export HOST_UID=$(id -u)
-          export HOST_GID=$(id -g)
-          sudo mkdir -p /opt/data/literev
-          sudo chown -R ${HOST_UID}:${HOST_GID} /opt/data/literev
-
-      - name: Install Operating System dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install gettext-base
-
-      - uses: conda-incubator/setup-miniconda@v3
-        with:
-          miniconda-version: "latest"
-          environment-file: conda/base.yaml
-          channels: conda-forge,nodefaults
-          activate-environment: literev-legal
-          auto-update-conda: true
-          conda-solver: libmamba
+          init-shell: bash
+          post-cleanup: all
 
       - name: Create environment variables files
         run: |
@@ -318,67 +248,177 @@ jobs:
       - name: Run linter
         run: makim tests.lint
 
-  containers:
-    name: Test the container's stack
-    needs: check_branch
-    if: false
-    runs-on: self-hosted
-
-    strategy:
-      matrix:
-        env_name:
-          - "dev"
-          # - 'staging'
-
+  import_boundaries:
+    name: Import Boundaries
+    needs: [check_branch, detect_changes]
+    if: ${{ needs.detect_changes.outputs.run_import_boundaries == 'true' }}
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash -el {0}
-    timeout-minutes: 40
-    concurrency:
-      group: ci-main-containers-${{ matrix.env_name }}-${{ github.ref }}
-      cancel-in-progress: true
-
-    env:
-      DJANGO_ENV: ${{ matrix.env_name }}
-      DJANGO_SETTINGS_MODULE: config.settings.${{ matrix.env_name }}
-      ENV: ${{ matrix.env_name }}
-      POSTGRES_HOST: literev-postgres
-      USE_CONTAINER: true
-
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
-      - name: Self-hosted setup
+      - name: Dir setup
         run: |
           export HOST_UID=$(id -u)
           export HOST_GID=$(id -g)
-          sudo chown -R "${HOST_UID}:${HOST_GID}" /home/ci/actions-runner/_work/literev-legal/literev-legal/
-
           BASE_DIR=/tmp/literev
 
-          # Create directories
-          for dir in articles plot pkl static; do
+          for dir in articles cache logs plot pkl static; do
             sudo mkdir -p "${BASE_DIR}/${dir}"
           done
 
           sudo mkdir -p /opt/data/literev
           sudo chown -R "${HOST_UID}:${HOST_GID}" "${BASE_DIR}" /opt/data/literev
 
-      - uses: actions/checkout@v3
+      - name: Install Operating System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install gettext-base
+
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: conda/base.yaml
+          condarc-file: .github/workflows/.condarc
+          micromamba-binary-path: ${{ runner.temp }}/bin/micromamba
+          micromamba-root-path: ${{ runner.temp }}/micromamba
+          environment-name: literev
+          generate-run-shell: false
+          create-args: -v
+          init-shell: bash
+          post-cleanup: all
+
+      - name: Create environment variables files
+        run: |
+          export FRONTEND_HOST_PORT=${FRONTEND_HOST_PORT}
+          export POSTGRES_PORT=${POSTGRES_PORT}
+          export DOCKER_PROJECT_NAME=$RANDOM
+          export HOST_UID=${HOST_UID}
+          export HOST_GID=${HOST_GID}
+          envsubst < .env.tpl > .env
+
+      - name: Clean broken certifi metadata
+        run: |
+          echo "Removing stray certifi dist-info so pip won't choke..."
+          rm -rf "${CONDA_PREFIX}/lib/python3.10/site-packages"/certifi-*.dist-info
+
+      - name: Install dependencies
+        run: ./scripts/install-dev.sh
+
+      - name: Run import boundary suite
+        run: makim tests.import-boundaries
+
+  lib_tests:
+    name: Lib Tests (${{ matrix.lib }})
+    needs: [check_branch, detect_changes]
+    if: ${{ needs.detect_changes.outputs.run_libs == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.detect_changes.outputs.lib_matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dir setup
+        run: |
+          export HOST_UID=$(id -u)
+          export HOST_GID=$(id -g)
+          BASE_DIR=/tmp/literev
+
+          for dir in articles cache logs plot pkl static; do
+            sudo mkdir -p "${BASE_DIR}/${dir}"
+          done
+
+          sudo mkdir -p /opt/data/literev
+          sudo chown -R "${HOST_UID}:${HOST_GID}" "${BASE_DIR}" /opt/data/literev
 
       - name: Install Operating System dependencies
         run: |
           sudo apt-get update
           sudo apt-get install gettext-base
 
-      - uses: conda-incubator/setup-miniconda@v3
+      - uses: mamba-org/setup-micromamba@v2
         with:
-          miniconda-version: "latest"
           environment-file: conda/base.yaml
-          channels: conda-forge,nodefaults
-          activate-environment: literev-legal
-          auto-update-conda: true
-          conda-solver: libmamba
+          condarc-file: .github/workflows/.condarc
+          micromamba-binary-path: ${{ runner.temp }}/bin/micromamba
+          micromamba-root-path: ${{ runner.temp }}/micromamba
+          environment-name: literev
+          generate-run-shell: false
+          create-args: -v
+          init-shell: bash
+          post-cleanup: all
+
+      - name: Create environment variables files
+        run: |
+          export FRONTEND_HOST_PORT=${FRONTEND_HOST_PORT}
+          export POSTGRES_PORT=${POSTGRES_PORT}
+          export DOCKER_PROJECT_NAME=$RANDOM
+          export HOST_UID=${HOST_UID}
+          export HOST_GID=${HOST_GID}
+          envsubst < .env.tpl > .env
+
+      - name: Clean broken certifi metadata
+        run: |
+          echo "Removing stray certifi dist-info so pip won't choke..."
+          rm -rf "${CONDA_PREFIX}/lib/python3.10/site-packages"/certifi-*.dist-info
+
+      - name: Install dependencies
+        run: ./scripts/install-dev.sh
+
+      - name: Run lib suite
+        run: makim tests.lib --lib ${{ matrix.lib }}
+
+  app_tests:
+    name: App Tests
+    needs: [check_branch, detect_changes]
+    if: ${{ needs.detect_changes.outputs.run_app == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+    timeout-minutes: 120
+    concurrency:
+      group: ci-main-app-tests-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dir setup
+        run: |
+          export HOST_UID=$(id -u)
+          export HOST_GID=$(id -g)
+          BASE_DIR=/tmp/literev
+
+          for dir in articles cache logs plot pkl static; do
+            sudo mkdir -p "${BASE_DIR}/${dir}"
+          done
+
+          sudo mkdir -p /opt/data/literev
+          sudo chown -R "${HOST_UID}:${HOST_GID}" "${BASE_DIR}" /opt/data/literev
+
+      - name: Install Operating System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install gettext-base
+
+      - uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: conda/base.yaml
+          condarc-file: .github/workflows/.condarc
+          micromamba-binary-path: ${{ runner.temp }}/bin/micromamba
+          micromamba-root-path: ${{ runner.temp }}/micromamba
+          environment-name: literev
+          generate-run-shell: false
+          create-args: -v
+          init-shell: bash
+          post-cleanup: all
 
       - name: Create environment variables files
         run: |
@@ -402,29 +442,61 @@ jobs:
           makim containers.redis-setup
           echo "REDIS_PASSWORD=$(cat containers/redis/config/redis.pass)" >> "$GITHUB_ENV"
 
-      - name: Clean-up and Setup
+      - name: Start test Redis
         run: |
-          makim clean.all
+          docker rm -f test-redis 2>/dev/null || true
+          docker run -d --name test-redis -p 6379:6379 \
+            -v "$PWD/containers/redis/config:/usr/local/etc/redis:ro" \
+            redis:7-alpine redis-server /usr/local/etc/redis/redis.conf
+
+          PASS="$(cat containers/redis/config/redis.pass)"
+          for i in {1..30}; do
+            if docker exec test-redis redis-cli --user app --pass "$PASS" PING | grep -q PONG; then
+              echo "Redis is ready"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Clean-up
+        run: makim clean.all
 
       - name: Remove old database
         run: sugar compose down -- --volumes || true
 
       - name: Build images
-        run: sugar compose build
+        run: sugar compose build --services literev-postgres
 
-      - name: Start containers
-        run: sugar compose-ext restart -- -d
+      - name: Start literev-postgres container
+        run: sugar compose-ext start -- -d
 
-      - name: Containers' info
-        run: |
-          sleep 30
-          sugar compose ps
+      - name: Migrate containers
+        run: makim django.migrate
+
+      - name: Check migration files
+        if: ${{ success() || failure() }}
+        run: makim --verbose django.makemigrations --check
+
+      - name: Run app suite
+        run: makim tests.app
 
       - name: Show Logs
         if: ${{ failure() }}
         run: sugar compose logs -- -n 100
 
       - name: Stop services
+        if: ${{ success() || failure() }}
         run: |
+          docker rm -f test-redis 2>/dev/null || true
           sugar compose stop
           sugar compose down -- --volumes
+
+  semantic_release_pr_title_check:
+    name: Semantic Release PR Title Check
+    if: ${{ github.event_name == 'pull_request' }}
+    needs: check_branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: osl-incubator/semantic-release-pr-title-check@v1.4.1
+        with:
+          convention-name: conventionalcommits

@@ -170,3 +170,7 @@ tmp/
 redis.pass
 redis.conf
 .env.bak
+
+# AI
+.codex/
+PLAN.md

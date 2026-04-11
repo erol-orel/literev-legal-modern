@@ -11,9 +11,18 @@ requires-python = ">=3.11,<3.12"
 authors = [
   {name = "Aziza", email = "FatmaAziza.Merzouki@unige.ch"},
   {name = "Erol", email = "Erol.Orel@unige.ch"},
+  {name = "Ivan Ogasawara", email = "ivan.ogasawara@gmail.com"},
 ]
 
 dependencies = [
+  "lt-contracts",
+  "lt-query",
+  "lt-search",
+  "lt-preprocessing",
+  "lt-clustering",
+  "lt-rag",
+  "lt-refinement",
+  "lt-legal",
   "elasticsearch >=8.12.1,<9.0.0",
   "django >=5.0.3",
   "django-allauth >=0.61.0",
@@ -59,6 +68,19 @@ dependencies = [
   "rapidfuzz >=3.14.3",
 ]
 
+[tool.uv.workspace]
+members = ["libs/*"]
+
+[tool.uv.sources]
+lt-contracts = { workspace = true }
+lt-query = { workspace = true }
+lt-search = { workspace = true }
+lt-preprocessing = { workspace = true }
+lt-clustering = { workspace = true }
+lt-rag = { workspace = true }
+lt-refinement = { workspace = true }
+lt-legal = { workspace = true }
+
 [project.optional-dependencies]
 dev = [
   "pytest >=8.3.3",
@@ -95,12 +117,13 @@ Issues = "https://github.com/your-org-or-user/literev/issues"
 
 # --- setuptools (src-layout) ---
 [tool.setuptools]
-package-dir = { "" = "src" }
+package-dir = { "" = "." }
 include-package-data = true
 
-# Prefer the inline 'find' form to prevent accidental extra keys
+# The Django application ships from src/; lt_* libraries are installed as
+# production dependencies from libs/<name>/.
 [tool.setuptools.packages]
-find = { where = ["src"], include = ["literev*", "literev_core*"] }
+find = { where = ["src"], include = ["config*", "literev*", "literev_core*"] }
 
 # Ensure non-Python files land in the wheel
 [tool.setuptools.package-data]
@@ -117,12 +140,12 @@ literev_core = ["data/**"]
 [tool.pytest.ini_options]
 minversion = "6.0"
 DJANGO_SETTINGS_MODULE = "config.settings.test"
-addopts = "--ds=config.settings.test -v -ra --cov=src --reuse-db"
-pythonpath = "src"
+addopts = "--ds=config.settings.test -v -ra --cov=src --cov=libs --reuse-db"
+pythonpath = ["src", "libs/lt_contracts/src", "libs/lt_query/src", "libs/lt_search/src", "libs/lt_preprocessing/src", "libs/lt_clustering/src", "libs/lt_rag/src", "libs/lt_refinement/src", "libs/lt_legal/src"]
 python_files = ["tests.py", "test_*.py"]
 
 [tool.coverage.run]
-include = ["src/**"]
+include = ["src/**", "libs/**"]
 omit = [
   "*/migrations/*",
   "*/tests/*",
@@ -135,7 +158,7 @@ plugins = ["django_coverage_plugin"]
 
 [tool.bandit]
 exclude_dirs = ["tests", "migrations"]
-targets = "src/"
+targets = "src/, libs/"
 
 [tool.vulture]
 exclude = ["tests", "migrations", "scripts"]
@@ -143,13 +166,13 @@ ignore_decorators = []
 ignore_names = []
 make_whitelist = true
 min_confidence = 80
-paths = ["src/"]
+paths = ["src/", "libs/"]
 verbose = false
 
 [tool.ruff]
 line-length = 79
 force-exclude = true
-src = ["./src"]
+src = ["./src", "./libs/lt_contracts/src", "./libs/lt_query/src", "./libs/lt_search/src", "./libs/lt_preprocessing/src", "./libs/lt_clustering/src", "./libs/lt_rag/src", "./libs/lt_refinement/src", "./libs/lt_legal/src", "./tests"]
 exclude = ["docs", "migrations", "urls.py", "scripts"]
 fix = true
 
@@ -167,7 +190,7 @@ lines-between-types = 1
 quote-style = "double"
 
 [tool.mypy]
-mypy_path = "src/backend/"
+mypy_path = "src:libs/lt_contracts/src:libs/lt_query/src:libs/lt_search/src:libs/lt_preprocessing/src:libs/lt_clustering/src:libs/lt_rag/src:libs/lt_refinement/src:libs/lt_legal/src"
 exclude = [
   'tests/*',
   'docs/*',

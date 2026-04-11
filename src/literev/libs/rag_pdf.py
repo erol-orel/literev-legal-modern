@@ -8,7 +8,6 @@ import logging
 
 from datetime import datetime
 from functools import wraps
-from hashlib import sha256
 from pathlib import Path
 from typing import (
     Any,
@@ -27,31 +26,14 @@ from django.conf import settings
 from django.db.models import F
 from django.db.models.query import QuerySet
 from joblib import Parallel, delayed
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    create_model,
-    field_validator,
-    model_validator,
-)
+from pydantic import BaseModel
 from rago import Rago
 from rago.augmented import OpenAIAug
 from rago.extensions.cache import CacheFile
 from rago.generation import OpenAIGen
 from rago.retrieval import StringRet
 
-from literev.legal.extract_minor_major import (
-    Classification,
-    classify_chunks_llm,
-    get_sentences,
-    materialize_classification,
-    normalize_text,
-    openai_llm_call,
-    pack_chunks,
-    split_sentences_fr_legal,
-)
+from literev.legal.extract_minor_major import openai_llm_call
 from literev.libs.chroma_utils import (
     chroma_client,
     # chroma_client_adm,
@@ -60,7 +42,6 @@ from literev.libs.chroma_utils import (
     llm_answer,
     openai_client,
 )
-from literev.libs.parsing import extract_after_endroit
 from literev.libs.rag_classes import HactarAug, HactarGen
 from literev.libs.scoring import (
     get_faithfulness_score,
@@ -71,6 +52,54 @@ from literev.models import (
     ProjectDocumentRAG,
     ProjectRAG,
     ProjectRAGStats,
+)
+from lt_legal import (
+    Classification,
+    classify_chunks_llm,
+    get_sentences,
+    materialize_classification,
+    normalize_text,
+    pack_chunks,
+    split_sentences_fr_legal,
+)
+from lt_rag import (
+    ClosedAnswerClassification as LtClosedAnswerClassification,
+)
+from lt_rag import (
+    MinorMajorPair as LtMinorMajorPair,
+)
+from lt_rag import (
+    QuestionTypeClassification as LtQuestionTypeClassification,
+)
+from lt_rag import (
+    RAGAnswer as LtRAGAnswer,
+)
+from lt_rag import (
+    SummaryGeneralAnswer as LtSummaryGeneralAnswer,
+)
+from lt_rag import (
+    build_consideration_model as lt_build_consideration_model,
+)
+from lt_rag import (
+    compute_document_cache_key as lt_compute_document_cache_key,
+)
+from lt_rag import (
+    compute_faithfulness_cache_key as lt_compute_faithfulness_cache_key,
+)
+from lt_rag import (
+    flatten_and_sanitize as lt_flatten_and_sanitize,
+)
+from lt_rag import (
+    flatten_json_values as lt_flatten_json_values,
+)
+from lt_rag import (
+    prepare_chunks as lt_prepare_chunks,
+)
+from lt_rag import (
+    sanitize_replace as lt_sanitize_replace,
+)
+from lt_rag import (
+    sanitize_text_replace as lt_sanitize_text_replace,
 )
 
 MODEL_CHAT = "gpt-4.1-mini"
@@ -108,178 +137,23 @@ def ret_cache(func: Callable[[str], list[str]]) -> Callable[[str], list[str]]:
     return wrapper
 
 
-INVALID_CHARS = ["\x00"]
-
-
-def sanitize_text_replace(s: str) -> str:
-    """Remove null chars from a string."""
-    if not isinstance(s, str):
-        return s
-    for ch in INVALID_CHARS:
-        s = s.replace(ch, "")  # or ' ' or '\uFFFD'
-    return s
-
-
-def flatten_and_sanitize(answer):
-    """
-    Transform list and dicts to its equivalent string.
-
-    Every string is sanitized(removes null chars in the text).
-    """
-    answer = sanitize_replace(answer)
-    json_value = json.loads(answer)
-    flatten = flatten_json_values(json_value)
-
-    return json.dumps(flatten)
-
-
-def flatten_json_values(d):
-    """Flatten values from a dictionary."""
-    for k, v in d.items():
-        if isinstance(v, dict):
-            # Join inner dict as lines of key: value
-            d[k] = "\n".join(f"{ik}: {iv}" for ik, iv in v.items())
-        elif isinstance(v, list):
-            # Join list as a single string (comma or bullet points)
-            d[k] = "\n".join(str(item) for item in v)
-        else:
-            d[k] = str(v)
-    return d
-
-
-def sanitize_replace(obj):
-    """Sanitize string from object."""
-    if isinstance(obj, str):
-        return sanitize_text_replace(obj)
-    if isinstance(obj, list):
-        return [sanitize_replace(x) for x in obj]
-    if isinstance(obj, dict):
-        return {
-            (
-                sanitize_text_replace(k) if isinstance(k, str) else k
-            ): sanitize_replace(v)
-            for k, v in obj.items()
-        }
-    return obj
-
-
-def compute_document_cache_key(query: str, document_id: int) -> str:
-    """Compute a stable cache key per document, tied to a specific query."""
-    return sha256(f"{query.strip()}::{document_id}".encode()).hexdigest()
-
-
-def compute_faithfulness_cache_key(
-    query: str,
-    document_id: int,
-    answer: str,
-    citation_context: list[str] | list[dict] | None,
-) -> str:
-    payload = {
-        "query": query.strip(),
-        "document_id": document_id,
-        "answer": (answer or "").strip(),
-        "citation_context": citation_context or [],
-    }
-    blob = json.dumps(payload, ensure_ascii=False, sort_keys=True)
-    return sha256(blob.encode("utf-8")).hexdigest()
-
-
-class MinorMajorPair(BaseModel):
-    """
-    Structured output for Minor/Major classification.
-
-    Accepts several key variants from LLMs and normalizes to:
-    - majeure: List[str]
-    - mineure: List[str]
-    """
-
-    model_config = ConfigDict(extra="ignore")
-
-    majeure: List[str] = Field(
-        default_factory=list,
-    )
-    mineure: List[str] = Field(
-        default_factory=list,
-    )
-
-    @model_validator(mode="before")
-    @classmethod
-    def _coerce_aliases(cls, incoming: Dict[str, Any]) -> Dict[str, Any]:
-        if not isinstance(incoming, dict):
-            return incoming
-
-        maj = (
-            incoming.get("majeure")
-            or incoming.get("Majeure")
-            or incoming.get("majeures")
-            or incoming.get("Majeures")
-        )
-        minr = (
-            incoming.get("mineure")
-            or incoming.get("Mineure")
-            or incoming.get("mineures")
-            or incoming.get("Mineures")
-        )
-
-        if maj is not None:
-            incoming["majeure"] = maj
-        if minr is not None:
-            incoming["mineure"] = minr
-        return incoming
-
-
-class RAGAnswer(BaseModel):
-    """Model for RAG Answers."""
-
-    answer: str = Field(
-        ...,
-        description="The answer",
-    )
-    highlight: str = Field(
-        ...,
-        description="The most relevant context.",
-    )
-
-
-class SummaryGeneralAnswer(BaseModel):
-    summary: str = Field(
-        ...,
-        description="The answer",
-    )
-
-    considerations: list[str]
-
-
-class ClosedAnswerClassification(BaseModel):
-    answer: str = Field(..., description="Document answer")
-    category: Literal["oui", "non", "peut_etre", "mixte"]
-
-    @field_validator("category")
-    def validate_category(cls, v):
-        allowed = ["oui", "non", "peut_etre", "mixte"]
-        if v not in allowed:
-            raise ValueError(f"Invalid category: {v}")
-        return v
-
-
-def build_consideration_model(count: int):
-    fields = {f"argument_{i + 1}": (bool, ...) for i in range(count)}
-    return create_model("DynamicEvaluationModel", **fields)
-
-
-class QuestionTypeClassification(BaseModel):
-    question_type: Literal["open", "closed"]
+sanitize_text_replace = lt_sanitize_text_replace
+flatten_and_sanitize = lt_flatten_and_sanitize
+flatten_json_values = lt_flatten_json_values
+sanitize_replace = lt_sanitize_replace
+compute_document_cache_key = lt_compute_document_cache_key
+compute_faithfulness_cache_key = lt_compute_faithfulness_cache_key
+MinorMajorPair = LtMinorMajorPair
+RAGAnswer = LtRAGAnswer
+SummaryGeneralAnswer = LtSummaryGeneralAnswer
+ClosedAnswerClassification = LtClosedAnswerClassification
+build_consideration_model = lt_build_consideration_model
+QuestionTypeClassification = LtQuestionTypeClassification
 
 
 @ret_cache
 def prepare_chunks(text: str) -> list[str]:
-    """Split input text into overlapping chunks for better retrieval."""
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000, chunk_overlap=200
-    )
-    text_after_endroit = extract_after_endroit(text)
-
-    return splitter.split_text(text_after_endroit)
+    return lt_prepare_chunks(text)
 
 
 def get_rag_generator(
@@ -343,7 +217,9 @@ class OpenAIAnswerClient:
         )
 
     def get_answer(self, query, chunks):
-        answer_dict = {}
+        answer_dict: dict[str, Any] = {}
+        augmented: HactarAug | OpenAIAug
+        generation: HactarGen | OpenAIGen
 
         if settings.USE_HACTAR_LLM:
             augmented = HactarAug(
@@ -592,7 +468,7 @@ class StatsGenerator:
             output_max_length=256,
         )
 
-        categories = []
+        categories: list[str] = []
 
         for answer in answers:
             try:
@@ -894,7 +770,7 @@ class StatsGenerator:
     def tag_answers_considerations(
         self,
         considerations: list[str],
-        valid_rags: QuerySet[ProjectRAGStats],
+        valid_rags: QuerySet[ProjectDocumentRAG],
         classification_stats: dict[str, Any],
     ) -> list[Any]:
         """
@@ -1007,21 +883,26 @@ class RagAnswersManager:
         self,
         cache_key: str,
         document: Document,
-        answer_dict: dict[str, str],
+        answer_dict: dict[str, Any],
         reason: str = "Réponse non disponible",
     ) -> None:
+        citation = str(answer_dict.get("citation", reason) or reason)
+        answer = str(answer_dict.get("answer", reason) or reason)
+        citation_context = answer_dict.get("citation_context", [])
+
         ProjectDocumentRAG.objects.create(
             project_rag=self.project_rag,
             document=document,
-            citation=answer_dict["citation_context"],
-            answer=answer_dict["answer"],
+            citation=citation,
+            answer=answer,
+            citation_context=citation_context,
         )
         DOCUMENT_CACHE.save(
             cache_key,
             {
-                "citation": reason,
-                "answer": answer_dict["answer"],
-                "citation_context": answer_dict["citation_context"],
+                "citation": citation,
+                "answer": answer,
+                "citation_context": citation_context,
             },
         )
         logger.debug(f"[RAG] Saved result to cache for article #{document.id}")
@@ -1192,20 +1073,18 @@ class RagAnswersManager:
         logger.debug("Starting RAG processing for documents.")
 
         # Getting documents queryset
-        queryset = Document.objects.filter(id__in=self.documents_ids).order_by(
-            "id"
+        documents = list(
+            Document.objects.filter(id__in=self.documents_ids).order_by("id")
         )
         if max_doc_ans:
-            queryset = sort_documents_by_es_score(
-                self.project_rag.project, queryset
+            documents = sort_documents_by_es_score(
+                self.project_rag.project, documents
             )
-        else:
-            queryset = list(queryset)
 
         self.project_rag.status = "questioning_documents"
         self.project_rag.save()
 
-        self.get_and_save_answers_from_documents(queryset, max_doc_ans)
+        self.get_and_save_answers_from_documents(documents, max_doc_ans)
 
         # Generating confidence score for answers
         self.project_rag.status = "generating_scores"
@@ -1565,6 +1444,8 @@ def get_answer_document_worker(
     payload, question, embedded_question, collection
 ):
     record_key = payload["record_key"]
+    block_section: dict[str, Any] = {}
+    answer = ""
     try:
         logging.info(
             f"Getting best chunks from chroma db, record key:{record_key}"
@@ -1594,7 +1475,7 @@ def get_answer_document_worker(
             }
             """
 
-        block_section_fallback = {
+        block_section_fallback: dict[str, list[str]] = {
             "Majeure": [],
             "Mineure-Faits": [],
             "Mineure-Subsommation": [],
@@ -1808,7 +1689,7 @@ class CustomRagAnswersGenerator:
                 response_format={"type": "json_object"},
                 temperature=0.1,
             )
-            summary = resp.choices[0].message.content.strip()
+            summary = (resp.choices[0].message.content or "").strip()
             logging.info("[OK] Summary generated")
 
         except Exception as e:
@@ -1829,9 +1710,9 @@ class CustomRagAnswersGenerator:
         self.project_rag.save()
         question = self.project_rag.query
         logging.info("Getting answers from documents")
-        documents = Document.objects.filter(
-            id__in=self.documents_ids
-        ).order_by("id")
+        documents = list(
+            Document.objects.filter(id__in=self.documents_ids).order_by("id")
+        )
         if max_doc_ans:
             documents = sort_documents_by_es_score(
                 self.project_rag.project, documents
@@ -1878,6 +1759,7 @@ class CustomRagAnswersGenerator:
             ProjectDocumentRAG.objects.create(
                 project_rag=self.project_rag,
                 document_id=doc_id,  # or document=Document.objects.get(id=doc_id)
+                citation="",
                 citation_context=sanitize_replace(block_section),
                 answer=flatten_and_sanitize(answer),
             )

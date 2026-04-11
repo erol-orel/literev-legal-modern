@@ -93,6 +93,7 @@ repos:
 
       - id: mypy
         name: mypy
-        entry: mypy .
+        entry: ./scripts/run-mypy-precommit.sh
         language: system
         pass_filenames: false
+        require_serial: true

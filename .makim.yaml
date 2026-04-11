@@ -76,6 +76,46 @@ groups:
           pytest --cov=. $COVERAGE_FLAG \
             --ds=config.settings.test ${{ args.params }} ${{ args.path }}
 
+      lib:
+        help: Run a single lib suite
+        args:
+          lib:
+            help: Specify the lib package name
+            type: string
+            required: true
+        env-file: ./.env
+        env:
+          POSTGRES_HOST: localhost
+          REDIS_HOST: localhost
+          SUGAR_ENV: test
+        run: |
+          pytest --ds=config.settings.test -vvv libs/${{ args.lib }}/tests
+
+      libs-all:
+        help: Run all extracted lib suites
+        env-file: ./.env
+        env:
+          POSTGRES_HOST: localhost
+          REDIS_HOST: localhost
+          SUGAR_ENV: test
+        run: |
+          pytest --ds=config.settings.test -vvv libs
+
+      app:
+        help: Run Django app tests
+        env-file: ./.env
+        env:
+          POSTGRES_HOST: localhost
+          REDIS_HOST: localhost
+          SUGAR_ENV: test
+        run: |
+          pytest --ds=config.settings.test -vvv src/literev src/conftest.py
+
+      import-boundaries:
+        help: Run import boundary tests
+        run: |
+          pytest -vvv tests/import_boundaries
+
   django:
     tasks:
       collectstatic:

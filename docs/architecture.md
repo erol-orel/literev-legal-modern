@@ -1,276 +1,151 @@
 # Architecture Overview
 
-## What literev-legal Does
+## What The System Does
 
-literev-legal is a legal document analysis platform for French judicial texts. It lets users:
+`literev-legal` helps users search, normalize, cluster, refine, and question French legal decisions.
+The user-facing flow is still Django-first, but the core reusable algorithms now live in standalone libraries under repo-root `libs/` so they can be tested without importing Django.
 
-1. Search a corpus of French legal decisions in Elasticsearch
-2. Automatically cluster documents by topic using NLP + HDBSCAN
-3. Iteratively refine their document set through a UI-driven selection workflow
-4. Ask open-ended or closed-ended questions against their corpus using RAG (Retrieval-Augmented Generation)
+## Source Roots
 
----
+```text
+src/
+  config/                  Django bootstrapping, settings, ASGI/WSGI/Celery
+  literev/                 Django app: models, views, API, tasks
+    services/             Django orchestration and settings-backed adapters
+    repositories/         ORM/file persistence helpers
+    presenters/           HTML-safe and template-facing formatting helpers
+  literev_core/           compatibility wrappers during the extraction cutover
 
-## System Components
-
-```
-┌───────────────────────────────────────────────────────────────────────┐
-│                          Browser / API Client                         │
-└─────────────────────────────┬─────────────────────────────────────────┘
-                              │ HTTP (Django)
-┌─────────────────────────────▼─────────────────────────────────────────┐
-│                          Django Application                            │
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────────────────────┐   │
-│  │  Template     │  │  REST API    │  │  Management Commands      │   │
-│  │  Views        │  │  (DRF)       │  │  (CLI tools)              │   │
-│  └──────┬───────┘  └──────┬───────┘  └────────────┬──────────────┘   │
-│         │                 │                        │                   │
-│  ┌──────▼─────────────────▼────────────────────────▼──────────────┐  │
-│  │                     Business Logic (libs/)                       │  │
-│  │  collectors │ pipeline │ nlp │ clustering │ rag_pdf │ parsing   │  │
-│  │  table_choice │ scoring │ legal/ extraction                     │  │
-│  └─────────┬──────────────────────────────────────────────────────┘  │
-│            │                                                           │
-│  ┌─────────▼──────────────────────────┐                              │
-│  │             Celery Workers          │                              │
-│  │   (async tasks: process, cluster,   │                              │
-│  │    embed, generate, score)          │                              │
-│  └─────────────────────────────────────┘                              │
-└──────────┬──────────────┬─────────────────┬──────────────────────────┘
-           │              │                 │
-    ┌──────▼──────┐ ┌─────▼──────┐ ┌───────▼────────────────────────┐
-    │ PostgreSQL  │ │   Redis    │ │  External Services              │
-    │ (primary DB)│ │ (broker +  │ │  ┌────────────┐ ┌───────────┐  │
-    │             │ │  cache)    │ │  │Elasticsearch│ │ OpenAI    │  │
-    └─────────────┘ └────────────┘ │  │(doc search) │ │(LLM/embed)│  │
-                                   │  └────────────┘ └───────────┘  │
-                                   │  ┌────────────┐                 │
-                                   │  │ ChromaDB   │                 │
-                                   │  │(vector DB) │                 │
-                                   │  └────────────┘                 │
-                                   └─────────────────────────────────┘
-```
-
----
-
-## Data Flow: Full Pipeline
-
-### 1. Document Collection
-
-```
-User submits query + date range
-        │
-        ▼
-parsing.py: tokenize + validate Boolean query
-        │
-        ▼
-collectors.py: ElasticSearchCollector
-  └── scroll ES index with boolean query
-  └── extract MetaData (22 fields) per document
-        │
-        ▼
-pipeline.py: create_document_db()
-  └── persist Document records to PostgreSQL
+libs/
+  lt_contracts/
+    pyproject.toml        standalone library metadata
+    src/lt_contracts/     shared dataclasses and protocols
+    tests/                package-local unit tests
+  lt_query/
+    pyproject.toml        standalone library metadata
+    src/lt_query/         Boolean query parsing and Elasticsearch DSL generation
+    tests/                package-local unit tests
+  lt_search/
+    pyproject.toml        standalone library metadata
+    src/lt_search/        Elasticsearch collection and metadata extraction
+    tests/                package-local unit tests
+  lt_preprocessing/
+    pyproject.toml        standalone library metadata
+    src/lt_preprocessing/ preprocessing helpers and package data
+    tests/                package-local unit tests
+  lt_clustering/
+    pyproject.toml        standalone library metadata
+    src/lt_clustering/    TF-IDF, PaCMAP, HDBSCAN, and Optuna helpers
+    tests/                package-local unit tests
+  lt_refinement/
+    pyproject.toml        standalone library metadata
+    src/lt_refinement/    sorting, highlighting, and topic shaping helpers
+    tests/                package-local unit tests
+  lt_rag/
+    pyproject.toml        standalone library metadata
+    src/lt_rag/           framework-free RAG payload and chunking helpers
+    tests/                package-local unit tests
+  lt_legal/
+    pyproject.toml        standalone library metadata
+    src/lt_legal/         French legal sentence splitting and extraction
+    tests/                package-local unit tests
 ```
 
-### 2. NLP Preprocessing
+The repository relies on the installed Python environment to expose both the Django app package and the extracted `lt_*` libraries; the entrypoints do not mutate `sys.path` at runtime.
 
+## Dependency Direction
+
+The intended dependency graph is one-way:
+
+```text
+src/config + src/literev
+        |
+        v
+     libs/lt_*
 ```
-Documents in PostgreSQL
-        │
-        ▼
-literev_core/preprocessing.py
-  └── lingua: detect French language
-  └── spacy fr_core_news_md: tokenize + lemmatize
-  └── remove stopwords, rare/common n-grams
-  └── update Document.preprocessed_document
+
+Rules:
+
+- Code under `libs/` must not import Django, DRF, Celery, `django.conf.settings`, or modules from `src/literev/`.
+- Django-specific orchestration belongs in `src/literev/services/`.
+- ORM and file persistence belong in `src/literev/repositories/`.
+- HTML rendering, `mark_safe`, and template-facing helpers belong in `src/literev/presenters/`.
+- Compatibility wrappers may still exist in legacy modules during the cutover, but they should delegate into `libs/` rather than hosting new shared logic.
+
+The import-boundary check in `tests/import_boundaries/` enforces this rule in CI.
+
+## Runtime Architecture
+
+```text
+Browser / API client
+        |
+        v
+Django views + DRF endpoints
+        |
+        v
+Services / repositories / presenters
+        |
+        v
+Pure libraries under libs/lt_*
+        |
+        +--> Elasticsearch
+        +--> PostgreSQL via repositories
+        +--> Redis / Celery workers
+        +--> OpenAI / Hactar / Ollama backends
+        +--> ChromaDB and other RAG storage
+```
+
+## End-to-End Data Flow
+
+### 1. Query and Collection
+
+```text
+User query
+  -> lt_query parses/validates Boolean syntax
+  -> lt_search builds Elasticsearch requests and extracts metadata
+  -> repositories persist Document rows
+```
+
+### 2. Preprocessing
+
+```text
+Document.raw_document_text
+  -> lt_preprocessing language detection and cleanup
+  -> repositories update prepared/preprocessed fields
 ```
 
 ### 3. Clustering
 
-```
-Preprocessed corpus (list of strings)
-        │
-        ▼
-literev_core/clustering.py: create_tfidf_matrix()
-  └── TfidfVectorizer (French, min_df, max_df, ngram_range)
-        │
-        ▼
-PacMapHDBScan (via Optuna hyperparameter search)
-  └── PaCMAP: high-dim → 2D embedding
-  └── HDBSCAN: assign cluster labels
-  └── DBCV score: cluster quality metric
-        │
-        ▼
-Django DB:
-  └── Cluster records (topic, summary)
-  └── ClusterElement records (pos_x, pos_y, document, cluster)
+```text
+Preprocessed corpus
+  -> lt_clustering TF-IDF
+  -> lt_clustering PaCMAP + HDBSCAN + Optuna
+  -> Django app stores Cluster and ClusterElement rows
 ```
 
-### 4. Interactive Refinement
+### 4. Refinement
 
-```
-User views clustered documents in table
-        │
-        ▼
-table_choice.py:
-  └── render_table_choice(): display docs with highlights
-  └── sort_table_choice(): by date, ES score
-  └── neighbour_document(): find 10 nearest in 2D space
-        │
-        ▼
-User marks docs: YES / NO / MAYBE
-        │
-        ▼
-UpdateTableChoiceAPIView (PUT /api/project/{id}/table-choice/)
-  └── update_checked_document_page()
-  └── iterate_check_list()
-        │
-        ▼
-RefinementIteration stored with checked/excluded/new-neighbor IDs
+```text
+Selected documents
+  -> lt_refinement highlights keywords, sorts by scores, shapes topic metadata
+  -> Django app manages iterations, table-choice state, and persistence
 ```
 
-### 5. RAG Q&A
+### 5. RAG and Legal Extraction
 
-```
-User submits question + selects document subset
-        │
-        ▼
-ProjectRAGbyProjectIdAPIView (POST /api/project/{id}/rag/)
-  └── creates ProjectRAG record (status: in_progress)
-  └── triggers Celery task
-        │
-        ▼
-rag_pdf.py: RagAnswersManager
-  └── prepare_chunks(): split docs into chunks (LangChain splitter)
-  └── ChromaDB: embed chunks (text-embedding-3-large)
-  └── For each document:
-      ├── retrieve relevant chunks (top-k similarity)
-      ├── generate answer (gpt-4.1-mini or Ollama)
-      ├── extract citation via fuzzy matching (rapidfuzz)
-      └── score confidence (ragas faithfulness)
-        │
-        ▼
-ProjectDocumentRAG records (answer, citation, confidence_score)
-ProjectRAG status → completed
+```text
+Question + selected corpus
+  -> lt_rag prepares framework-free chunks, payload shaping, and cache keys
+  -> lt_legal handles legal-domain sentence splitting and major/minor logic
+  -> Django app coordinates model calls, persistence, and result presentation
 ```
 
----
+## Testing and CI
 
-## Directory Structure (annotated)
+The test split now mirrors the architecture:
 
-```
-src/
-  config/
-    settings/
-      base.py          # shared settings (installed apps, middleware, auth)
-      dev.py           # debug toolbar, INTERNAL_IPS, django-extensions
-      test.py          # fast password hasher, sqlite or test postgres
-      prod.py          # Sentry, HSTS, SECURE_*, SMTP email
-    celery.py          # Celery app + Redis connection helper
-    urls.py            # root URL conf
+- `libs/lt_*/tests/`: framework-free unit suites colocated with each extracted library.
+- `src/literev/tests/`: Django integration tests for views, tasks, models, and adapters.
+- `tests/import_boundaries/`: enforcement that `libs/` stays Django-free.
 
-  literev/             # main Django application
-    models.py          # 10 models: Project, Document, Cluster, ClusterElement,
-                       #            TableChoice, ProjectRefinement,
-                       #            RefinementIteration, ProjectRAG,
-                       #            ProjectDocumentRAG, ProjectRAGStats
-    views.py           # template views (home, project detail, cluster view, etc.)
-    api/
-      views.py         # DRF APIView + ModelViewSet endpoints
-      serializers.py   # ProjectRAG + ProjectDocumentRAG serializers
-      permissions.py   # IsProjectRAGOwner, IsProjectRAGDocumentOwner
-    libs/              # ALL business logic lives here
-      collectors.py    # Elasticsearch integration + MetaData dataclass
-      nlp.py           # NLP topic generation, LLM prompting, cluster summaries
-      clustering.py    # orchestration glue between literev_core and Django models
-      rag_pdf.py       # RAG pipeline: chunking, embedding, generation, scoring
-      rag_classes.py   # HactarAug, HactarGen (pluggable LLM backend)
-      parsing.py       # Boolean query parser (tokenizer → AST → ES query)
-      pipeline.py      # top-level pipeline orchestration helpers
-      table_choice.py  # document selection UI logic + refinement iteration mgmt
-      scoring.py       # faithfulness scoring, similarity scoring, keyword extraction
-      utils.py         # general utilities
-    legal/
-      extract_minor_major.py  # French legal section classifier
-                              # (Majeure / Mineure-Faits / Mineure-Subsommation /
-                              #  Conclusion)
-    management/commands/      # 15 Django CLI tools
-    migrations/               # database schema history
-    tests/                    # pytest test suite
-    templates/                # HTML templates (allauth + custom)
-
-  literev_core/        # shared, application-independent NLP utilities
-    preprocessing.py   # text normalization + multiprocessing pipeline
-    clustering.py      # TF-IDF, PaCMAP, HDBSCAN, Optuna
-    utils.py
-
-containers/            # Docker images and compose files
-.github/workflows/     # CI/CD (GitHub Actions)
-docs/                  # developer documentation (you are here)
-pyproject.toml         # dependencies + ruff/mypy/pytest/bandit config
-.makim.yaml            # task automation (run with `makim <group>.<task>`)
-```
-
----
-
-## Dependency Graph (key modules)
-
-```
-views.py
-  └── libs/pipeline.py
-        └── libs/collectors.py  ──► Elasticsearch
-        └── literev_core/preprocessing.py
-        └── literev_core/clustering.py  ──► PaCMAP, HDBSCAN, Optuna
-        └── libs/nlp.py  ──► OpenAI / Ollama
-        └── libs/rag_pdf.py  ──► ChromaDB, OpenAI, ragas
-
-api/views.py
-  └── libs/rag_pdf.py
-  └── libs/table_choice.py
-        └── libs/scoring.py  ──► ragas, spacy
-  └── libs/parsing.py  (query → ES dict)
-
-models.py  ◄── all modules (read/write Django ORM)
-```
-
----
-
-## Technology Choices and Rationale
-
-| Choice | Rationale |
-|---|---|
-| **Django** | Mature ORM, admin interface, allauth for auth, DRF for API |
-| **Elasticsearch** | Full-text search over large French legal corpus with boolean operators |
-| **HDBSCAN** | Density-based clustering — handles noise (non-cluster documents), no need to pre-specify cluster count |
-| **PaCMAP** | Better neighborhood preservation than UMAP for high-dimensional TF-IDF vectors |
-| **Optuna** | Bayesian hyperparameter optimization for HDBSCAN (min_cluster_size, min_samples, etc.) |
-| **ChromaDB** | Lightweight vector store — no separate service required for moderate document counts |
-| **rago** | Pluggable RAG framework supporting both OpenAI and local Ollama backends |
-| **ragas** | Domain-agnostic faithfulness evaluation without labeled data |
-| **Celery + Redis** | Decouples long-running NLP/ML jobs from HTTP request cycle |
-| **spacy (fr_core_news_md)** | French-aware lemmatization, named entity recognition, similarity scoring |
-
----
-
-## Scalability Considerations
-
-- **Elasticsearch scrolling**: documents retrieved in parallel slices (ES slicing API) to handle large corpora
-- **Celery**: all NLP/ML operations run asynchronously — progress tracked via `Project.step` and `Project.is_running`
-- **Multiprocessing**: `preprocessing_mp()` runs text cleaning in parallel using Python multiprocessing
-- **Optuna parallelism**: `NUMBER_OPTUNA_JOBS` controls concurrent hyperparameter trials
-- **RAG caching**: `rago.extensions.cache.CacheFile` caches embeddings, retrieval results, and LLM outputs to avoid redundant API calls
-- **ChromaDB**: in-process vector store — for very large corpora, consider migrating to a hosted vector DB
-
----
-
-## Production Hardening
-
-- Sentry SDK for error tracking (`SENTRY_DSN`)
-- HSTS (`SECURE_HSTS_SECONDS`) and secure cookies in `prod.py`
-- CSRF protection enabled globally
-- Per-object permission checks (not just queryset filtering)
-- `bandit` security scanning in pre-commit hooks
-- Secrets exclusively via environment variables / `.env`
-- Certbot-managed SSL certificates
-- Redis ACL rules limiting access to broker data
+The main GitHub Actions workflow now detects which `lt_*` packages changed, runs only the affected lib suites plus the boundary checks on pull requests, and runs the full app suite when Django-side code or shared tooling changes.

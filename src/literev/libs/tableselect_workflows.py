@@ -39,6 +39,7 @@ class TableSelectHandler:
         order_by: str = "es_score",
     ):
         self.request = request
+        self.user = cast(User, request.user)
         self.project_id = self._validate_id(project_id, "project_id")
         self.refinement_id = self._validate_id(refinement_id, "refinement_id")
         self.iteration_id = self._validate_id(
@@ -75,22 +76,21 @@ class TableSelectHandler:
             "error_message": "",  # Check this is not used
         }
 
-    def _get_project(self) -> Optional[Project]:
+    def _get_project(self) -> Project:
         """Retrieve the project and ensure it has a valid ID."""
-        project = validate_project_access(self.request.user, self.project_id)
-        if not project:
+        project = validate_project_access(self.user, self.project_id)
+        if project is None:
             logger.warning(
                 f"Unauthorized access attempt for project ID: {self.project_id}"
             )
+            raise ValueError(f"project_id is invalid: {self.project_id}")
 
         return project
 
     def _get_tablechoice(self) -> QuerySet[TableChoice]:
         """Fetch table choice for the user and project."""
 
-        return TableChoice.objects.filter(
-            user=cast(User, self.request.user), project=self.project
-        )
+        return TableChoice.objects.filter(user=self.user, project=self.project)
 
     def _handle_iterate_action(
         self,
@@ -104,24 +104,24 @@ class TableSelectHandler:
             refinement_id=self.refinement_id
         ).count()
 
-        user = cast(User, self.request.user)
-
         if current_iterations >= iteration_limit:
             self.context["iterations_limit_exceeded"] = True
             logger.warning(f"Iteration limit reached: {current_iterations}")
         else:
             update_checked_document_page(
-                user,
+                self.user,
                 self.project,
                 check_list_yes,
                 check_list_no,
                 check_list_maybe,
             )
 
-            update_check_list_iteration(user, self.project, self.iteration_id)
+            update_check_list_iteration(
+                self.user, self.project, self.iteration_id
+            )
 
             iterate_check_list(
-                user,
+                self.user,
                 self.project,
                 self.refinement_id,
                 self.iteration_id,
@@ -199,7 +199,7 @@ class TableSelectHandler:
         ).last()
         if last_iteration:
             get_iteration(
-                self.request.user,
+                self.user,
                 self.project,
                 self.refinement_id,
                 last_iteration.id,
@@ -228,7 +228,7 @@ class TableSelectHandler:
 
             if dest_iteration_id is not None:
                 get_iteration(
-                    self.request.user,
+                    self.user,
                     self.project,
                     self.refinement_id,
                     int(dest_iteration_id),
@@ -251,7 +251,7 @@ class TableSelectHandler:
 
             if removed_iteration_id is not None:
                 parent_id = remove_iteration_get_parent(
-                    self.request.user,
+                    self.user,
                     self.project,
                     self.refinement_id,
                     int(removed_iteration_id),
@@ -261,7 +261,7 @@ class TableSelectHandler:
                     removed_iteration_id
                 ):
                     get_iteration(
-                        self.request.user,
+                        self.user,
                         self.project,
                         self.refinement_id,
                         parent_id,
@@ -304,9 +304,7 @@ class TableSelectHandler:
                 check_list_yes, check_list_no, check_list_maybe
             )
         elif submit == "reset":
-            reset_table_choice(
-                self.request.user, self.project, self.refinement_id
-            )
+            reset_table_choice(self.user, self.project, self.refinement_id)
             return redirect(
                 reverse(
                     "tableselect-default",
@@ -318,7 +316,7 @@ class TableSelectHandler:
             )
         elif submit == "finish":
             update_checked_document_page(
-                self.request.user,
+                self.user,
                 self.project,
                 check_list_yes,
                 check_list_no,
@@ -331,7 +329,7 @@ class TableSelectHandler:
                 "update_order_by", self.order_by
             )
             update_checked_document_page(
-                self.request.user,
+                self.user,
                 self.project,
                 check_list_yes,
                 check_list_no,
@@ -352,7 +350,7 @@ class TableSelectHandler:
 
         elif submit == "previous" and self.current_page > 1:
             update_checked_document_page(
-                self.request.user,
+                self.user,
                 self.project,
                 check_list_yes,
                 check_list_no,
@@ -374,7 +372,7 @@ class TableSelectHandler:
 
         elif submit == "next" and self.current_page < total_pages:
             update_checked_document_page(
-                self.request.user,
+                self.user,
                 self.project,
                 check_list_yes,
                 check_list_no,
@@ -395,7 +393,7 @@ class TableSelectHandler:
             )
 
         elif submit == "check_all":
-            check_all2_yes_tablechoice(self.request.user, self.project)
+            check_all2_yes_tablechoice(self.user, self.project)
             return redirect(
                 reverse(
                     "tableselect",
@@ -410,7 +408,7 @@ class TableSelectHandler:
             )
 
         elif submit == "check_all2_maybe":
-            check_all2_maybe_tablechoice(self.request.user, self.project)
+            check_all2_maybe_tablechoice(self.user, self.project)
             return redirect(
                 reverse(
                     "tableselect",

@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=70.1.0,<80.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lt-refinement"
+version = "0.12.0"  # semantic-release
+description = "Document refinement, highlighting, and score-shaping helpers for literev."
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+authors = [
+  {name = "Aziza", email = "FatmaAziza.Merzouki@unige.ch"},
+  {name = "Erol", email = "Erol.Orel@unige.ch"},
+  {name = "Ivan Ogasawara", email = "ivan.ogasawara@gmail.com"},
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["lt_refinement*"]
+
+[tool.setuptools.package-data]
+lt_refinement = [
+  "py.typed",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+python_files = ["tests.py", "test_*.py"]

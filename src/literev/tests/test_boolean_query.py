@@ -33,7 +33,7 @@ class TestPromptTemplate:
 class TestConvertNlToBoolean:
     """Tests for convert_nl_to_boolean function."""
 
-    @patch("literev_core.boolean_query.litellm")
+    @patch("lt_query.boolean_query.litellm")
     def test_returns_stripped_string(self, mock_litellm):
         """The function should return a stripped string from the generator."""
 
@@ -45,7 +45,7 @@ class TestConvertNlToBoolean:
 
         assert result == "some boolean query"
 
-    @patch("literev_core.boolean_query.litellm")
+    @patch("lt_query.boolean_query.litellm")
     def test_passes_correct_params_to_ollama(self, mock_litellm):
         """Verify the function configures OllamaOpenAIGen correctly."""
 
@@ -72,7 +72,7 @@ class TestConvertNlToBoolean:
             max_tokens=2048,
         )
 
-    @patch("literev_core.boolean_query.litellm")
+    @patch("lt_query.boolean_query.litellm")
     def test_raises_runtime_error_on_failure(self, mock_litellm):
         """If the generator crashes, we should get a RuntimeError."""
 
@@ -81,7 +81,7 @@ class TestConvertNlToBoolean:
         with pytest.raises(RuntimeError, match="Failed to convert"):
             convert_nl_to_boolean("test")
 
-    @patch("literev_core.boolean_query.litellm")
+    @patch("lt_query.boolean_query.litellm")
     def test_passes_text_to_generate(self, mock_litellm):
         """The user's input text must be passed to gen.generate() as context."""
 

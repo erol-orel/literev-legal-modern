@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import logging
-import re
 
+from collections.abc import Iterator, Sequence
+from datetime import date
 from threading import Thread
-from typing import Iterator
+from typing import TypeAlias
 
 from django.db.models.query import QuerySet
 
@@ -26,204 +27,154 @@ from literev.models import (
     User,
 )
 from literev.task_plotting import get_color_map
+from lt_refinement import (
+    divide_in_chunks as divide_in_chunks_contract,
+)
+from lt_refinement import (
+    highlight_words as highlight_words_contract,
+)
+from lt_refinement import (
+    highlight_words_topic as highlight_words_topic_contract,
+)
 
-filter_thread_dict = {}
+filter_thread_dict: dict[int, Thread] = {}
+
+TableChoiceRenderValue: TypeAlias = bool | date | float | int | str | None
+TableChoiceRenderRow: TypeAlias = dict[str, TableChoiceRenderValue]
 
 UNCLASSIFIED_PAPERS_TOPIC = "unclassified papers"
+
+
+def _text_value(value: object | None) -> str:
+    return "" if value is None else str(value)
 
 
 def highlight_words(
     text: str, words_to_highlight: list[str], style_class: str
 ) -> str:
-    """
-    Highlights word in words_to_highlight wrapping it with an html tag with style_class.
-
-    Parameters
-    ----------
-    text : str
-        Text where the words will be highlighted
-    words_to_highlight : list[str]
-        list of word to be highlighted.
-    style_class : str
-        style class to be assigned to the word,
-        this class should exist in the css file.
-
-    Returns
-    -------
-    test : str
-        A text containing highlighted words with html tags.
-    """
-    for word in words_to_highlight:
-        # Regular expression pattern to match the whole word in a case-insensitive manner
-        pattern = r'\b(?<!["\'<>])(' + re.escape(word) + r")(?![^<>]*>)\b"
-
-        # Use a lambda function to replace and retain the matched word's original case
-        # The `re.sub` will handle all matches of the pattern in the text
-        text = re.sub(
-            pattern,
-            lambda match: (
-                f'<span class="{style_class}">{match.group(1)}</span>'
-            ),
-            text,
-            flags=re.IGNORECASE,
-        )
-    return text
+    """Highlight query keywords using the shared refinement helper."""
+    return highlight_words_contract(text, words_to_highlight, style_class)
 
 
 def highlight_words_topic(
     text: str, words_to_highlight: list[str], color_code: str
 ) -> str:
-    """
-    Highlights word in words_to_highlight wrapping it with an html tag with color_code.
-
-    Parameters
-    ----------
-    text : str
-        Text where the words will be highlighted
-    words_to_highlight : list[str]
-        list of word to be highlighted.
-    style_class : str
-        style class to be assined to the word,
-        this class should exist in the css file.
-
-    Returns
-    -------
-    test : str
-        A text containing highlighted words with html tags.
-    """
-    for word in words_to_highlight:
-        # Regular expression pattern to match the whole word in a case-insensitive manner
-        pattern = r'\b(?<!["\'<>])(' + re.escape(word) + r")(?![^<>]*>)\b"
-
-        # Use a lambda function to replace and retain the matched word's original case
-        # The `re.sub` will handle all matches of the pattern in the text
-        text = re.sub(
-            pattern,
-            lambda match: (
-                f'<span style="background-color: {color_code}40">{match.group(1)}</span>'
-            ),
-            text,
-            flags=re.IGNORECASE,
-        )
-    return text
+    """Highlight topic keywords using the shared refinement helper."""
+    return highlight_words_topic_contract(text, words_to_highlight, color_code)
 
 
 def render_table_choice(
     project: Project,
-    tablechoice: QuerySet[TableChoice],
-) -> tuple[list[dict[str | int, str | float | int]], bool, bool]:
+    tablechoice: Sequence[TableChoice] | QuerySet[TableChoice],
+) -> tuple[list[TableChoiceRenderRow], bool, bool]:
     """
-    Return a list of documents data and a boolean value to indicate if the document has hdbscan scores.
-
-    Parameters
-    ----------
-    project : Project object
-        A project related with topic and scores.
-    tablechoice: QuerySet[TableChoice]
-        A set of tablechoice object, used to show table select page.
-    order_by : str
-        Used to sort the tablechoice objects
-
-    Returns
-    -------
-    tablechoice_render, has_scores : list, bool
-        list of documents data and boolean value to check if the documents has scores from hhdbscan.
+    Return a list of documents data and flags indicating available scores.
     """
     has_hdbscan_scores = False
     has_es_scores = False
-    tablechoice_render = []
+    tablechoice_render: list[TableChoiceRenderRow] = []
+    tablechoice_items = list(tablechoice)
 
     es_scores = get_es_scores(project)
-
     if es_scores:
         has_es_scores = True
 
     hdbscan_scores = load_hdbscan_prob(project)
+    topic_scores: dict[int, dict[str, str | float]] = {}
+    color_dict: dict[str, str] = {}
 
     if hdbscan_scores and project.step != "clustering":
         has_hdbscan_scores = True
         topic_scores = get_topic_and_hdbscan_score(
-            hdbscan_scores, project, tablechoice
+            hdbscan_scores, project, tablechoice_items
         )
 
     query_keywords = extract_keywords(project.query)
 
     if has_hdbscan_scores:
         clusters = Cluster.objects.filter(project=project).order_by("order")
-
-        topics_for_color = []
-        for cluster in clusters:
-            topics_for_color.append(cluster.topic)
-
+        topics_for_color = [cluster.topic for cluster in clusters]
         topics, palette = get_color_map(topics_for_color)
-
         color_dict = {
             topic_str: color for topic_str, color in zip(topics, palette)
         }
 
-    for tablechoice_e in tablechoice:
-        rendered_sample = tablechoice_e.document.raw_document_text[:800]
-
+    for tablechoice_e in tablechoice_items:
+        rendered_sample = _text_value(
+            tablechoice_e.document.raw_document_text
+        )[:800]
         rendered_sample = highlight_words(
             rendered_sample,
             query_keywords,
             "query-keywords-highlight",
         )
-        render_e = {
+        render_e: TableChoiceRenderRow = {
             "id": tablechoice_e.id,
             "is_check": tablechoice_e.is_check,
             "document_pk": tablechoice_e.document.pk,
-            "procedure_type": tablechoice_e.document.procedure_type,
-            "decision_type": tablechoice_e.document.decision_type,
+            "procedure_type": _text_value(
+                tablechoice_e.document.procedure_type
+            ),
+            "decision_type": _text_value(tablechoice_e.document.decision_type),
             "decision_date": tablechoice_e.document.decision_date,
-            "result": tablechoice_e.document.result,
-            "standards": tablechoice_e.document.standards,
+            "result": _text_value(tablechoice_e.document.result),
+            "standards": _text_value(tablechoice_e.document.standards),
             "sample_document": rendered_sample,
             "is_initial": tablechoice_e.is_initial,
         }
 
         if has_hdbscan_scores and topic_scores:
-            topic = topic_scores[tablechoice_e.document.id]["topic"]
-            if topic != UNCLASSIFIED_PAPERS_TOPIC:
-                if " : " not in topic:
-                    # todo: workaround, we need to investigate
-                    # why there is no " : " inside the topic
-                    continue
-
-                topic_key = topic.split(" : ")[1]
-            else:
-                topic_key = UNCLASSIFIED_PAPERS_TOPIC
-
-            topic10 = (
-                topic.split(" : ")[0]
-                + " : "
-                + ", ".join(topic.split(" : ")[1].split(", ")[:10])
-                if topic != UNCLASSIFIED_PAPERS_TOPIC
-                else topic
+            topic_data = topic_scores.get(tablechoice_e.document.id)
+            topic_value = topic_data.get("topic") if topic_data else None
+            score_value = (
+                topic_data.get("hdbscan_score") if topic_data else None
             )
 
-            render_e.update(
-                {
-                    "topic": topic10,
-                    "hdbscan_score": topic_scores[tablechoice_e.document.id][
-                        "hdbscan_score"
-                    ],
-                    "color": color_dict[topic_key],
-                }
-            )
-            if topic != UNCLASSIFIED_PAPERS_TOPIC:
-                topic_keywords = topic.split(" : ")[1].split(", ")
-                color_code = color_dict[topic_key]
-                render_e["sample_document"] = highlight_words_topic(
-                    rendered_sample,
-                    topic_keywords[:10],
-                    color_code,
+            if isinstance(topic_value, str):
+                if topic_value != UNCLASSIFIED_PAPERS_TOPIC:
+                    if " : " not in topic_value:
+                        continue
+                    topic_key = topic_value.split(" : ", maxsplit=1)[1]
+                else:
+                    topic_key = UNCLASSIFIED_PAPERS_TOPIC
+
+                topic10 = (
+                    topic_value.split(" : ", maxsplit=1)[0]
+                    + " : "
+                    + ", ".join(
+                        topic_value.split(" : ", maxsplit=1)[1].split(", ")[
+                            :10
+                        ]
+                    )
+                    if topic_value != UNCLASSIFIED_PAPERS_TOPIC
+                    else topic_value
                 )
+                render_e.update(
+                    {
+                        "topic": topic10,
+                        "hdbscan_score": float(score_value)
+                        if isinstance(score_value, (int, float))
+                        else 0.0,
+                        "color": color_dict.get(topic_key, ""),
+                    }
+                )
+                if topic_value != UNCLASSIFIED_PAPERS_TOPIC:
+                    topic_keywords = topic_value.split(" : ", maxsplit=1)[
+                        1
+                    ].split(", ")
+                    color_code = color_dict.get(topic_key, "")
+                    render_e["sample_document"] = highlight_words_topic(
+                        rendered_sample,
+                        topic_keywords[:10],
+                        color_code,
+                    )
         else:
             has_hdbscan_scores = False
 
         if has_es_scores:
-            render_e.update({"es_score": es_scores[tablechoice_e.document.id]})
+            es_score = es_scores.get(tablechoice_e.document.id)
+            if es_score is not None:
+                render_e["es_score"] = es_score
 
         tablechoice_render.append(render_e)
 
@@ -428,30 +379,16 @@ def get_iterations_render(
 def divide_in_chunks(
     id_list: list[int], batch_size: int
 ) -> Iterator[list[int]]:
-    """Divides a list into chuncks.
-
-    Parameters
-    ----------
-    id_list : list[int]
-        fill list of ids.
-    batch_size : int
-        size of chunks
-
-    Returns
-    -------
-    Iterator[list[int]]
-        A chunked id list.
-    """
-    for i in range(0, len(id_list), batch_size):
-        yield id_list[i : i + batch_size]
+    """Split document identifiers into deterministic chunks."""
+    return divide_in_chunks_contract(id_list, batch_size)
 
 
 def create_tablechoice_rag_iteration(user: User, project: Project) -> None:
     # remove old tablechoices
     TableChoice.objects.filter(user=user, project=project).delete()
-    all_documents = Document.objects.filter(project=project)
+    all_documents = list(Document.objects.filter(project=project))
 
-    max_documents_number = min(10, all_documents.count())
+    max_documents_number = min(10, len(all_documents))
 
     all_documents_ids = [
         doc.id

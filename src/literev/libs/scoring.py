@@ -1,5 +1,6 @@
 import logging
-import re
+
+from collections.abc import Iterable
 
 import joblib
 import numpy as np
@@ -22,6 +23,15 @@ from literev.models import (
     ProjectDocumentRAG,
     ProjectRAG,
     TableChoice,
+)
+from lt_refinement import (
+    build_topic_scores as build_topic_scores_contract,
+)
+from lt_refinement import (
+    extract_keywords as extract_keywords_contract,
+)
+from lt_refinement import (
+    sort_items_by_score,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -265,104 +275,42 @@ def get_most_similar_keywords(
 
 
 def extract_keywords(expression: str) -> list[str]:
-    """
-    Returns a list of keywords from the query
-
-    Parameters
-    ----------
-    expresion : str
-        A query string
-
-    Returns
-    -------
-    list[str]
-        list of keywords from the query
-    """
-    # Regular expression to match quoted phrases and standalone words
-    expression = expression.lower()
-    pattern = r'"([^"]+)"|(\b\w+\b)'
-
-    # Use `findall` to extract all matches of the pattern in the expression
-    matches = re.findall(pattern, expression)
-
-    # Extract matched groups from the tuple returned by findall
-    phrases = [match[0] or match[1] for match in matches]
-
-    # Logical operators to exclude
-    logical_operators = {"and", "or", "not"}
-
-    # Filter out logical operators
-    result = [phrase for phrase in phrases if phrase not in logical_operators]
-
-    return result
+    """Return plain query terms while ignoring boolean operators."""
+    return extract_keywords_contract(expression)
 
 
 def sort_documents_by_es_score(
-    project: Project, documents: list[Document]
+    project: Project, documents: Iterable[Document]
 ) -> list[Document]:
-    """
-    Sort tablechoice object by elasticsearch score.
-
-    Parameters
-    ----------
-    project : Project object
-        A project related with the keywords
-    documents: QuerySet[Documents]
-        A set of document objects.
-
-    Returns
-    -------
-    list[Document]
-        List of sorted document objects.
-    """
+    """Sort documents using persisted Elasticsearch scores when available."""
+    document_list = list(documents)
     scores = get_es_scores(project)
 
     if scores:
-        sorted_list = sorted(
-            documents,
-            key=lambda x: scores[x.id],
-            reverse=True,
+        return sort_items_by_score(
+            document_list, scores, lambda document: document.id
         )
 
-        return sorted_list
-
     logging.warning(f"There is no es scores for project : {project.id}")
-
-    return list(documents)
+    return document_list
 
 
 def sort_by_es_score(
-    project: Project, tablechoice: QuerySet[TableChoice]
+    project: Project, tablechoice: Iterable[TableChoice]
 ) -> list[TableChoice]:
-    """
-    Sort tablechoice object by elasticsearch score.
-
-    Parameters
-    ----------
-    project : Project object
-        A project related with the keywords
-    tablechoice: QuerySet[TableChoice]
-        A set of tablechoice object, used to show table select page.
-
-    Returns
-    -------
-    list[TableChoice]
-        List of sorted tablechoice objects.
-    """
+    """Sort table-choice rows using persisted Elasticsearch scores."""
+    tablechoice_list = list(tablechoice)
     scores = get_es_scores(project)
 
     if scores:
-        sorted_list = sorted(
-            list(tablechoice),
-            key=lambda x: scores[x.document.id],
-            reverse=True,
+        return sort_items_by_score(
+            tablechoice_list,
+            scores,
+            lambda row: row.document.id,
         )
 
-        return sorted_list
-
     logging.warning(f"There is no es scores for project : {project.id}")
-
-    return list(tablechoice)
+    return tablechoice_list
 
 
 def sort_by_keyword_score(
@@ -405,51 +353,26 @@ def sort_by_keyword_score(
 def get_topic_and_hdbscan_score(
     hdbscan_scores: list[float],
     project: Project,
-    tablechoice: QuerySet[TableChoice],
+    tablechoice: Iterable[TableChoice],
 ) -> dict[int, dict[str, str | float]]:
-    """
-    Return a dict containing the scores and topic for documents.
-
-    Parameters
-    ----------
-    project : Project object
-        A project related with topic and scores.
-
-    Returns
-    -------
-    topic_scores_dict : dict[int, dict[str, str | float]]
-        A dict containing the scores and topic for documents.
-    """
-    scores_dict: dict[int, float] = {}
-    topic_scores_dict: dict[int, dict[str, str | float]] = {}
-
+    """Return topic labels and HDBSCAN scores for the selected documents."""
     list_id_docs = joblib.load(
         settings.ARTICLE_DATA / f"id_list_project_{project.id}.pkl"
     )
-
-    for doc_id, score in zip(list_id_docs, hdbscan_scores):
-        scores_dict[doc_id] = score
 
     selected_document_ids = [tc.document.id for tc in tablechoice]
     cluster_elements = ClusterElement.objects.filter(
         cluster__project=project, document_id__in=selected_document_ids
     )
-
-    for cluster_e in cluster_elements:
-        if cluster_e.cluster.order == -1:
-            text_topic = cluster_e.cluster.topic
-
-        else:
-            text_topic = (
-                "Topic "
-                + str(cluster_e.cluster.order)
-                + " : "
-                + cluster_e.cluster.topic
-            )
-
-        topic_scores_dict[cluster_e.document.id] = {
-            "topic": text_topic,
-            "hdbscan_score": scores_dict[cluster_e.document.id] * 100,
-        }
-
-    return topic_scores_dict
+    cluster_topics_by_document_id = {
+        cluster_element.document.id: (
+            cluster_element.cluster.order,
+            cluster_element.cluster.topic,
+        )
+        for cluster_element in cluster_elements
+    }
+    return build_topic_scores_contract(
+        list_id_docs,
+        hdbscan_scores,
+        cluster_topics_by_document_id,
+    )
