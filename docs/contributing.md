@@ -31,7 +31,7 @@ The repository has split application roots plus per-library source roots:
 
 - `src/backend/` for Django configuration, ORM code, views, API endpoints, Celery wiring, repositories, services, presenters, templates, and static files.
 - `src/frontend/` for the React frontend application as the UI is migrated away from server-rendered pages.
-- `libs/<name>/src/` for each `lt_*` package that must remain free of Django imports and settings access.
+- `libs/<name>/src/` for each `lr_*` package that must remain free of Django imports and settings access.
 
 When moving logic around, use this split:
 
@@ -40,7 +40,7 @@ When moving logic around, use this split:
 - Put HTML-safe formatting and template-facing helpers in `src/backend/literev/presenters/`.
 - Put new browser-side application code in `src/frontend/`.
 
-Install the project in editable mode before running Django entrypoints; the root package now resolves every `lt-*` library from `libs/` as a production dependency, and each library keeps its own `src/` layout.
+Install the project in editable mode before running Django entrypoints; the root package now resolves every `lr-*` library from `libs/` as a production dependency, and each library keeps its own `src/` layout.
 
 ## Development Workflow
 
@@ -59,8 +59,8 @@ makim tests.reactjs
 Useful focused commands:
 
 ```bash
-makim tests.lib --lib lt_query
-makim tests.lib --lib lt_rag
+makim tests.lib --lib lr_query
+makim tests.lib --lib lr_rag
 makim django.migrate
 makim reactjs.install
 makim reactjs.build
@@ -87,7 +87,7 @@ Examples:
 
 ```text
 feat: add frontend unit tests and CI task wiring
-fix: avoid eager lt_query boolean-query dependency during lib imports
+fix: avoid eager lr_query boolean-query dependency during lib imports
 docs: document the frontend/backend source-root split
 ```
 

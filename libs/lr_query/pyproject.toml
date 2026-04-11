@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=70.1.0,<80.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lr-query"
+version = "0.12.0"  # semantic-release
+description = "Boolean query parsing and Elasticsearch query construction for literev."
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+authors = [
+  {name = "Aziza", email = "FatmaAziza.Merzouki@unige.ch"},
+  {name = "Erol", email = "Erol.Orel@unige.ch"},
+  {name = "Ivan Ogasawara", email = "ivan.ogasawara@gmail.com"},
+]
+
+[project.optional-dependencies]
+llm = ["litellm>=1.0.0"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["lr_query*"]
+
+[tool.setuptools.package-data]
+lr_query = [
+  "py.typed",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+python_files = ["tests.py", "test_*.py"]

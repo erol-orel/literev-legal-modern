@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from django.conf import settings
 
-from lt_contracts import (
+from lr_contracts import (
     ElasticsearchConnectionConfig,
     SearchDocumentMetadata,
 )
-from lt_search import ElasticSearchCollector as BaseElasticSearchCollector
+from lr_search import ElasticSearchCollector as BaseElasticSearchCollector
 
 MetaData = SearchDocumentMetadata
 

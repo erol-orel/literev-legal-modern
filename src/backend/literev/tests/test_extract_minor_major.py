@@ -6,14 +6,14 @@ import re
 import pytest
 
 import literev.legal.extract_minor_major as extract_minor_major
-import lt_legal.extract_minor_major as lt_extract_minor_major
+import lr_legal.extract_minor_major as lr_extract_minor_major
 
 
 def test_fix_mojibake_ftfy_branch(monkeypatch):
-    # `_fix_mojibake` lives in lt_legal.extract_minor_major and looks up
+    # `_fix_mojibake` lives in lr_legal.extract_minor_major and looks up
     # `_ftfy` from that module's globals, so we must patch it there.
     monkeypatch.setattr(
-        lt_extract_minor_major,
+        lr_extract_minor_major,
         "_ftfy",
         lambda s: "OK-" + s,
         raising=False,
@@ -22,7 +22,7 @@ def test_fix_mojibake_ftfy_branch(monkeypatch):
 
 
 def test_fix_mojibake_fallback_branch(monkeypatch):
-    monkeypatch.setattr(lt_extract_minor_major, "_ftfy", None, raising=False)
+    monkeypatch.setattr(lr_extract_minor_major, "_ftfy", None, raising=False)
     dirty = "\u00e2\u0080\u0099"  # mojibake for RIGHT SINGLE QUOTE
     assert extract_minor_major._fix_mojibake(dirty) == "\u2019"
 

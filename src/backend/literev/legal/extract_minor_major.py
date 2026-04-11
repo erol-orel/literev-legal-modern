@@ -6,7 +6,7 @@ from openai import OpenAI
 # Private helpers are re-exported so tests can reach them via this shim.
 # They are not referenced directly in this module — the noqa comments keep
 # ruff from stripping them as "unused imports".
-from lt_legal.extract_minor_major import (  # noqa: F401
+from lr_legal.extract_minor_major import (  # noqa: F401
     Classification,
     _fix_mojibake,
     _ftfy,
@@ -25,7 +25,7 @@ from lt_legal.extract_minor_major import (  # noqa: F401
     split_sentences_fr_legal,
     validate_classification,
 )
-from lt_legal.extract_minor_major import (
+from lr_legal.extract_minor_major import (
     openai_llm_call as base_openai_llm_call,
 )
 

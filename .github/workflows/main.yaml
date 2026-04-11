@@ -243,14 +243,14 @@ jobs:
       fail-fast: false
       matrix:
         lib:
-          - lt_contracts
-          - lt_query
-          - lt_search
-          - lt_preprocessing
-          - lt_clustering
-          - lt_rag
-          - lt_refinement
-          - lt_legal
+          - lr_contracts
+          - lr_query
+          - lr_search
+          - lr_preprocessing
+          - lr_clustering
+          - lr_rag
+          - lr_refinement
+          - lr_legal
     steps:
       - uses: actions/checkout@v4
 
@@ -509,14 +509,14 @@ jobs:
           set -euo pipefail
           BODY=/tmp/coverage-comment.md
           libs=(
-            lt_contracts
-            lt_query
-            lt_search
-            lt_preprocessing
-            lt_clustering
-            lt_rag
-            lt_refinement
-            lt_legal
+            lr_contracts
+            lr_query
+            lr_search
+            lr_preprocessing
+            lr_clustering
+            lr_rag
+            lr_refinement
+            lr_legal
           )
           {
             echo "## Coverage summary"

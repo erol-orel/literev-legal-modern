@@ -8,7 +8,7 @@ The codebase now has split application roots plus standalone per-library source 
 
 - `src/backend/`: Django application code, ORM models, views, DRF endpoints, Celery tasks, repositories, services, presenters, static files, and configuration.
 - `src/frontend/`: React frontend scaffold for the gradual SPA migration. For now, the existing UI is still served from Django templates in `src/backend/`.
-- `libs/<name>/src/`: framework-free `lt_*` packages for reusable query, search, preprocessing, clustering, refinement, RAG, and legal logic.
+- `libs/<name>/src/`: framework-free `lr_*` packages for reusable query, search, preprocessing, clustering, refinement, RAG, and legal logic.
 
 Use `src/backend/` for anything that touches Django, settings, persistence, or HTTP. Use `src/frontend/` for the future React application. Keep the shared algorithms in `libs/` free of Django imports.
 
@@ -35,7 +35,7 @@ Use `src/backend/` for anything that touches Django, settings, persistence, or H
 ```bash
 makim tests.lint
 makim tests.import-boundaries
-makim tests.lib --lib lt_query
+makim tests.lib --lib lr_query
 makim tests.libs-all
 makim tests.app
 makim tests.reactjs
@@ -52,6 +52,6 @@ makim reactjs.build
 makim tests.reactjs
 makim django.collectstatic
 makim tests.app
-makim tests.lib --lib lt_rag
+makim tests.lib --lib lr_rag
 makim tests.import-boundaries
 ```

@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=70.1.0,<80.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lr-clustering"
+version = "0.12.0"  # semantic-release
+description = "TF-IDF, PaCMAP, HDBSCAN, and Optuna clustering helpers for literev."
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+authors = [
+  {name = "Aziza", email = "FatmaAziza.Merzouki@unige.ch"},
+  {name = "Erol", email = "Erol.Orel@unige.ch"},
+  {name = "Ivan Ogasawara", email = "ivan.ogasawara@gmail.com"},
+]
+dependencies = [
+  "lr-contracts == 0.12.0",
+  "hdbscan >=0.8.33",
+  "joblib >=1.4.0",
+  "numpy >=2",
+  "optuna >=3.6.1",
+  "pacmap >=0.7.2",
+  "pandas >=2.2.2",
+  "scikit-learn >=1.5.0",
+  "scipy >=1.14.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["lr_clustering*"]
+
+[tool.setuptools.package-data]
+lr_clustering = [
+  "py.typed",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+python_files = ["tests.py", "test_*.py"]

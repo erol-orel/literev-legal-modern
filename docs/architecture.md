@@ -23,41 +23,41 @@ src/
     src/                     React application source scaffold
 
 libs/
-  lt_contracts/
+  lr_contracts/
     pyproject.toml        standalone library metadata
-    src/lt_contracts/     shared dataclasses and protocols
+    src/lr_contracts/     shared dataclasses and protocols
     tests/                package-local unit tests
-  lt_query/
+  lr_query/
     pyproject.toml        standalone library metadata
-    src/lt_query/         Boolean query parsing and Elasticsearch DSL generation
+    src/lr_query/         Boolean query parsing and Elasticsearch DSL generation
     tests/                package-local unit tests
-  lt_search/
+  lr_search/
     pyproject.toml        standalone library metadata
-    src/lt_search/        Elasticsearch collection and metadata extraction
+    src/lr_search/        Elasticsearch collection and metadata extraction
     tests/                package-local unit tests
-  lt_preprocessing/
+  lr_preprocessing/
     pyproject.toml        standalone library metadata
-    src/lt_preprocessing/ preprocessing helpers and package data
+    src/lr_preprocessing/ preprocessing helpers and package data
     tests/                package-local unit tests
-  lt_clustering/
+  lr_clustering/
     pyproject.toml        standalone library metadata
-    src/lt_clustering/    TF-IDF, PaCMAP, HDBSCAN, and Optuna helpers
+    src/lr_clustering/    TF-IDF, PaCMAP, HDBSCAN, and Optuna helpers
     tests/                package-local unit tests
-  lt_refinement/
+  lr_refinement/
     pyproject.toml        standalone library metadata
-    src/lt_refinement/    sorting, highlighting, and topic shaping helpers
+    src/lr_refinement/    sorting, highlighting, and topic shaping helpers
     tests/                package-local unit tests
-  lt_rag/
+  lr_rag/
     pyproject.toml        standalone library metadata
-    src/lt_rag/           framework-free RAG payload and chunking helpers
+    src/lr_rag/           framework-free RAG payload and chunking helpers
     tests/                package-local unit tests
-  lt_legal/
+  lr_legal/
     pyproject.toml        standalone library metadata
-    src/lt_legal/         French legal sentence splitting and extraction
+    src/lr_legal/         French legal sentence splitting and extraction
     tests/                package-local unit tests
 ```
 
-The repository relies on the installed Python environment to expose both the Django app package and the extracted `lt_*` libraries; the entrypoints do not mutate `sys.path` at runtime.
+The repository relies on the installed Python environment to expose both the Django app package and the extracted `lr_*` libraries; the entrypoints do not mutate `sys.path` at runtime.
 
 ## Dependency Direction
 
@@ -73,7 +73,7 @@ src/frontend (future SPA)
 src/backend/config + src/backend/literev
         |
         v
-     libs/lt_*
+     libs/lr_*
 ```
 
 Rules:
@@ -98,7 +98,7 @@ Django views + DRF endpoints
 Services / repositories / presenters
         |
         v
-Pure libraries under libs/lt_*
+Pure libraries under libs/lr_*
         |
         +--> Elasticsearch
         +--> PostgreSQL via repositories
@@ -113,8 +113,8 @@ Pure libraries under libs/lt_*
 
 ```text
 User query
-  -> lt_query parses/validates Boolean syntax
-  -> lt_search builds Elasticsearch requests and extracts metadata
+  -> lr_query parses/validates Boolean syntax
+  -> lr_search builds Elasticsearch requests and extracts metadata
   -> repositories persist Document rows
 ```
 
@@ -122,7 +122,7 @@ User query
 
 ```text
 Document.raw_document_text
-  -> lt_preprocessing language detection and cleanup
+  -> lr_preprocessing language detection and cleanup
   -> repositories update prepared/preprocessed fields
 ```
 
@@ -130,8 +130,8 @@ Document.raw_document_text
 
 ```text
 Preprocessed corpus
-  -> lt_clustering TF-IDF
-  -> lt_clustering PaCMAP + HDBSCAN + Optuna
+  -> lr_clustering TF-IDF
+  -> lr_clustering PaCMAP + HDBSCAN + Optuna
   -> Django app stores Cluster and ClusterElement rows
 ```
 
@@ -139,7 +139,7 @@ Preprocessed corpus
 
 ```text
 Selected documents
-  -> lt_refinement highlights keywords, sorts by scores, shapes topic metadata
+  -> lr_refinement highlights keywords, sorts by scores, shapes topic metadata
   -> Django app manages iterations, table-choice state, and persistence
 ```
 
@@ -147,8 +147,8 @@ Selected documents
 
 ```text
 Question + selected corpus
-  -> lt_rag prepares framework-free chunks, payload shaping, and cache keys
-  -> lt_legal handles legal-domain sentence splitting and major/minor logic
+  -> lr_rag prepares framework-free chunks, payload shaping, and cache keys
+  -> lr_legal handles legal-domain sentence splitting and major/minor logic
   -> Django app coordinates model calls, persistence, and result presentation
 ```
 
@@ -156,8 +156,8 @@ Question + selected corpus
 
 The test split now mirrors the architecture:
 
-- `libs/lt_*/tests/`: framework-free unit suites colocated with each extracted library.
+- `libs/lr_*/tests/`: framework-free unit suites colocated with each extracted library.
 - `src/backend/literev/tests/`: Django integration tests for views, tasks, models, and adapters.
 - `tests/import_boundaries/`: enforcement that `libs/` stays Django-free.
 
-The main GitHub Actions workflow now detects which `lt_*` packages changed, runs only the affected lib suites plus the boundary checks on pull requests, and runs the full app suite when Django-side code or shared tooling changes.
+The main GitHub Actions workflow now detects which `lr_*` packages changed, runs only the affected lib suites plus the boundary checks on pull requests, and runs the full app suite when Django-side code or shared tooling changes.

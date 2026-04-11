@@ -24,13 +24,13 @@ from literev.models import (
     ProjectRAG,
     TableChoice,
 )
-from lt_refinement import (
+from lr_refinement import (
     build_topic_scores as build_topic_scores_contract,
 )
-from lt_refinement import (
+from lr_refinement import (
     extract_keywords as extract_keywords_contract,
 )
-from lt_refinement import (
+from lr_refinement import (
     sort_items_by_score,
 )
 

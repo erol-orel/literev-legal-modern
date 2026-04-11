@@ -1,4 +1,4 @@
-from lt_clustering import (
+from lr_clustering import (
     ClusteringRunResult,
     Objective,
     PacMapHDBScan,

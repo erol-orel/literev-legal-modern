@@ -1,1 +1,1 @@
-from lt_query.parsing import *  # noqa: F403
+from lr_query.parsing import *  # noqa: F403

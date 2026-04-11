@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=70.1.0,<80.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lr-rag"
+version = "0.12.0"  # semantic-release
+description = "Framework-free RAG payload, chunking, and cache-key helpers for literev."
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+authors = [
+  {name = "Aziza", email = "FatmaAziza.Merzouki@unige.ch"},
+  {name = "Erol", email = "Erol.Orel@unige.ch"},
+  {name = "Ivan Ogasawara", email = "ivan.ogasawara@gmail.com"},
+]
+dependencies = [
+  "lr-query == 0.12.0",
+  "langchain >=0.3.6,<0.4.0",
+  "pydantic >=2.0.0,<3.0.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["lr_rag*"]
+
+[tool.setuptools.package-data]
+lr_rag = [
+  "py.typed",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+python_files = ["tests.py", "test_*.py"]

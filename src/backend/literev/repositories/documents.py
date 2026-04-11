@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from literev.models import Document, Project
-from lt_contracts import SearchDocumentMetadata
+from lr_contracts import SearchDocumentMetadata
 
 
 def create_document(

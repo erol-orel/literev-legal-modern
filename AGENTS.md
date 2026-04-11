@@ -323,6 +323,11 @@ Run manually: `pre-commit run --all-files`
   never hand-edit migration files
 - **Secrets**: never hardcode credentials — always read from environment or
   `.env`
+- **Git-ignored files are off-limits**: never create, modify, delete, or rename
+  files ignored by Git. Before editing a file, verify that it is not ignored
+  (for example with `git check-ignore` or by confirming it is tracked with
+  `git ls-files`). Skip ignored files entirely, even if they appear relevant to
+  the task.
 - **No backwards-compat shims**: if removing code, remove it completely
 - **No speculative abstractions**: only abstract when you have 3+ concrete uses
 - **No heredocs inside YAML automation files**: do not embed blocks such as

@@ -53,7 +53,7 @@ from literev.models import (
     ProjectRAG,
     ProjectRAGStats,
 )
-from lt_legal import (
+from lr_legal import (
     Classification,
     classify_chunks_llm,
     get_sentences,
@@ -62,44 +62,44 @@ from lt_legal import (
     pack_chunks,
     split_sentences_fr_legal,
 )
-from lt_rag import (
+from lr_rag import (
     ClosedAnswerClassification as LtClosedAnswerClassification,
 )
-from lt_rag import (
+from lr_rag import (
     MinorMajorPair as LtMinorMajorPair,
 )
-from lt_rag import (
+from lr_rag import (
     QuestionTypeClassification as LtQuestionTypeClassification,
 )
-from lt_rag import (
+from lr_rag import (
     RAGAnswer as LtRAGAnswer,
 )
-from lt_rag import (
+from lr_rag import (
     SummaryGeneralAnswer as LtSummaryGeneralAnswer,
 )
-from lt_rag import (
-    build_consideration_model as lt_build_consideration_model,
+from lr_rag import (
+    build_consideration_model as lr_build_consideration_model,
 )
-from lt_rag import (
-    compute_document_cache_key as lt_compute_document_cache_key,
+from lr_rag import (
+    compute_document_cache_key as lr_compute_document_cache_key,
 )
-from lt_rag import (
-    compute_faithfulness_cache_key as lt_compute_faithfulness_cache_key,
+from lr_rag import (
+    compute_faithfulness_cache_key as lr_compute_faithfulness_cache_key,
 )
-from lt_rag import (
-    flatten_and_sanitize as lt_flatten_and_sanitize,
+from lr_rag import (
+    flatten_and_sanitize as lr_flatten_and_sanitize,
 )
-from lt_rag import (
-    flatten_json_values as lt_flatten_json_values,
+from lr_rag import (
+    flatten_json_values as lr_flatten_json_values,
 )
-from lt_rag import (
-    prepare_chunks as lt_prepare_chunks,
+from lr_rag import (
+    prepare_chunks as lr_prepare_chunks,
 )
-from lt_rag import (
-    sanitize_replace as lt_sanitize_replace,
+from lr_rag import (
+    sanitize_replace as lr_sanitize_replace,
 )
-from lt_rag import (
-    sanitize_text_replace as lt_sanitize_text_replace,
+from lr_rag import (
+    sanitize_text_replace as lr_sanitize_text_replace,
 )
 
 MODEL_CHAT = "gpt-4.1-mini"
@@ -137,23 +137,23 @@ def ret_cache(func: Callable[[str], list[str]]) -> Callable[[str], list[str]]:
     return wrapper
 
 
-sanitize_text_replace = lt_sanitize_text_replace
-flatten_and_sanitize = lt_flatten_and_sanitize
-flatten_json_values = lt_flatten_json_values
-sanitize_replace = lt_sanitize_replace
-compute_document_cache_key = lt_compute_document_cache_key
-compute_faithfulness_cache_key = lt_compute_faithfulness_cache_key
+sanitize_text_replace = lr_sanitize_text_replace
+flatten_and_sanitize = lr_flatten_and_sanitize
+flatten_json_values = lr_flatten_json_values
+sanitize_replace = lr_sanitize_replace
+compute_document_cache_key = lr_compute_document_cache_key
+compute_faithfulness_cache_key = lr_compute_faithfulness_cache_key
 MinorMajorPair = LtMinorMajorPair
 RAGAnswer = LtRAGAnswer
 SummaryGeneralAnswer = LtSummaryGeneralAnswer
 ClosedAnswerClassification = LtClosedAnswerClassification
-build_consideration_model = lt_build_consideration_model
+build_consideration_model = lr_build_consideration_model
 QuestionTypeClassification = LtQuestionTypeClassification
 
 
 @ret_cache
 def prepare_chunks(text: str) -> list[str]:
-    return lt_prepare_chunks(text)
+    return lr_prepare_chunks(text)
 
 
 def get_rag_generator(

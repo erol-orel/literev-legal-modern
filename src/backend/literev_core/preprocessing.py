@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from literev.models import Document
-from lt_preprocessing import (
+from lr_preprocessing import (
     create_ngrams,
     preprocess_documents,
 )
-from lt_preprocessing import (
+from lr_preprocessing import (
     prepare_document as prepare_document_text,
 )
 

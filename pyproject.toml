@@ -15,14 +15,14 @@ authors = [
 ]
 
 dependencies = [
-  "lt-contracts",
-  "lt-query",
-  "lt-search",
-  "lt-preprocessing",
-  "lt-clustering",
-  "lt-rag",
-  "lt-refinement",
-  "lt-legal",
+  "lr-contracts",
+  "lr-query",
+  "lr-search",
+  "lr-preprocessing",
+  "lr-clustering",
+  "lr-rag",
+  "lr-refinement",
+  "lr-legal",
   "elasticsearch >=8.12.1,<9.0.0",
   "django >=5.0.3",
   "django-allauth >=0.61.0",
@@ -72,14 +72,14 @@ dependencies = [
 members = ["libs/*"]
 
 [tool.uv.sources]
-lt-contracts = { workspace = true }
-lt-query = { workspace = true }
-lt-search = { workspace = true }
-lt-preprocessing = { workspace = true }
-lt-clustering = { workspace = true }
-lt-rag = { workspace = true }
-lt-refinement = { workspace = true }
-lt-legal = { workspace = true }
+lr-contracts = { workspace = true }
+lr-query = { workspace = true }
+lr-search = { workspace = true }
+lr-preprocessing = { workspace = true }
+lr-clustering = { workspace = true }
+lr-rag = { workspace = true }
+lr-refinement = { workspace = true }
+lr-legal = { workspace = true }
 
 [project.optional-dependencies]
 dev = [
@@ -120,7 +120,7 @@ Issues = "https://github.com/your-org-or-user/literev/issues"
 package-dir = { "" = "." }
 include-package-data = true
 
-# The Django application ships from src/backend/; lt_* libraries are installed as
+# The Django application ships from src/backend/; lr_* libraries are installed as
 # production dependencies from libs/<name>/.
 [tool.setuptools.packages]
 find = { where = ["src/backend"], include = ["config*", "literev*", "literev_core*"] }
@@ -141,7 +141,7 @@ literev_core = ["data/**"]
 minversion = "6.0"
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 addopts = "--ds=config.settings.test -v -ra --cov=src/backend --cov=libs --reuse-db"
-pythonpath = ["src/backend", "libs/lt_contracts/src", "libs/lt_query/src", "libs/lt_search/src", "libs/lt_preprocessing/src", "libs/lt_clustering/src", "libs/lt_rag/src", "libs/lt_refinement/src", "libs/lt_legal/src"]
+pythonpath = ["src/backend", "libs/lr_contracts/src", "libs/lr_query/src", "libs/lr_search/src", "libs/lr_preprocessing/src", "libs/lr_clustering/src", "libs/lr_rag/src", "libs/lr_refinement/src", "libs/lr_legal/src"]
 python_files = ["tests.py", "test_*.py"]
 
 [tool.coverage.run]
@@ -172,7 +172,7 @@ verbose = false
 [tool.ruff]
 line-length = 79
 force-exclude = true
-src = ["./src/backend", "./libs/lt_contracts/src", "./libs/lt_query/src", "./libs/lt_search/src", "./libs/lt_preprocessing/src", "./libs/lt_clustering/src", "./libs/lt_rag/src", "./libs/lt_refinement/src", "./libs/lt_legal/src", "./tests"]
+src = ["./src/backend", "./libs/lr_contracts/src", "./libs/lr_query/src", "./libs/lr_search/src", "./libs/lr_preprocessing/src", "./libs/lr_clustering/src", "./libs/lr_rag/src", "./libs/lr_refinement/src", "./libs/lr_legal/src", "./tests"]
 exclude = ["docs", "migrations", "urls.py", "scripts"]
 fix = true
 
@@ -190,7 +190,7 @@ lines-between-types = 1
 quote-style = "double"
 
 [tool.mypy]
-mypy_path = "src/backend:libs/lt_contracts/src:libs/lt_query/src:libs/lt_search/src:libs/lt_preprocessing/src:libs/lt_clustering/src:libs/lt_rag/src:libs/lt_refinement/src:libs/lt_legal/src"
+mypy_path = "src/backend:libs/lr_contracts/src:libs/lr_query/src:libs/lr_search/src:libs/lr_preprocessing/src:libs/lr_clustering/src:libs/lr_rag/src:libs/lr_refinement/src:libs/lr_legal/src"
 exclude = [
   'tests/*',
   'docs/*',

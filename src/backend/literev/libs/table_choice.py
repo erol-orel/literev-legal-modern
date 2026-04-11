@@ -27,13 +27,13 @@ from literev.models import (
     User,
 )
 from literev.task_plotting import get_color_map
-from lt_refinement import (
+from lr_refinement import (
     divide_in_chunks as divide_in_chunks_contract,
 )
-from lt_refinement import (
+from lr_refinement import (
     highlight_words as highlight_words_contract,
 )
-from lt_refinement import (
+from lr_refinement import (
     highlight_words_topic as highlight_words_topic_contract,
 )
 

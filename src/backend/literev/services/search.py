@@ -4,8 +4,8 @@ import datetime
 
 from django.conf import settings
 
-from lt_contracts import ElasticsearchConnectionConfig
-from lt_search import ElasticSearchCollector
+from lr_contracts import ElasticsearchConnectionConfig
+from lr_search import ElasticSearchCollector
 
 
 def _get_setting_str(name: str) -> str:
