@@ -18,7 +18,7 @@ That means the following imports are all valid in the configured environment:
 ```python
 from lr_query import process_search_query_elasticsearch
 from lr_search import ElasticSearchCollector
-from literev.services.search import build_collector
+from literev.libs.collectors import ElasticSearchCollector
 ```
 
 ## Settings Modules

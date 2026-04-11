@@ -3,7 +3,7 @@
 ## What The System Does
 
 `literev-legal` helps users search, normalize, cluster, refine, and question French legal decisions.
-The repository now has a split application layout: `src/backend/` contains the Django application, while `src/frontend/` is the React frontend scaffold for the future SPA. The user-facing flow is still Django-first for now, and the core reusable algorithms live in standalone libraries under repo-root `libs/` so they can be tested without importing Django.
+The repository now has a split application layout: `src/backend/` contains the Django application, while `src/frontend/` contains the React frontend used for the gradual hybrid migration away from Django templates. Public marketing routes already render through a minimal Django generic template and are routed inside React, the authenticated workflow is still Django-first, and the core reusable algorithms live in standalone libraries under repo-root `libs/` so they can be tested without importing Django.
 
 ## Source Roots
 
@@ -12,15 +12,13 @@ src/
   backend/
     config/                  Django bootstrapping, settings, ASGI/WSGI/Celery
     literev/                 Django app: models, views, API, tasks
-      services/              Django orchestration and settings-backed adapters
-      repositories/          ORM/file persistence helpers
-      presenters/            HTML-safe and template-facing formatting helpers
+      libs/                  app-local Django-aware helper modules
     literev_core/            compatibility wrappers during the extraction cutover
-    static/                  current static assets still served by Django
+    static/                  Django static assets plus shared styling/images for the frontend app
   frontend/
     package.json             React application metadata and scripts
-    public/                  React public assets
-    src/                     React application source scaffold
+    public/                  React build-time public assets
+    src/                     React routes, pages, components, and browser-side libs
 
 libs/
   lr-contracts/
@@ -64,7 +62,7 @@ The repository relies on the installed Python environment to expose both the Dja
 The intended dependency graph is one-way:
 
 ```text
-src/frontend (future SPA)
+src/frontend (React Router pages)
         |
         v
    REST / browser calls
@@ -79,10 +77,9 @@ src/backend/config + src/backend/literev
 Rules:
 
 - Code under `libs/` must not import Django, DRF, Celery, `django.conf.settings`, or modules from `src/backend/literev/`.
-- Django-specific orchestration belongs in `src/backend/literev/services/`.
-- ORM and file persistence belong in `src/backend/literev/repositories/`.
-- HTML rendering, `mark_safe`, and template-facing helpers belong in `src/backend/literev/presenters/`.
-- Compatibility wrappers may still exist in legacy modules during the cutover, but they should delegate into `libs/` rather than hosting new shared logic.
+- Django-aware, app-local helper logic belongs in `src/backend/literev/libs/`.
+- Reusable framework-free code belongs in repo-root `libs/lr-*`.
+- Compatibility wrappers may still exist in legacy modules during the cutover, but they should delegate into repo-root `libs/` rather than hosting new shared logic.
 
 The import-boundary check in `tests/import_boundaries/` enforces this rule in CI.
 
@@ -91,17 +88,19 @@ The import-boundary check in `tests/import_boundaries/` enforces this rule in CI
 ```text
 Browser / API client
         |
+        +--> generic Django template mounting React
+        |
         v
 Django views + DRF endpoints
         |
         v
-Services / repositories / presenters
+App-local helpers under `literev/libs`
         |
         v
 Pure libraries under libs/lr-*
         |
         +--> Elasticsearch
-        +--> PostgreSQL via repositories
+        +--> PostgreSQL via Django ORM and app helpers
         +--> Redis / Celery workers
         +--> OpenAI / Hactar / Ollama backends
         +--> ChromaDB and other RAG storage
@@ -115,7 +114,7 @@ Pure libraries under libs/lr-*
 User query
   -> lr_query parses/validates Boolean syntax
   -> lr_search builds Elasticsearch requests and extracts metadata
-  -> repositories persist Document rows
+  -> Django app helpers persist Document rows
 ```
 
 ### 2. Preprocessing
@@ -123,7 +122,7 @@ User query
 ```text
 Document.raw_document_text
   -> lr_preprocessing language detection and cleanup
-  -> repositories update prepared/preprocessed fields
+  -> Django app helpers update prepared/preprocessed fields
 ```
 
 ### 3. Clustering

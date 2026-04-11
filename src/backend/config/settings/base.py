@@ -231,6 +231,10 @@ CELERY_WORKER_POOL_RESTARTS = True
 
 # STATIC / MEDIA
 # ------------------------------------------------------------------------------
+FRONTEND_BUILD_DIR = ROOT_DIR / "src" / "frontend" / "build"
+FRONTEND_STATIC_DIR = FRONTEND_BUILD_DIR / "static"
+FRONTEND_ASSET_MANIFEST_PATH = FRONTEND_BUILD_DIR / "asset-manifest.json"
+
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static/"),
     ("css", os.path.join(BASE_DIR, "static/css")),
@@ -238,6 +242,9 @@ STATICFILES_DIRS = [
     ("images", os.path.join(BASE_DIR, "static/images")),
     ("webfonts", os.path.join(BASE_DIR, "static/webfonts")),
 ]
+
+if FRONTEND_STATIC_DIR.exists():
+    STATICFILES_DIRS.append(str(FRONTEND_STATIC_DIR))
 STATIC_ROOT = os.environ.get("STATIC_ROOT") or str(BASE_DIR / "staticfiles")
 
 STATICFILES_FINDERS = [

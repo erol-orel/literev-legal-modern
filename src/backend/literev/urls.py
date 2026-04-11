@@ -1,24 +1,20 @@
-from django.urls import path, include
 from django.http import HttpResponse
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
+
+from literev.api import views as views_api
 from literev.views import (
-    HomePageView,
-    search,
-    running,
-    projectpage,
-    generate_summary,
-    tableselect,
     contentdocument,
     contentdocumenthl,
+    generate_summary,
     historicalpage,
+    projectpage,
     rag,
-    product,
-    company,
-    blog,
-    team,
+    running,
+    search,
+    tableselect,
 )
-
-from rest_framework.routers import DefaultRouter
-from literev.api import views as views_api
+from literev.views_public import public_frontend_app
 
 router = DefaultRouter()
 router.register(
@@ -43,7 +39,7 @@ urlpatterns = [
         lambda request: HttpResponse("OK", status=200),
         name="status-view",
     ),
-    path("", HomePageView.as_view(), name="home"),
+    path("", public_frontend_app, name="home"),
     path("search/", search, name="search"),
     path("running/", running, name="running"),
     path("historicalpage/", historicalpage, name="historicalpage"),
@@ -97,8 +93,8 @@ urlpatterns = [
         views_api.UpdateTableChoiceAPIView.as_view(),
         name="update-table-choice",
     ),
-    path("product/", product, name="product"),
-    path("company/", company, name="company"),
-    path("blog/", blog, name="blog"),
-    path("team/", team, name="team"),
+    path("product/", public_frontend_app, name="product"),
+    path("company/", public_frontend_app, name="company"),
+    path("blog/", public_frontend_app, name="blog"),
+    path("team/", public_frontend_app, name="team"),
 ]

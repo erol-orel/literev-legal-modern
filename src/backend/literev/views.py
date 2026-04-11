@@ -17,7 +17,6 @@ from django.http import (
 )
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.views.generic import TemplateView
 
 from literev.forms import HistoricalForm, SearchForm
 from literev.libs.data_files import get_es_scores
@@ -71,10 +70,6 @@ from literev.tasks import (
 )
 
 logging.basicConfig(level=logging.INFO)
-
-
-class HomePageView(TemplateView):
-    template_name = "home.html"
 
 
 def search_search(
@@ -649,9 +644,13 @@ def contentdocumenthl(
     raw_document_text = cast(str, document_rag.document.raw_document_text)
     html_text = cast(str, document_rag.document.document_html_text)
 
+    document_text: str
     if highlight_sents:
-        document_text = highlight_sentences_fuzzy(
-            raw_document_text.replace("\n", "<br>"), highlight_sents
+        document_text = cast(
+            str,
+            highlight_sentences_fuzzy(
+                raw_document_text.replace("\n", "<br>"), highlight_sents
+            ),
         )
     else:
         document_text = raw_document_text
@@ -893,20 +892,3 @@ def rag(
     }
 
     return render(request, "rag.html", context)
-
-
-# Menu section
-def product(request: HttpRequest) -> HttpResponse:
-    return render(request, "product.html")
-
-
-def company(request: HttpRequest) -> HttpResponse:
-    return render(request, "company.html")
-
-
-def blog(request: HttpRequest) -> HttpResponse:
-    return render(request, "blog.html")
-
-
-def team(request: HttpRequest) -> HttpResponse:
-    return render(request, "team.html")

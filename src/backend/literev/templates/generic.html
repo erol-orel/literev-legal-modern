@@ -1,0 +1,47 @@
+{% load static frontend %}
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible"
+          content="IE=edge" />
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token"
+          content="{{ csrf_token }}" />
+    <title>LiteRev Legal</title>
+    <link rel="stylesheet"
+          href="{% static 'css/bootstrap.min.css' %}" />
+    <link href="{% static 'css/main.css' %}"
+          rel="stylesheet" />
+    <link href="{% static 'css/fontawesome.min.css' %}"
+          rel="stylesheet" />
+    <link href="{% static 'css/brands.min.css' %}"
+          rel="stylesheet" />
+    <link href="{% static 'css/solid.min.css' %}"
+          rel="stylesheet" />
+    {% if frontend_bundle_available %}
+      <link rel="stylesheet"
+            href="{% frontend_static 'main.css' %}" />
+    {% endif %}
+  </head>
+  <body>
+    <div id="root">
+    </div>
+    {{ context|json_script:"context-data" }}
+
+    {% if frontend_bundle_available %}
+      <script defer="defer"
+              src="{% frontend_static 'main.js' %}"></script>
+    {% else %}
+      <main class="container py-5 mt-5">
+        <div class="alert alert-warning mt-5"
+             role="alert">
+          Frontend assets are not available. Run <code>makim reactjs.build</code>
+          to build the React frontend bundle.
+        </div>
+      </main>
+    {% endif %}
+  </body>
+</html>

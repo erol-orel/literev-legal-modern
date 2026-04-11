@@ -33,7 +33,6 @@ from rago.extensions.cache import CacheFile
 from rago.generation import OpenAIGen
 from rago.retrieval import StringRet
 
-from literev.legal.extract_minor_major import openai_llm_call
 from literev.libs.chroma_utils import (
     chroma_client,
     # chroma_client_adm,
@@ -42,6 +41,7 @@ from literev.libs.chroma_utils import (
     llm_answer,
     openai_client,
 )
+from literev.libs.extract_minor_major import openai_llm_call
 from literev.libs.rag_classes import HactarAug, HactarGen
 from literev.libs.scoring import (
     get_faithfulness_score,

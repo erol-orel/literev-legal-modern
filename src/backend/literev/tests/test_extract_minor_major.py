@@ -5,7 +5,7 @@ import re
 
 import pytest
 
-import literev.legal.extract_minor_major as extract_minor_major
+import literev.libs.extract_minor_major as extract_minor_major
 import lr_legal.extract_minor_major as lr_extract_minor_major
 
 

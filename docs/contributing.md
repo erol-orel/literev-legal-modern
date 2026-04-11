@@ -29,15 +29,14 @@ git checkout -b name-of-your-change
 
 The repository has split application roots plus per-library source roots:
 
-- `src/backend/` for Django configuration, ORM code, views, API endpoints, Celery wiring, repositories, services, presenters, templates, and static files.
-- `src/frontend/` for the React frontend application as the UI is migrated away from server-rendered pages.
+- `src/backend/` for Django configuration, ORM code, views, API endpoints, Celery wiring, app-local helpers under `literev/libs/`, templates, and static files.
+- `src/frontend/` for the React frontend application as the UI is migrated away from server-rendered pages, with routes/pages/components/browser-side libs owned by React.
 - `libs/<name>/src/` for each `lr_*` package that must remain free of Django imports and settings access.
 
 When moving logic around, use this split:
 
 - Put pure algorithms, contracts, and reusable helpers in `libs/`.
-- Put settings-backed wiring and ORM/file persistence in `src/backend/literev/services/` and `src/backend/literev/repositories/`.
-- Put HTML-safe formatting and template-facing helpers in `src/backend/literev/presenters/`.
+- Put Django-aware, app-local helper logic in `src/backend/literev/libs/`.
 - Put new browser-side application code in `src/frontend/`.
 
 Install the project in editable mode before running Django entrypoints; the root package now resolves every `lr-*` library from `libs/` as a production dependency, and each library keeps its own `src/` layout.

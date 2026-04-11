@@ -1,6 +1,74 @@
-.app {
+.react-shell {
   font-family: system-ui, sans-serif;
-  margin: 0 auto;
-  max-width: 48rem;
-  padding: 3rem 1.5rem;
+}
+
+.react-shell__content {
+  min-height: calc(100vh - 88px);
+  padding-top: 88px;
+}
+
+.react-shell__hero {
+  min-height: 60vh;
+}
+
+.react-shell__lead {
+  line-height: 1.7;
+}
+
+.react-shell__footer {
+  padding-bottom: 1rem;
+}
+
+.react-shell__user-email {
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.react-shell__partner-card {
+  min-height: 14rem;
+}
+
+.react-shell__partner-logo {
+  max-width: 60%;
+  height: auto;
+}
+
+.react-shell__team-section {
+  padding-top: 5rem;
+}
+
+.react-shell__cofounders-image {
+  border: 2px solid #ddd;
+  border-radius: 20%;
+  max-width: 600px;
+  width: 100%;
+}
+
+.react-shell__team-image {
+  border: 2px solid #ddd;
+  border-radius: 20%;
+  height: 18rem;
+  object-fit: cover;
+  width: 100%;
+}
+
+.react-shell__placeholder-page {
+  padding-top: 8rem;
+}
+
+.react-shell__placeholder-card {
+  border-radius: 1.5rem;
+}
+
+@media (max-width: 991.98px) {
+  .react-shell__content {
+    padding-top: 76px;
+  }
+
+  .react-shell__team-image {
+    height: auto;
+    max-width: 18rem;
+  }
 }

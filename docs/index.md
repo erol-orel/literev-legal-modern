@@ -6,11 +6,11 @@ Technical documentation for `literev-legal`, a French legal document analysis pl
 
 The codebase now has split application roots plus standalone per-library source roots:
 
-- `src/backend/`: Django application code, ORM models, views, DRF endpoints, Celery tasks, repositories, services, presenters, static files, and configuration.
-- `src/frontend/`: React frontend scaffold for the gradual SPA migration. For now, the existing UI is still served from Django templates in `src/backend/`.
+- `src/backend/`: Django application code, ORM models, views, DRF endpoints, Celery tasks, app-local helpers under `literev/libs/`, static files, and configuration.
+- `src/frontend/`: React frontend for the gradual hybrid migration. Public routes (`/`, `/team/`, `/product/`, `/company/`, `/blog/`) now render through a minimal Django generic template and are routed inside React, while the authenticated workflow remains Django-template based.
 - `libs/<name>/src/`: framework-free `lr_*` packages for reusable query, search, preprocessing, clustering, refinement, RAG, and legal logic.
 
-Use `src/backend/` for anything that touches Django, settings, persistence, or HTTP. Use `src/frontend/` for the future React application. Keep the shared algorithms in `libs/` free of Django imports.
+Use `src/backend/` for anything that touches Django, settings, persistence, or HTTP. Use `src/frontend/` for React-rendered routes and client UI. Keep the shared algorithms in `libs/` free of Django imports.
 
 ## Start Here
 
