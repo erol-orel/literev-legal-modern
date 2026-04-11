@@ -30,17 +30,17 @@ repos:
       - id: djlint-reformat-django
         files: "\\.html"
         types_or: ["html"]
-        # it is necessary to exclude src/literev/templates/tags because of the
+        # it is necessary to exclude src/backend/literev/templates/tags because of the
         # following issue:
         #   - https://github.com/Riverside-Healthcare/djLint/issues/703
-        exclude: "src/workflow/tests|.git|docs|.eggs|src/literev/templates/tags"
+        exclude: "src/backend/workflow/tests|.git|docs|.eggs|src/backend/literev/templates/tags"
       - id: djlint-django
         files: "\\.html"
         types_or: ["html"]
-        # it is necessary to exclude src/literev/templates/tags because of the
+        # it is necessary to exclude src/backend/literev/templates/tags because of the
         # following issue:
         #   - https://github.com/Riverside-Healthcare/djLint/issues/703
-        exclude: "src/workflow/tests|.git|docs|.eggs|src/literev/templates/tags"
+        exclude: "src/backend/workflow/tests|.git|docs|.eggs|src/backend/literev/templates/tags"
 
   - repo: local
     hooks:

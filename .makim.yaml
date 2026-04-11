@@ -12,7 +12,7 @@ groups:
           find . -name '*.pyc' -exec rm -f {} +
           find . -name '*.pyo' -exec rm -f {} +
           find . -name '__pycache__' -exec rm -rf {} +
-          find . -name '*~' -exec rm -f {} +
+          find . -type f -name '*~' -exec rm -f {} +
           rm -rf build/
           rm -rf dist/
           rm -rf .eggs/
@@ -127,24 +127,49 @@ groups:
           REDIS_HOST: localhost
           SUGAR_ENV: test
         run: |
-          pytest --ds=config.settings.test -vvv src/literev src/conftest.py
+          pytest --ds=config.settings.test -vvv src/backend/literev src/backend/conftest.py
 
       import-boundaries:
         help: Run import boundary tests
         run: |
           pytest -vvv tests/import_boundaries
 
+      reactjs:
+        help: Run frontend unit tests
+        hooks:
+          pre-run:
+            - task: reactjs.install
+            - task: reactjs.build
+        dir: src/frontend
+        run: CI=true npm test -- --watchAll=false --coverage --coverageReporters=text-summary --coverageReporters=json-summary --coverageReporters=lcov
+
+  reactjs:
+    tasks:
+      install:
+        help: Install the dependencies for the frontend
+        dir: src/frontend
+        run: npm install
+
+      build:
+        help: Build the React frontend assets
+        dir: src/frontend
+        run: npm run build
+
   django:
     tasks:
       collectstatic:
         help: Run the collectstatic for the literev service
+        hooks:
+          pre-run:
+            - task: reactjs.install
+            - task: reactjs.build
         run: |
           CMD="python manage.py collectstatic --no-input"
 
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
             sugar compose run --service literev --cmd "$CMD" -- --rm
           else
-            cd ./src/
+            cd ./src/backend/
             export POSTGRES_HOST=localhost
             $CMD
           fi
@@ -172,7 +197,7 @@ groups:
         run: |
           export DJANGO_SUPERUSER_PASSWORD=${{ args.password }}
           export DJANGO_SUPERUSER_USERNAME=${{ args.username }}
-          cd ./src
+          cd ./src/backend
           export POSTGRES_HOST=localhost
           python manage.py createsuperuser --noinput --email ${{ args.email }}
 
@@ -199,7 +224,7 @@ groups:
             if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
               sugar compose run --service literev --cmd "$CMD" -- --rm
             else
-              cd "${CWD}/src/"
+              cd "${CWD}/src/backend/"
               export POSTGRES_HOST=localhost
               $CMD
             fi
@@ -219,7 +244,7 @@ groups:
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
             sugar compose run --service literev --cmd "$CMD" -- --rm
           else
-            cd ./src/
+            cd ./src/backend/
             export POSTGRES_HOST=localhost
             $CMD
           fi
@@ -233,7 +258,7 @@ groups:
           REDIS_HOST: localhost
         run: |
           sugar --profile dev-host compose-ext restart -- -d
-          pushd src
+          pushd src/backend
             python manage.py runserver_plus 0.0.0.0:8000
           popd
 
@@ -249,7 +274,7 @@ groups:
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
             sugar compose run --service literev --cmd "$CMD" -- --rm
           else
-            cd ./src/
+            cd ./src/backend/
             export POSTGRES_HOST=localhost
             $CMD
           fi
@@ -276,7 +301,7 @@ groups:
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
             sugar compose run --service literev --cmd "$CMD" -- --rm
           else
-            cd ./src/
+            cd ./src/backend/
             export POSTGRES_HOST=localhost
             $CMD
           fi
@@ -294,7 +319,7 @@ groups:
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
             sugar compose run --service literev --cmd "$CMD" -- --rm
           else
-            cd ./src/
+            cd ./src/backend/
             export POSTGRES_HOST=localhost
             $CMD
           fi
@@ -312,7 +337,7 @@ groups:
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
             sugar compose run --service literev --cmd "$CMD" -- --rm
           else
-            cd ./src/
+            cd ./src/backend/
             export POSTGRES_HOST=localhost
             $CMD
           fi
@@ -323,7 +348,7 @@ groups:
         env-file: .env
         run: |
           export POSTGRES_HOST=localhost
-          cd ./src/
+          cd ./src/backend/
           python manage.py optimize_documents
           echo "[II] The optimization of the documents is done."
 
@@ -332,7 +357,7 @@ groups:
         env-file: .env
         run: |
           export POSTGRES_HOST=localhost
-          python src/manage.py shell_plus --lab
+          python src/backend/manage.py shell_plus --lab
 
       shell:
         help: Run the Django console interpreter inside the container.
@@ -342,7 +367,7 @@ groups:
           REDIS_HOST: localhost
         run: |
           sugar compose-ext start --services literev-postgres -- -d
-          python src/manage.py shell
+          python src/backend/manage.py shell
 
       cache-embeddings:
         help: Caches all the embeddings of the legal documents from the three chambers
@@ -376,7 +401,7 @@ groups:
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
             sugar compose run --service literev --cmd "$CMD" -- --rm
           else
-            cd ./src/
+            cd ./src/backend/
             export POSTGRES_HOST=localhost
             $CMD
           fi
@@ -419,7 +444,7 @@ groups:
             sugar compose-ext run --service literev --cmd "$CMD" -- --rm
             echo "Starting benchmark process..."
           else
-            cd ./src/
+            cd ./src/backend/
             export POSTGRES_HOST=localhost
             export ES_HOST_URL=http://localhost:9200
             eval "$CMD"
@@ -450,7 +475,7 @@ groups:
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
             sugar compose run --service literev --cmd "$CMD" -- --rm
           else
-            cd ./src/
+            cd ./src/backend/
             export POSTGRES_HOST=localhost
             $CMD
           fi
@@ -483,7 +508,7 @@ groups:
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
             sugar compose run --service literev --cmd "$CMD" -- --rm
           else
-            cd ./src/
+            cd ./src/backend/
             export POSTGRES_HOST=localhost
             $CMD
           fi
@@ -514,7 +539,7 @@ groups:
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
             sugar compose run --service literev --cmd "$CMD" -- --rm
           else
-            cd ./src/
+            cd ./src/backend/
             export POSTGRES_HOST=localhost
             $CMD
           fi
@@ -539,7 +564,7 @@ groups:
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
             sugar compose run --service literev --cmd "$CMD" -- --rm
           else
-            cd ./src/
+            cd ./src/backend/
             export POSTGRES_HOST=localhost
             $CMD
           fi
@@ -564,7 +589,7 @@ groups:
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
             sugar compose run --service literev --cmd "$CMD" -- --rm
           else
-            cd ./src/
+            cd ./src/backend/
             export POSTGRES_HOST=localhost
             $CMD
           fi
@@ -603,7 +628,7 @@ groups:
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
             sugar compose run --service literev --cmd "$CMD" -- --rm
           else
-            cd ./src/
+            cd ./src/backend/
             export POSTGRES_HOST=localhost
             $CMD
           fi
@@ -636,7 +661,7 @@ groups:
           if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
             sugar compose run --service literev --cmd "$CMD" -- --rm
           else
-            cd ./src/
+            cd ./src/backend/
             export POSTGRES_HOST=localhost
             $CMD
           fi
@@ -893,7 +918,7 @@ groups:
             sugar compose run --service literev --cmd "$CMD" -- --rm
             echo "Started indexing for index ${{ args.index_name }} with date range ${{ args.date_start }} - $DATE_END"
           else
-            cd ./src/
+            cd ./src/backend/
             export POSTGRES_HOST=localhost
             export ES_HOST_URL=http://localhost:9200
             eval "$CMD"

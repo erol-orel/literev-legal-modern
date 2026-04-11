@@ -392,6 +392,17 @@ jobs:
       - name: Install dependencies
         run: ./scripts/install-dev.sh
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install frontend dependencies
+        run: makim reactjs.install
+
+      - name: Run frontend unit tests
+        run: makim tests.reactjs
+
       - name: Generate Redis ACL config & password
         run: |
           makim containers.redis-setup
@@ -441,15 +452,18 @@ jobs:
           mkdir -p coverage-reports
           OUT="coverage-reports/coverage-app.md"
           {
+            python scripts/render_frontend_coverage_summary.py \
+              --summary-path src/frontend/coverage/coverage-summary.json
+            echo ""
             echo "### App tests"
             echo ""
             if [[ -f .coverage ]]; then
               echo '```'
               coverage report -m --skip-empty \
-                --include="src/**" 2>&1 || true
+                --include="src/backend/**" 2>&1 || true
               echo '```'
             else
-              echo "_No coverage data produced._"
+              echo "_No app coverage data produced._"
             fi
           } > "$OUT"
 

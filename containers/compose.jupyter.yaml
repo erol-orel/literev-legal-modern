@@ -17,7 +17,7 @@ services:
     environment:
       ENV: dev
       DJANGO_SETTINGS_MODULE: config.settings.dev
-      PYTHONPATH: /opt/services/literev/src
+      PYTHONPATH: /opt/services/literev/src/backend
     volumes:
       - jupyter_notebook:${LITEREV_NOTEBOOKS_DIR}
     networks:

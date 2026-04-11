@@ -10,7 +10,7 @@ Elasticsearch stores Swiss legal court decisions and is the primary document sou
 |---------|-------|
 | Nodes | `es-legal-1`, `es-legal-2`, `es-legal-3` (3-node cluster) |
 | Port | `9200` |
-| Docker Compose | [`containers/compose.elasticsearch.yaml`](../containers/compose.elasticsearch.yaml) |
+| Docker Compose | [`containers/compose.elasticsearch.yaml`](../../containers/compose.elasticsearch.yaml) |
 
 Three indices are maintained, one per legal chamber:
 
@@ -34,7 +34,7 @@ ES_SSL_CERTS=False                   # Path to CA cert, or False to disable
 ES_INDICES=chambre_penale,chambre_civile,chambre_administrative
 ```
 
-Additional Django settings in [`src/config/settings/base.py`](../src/config/settings/base.py):
+Additional Django settings in [`src/backend/config/settings/base.py`](../../src/backend/config/settings/base.py):
 
 ```python
 ES_HOST_URL  = os.environ.get("ES_HOST_URL")
@@ -72,7 +72,7 @@ Source documents are JSONL or JSON files exported from the court data provider. 
 
 ## Document Loading Pipeline
 
-The full load is handled by [`scripts/elasticsearch_loader.py`](../scripts/elasticsearch_loader.py), which contains four cooperating classes:
+The full load is handled by [`scripts/elasticsearch_loader.py`](../../scripts/elasticsearch_loader.py), which contains four cooperating classes:
 
 ### DataReader
 Reads a JSONL or JSON file line-by-line and yields raw document dicts.
@@ -127,7 +127,7 @@ makim elasticsearch.process-documents
 
 ## Querying from the Application
 
-**File:** [`src/literev/libs/collectors.py`](../src/literev/libs/collectors.py) — `ElasticSearchCollector`
+**File:** [`src/backend/literev/libs/collectors.py`](../../src/backend/literev/libs/collectors.py) — `ElasticSearchCollector`
 
 ```python
 collector = ElasticSearchCollector(index_name="chambre_penale")
@@ -150,13 +150,13 @@ Uses the ES **Scroll API** (page size 1000, 15-minute timeout). `ES_SLICES` cont
 
 Each result is a `MetaData` dataclass with fields: `doc_id`, `chamber`, `document_text`, `document_html_text`, `procedure_type`, `decision_type`, `decision_date`, `descriptors`, `summary`, `standards`, `result`, `es_score`, `record_key`.
 
-Boolean queries are translated to ES DSL by `process_search_query_elasticsearch()` in [`src/literev/libs/parsing.py`](../src/literev/libs/parsing.py).
+Boolean queries are translated to ES DSL by `process_search_query_elasticsearch()` in [`src/backend/literev/libs/parsing.py`](../../src/backend/literev/libs/parsing.py).
 
 ---
 
 ## Snapshot & Restore
 
-**File:** [`containers/elasticsearch_restore/restore_if_missing.py`](../containers/elasticsearch_restore/restore_if_missing.py)
+**File:** [`containers/elasticsearch_restore/restore_if_missing.py`](../../containers/elasticsearch_restore/restore_if_missing.py)
 
 On container startup:
 1. Checks which configured indices are missing
@@ -183,7 +183,7 @@ Elasticsearch Index
 (chambre_penale | chambre_civile | chambre_administrative)
         │
         ▼
-ElasticSearchCollector  (src/literev/libs/collectors.py)
+ElasticSearchCollector  (src/backend/literev/libs/collectors.py)
   └── collect_documents() — Scroll API, boolean DSL
         │
         ▼

@@ -1,0 +1,6 @@
+.app {
+  font-family: system-ui, sans-serif;
+  margin: 0 auto;
+  max-width: 48rem;
+  padding: 3rem 1.5rem;
+}

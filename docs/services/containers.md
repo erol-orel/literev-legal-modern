@@ -156,7 +156,7 @@ makim django.migrate
    ```
 3. Start the notebook server:
    ```bash
-   python src/manage.py shell_plus --notebook
+   python src/backend/manage.py shell_plus --notebook
    # or:
    makim django.notebook
    ```

@@ -3,18 +3,24 @@
 ## What The System Does
 
 `literev-legal` helps users search, normalize, cluster, refine, and question French legal decisions.
-The user-facing flow is still Django-first, but the core reusable algorithms now live in standalone libraries under repo-root `libs/` so they can be tested without importing Django.
+The repository now has a split application layout: `src/backend/` contains the Django application, while `src/frontend/` is the React frontend scaffold for the future SPA. The user-facing flow is still Django-first for now, and the core reusable algorithms live in standalone libraries under repo-root `libs/` so they can be tested without importing Django.
 
 ## Source Roots
 
 ```text
 src/
-  config/                  Django bootstrapping, settings, ASGI/WSGI/Celery
-  literev/                 Django app: models, views, API, tasks
-    services/             Django orchestration and settings-backed adapters
-    repositories/         ORM/file persistence helpers
-    presenters/           HTML-safe and template-facing formatting helpers
-  literev_core/           compatibility wrappers during the extraction cutover
+  backend/
+    config/                  Django bootstrapping, settings, ASGI/WSGI/Celery
+    literev/                 Django app: models, views, API, tasks
+      services/              Django orchestration and settings-backed adapters
+      repositories/          ORM/file persistence helpers
+      presenters/            HTML-safe and template-facing formatting helpers
+    literev_core/            compatibility wrappers during the extraction cutover
+    static/                  current static assets still served by Django
+  frontend/
+    package.json             React application metadata and scripts
+    public/                  React public assets
+    src/                     React application source scaffold
 
 libs/
   lt_contracts/
@@ -58,7 +64,13 @@ The repository relies on the installed Python environment to expose both the Dja
 The intended dependency graph is one-way:
 
 ```text
-src/config + src/literev
+src/frontend (future SPA)
+        |
+        v
+   REST / browser calls
+        |
+        v
+src/backend/config + src/backend/literev
         |
         v
      libs/lt_*
@@ -66,10 +78,10 @@ src/config + src/literev
 
 Rules:
 
-- Code under `libs/` must not import Django, DRF, Celery, `django.conf.settings`, or modules from `src/literev/`.
-- Django-specific orchestration belongs in `src/literev/services/`.
-- ORM and file persistence belong in `src/literev/repositories/`.
-- HTML rendering, `mark_safe`, and template-facing helpers belong in `src/literev/presenters/`.
+- Code under `libs/` must not import Django, DRF, Celery, `django.conf.settings`, or modules from `src/backend/literev/`.
+- Django-specific orchestration belongs in `src/backend/literev/services/`.
+- ORM and file persistence belong in `src/backend/literev/repositories/`.
+- HTML rendering, `mark_safe`, and template-facing helpers belong in `src/backend/literev/presenters/`.
 - Compatibility wrappers may still exist in legacy modules during the cutover, but they should delegate into `libs/` rather than hosting new shared logic.
 
 The import-boundary check in `tests/import_boundaries/` enforces this rule in CI.
@@ -145,7 +157,7 @@ Question + selected corpus
 The test split now mirrors the architecture:
 
 - `libs/lt_*/tests/`: framework-free unit suites colocated with each extracted library.
-- `src/literev/tests/`: Django integration tests for views, tasks, models, and adapters.
+- `src/backend/literev/tests/`: Django integration tests for views, tasks, models, and adapters.
 - `tests/import_boundaries/`: enforcement that `libs/` stays Django-free.
 
 The main GitHub Actions workflow now detects which `lt_*` packages changed, runs only the affected lib suites plus the boundary checks on pull requests, and runs the full app suite when Django-side code or shared tooling changes.

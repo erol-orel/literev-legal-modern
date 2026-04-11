@@ -1,6 +1,6 @@
 # Contributing
 
-Contributions are welcome. The project mixes a Django application under `src/` with reusable framework-free libraries under `libs/`, so the main goal when contributing is to keep those boundaries clean.
+Contributions are welcome. The project now splits application code between `src/backend/` and `src/frontend/`, alongside reusable framework-free libraries under `libs/`, so the main goal when contributing is to keep those boundaries clean.
 
 ## Local Setup
 
@@ -27,16 +27,18 @@ git checkout -b name-of-your-change
 
 ## Source-Root Rules
 
-The repository has one application root plus per-library source roots:
+The repository has split application roots plus per-library source roots:
 
-- `src/` for Django configuration, ORM code, views, API endpoints, Celery wiring, repositories, services, and presenters.
+- `src/backend/` for Django configuration, ORM code, views, API endpoints, Celery wiring, repositories, services, presenters, templates, and static files.
+- `src/frontend/` for the React frontend application as the UI is migrated away from server-rendered pages.
 - `libs/<name>/src/` for each `lt_*` package that must remain free of Django imports and settings access.
 
 When moving logic around, use this split:
 
 - Put pure algorithms, contracts, and reusable helpers in `libs/`.
-- Put settings-backed wiring and ORM/file persistence in `src/literev/services/` and `src/literev/repositories/`.
-- Put HTML-safe formatting and template-facing helpers in `src/literev/presenters/`.
+- Put settings-backed wiring and ORM/file persistence in `src/backend/literev/services/` and `src/backend/literev/repositories/`.
+- Put HTML-safe formatting and template-facing helpers in `src/backend/literev/presenters/`.
+- Put new browser-side application code in `src/frontend/`.
 
 Install the project in editable mode before running Django entrypoints; the root package now resolves every `lt-*` library from `libs/` as a production dependency, and each library keeps its own `src/` layout.
 
@@ -49,7 +51,10 @@ makim tests.lint
 makim tests.import-boundaries
 makim tests.libs-all
 makim tests.app
+makim tests.reactjs
 ```
+
+`makim tests.reactjs` also generates frontend coverage output under `src/frontend/coverage/`. GitHub Actions renders that JSON report into the PR coverage summary via `scripts/render_frontend_coverage_summary.py`. When editing `.github/workflows/*.yaml` or `.makim.yaml`, do not embed heredocs such as `<<'PY'`; put non-trivial shell or Python snippets in `scripts/` and call them from YAML.
 
 Useful focused commands:
 
@@ -57,6 +62,10 @@ Useful focused commands:
 makim tests.lib --lib lt_query
 makim tests.lib --lib lt_rag
 makim django.migrate
+makim reactjs.install
+makim reactjs.build
+makim tests.reactjs
+makim django.collectstatic
 makim containers.start
 ```
 
@@ -77,9 +86,9 @@ Each standalone library now follows `libs/<name>/{pyproject.toml,README.md,src/<
 Examples:
 
 ```text
-feat: extract refinement helpers into root libs
+feat: add frontend unit tests and CI task wiring
 fix: avoid eager lt_query boolean-query dependency during lib imports
-docs: document the src and per-lib source-root split
+docs: document the frontend/backend source-root split
 ```
 
 ## Documentation

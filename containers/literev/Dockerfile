@@ -79,7 +79,7 @@ COPY --chown=literev:literev pyproject.toml /tmp/pyproject.toml
 COPY --chown=literev:literev README.md /tmp/README.md
 
 # create minimum structure for the installation
-RUN mkdir -p /tmp/src
+RUN mkdir -p /tmp/src/backend
 
 ARG ENV=prod
 
@@ -113,9 +113,9 @@ RUN mkdir -p ${CONTAINER_VOLUME_DATA_DIR}/articles \
   && mkdir -p ${MEDIA_ROOT} \
   && mkdir -p ${LITEREV_CACHE_DIR}
 
-WORKDIR /opt/services/literev/src
+WORKDIR /opt/services/literev/src/backend
 
-ENV PYTHONPATH='/opt/services/literev/src'
+ENV PYTHONPATH='/opt/services/literev/src/backend'
 
 ENTRYPOINT ["tini", "--", "/opt/entrypoint.sh"]
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

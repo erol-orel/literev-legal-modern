@@ -120,10 +120,10 @@ Issues = "https://github.com/your-org-or-user/literev/issues"
 package-dir = { "" = "." }
 include-package-data = true
 
-# The Django application ships from src/; lt_* libraries are installed as
+# The Django application ships from src/backend/; lt_* libraries are installed as
 # production dependencies from libs/<name>/.
 [tool.setuptools.packages]
-find = { where = ["src"], include = ["config*", "literev*", "literev_core*"] }
+find = { where = ["src/backend"], include = ["config*", "literev*", "literev_core*"] }
 
 # Ensure non-Python files land in the wheel
 [tool.setuptools.package-data]
@@ -140,25 +140,25 @@ literev_core = ["data/**"]
 [tool.pytest.ini_options]
 minversion = "6.0"
 DJANGO_SETTINGS_MODULE = "config.settings.test"
-addopts = "--ds=config.settings.test -v -ra --cov=src --cov=libs --reuse-db"
-pythonpath = ["src", "libs/lt_contracts/src", "libs/lt_query/src", "libs/lt_search/src", "libs/lt_preprocessing/src", "libs/lt_clustering/src", "libs/lt_rag/src", "libs/lt_refinement/src", "libs/lt_legal/src"]
+addopts = "--ds=config.settings.test -v -ra --cov=src/backend --cov=libs --reuse-db"
+pythonpath = ["src/backend", "libs/lt_contracts/src", "libs/lt_query/src", "libs/lt_search/src", "libs/lt_preprocessing/src", "libs/lt_clustering/src", "libs/lt_rag/src", "libs/lt_refinement/src", "libs/lt_legal/src"]
 python_files = ["tests.py", "test_*.py"]
 
 [tool.coverage.run]
-include = ["src/**", "libs/**"]
+include = ["src/backend/**", "libs/**"]
 omit = [
   "*/migrations/*",
   "*/tests/*",
   "scripts/*",
   "manage.py",
-  "*/src/conftest.py",
+  "*/src/backend/conftest.py",
   "*.txt",
 ]
 plugins = ["django_coverage_plugin"]
 
 [tool.bandit]
 exclude_dirs = ["tests", "migrations"]
-targets = "src/, libs/"
+targets = "src/backend/, libs/"
 
 [tool.vulture]
 exclude = ["tests", "migrations", "scripts"]
@@ -166,13 +166,13 @@ ignore_decorators = []
 ignore_names = []
 make_whitelist = true
 min_confidence = 80
-paths = ["src/", "libs/"]
+paths = ["src/backend/", "libs/"]
 verbose = false
 
 [tool.ruff]
 line-length = 79
 force-exclude = true
-src = ["./src", "./libs/lt_contracts/src", "./libs/lt_query/src", "./libs/lt_search/src", "./libs/lt_preprocessing/src", "./libs/lt_clustering/src", "./libs/lt_rag/src", "./libs/lt_refinement/src", "./libs/lt_legal/src", "./tests"]
+src = ["./src/backend", "./libs/lt_contracts/src", "./libs/lt_query/src", "./libs/lt_search/src", "./libs/lt_preprocessing/src", "./libs/lt_clustering/src", "./libs/lt_rag/src", "./libs/lt_refinement/src", "./libs/lt_legal/src", "./tests"]
 exclude = ["docs", "migrations", "urls.py", "scripts"]
 fix = true
 
@@ -190,7 +190,7 @@ lines-between-types = 1
 quote-style = "double"
 
 [tool.mypy]
-mypy_path = "src:libs/lt_contracts/src:libs/lt_query/src:libs/lt_search/src:libs/lt_preprocessing/src:libs/lt_clustering/src:libs/lt_rag/src:libs/lt_refinement/src:libs/lt_legal/src"
+mypy_path = "src/backend:libs/lt_contracts/src:libs/lt_query/src:libs/lt_search/src:libs/lt_preprocessing/src:libs/lt_clustering/src:libs/lt_rag/src:libs/lt_refinement/src:libs/lt_legal/src"
 exclude = [
   'tests/*',
   'docs/*',
@@ -242,7 +242,7 @@ max_attribute_length=3
 max_blank_lines=1
 max_line_length=80
 profile="django"
-exclude="src/workflow/tests,.git,docs,.eggs,src/literev/templates/tags"
+exclude="src/backend/workflow/tests,.git,docs,.eggs,src/backend/literev/templates/tags"
 ignore="H029,H005,H030,H031,H006,H013,H021,H023,D018"
 preserve_blank_lines=false
 

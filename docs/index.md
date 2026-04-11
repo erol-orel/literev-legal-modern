@@ -4,12 +4,13 @@ Technical documentation for `literev-legal`, a French legal document analysis pl
 
 ## Source Layout
 
-The codebase now has one application source root plus standalone per-library source roots:
+The codebase now has split application roots plus standalone per-library source roots:
 
-- `src/`: Django application code, ORM models, views, Celery tasks, repositories, services, presenters, and configuration.
+- `src/backend/`: Django application code, ORM models, views, DRF endpoints, Celery tasks, repositories, services, presenters, static files, and configuration.
+- `src/frontend/`: React frontend scaffold for the gradual SPA migration. For now, the existing UI is still served from Django templates in `src/backend/`.
 - `libs/<name>/src/`: framework-free `lt_*` packages for reusable query, search, preprocessing, clustering, refinement, RAG, and legal logic.
 
-Use the `src/` layer for anything that touches Django, settings, persistence, or HTTP. Keep the shared algorithms in `libs/` free of Django imports.
+Use `src/backend/` for anything that touches Django, settings, persistence, or HTTP. Use `src/frontend/` for the future React application. Keep the shared algorithms in `libs/` free of Django imports.
 
 ## Start Here
 
@@ -37,6 +38,8 @@ makim tests.import-boundaries
 makim tests.lib --lib lt_query
 makim tests.libs-all
 makim tests.app
+makim tests.reactjs
+# frontend coverage is written to src/frontend/coverage/
 ```
 
 ## Quick Reference
@@ -44,6 +47,10 @@ makim tests.app
 ```bash
 makim containers.start
 makim django.migrate
+makim reactjs.install
+makim reactjs.build
+makim tests.reactjs
+makim django.collectstatic
 makim tests.app
 makim tests.lib --lib lt_rag
 makim tests.import-boundaries

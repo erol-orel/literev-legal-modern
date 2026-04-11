@@ -28,7 +28,7 @@ django_stubs_ext.monkeypatch()
 # Ensure that logging captures warnings issued by warnings.warn()
 logging.captureWarnings(True)
 
-ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
 
 # Ensure that warnings are enabled
 os.environ["PYTHONWARNINGS"] = "default"
@@ -124,7 +124,7 @@ TEMPLATES = [
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [
             str(BASE_DIR / "templates")
-        ],  # TODO: Check if refer to /src/literev/templates/
+        ],  # TODO: Check if this should point to /src/backend/literev/templates/
         "APP_DIRS": True,
         "OPTIONS": {
             "debug": True,

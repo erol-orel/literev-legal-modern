@@ -1,15 +1,17 @@
 # Configuration & Environment
 
-All runtime configuration is driven through environment variables and Django settings modules. The repository also uses standalone libraries under `libs/`, so part of the configuration story is making sure the Django app and each `lt-*` package are installed together in the active environment.
+All runtime configuration is driven through environment variables and Django settings modules. The repository also uses standalone libraries under `libs/` and now splits application code between `src/backend/` and `src/frontend/`, so part of the configuration story is making sure the Django app and each `lt-*` package are installed together in the active environment.
 
 ## Installed Packages
 
-The project uses standalone library folders under `libs/` in addition to the Django app under `src/`.
+The project uses standalone library folders under `libs/` in addition to the split application roots under `src/`.
 
 - `./scripts/install-prod.sh` and `./scripts/install-dev.sh` install the root package in editable mode.
 - The root `pyproject.toml` lists every `libs/lt_*` package as a production dependency using a local path reference.
+- `setuptools` packages the Django app from `src/backend/`.
 - Each library keeps its own `pyproject.toml` and `src/<package>/` layout, so the app environment installs them as real packages instead of bundling them into the root wheel.
-- Tooling is still configured to understand the app root and every library root through `pyproject.toml`.
+- `src/frontend/` is a React scaffold and is managed separately with npm-based tasks.
+- Tooling is configured to understand the Django app root and every library root through `pyproject.toml`.
 
 That means the following imports are all valid in the configured environment:
 
@@ -85,9 +87,9 @@ DJANGO_SETTINGS_MODULE=config.settings.dev
 
 `pyproject.toml` is configured so the dev tools understand both the Django app and the standalone libraries:
 
-- `setuptools` packages only the Django application from `src`.
+- `setuptools` packages only the Django application from `src/backend/`.
 - The root project depends on every `libs/lt_*` package through local path production dependencies.
-- `pytest` sets `pythonpath` to `src` plus every `libs/*/src` root.
+- `pytest` sets `pythonpath` to `src/backend/` plus every `libs/*/src` root.
 - `ruff`, `mypy`, `coverage`, and `vulture` include both trees.
 - The import-boundary suite validates that packages under `libs/` stay Django-free.
 

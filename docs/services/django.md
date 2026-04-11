@@ -4,7 +4,7 @@ The Django service is the application-facing layer of `literev-legal`. It owns H
 
 ## Responsibilities
 
-Keep these concerns in `src/`:
+Keep these concerns in `src/backend/`:
 
 - Django models, ORM queries, migrations, and admin integration.
 - Template views and Django REST Framework endpoints.
@@ -12,10 +12,12 @@ Keep these concerns in `src/`:
 - Settings access and environment-backed configuration.
 - App-only adapters that translate between Django models and framework-free contracts.
 
+The new `src/frontend/` folder is reserved for the gradual React migration. Until that migration is complete, the existing HTML pages and static assets still live under `src/backend/`.
+
 ## App-Layer Structure
 
 ```text
-src/literev/
+src/backend/literev/
   services/       orchestration and settings-backed adapters
   repositories/   ORM and file persistence helpers
   presenters/     template-facing and HTML-safe formatting helpers
@@ -28,11 +30,11 @@ The reusable logic lives in standalone folders under `libs/`. Django entrypoints
 
 ## Management Commands
 
-Management commands still live in `src/literev/management/commands/`.
-Use them through Django directly or through `makim` when a task already exists.
+Management commands still live in `src/backend/literev/management/commands/`.
+Use them through Django directly or through `makim` when a task already exists. `makim django.collectstatic` now uses the same approach as the main `literev` repository and runs `reactjs.install` plus `reactjs.build` before Django collects static files.
 
 ```bash
-python src/manage.py <command>
+python src/backend/manage.py <command>
 makim django.migrate
 makim django.makemigrations --check
 ```
@@ -43,6 +45,7 @@ Use the split test suites that match the new architecture:
 
 ```bash
 makim tests.app
+makim tests.reactjs
 makim tests.lib --lib lt_query
 makim tests.libs-all
 makim tests.import-boundaries
@@ -51,8 +54,9 @@ makim tests.import-boundaries
 Guidance:
 
 - Use `tests.app` when the change touches Django models, repositories, views, serializers, permissions, or Celery tasks.
+- Use `tests.reactjs` when the change touches browser-side code under `src/frontend/`; it now pre-runs `reactjs.install` plus `reactjs.build`, then generates frontend coverage output under `src/frontend/coverage/` while executing the unit suite.
 - Use `tests.lib --lib <name>` for framework-free package changes under `libs/lt_*/src` and `libs/lt_*/tests`; the task now records per-library coverage for the PR summary comment.
-- Run `tests.import-boundaries` whenever moving logic between `src/` and `libs/`.
+- Run `tests.import-boundaries` whenever moving logic between `src/backend/` and `libs/`.
 
 ## CI Layout
 

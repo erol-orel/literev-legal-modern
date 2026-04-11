@@ -3,15 +3,15 @@
 All long-running NLP and ML operations run as Celery tasks, decoupled from the HTTP request cycle. The application uses Redis as both the message broker and the result backend.
 
 Source files:
-- Celery app: [src/config/celery.py](../src/config/celery.py)
-- Tasks: [src/literev/tasks.py](../src/literev/tasks.py)
+- Celery app: [src/backend/config/celery.py](../../src/backend/config/celery.py)
+- Tasks: [src/backend/literev/tasks.py](../../src/backend/literev/tasks.py)
 
 ---
 
 ## Configuration
 
 ```python
-# src/config/celery.py
+# src/backend/config/celery.py
 app = Celery("literev-celery")
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks(["literev.tasks"])
@@ -48,7 +48,7 @@ Redis ACL configuration restricts access to broker data only. See the contributi
 
 ## Task Overview
 
-Tasks are defined in `src/literev/tasks.py` and decorated with `@app.task`. They are triggered either:
+Tasks are defined in `src/backend/literev/tasks.py` and decorated with `@app.task`. They are triggered either:
 - By API views (e.g. RAG task after POST to `/api/project/{id}/rag/`)
 - By Django views (e.g. pipeline task after project creation)
 - By management commands (e.g. embedding generation)

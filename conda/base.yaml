@@ -3,6 +3,7 @@ channels:
   - nodefaults
   - conda-forge
 dependencies:
+  - nodejs >=18
   - python 3.11.*
   - gunicorn 21.*
   - pip

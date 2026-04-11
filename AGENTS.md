@@ -55,47 +55,55 @@ questions against their corpus via LLM integration.
 
 ```
 src/
-  config/                  Django project config
-    settings/
-      base.py              Shared settings
-      dev.py               Dev overrides (debug toolbar)
-      test.py              Test overrides
-      prod.py              Production (Sentry, HSTS, SMTP, SSL)
-    celery.py              Celery app configuration
-    urls.py                Root URL routing
-    wsgi.py / asgi.py
-  literev/                 Main Django application
-    models.py              All 10 Django models
-    views.py               Template views
-    api/
-      views.py             DRF API endpoints (viewsets + APIView)
-      serializers.py       DRF serializers
-      permissions.py       Custom permission classes
-    libs/                  Core business logic
-      collectors.py        Elasticsearch integration
-      nlp.py               NLP processing, topic descriptions
-      clustering.py        Clustering orchestration
-      rag_pdf.py           RAG answer generation (~1,945 lines)
-      rag_classes.py       RAG wrapper classes
-      parsing.py           Document parsing (~1,331 lines)
-      pipeline.py          End-to-end data pipeline
-      table_choice.py      Interactive selection refinement
-      scoring.py           Document scoring and ranking
-      utils.py             Utility functions
-    legal/
-      extract_minor_major.py  French legal text classification
-                              (Majeure / Mineure-Faits / Mineure-Subsommation / Conclusion)
-    management/commands/   Django CLI commands
-    migrations/            Database migrations (never edit manually)
-    tests/
-      api/                 API endpoint and serializer tests
-      etl/                 Data processing tests
-      conftest.py          Shared fixtures
-  literev_core/            Shared NLP/clustering utilities
-    preprocessing.py       Text normalization pipeline
-    clustering.py          PaCMAP + HDBSCAN implementation
-    utils.py               Core utilities
-    data/                  Static data files
+  backend/
+    config/                Django project config
+      settings/
+        base.py            Shared settings
+        dev.py             Dev overrides (debug toolbar)
+        test.py            Test overrides
+        prod.py            Production (Sentry, HSTS, SMTP, SSL)
+      celery.py            Celery app configuration
+      urls.py              Root URL routing
+      wsgi.py / asgi.py
+    literev/               Main Django application
+      models.py            All 10 Django models
+      views.py             Template views
+      api/
+        views.py           DRF API endpoints (viewsets + APIView)
+        serializers.py     DRF serializers
+        permissions.py     Custom permission classes
+      libs/                Core business logic
+        collectors.py      Elasticsearch integration
+        nlp.py             NLP processing, topic descriptions
+        clustering.py      Clustering orchestration
+        rag_pdf.py         RAG answer generation (~1,945 lines)
+        rag_classes.py     RAG wrapper classes
+        parsing.py         Document parsing (~1,331 lines)
+        pipeline.py        End-to-end data pipeline
+        table_choice.py    Interactive selection refinement
+        scoring.py         Document scoring and ranking
+        utils.py           Utility functions
+      legal/
+        extract_minor_major.py  French legal text classification
+                                (Majeure / Mineure-Faits / Mineure-Subsommation / Conclusion)
+      management/commands/ Django CLI commands
+      migrations/          Database migrations (never edit manually)
+      tests/
+        api/               API endpoint and serializer tests
+        etl/               Data processing tests
+        conftest.py        Shared fixtures
+    literev_core/          Shared NLP/clustering utilities
+      preprocessing.py     Text normalization pipeline
+      clustering.py        PaCMAP + HDBSCAN implementation
+      utils.py             Core utilities
+      data/                Static data files
+    static/                Current Django-served static assets
+    manage.py              Django entrypoint
+    conftest.py            Pytest fixtures for app tests
+  frontend/
+    package.json           React application metadata and scripts
+    public/                React public assets
+    src/                   React application source scaffold
 
 containers/                Docker configuration
   literev/                 App Dockerfile (mambaforge-based)
@@ -179,7 +187,8 @@ Optional: RAG pipeline
 | `ProjectDocumentRAG`  | LLM answer for one document — includes citations and confidence score                                  |
 | `ProjectRAGStats`     | Classification statistics for closed-ended questions                                                   |
 
-All models live in [src/literev/models.py](src/literev/models.py).
+All models live in
+[src/backend/literev/models.py](src/backend/literev/models.py).
 
 ### API Design
 
@@ -187,10 +196,10 @@ All models live in [src/literev/models.py](src/literev/models.py).
 - ViewSets (`ModelViewSet`) and class-based `APIView`
 - All endpoints require `IsAuthenticated`
 - Custom permissions: `is_owner`, `is_in_shared_projects` — see
-  [src/literev/api/permissions.py](src/literev/api/permissions.py)
+  [src/backend/literev/api/permissions.py](src/backend/literev/api/permissions.py)
 - Endpoints namespaced under `/api/project/`
 - Serializers: `ProjectRAGSerializer`, `ProjectDocumentRAGSerializer` — see
-  [src/literev/api/serializers.py](src/literev/api/serializers.py)
+  [src/backend/literev/api/serializers.py](src/backend/literev/api/serializers.py)
 
 ### Authentication
 
@@ -216,8 +225,9 @@ All models live in [src/literev/models.py](src/literev/models.py).
   retrieval, augmentation, generation, documents (path: `LITEREV_CACHE_DIR`)
 - **Citations**: fuzzy-matched via `rapidfuzz`
 - **Confidence**: `ragas` faithfulness metric per answer
-- Core logic: [src/literev/libs/rag_pdf.py](src/literev/libs/rag_pdf.py),
-  [src/literev/libs/rag_classes.py](src/literev/libs/rag_classes.py)
+- Core logic:
+  [src/backend/literev/libs/rag_pdf.py](src/backend/literev/libs/rag_pdf.py),
+  [src/backend/literev/libs/rag_classes.py](src/backend/literev/libs/rag_classes.py)
 
 ---
 
@@ -273,13 +283,17 @@ makim tests.lint                # run all linters
 makim tests.unit                # run pytest
 makim django.migrate            # apply migrations
 makim django.makemigrations     # create new migrations
+makim reactjs.install           # install frontend dependencies
+makim reactjs.build             # build frontend assets
+makim tests.reactjs              # run frontend unit tests with coverage
+makim django.collectstatic       # build frontend then collect Django static files
 makim containers.start          # start Docker services
 makim containers.stop           # stop Docker services
 makim elasticsearch.index       # index documents
 ```
 
-Task groups: `clean`, `tests`, `django`, `containers`, `elasticsearch`,
-`deploy-production`.
+Task groups: `clean`, `tests`, `reactjs`, `django`, `containers`,
+`elasticsearch`, `deploy-production`.
 
 ### Code Quality Gates
 
@@ -302,14 +316,19 @@ Run manually: `pre-commit run --all-files`
 
 - **Type hints** are required on all functions and methods (Python 3.11+ syntax)
 - **Docstrings** use NumPy format (Parameters / Returns / Raises sections)
-- **`src`-layout**: all application code lives under `src/` — never import from
-  the repo root
+- **Split `src` layout**: Django code lives under `src/backend/`, React code
+  lives under `src/frontend/`, and application code should never be imported
+  from the repo root
 - **Migrations**: always run `makim django.makemigrations` after model changes;
   never hand-edit migration files
 - **Secrets**: never hardcode credentials — always read from environment or
   `.env`
 - **No backwards-compat shims**: if removing code, remove it completely
 - **No speculative abstractions**: only abstract when you have 3+ concrete uses
+- **No heredocs inside YAML automation files**: do not embed blocks such as
+  `<<'PY'` inside `.github/workflows/*.yaml` or `.makim.yaml`; move non-trivial
+  shell or Python logic into dedicated files under `scripts/` and call those
+  from YAML
 
 ### Commit Message Convention
 
@@ -332,18 +351,26 @@ Types `feat` / `fix` / `perf` trigger version bumps. Other types (`docs`,
 
 ```bash
 makim tests.unit                # recommended
+makim tests.reactjs              # frontend unit tests with coverage
 # or directly:
-pytest src/ --cov=src --cov-fail-under=35
+pytest src/backend --cov=src/backend --cov-fail-under=35
 ```
 
 ### Test Structure
 
 ```
-src/literev/tests/
+src/backend/literev/tests/
   conftest.py          Shared fixtures (user, project, document, celery_worker)
   api/                 DRF endpoint and serializer tests
   etl/                 Data processing tests
   test_*.py            Feature-specific tests
+
+src/frontend/tests/
+  *.test.js            React unit tests
+
+src/frontend/src/
+  tests.entry.test.js  react-scripts bootstrap for frontend tests
+  setupTests.js        Jest / Testing Library setup
 ```
 
 ### Test Conventions
@@ -358,6 +385,8 @@ src/literev/tests/
 
 ### What to Test
 
+- React frontend smoke tests for rendered headings, key text, and simple
+  interactions
 - API permissions: unauthenticated, non-owner, owner, shared-project member
 - Boolean query generation edge cases (Elasticsearch query builder)
 - Pipeline stages in isolation (normalization, vectorization, clustering)
@@ -390,7 +419,11 @@ GitHub Actions (`.github/workflows/main.yaml`) runs on every push and PR to
 `main`:
 
 1. Pre-commit checks (ruff, mypy, bandit, djlint, etc.)
-2. pytest with coverage (fail under 35%)
+2. pytest with coverage (fail under 35%) plus React unit tests with Jest
+   coverage; the frontend coverage comment block is rendered by
+   `scripts/render_frontend_coverage_summary.py`. Keep workflow and makim YAML
+   files free of embedded heredocs such as `<<'PY'`; use repo scripts for
+   non-trivial logic instead
 3. On merge to `main`: `semantic-release` creates a version tag, GitHub release,
    and changelog entry
 
@@ -398,7 +431,7 @@ GitHub Actions (`.github/workflows/main.yaml`) runs on every push and PR to
 
 1. Merge PR with conventional commit messages
 2. `semantic-release` reads commits since last tag
-3. Bumps version in `pyproject.toml` and `src/config/__init__.py`
+3. Bumps version in `pyproject.toml` and `src/backend/config/__init__.py`
 4. Creates GitHub release with generated changelog
 
 ---
@@ -444,26 +477,27 @@ component. **When you change code, update the corresponding doc file.**
 
 ## 10. Key File Reference
 
-| File                                                                                 | Purpose                                     |
-| ------------------------------------------------------------------------------------ | ------------------------------------------- |
-| [src/literev/models.py](src/literev/models.py)                                       | All Django models                           |
-| [src/literev/api/views.py](src/literev/api/views.py)                                 | DRF API endpoints                           |
-| [src/literev/api/serializers.py](src/literev/api/serializers.py)                     | DRF serializers                             |
-| [src/literev/api/permissions.py](src/literev/api/permissions.py)                     | Custom permission classes                   |
-| [src/literev/libs/collectors.py](src/literev/libs/collectors.py)                     | Elasticsearch query and document collection |
-| [src/literev/libs/nlp.py](src/literev/libs/nlp.py)                                   | NLP processing, topic label generation      |
-| [src/literev/libs/clustering.py](src/literev/libs/clustering.py)                     | Clustering orchestration                    |
-| [src/literev/libs/rag_pdf.py](src/literev/libs/rag_pdf.py)                           | RAG answer generation (core, ~1,945 lines)  |
-| [src/literev/libs/rag_classes.py](src/literev/libs/rag_classes.py)                   | RAG wrapper and config classes              |
-| [src/literev/libs/parsing.py](src/literev/libs/parsing.py)                           | Document parsing (~1,331 lines)             |
-| [src/literev/libs/pipeline.py](src/literev/libs/pipeline.py)                         | End-to-end pipeline orchestration           |
-| [src/literev/libs/table_choice.py](src/literev/libs/table_choice.py)                 | Interactive selection/refinement logic      |
-| [src/literev/libs/scoring.py](src/literev/libs/scoring.py)                           | Document ranking and scoring                |
-| [src/literev/legal/extract_minor_major.py](src/literev/legal/extract_minor_major.py) | French legal text section classification    |
-| [src/literev_core/preprocessing.py](src/literev_core/preprocessing.py)               | Shared text normalization pipeline          |
-| [src/literev_core/clustering.py](src/literev_core/clustering.py)                     | PaCMAP + HDBSCAN implementation             |
-| [src/config/settings/](src/config/settings/)                                         | All Django settings modules                 |
-| [src/config/celery.py](src/config/celery.py)                                         | Celery app and task configuration           |
-| [.makim.yaml](.makim.yaml)                                                           | All development and ops tasks               |
-| [pyproject.toml](pyproject.toml)                                                     | Dependencies and tool configuration         |
-| [docs/contributing.md](docs/contributing.md)                                         | Full developer setup guide                  |
+| File                                                                                                 | Purpose                                     |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| [src/backend/literev/models.py](src/backend/literev/models.py)                                       | All Django models                           |
+| [src/backend/literev/api/views.py](src/backend/literev/api/views.py)                                 | DRF API endpoints                           |
+| [src/backend/literev/api/serializers.py](src/backend/literev/api/serializers.py)                     | DRF serializers                             |
+| [src/backend/literev/api/permissions.py](src/backend/literev/api/permissions.py)                     | Custom permission classes                   |
+| [src/backend/literev/libs/collectors.py](src/backend/literev/libs/collectors.py)                     | Elasticsearch query and document collection |
+| [src/backend/literev/libs/nlp.py](src/backend/literev/libs/nlp.py)                                   | NLP processing, topic label generation      |
+| [src/backend/literev/libs/clustering.py](src/backend/literev/libs/clustering.py)                     | Clustering orchestration                    |
+| [src/backend/literev/libs/rag_pdf.py](src/backend/literev/libs/rag_pdf.py)                           | RAG answer generation (core, ~1,945 lines)  |
+| [src/backend/literev/libs/rag_classes.py](src/backend/literev/libs/rag_classes.py)                   | RAG wrapper and config classes              |
+| [src/backend/literev/libs/parsing.py](src/backend/literev/libs/parsing.py)                           | Document parsing (~1,331 lines)             |
+| [src/backend/literev/libs/pipeline.py](src/backend/literev/libs/pipeline.py)                         | End-to-end pipeline orchestration           |
+| [src/backend/literev/libs/table_choice.py](src/backend/literev/libs/table_choice.py)                 | Interactive selection/refinement logic      |
+| [src/backend/literev/libs/scoring.py](src/backend/literev/libs/scoring.py)                           | Document ranking and scoring                |
+| [src/backend/literev/legal/extract_minor_major.py](src/backend/literev/legal/extract_minor_major.py) | French legal text section classification    |
+| [src/backend/literev_core/preprocessing.py](src/backend/literev_core/preprocessing.py)               | Shared text normalization pipeline          |
+| [src/backend/literev_core/clustering.py](src/backend/literev_core/clustering.py)                     | PaCMAP + HDBSCAN implementation             |
+| [src/backend/config/settings/](src/backend/config/settings/)                                         | All Django settings modules                 |
+| [src/backend/config/celery.py](src/backend/config/celery.py)                                         | Celery app and task configuration           |
+| [.makim.yaml](.makim.yaml)                                                                           | All development and ops tasks               |
+| [scripts/render_frontend_coverage_summary.py](scripts/render_frontend_coverage_summary.py)           | Formats frontend Jest coverage for CI       |
+| [pyproject.toml](pyproject.toml)                                                                     | Dependencies and tool configuration         |
+| [docs/contributing.md](docs/contributing.md)                                                         | Full developer setup guide                  |

@@ -1,5 +1,5 @@
 include README.md
-recursive-include src/literev/templates *.html *.txt *.json
-recursive-include src/literev/static *
-recursive-include src/literev/migrations *.py
-recursive-include src/literev_core/data *
+recursive-include src/backend/literev/templates *.html *.txt *.json
+recursive-include src/backend/static *
+recursive-include src/backend/literev/migrations *.py
+recursive-include src/backend/literev_core/data *
