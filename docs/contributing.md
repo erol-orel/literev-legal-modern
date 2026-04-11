@@ -59,8 +59,8 @@ makim tests.reactjs
 Useful focused commands:
 
 ```bash
-makim tests.lib --lib lr_query
-makim tests.lib --lib lr_rag
+makim tests.lib --lib lr-query
+makim tests.lib --lib lr-rag
 makim django.migrate
 makim reactjs.install
 makim reactjs.build

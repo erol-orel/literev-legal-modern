@@ -46,7 +46,7 @@ Use the split test suites that match the new architecture:
 ```bash
 makim tests.app
 makim tests.reactjs
-makim tests.lib --lib lr_query
+makim tests.lib --lib lr-query
 makim tests.libs-all
 makim tests.import-boundaries
 ```
@@ -55,7 +55,7 @@ Guidance:
 
 - Use `tests.app` when the change touches Django models, repositories, views, serializers, permissions, or Celery tasks.
 - Use `tests.reactjs` when the change touches browser-side code under `src/frontend/`; it now pre-runs `reactjs.install` plus `reactjs.build`, then generates frontend coverage output under `src/frontend/coverage/` while executing the unit suite.
-- Use `tests.lib --lib <name>` for framework-free package changes under `libs/lr_*/src` and `libs/lr_*/tests`; the task now records per-library coverage for the PR summary comment.
+- Use `tests.lib --lib <name>` with the kebab-case library directory name (for example `lr-query`) for framework-free package changes under `libs/lr-*/src` and `libs/lr-*/tests`; the task now records per-library coverage for the PR summary comment.
 - Run `tests.import-boundaries` whenever moving logic between `src/backend/` and `libs/`.
 
 ## CI Layout
@@ -64,7 +64,7 @@ The main GitHub Actions workflow now mirrors the architecture:
 
 - `linter`: repo-wide formatting, linting, and static analysis.
 - `import_boundaries`: ensures `libs/` stays free of Django imports.
-- `lib_tests`: matrix job over changed `lr_*` packages on pull requests.
+- `lib_tests`: matrix job over changed `lr-*` libraries on pull requests.
 - `app_tests`: Django regression suite when app-side code or shared tooling changes.
 - `coverage_report`: sticky pull-request comment that aggregates the app and per-library coverage summaries, even when one of the test jobs fails, and includes run metadata so reruns visibly refresh the same comment.
 

@@ -319,6 +319,11 @@ Run manually: `pre-commit run --all-files`
 - **Split `src` layout**: Django code lives under `src/backend/`, React code
   lives under `src/frontend/`, and application code should never be imported
   from the repo root
+- **Library naming**: under `libs/`, library directories and Python distribution
+  names use kebab-case (for example `libs/lr-legal/` and `name = "lr-legal"`),
+  while Python package directories inside each library's `src/` folder and all
+  import paths use snake_case (for example `libs/lr-legal/src/lr_legal/` and
+  `from lr_legal import ...`)
 - **Migrations**: always run `makim django.makemigrations` after model changes;
   never hand-edit migration files
 - **Secrets**: never hardcode credentials — always read from environment or

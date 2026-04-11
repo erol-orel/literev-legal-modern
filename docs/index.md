@@ -35,7 +35,7 @@ Use `src/backend/` for anything that touches Django, settings, persistence, or H
 ```bash
 makim tests.lint
 makim tests.import-boundaries
-makim tests.lib --lib lr_query
+makim tests.lib --lib lr-query
 makim tests.libs-all
 makim tests.app
 makim tests.reactjs
@@ -52,6 +52,6 @@ makim reactjs.build
 makim tests.reactjs
 makim django.collectstatic
 makim tests.app
-makim tests.lib --lib lr_rag
+makim tests.lib --lib lr-rag
 makim tests.import-boundaries
 ```

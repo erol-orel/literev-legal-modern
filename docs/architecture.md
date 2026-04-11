@@ -23,41 +23,41 @@ src/
     src/                     React application source scaffold
 
 libs/
-  lr_contracts/
+  lr-contracts/
     pyproject.toml        standalone library metadata
     src/lr_contracts/     shared dataclasses and protocols
     tests/                package-local unit tests
-  lr_query/
+  lr-query/
     pyproject.toml        standalone library metadata
     src/lr_query/         Boolean query parsing and Elasticsearch DSL generation
     tests/                package-local unit tests
-  lr_search/
+  lr-search/
     pyproject.toml        standalone library metadata
     src/lr_search/        Elasticsearch collection and metadata extraction
     tests/                package-local unit tests
-  lr_preprocessing/
+  lr-preprocessing/
     pyproject.toml        standalone library metadata
     src/lr_preprocessing/ preprocessing helpers and package data
     tests/                package-local unit tests
-  lr_clustering/
+  lr-clustering/
     pyproject.toml        standalone library metadata
     src/lr_clustering/    TF-IDF, PaCMAP, HDBSCAN, and Optuna helpers
     tests/                package-local unit tests
-  lr_refinement/
+  lr-refinement/
     pyproject.toml        standalone library metadata
     src/lr_refinement/    sorting, highlighting, and topic shaping helpers
     tests/                package-local unit tests
-  lr_rag/
+  lr-rag/
     pyproject.toml        standalone library metadata
     src/lr_rag/           framework-free RAG payload and chunking helpers
     tests/                package-local unit tests
-  lr_legal/
+  lr-legal/
     pyproject.toml        standalone library metadata
     src/lr_legal/         French legal sentence splitting and extraction
     tests/                package-local unit tests
 ```
 
-The repository relies on the installed Python environment to expose both the Django app package and the extracted `lr_*` libraries; the entrypoints do not mutate `sys.path` at runtime.
+The repository relies on the installed Python environment to expose both the Django app package and the extracted libraries (directory/distribution names like `lr-legal`, import packages like `lr_legal`); the entrypoints do not mutate `sys.path` at runtime.
 
 ## Dependency Direction
 
@@ -73,7 +73,7 @@ src/frontend (future SPA)
 src/backend/config + src/backend/literev
         |
         v
-     libs/lr_*
+     libs/lr-*
 ```
 
 Rules:
@@ -98,7 +98,7 @@ Django views + DRF endpoints
 Services / repositories / presenters
         |
         v
-Pure libraries under libs/lr_*
+Pure libraries under libs/lr-*
         |
         +--> Elasticsearch
         +--> PostgreSQL via repositories
@@ -156,8 +156,8 @@ Question + selected corpus
 
 The test split now mirrors the architecture:
 
-- `libs/lr_*/tests/`: framework-free unit suites colocated with each extracted library.
+- `libs/lr-*/tests/`: framework-free unit suites colocated with each extracted library.
 - `src/backend/literev/tests/`: Django integration tests for views, tasks, models, and adapters.
 - `tests/import_boundaries/`: enforcement that `libs/` stays Django-free.
 
-The main GitHub Actions workflow now detects which `lr_*` packages changed, runs only the affected lib suites plus the boundary checks on pull requests, and runs the full app suite when Django-side code or shared tooling changes.
+The main GitHub Actions workflow now detects which `lr-*` library directories changed, runs only the affected lib suites plus the boundary checks on pull requests, and runs the full app suite when Django-side code or shared tooling changes.

@@ -7,7 +7,7 @@ All runtime configuration is driven through environment variables and Django set
 The project uses standalone library folders under `libs/` in addition to the split application roots under `src/`.
 
 - `./scripts/install-prod.sh` and `./scripts/install-dev.sh` install the root package in editable mode.
-- The root `pyproject.toml` lists every `libs/lr_*` package as a production dependency using a local path reference.
+- The root `pyproject.toml` lists every `lr-*` package and resolves it from the local `libs/` workspace.
 - `setuptools` packages the Django app from `src/backend/`.
 - Each library keeps its own `pyproject.toml` and `src/<package>/` layout, so the app environment installs them as real packages instead of bundling them into the root wheel.
 - `src/frontend/` is a React scaffold and is managed separately with npm-based tasks.
@@ -88,7 +88,7 @@ DJANGO_SETTINGS_MODULE=config.settings.dev
 `pyproject.toml` is configured so the dev tools understand both the Django app and the standalone libraries:
 
 - `setuptools` packages only the Django application from `src/backend/`.
-- The root project depends on every `libs/lr_*` package through local path production dependencies.
+- The root project depends on every `libs/lr-*` library through local workspace dependencies.
 - `pytest` sets `pythonpath` to `src/backend/` plus every `libs/*/src` root.
 - `ruff`, `mypy`, `coverage`, and `vulture` include both trees.
 - The import-boundary suite validates that packages under `libs/` stay Django-free.

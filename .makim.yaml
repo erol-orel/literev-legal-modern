@@ -80,7 +80,7 @@ groups:
         help: Run a single lib suite
         args:
           lib:
-            help: Specify the lib package name
+            help: Specify the lib directory/distribution name (kebab-case)
             type: string
             required: true
         env-file: ./.env

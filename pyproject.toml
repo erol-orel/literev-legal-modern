@@ -141,7 +141,7 @@ literev_core = ["data/**"]
 minversion = "6.0"
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 addopts = "--ds=config.settings.test -v -ra --cov=src/backend --cov=libs --reuse-db"
-pythonpath = ["src/backend", "libs/lr_contracts/src", "libs/lr_query/src", "libs/lr_search/src", "libs/lr_preprocessing/src", "libs/lr_clustering/src", "libs/lr_rag/src", "libs/lr_refinement/src", "libs/lr_legal/src"]
+pythonpath = ["src/backend", "libs/lr-contracts/src", "libs/lr-query/src", "libs/lr-search/src", "libs/lr-preprocessing/src", "libs/lr-clustering/src", "libs/lr-rag/src", "libs/lr-refinement/src", "libs/lr-legal/src"]
 python_files = ["tests.py", "test_*.py"]
 
 [tool.coverage.run]
@@ -172,7 +172,7 @@ verbose = false
 [tool.ruff]
 line-length = 79
 force-exclude = true
-src = ["./src/backend", "./libs/lr_contracts/src", "./libs/lr_query/src", "./libs/lr_search/src", "./libs/lr_preprocessing/src", "./libs/lr_clustering/src", "./libs/lr_rag/src", "./libs/lr_refinement/src", "./libs/lr_legal/src", "./tests"]
+src = ["./src/backend", "./libs/lr-contracts/src", "./libs/lr-query/src", "./libs/lr-search/src", "./libs/lr-preprocessing/src", "./libs/lr-clustering/src", "./libs/lr-rag/src", "./libs/lr-refinement/src", "./libs/lr-legal/src", "./tests"]
 exclude = ["docs", "migrations", "urls.py", "scripts"]
 fix = true
 
@@ -190,7 +190,7 @@ lines-between-types = 1
 quote-style = "double"
 
 [tool.mypy]
-mypy_path = "src/backend:libs/lr_contracts/src:libs/lr_query/src:libs/lr_search/src:libs/lr_preprocessing/src:libs/lr_clustering/src:libs/lr_rag/src:libs/lr_refinement/src:libs/lr_legal/src"
+mypy_path = "src/backend:libs/lr-contracts/src:libs/lr-query/src:libs/lr-search/src:libs/lr-preprocessing/src:libs/lr-clustering/src:libs/lr-rag/src:libs/lr-refinement/src:libs/lr-legal/src"
 exclude = [
   'tests/*',
   'docs/*',
