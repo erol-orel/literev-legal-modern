@@ -12,21 +12,21 @@ Keep these concerns in `src/backend/`:
 - Settings access and environment-backed configuration.
 - App-only adapters that translate between Django models and framework-free contracts.
 
-The `src/frontend/` folder now powers the first React-owned public routes through a minimal Django generic template (`generic.html`) plus React Router. The authenticated workflow pages still live under `src/backend/` until later migration stages land.
+The `src/frontend/` folder now powers the React-owned public routes plus the authenticated `/search/`, `/running/`, `/historicalpage/`, `/project/<id>/`, `/tableselect/...`, `/contentdocument/<id>`, `/contentdocument_highlighted/<rag_id>/`, and `/rag/<project_id>/` pages through a minimal Django generic template (`generic.html`) and React Router. The remaining authenticated workflow pages still live under `src/backend/` until later migration stages land.
 
 ## App-Layer Structure
 
 ```text
 src/backend/literev/
-  libs/          app-local Django-aware helper modules
-  api/           DRF endpoints and serializers
+  libs/          app-local Django-aware helper modules (for example `libs/search.py`, `libs/project_listing.py`, `libs/project_overview.py`, `libs/table_selection.py`)
+  api/           DRF endpoints and serializers (for example `api/search.py`, `api/project_lists.py`, `api/project_overview.py`, `api/table_selection.py`)
   templatetags/  Django template tags for frontend asset resolution
-  views.py       legacy/template-heavy workflow views
-  views_public.py minimal generic frontend entry view
+  views.py       remaining Django-template workflow views
+  views_public.py generic frontend shell entry views
   tasks.py       Celery tasks
 ```
 
-The reusable logic lives in standalone folders under repo-root `libs/`, while Django-specific helper modules stay under `src/backend/literev/libs/`. Django entrypoints rely on the installed environment to resolve those libraries, rather than mutating `sys.path` at startup. Frontend asset resolution now happens through `literev.templatetags.frontend`, and `views_public.py` only provides minimal bootstrap context for the React app.
+The reusable logic lives in standalone folders under repo-root `libs/`, while Django-specific helper modules stay under `src/backend/literev/libs/`. Django entrypoints rely on the installed environment to resolve those libraries, rather than mutating `sys.path` at startup. Frontend asset resolution now happens through `literev.templatetags.frontend`, `views_public.py` only provides minimal bootstrap context for the React app, the search workflow exposes dedicated DRF endpoints under `/api/project/search/`, the running/historical workflow exposes dedicated DRF endpoints under `/api/project/running/`, `/api/project/historical/`, and `/api/project/projects/<id>/`, the project overview/refinement workflow exposes dedicated DRF endpoints under `/api/project/projects/<id>/overview/`, `/filters/preview/`, `/refinements/`, `/clusters/<cluster_id>/summary/`, and `/ask-top-docs/`, the table-selection workspace exposes dedicated DRF endpoints under `/api/project/tableselect/<project_id>/<refinement_id>/...` for state loading, iteration changes, selection persistence, bulk actions, export, and RAG hand-off, and the RAG workspace uses `/api/project/rag/<project_id>/context/`, `/api/project-rags-by-project/<project_id>/`, and `/api/project-documents-rag/?project_rag=<id>` for status and answers. The document content pages now consume `/api/project/documents/<id>/` and `/api/project/documents/rag/<rag_id>/highlighted/` for raw and highlighted document text.
 
 ## Management Commands
 

@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import logging
-
-from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
@@ -18,57 +15,8 @@ from literev.api.serializers import (
     ProjectDocumentRAGSerializer,
     ProjectRAGSerializer,
 )
-from literev.libs.table_choice import update_check_list_iteration
-from literev.models import Project, ProjectDocumentRAG, ProjectRAG, TableChoice
+from literev.models import Project, ProjectDocumentRAG, ProjectRAG
 from literev.tasks import get_shared_projects_ids, task_rag_result_table
-from literev_core.boolean_query import convert_nl_to_boolean
-
-
-class ConvertToBooleanQueryAPIView(APIView):
-    """
-    Convert natural language queries to boolean queries for jurisprudence.
-    """
-
-    permission_classes = [IsAuthenticated]
-
-    def get(
-        self,
-        request: Request,
-        natural_lenguage: str,
-    ) -> Response:
-        """
-        Handles GET requests to translate a natural language query
-        into a boolean query.
-
-        Parameters
-        ----------
-        request : Request
-            The HTTP request object.
-        natural_lenguage : str
-            The natural language query string to convert.
-
-        Returns
-        -------
-        Response
-            A JSON response containing the translated boolean query.
-        """
-
-        try:
-            boolean_query = convert_nl_to_boolean(
-                natural_lenguage,
-                model_name="ollama/" + settings.OLLAMA_MODEL,
-                base_url=settings.OLLAMA_BASE_URL,
-            )
-
-            return Response(
-                {"query": boolean_query}, status=status.HTTP_200_OK
-            )
-        except Exception as e:
-            logging.error(f"Error generating boolean query: {e!s}")
-            return Response(
-                {"error": "An error occurred while processing the request"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
 
 
 class ProjectRAGbyProjectIdAPIView(APIView):
@@ -79,10 +27,7 @@ class ProjectRAGbyProjectIdAPIView(APIView):
     def get(
         self, request: Request, project_id: int, rag_id: int = 0
     ) -> Response:
-        """
-        Handle GET requests to fetch ProjectRAG data based on project_id or rag_id.
-        """
-
+        """Handle GET requests to fetch ProjectRAG data based on project_id or rag_id."""
         project = get_object_or_404(Project, pk=project_id)
 
         if (
@@ -93,7 +38,7 @@ class ProjectRAGbyProjectIdAPIView(APIView):
                 "You do not have permission to access this project."
             )
 
-        project_rag: None | ProjectRAG = None
+        project_rag: ProjectRAG | None
         if rag_id:
             project_rag = get_object_or_404(
                 ProjectRAG, project=project, id=rag_id
@@ -108,23 +53,16 @@ class ProjectRAGbyProjectIdAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request: Request, project_id: int) -> Response:
-        """
-        Handle POST requests to process a project_id and a list of IDs.
-
-        Expects:
-            project_id (int): The ID of the project.
-            documents_ids (list[int]): A list of IDs (e.g., document or entity IDs).
-
-        Returns:
-            Response: A JSON response with the provided project_id and list of IDs.
-        """
+        """Create a new ProjectRAG entry for the provided document list."""
         query = request.data.get("query", "")
         document_ids = request.data.get("documents_ids", [])
 
         if not project_id or not isinstance(document_ids, list) or not query:
             return Response(
                 {
-                    "error": "project_id, query, and a list of document ids are required."
+                    "error": (
+                        "project_id, query, and a list of document ids are required."
+                    )
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -138,45 +76,20 @@ class ProjectRAGbyProjectIdAPIView(APIView):
                 "You do not have permission to access this project."
             )
 
-        # Disabled to avoid cache results
-        # normalized_query = normalize_query(query)
-        # matching_rags = (
-        #     ProjectRAG.objects.filter(project=project)
-        #     .annotate(normalized_query_db=Lower(Trim("query")))
-        #     .filter(normalized_query_db=normalized_query)
-        # )
-
-        # doc_id_set = set(document_ids)
-        # for rag in matching_rags:
-        #     existing_doc_ids = set(
-        #         ProjectDocumentRAG.objects.filter(project_rag=rag).values_list(
-        #             "document_id", flat=True
-        #         )
-        #     )
-        #     if doc_id_set == existing_doc_ids:
-        #         # Reuse existing RAG
-        #         serializer = ProjectRAGSerializer(rag)
-        #         return Response(serializer.data, status=status.HTTP_200_OK)
-
         project_rag = ProjectRAG.objects.create(
             query=query.strip(),
             project=project,
             status="in-progress",
         )
 
-        task_rag_result_table.s(
-            project_rag.id,
-            document_ids,
-        ).apply_async()
+        task_rag_result_table.s(project_rag.id, document_ids).apply_async()
 
         serializer = ProjectRAGSerializer(project_rag)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class ProjectRAGViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for managing ProjectRAG entries.
-    """
+    """ViewSet for managing ProjectRAG entries."""
 
     permission_classes = [IsAuthenticated]
     queryset = ProjectRAG.objects.all()
@@ -184,120 +97,10 @@ class ProjectRAGViewSet(viewsets.ModelViewSet):
 
 
 class ProjectDocumentRAGViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for managing ProjectDocumentRAG entries.
-    """
+    """ViewSet for managing ProjectDocumentRAG entries."""
 
     permission_classes = [IsAuthenticated]
     queryset = ProjectDocumentRAG.objects.select_related("document").all()
     serializer_class = ProjectDocumentRAGSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["project_rag"]
-
-
-class UpdateTableChoiceAPIView(APIView):
-    """
-    API View for updating TableChoice selections.
-    """
-
-    permission_classes = [IsAuthenticated]
-
-    def put(
-        self,
-        request,
-        project_id: int,
-        iteration_id: int = -1,
-        page: int = 1,
-    ):
-        """
-        Update TableChoice selections for a specific page.
-
-        Parameters
-        ----------
-        project_id:
-            ID of the project.
-        page:
-            Current page number.
-        selected_documents:
-            List of document IDs to mark as selected.
-        deselected_documents:
-            List of document IDs to mark as deselected.
-        iteration
-
-        Notes
-        -----
-        Request body:
-        {
-            "selected_documents": [1, 2, 3],
-            "deselected_documents": [4, 5, 6]
-        }
-
-        Returns
-        -------
-        HTTP 200: Success message.
-        HTTP 403: Permission denied.
-        HTTP 400: Invalid data.
-        """
-        user = request.user
-        project = get_object_or_404(Project, id=project_id)
-
-        # Check if the user has access to the project
-        if (
-            project.user != user
-            and not project.id
-            in get_shared_projects_ids()  # TODO: change this section to enable access to shared projects when implemented
-        ):
-            return Response(
-                {
-                    "detail": (
-                        "You do not have permission to access this project."
-                    )
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        check_list_yes = request.data.get("selected_documents", [])
-        check_list_no = request.data.get("deselected_documents", [])
-
-        check_list_maybe = request.data.get("maybe_documents", [])
-
-        if (
-            not isinstance(check_list_yes, list)
-            or not isinstance(check_list_no, list)
-            or not isinstance(check_list_maybe, list)
-        ):
-            return Response(
-                {
-                    "detail": (
-                        "Both 'selected_documents' and 'deselected_documents' "
-                        "must be lists."
-                    )
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        all_table_ids = check_list_yes + check_list_no + check_list_maybe
-
-        table_choice = TableChoice.objects.filter(
-            user=user, project=project, id__in=all_table_ids
-        )
-
-        if not table_choice.count():
-            return
-
-        table_choice.filter(id__in=check_list_yes).update(is_check=True)
-        table_choice.filter(id__in=check_list_no).update(is_check=False)
-        table_choice.filter(id__in=check_list_maybe).update(is_check=None)
-
-        update_check_list_iteration(
-            project=project, user=user, iteration_id=iteration_id
-        )
-
-        return Response(
-            {"detail": "TableChoice updated successfully."},
-            status=status.HTTP_200_OK,
-        )
-
-
-def normalize_query(text: str) -> str:
-    return " ".join(text.strip().lower().split())

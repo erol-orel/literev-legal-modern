@@ -26,8 +26,12 @@ class TestBooleanQueryGeneration(APITestCase):
 
     def get_boolean_query(self, nlq):
         """Helper method to retrieve boolean query from API."""
-        url = reverse("nl-to-bool-query", args=[nlq])
-        response = self.client.get(url)
+        url = reverse("api-search-convert-query")
+        response = self.client.post(
+            url,
+            {"natural_language_query": nlq},
+            format="json",
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         return response.json()["query"]
 

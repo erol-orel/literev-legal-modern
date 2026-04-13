@@ -2,14 +2,17 @@ from __future__ import annotations
 
 from typing import Any
 
+from django.conf import settings
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpRequest
 from django.urls import reverse
 from django.views.generic import TemplateView
 
+from literev.libs.search import get_search_source_options
 from literev.templatetags.frontend import frontend_bundle_available
 
 
-def build_public_frontend_context(request: HttpRequest) -> dict[str, Any]:
+def build_frontend_context(request: HttpRequest) -> dict[str, Any]:
     """Build the minimal bootstrap context passed from Django to React."""
     return {
         "appName": "LiteRev Legal",
@@ -20,6 +23,21 @@ def build_public_frontend_context(request: HttpRequest) -> dict[str, Any]:
         "urls": {
             "home": reverse("home"),
             "search": reverse("search"),
+            "running": reverse("running"),
+            "historicalpage": reverse("historicalpage"),
+            "projectBase": reverse("projectpage", args=[0]).removesuffix("0/"),
+            "contentdocumentBase": reverse(
+                "contentdocument", args=[0]
+            ).removesuffix("0"),
+            "contentdocumentHighlightedBase": reverse(
+                "contentdocument_highlighted", args=[0]
+            ).removesuffix("0/"),
+            "tableselectBase": reverse(
+                "tableselect-default", args=[0, 0]
+            ).removesuffix("0/0/"),
+            "ragBase": reverse("project-rag-page", args=[0]).removesuffix(
+                "0/"
+            ),
             "team": reverse("team"),
             "product": reverse("product"),
             "company": reverse("company"),
@@ -27,19 +45,71 @@ def build_public_frontend_context(request: HttpRequest) -> dict[str, Any]:
             "login": reverse("account_login"),
             "logout": reverse("account_logout"),
         },
+        "api": {
+            "searchConvertQuery": reverse("api-search-convert-query"),
+            "searchValidate": reverse("api-search-validate"),
+            "searchPreview": reverse("api-search-preview"),
+            "searchProjects": reverse("api-search-projects"),
+            "runningProjects": reverse("api-running-projects"),
+            "historicalProjects": reverse("api-historical-projects"),
+            "historicalDeleteAll": reverse("api-historical-delete-all"),
+            "projectApiBase": reverse(
+                "api-project-delete", args=[0]
+            ).removesuffix("0/"),
+            "projectDeleteBase": reverse(
+                "api-project-delete", args=[0]
+            ).removesuffix("0/"),
+            "tableSelectionBase": reverse(
+                "api-tableselect-state", args=[0, 0]
+            ).removesuffix("0/0/state/"),
+            "documentContentBase": reverse(
+                "api-document-content", args=[0]
+            ).removesuffix("0/"),
+            "documentHighlightedBase": reverse(
+                "api-document-content-highlighted", args=[0]
+            ).removesuffix("0/highlighted/"),
+            "ragContextBase": reverse(
+                "api-rag-context", args=[0]
+            ).removesuffix("0/context/"),
+            "ragDeleteBase": reverse(
+                "api-rag-delete", args=[0, 0]
+            ).removesuffix("0/0/"),
+            "ragStatusBase": reverse(
+                "projectrag-by-project-rag-id", args=[0, 0]
+            ).removesuffix("0/0/"),
+            "ragCreateBase": reverse(
+                "projectrag-by-project", args=[0]
+            ).removesuffix("0/"),
+            "ragDocumentsBase": reverse("projectdocumentsrag-list"),
+        },
+        "search": {
+            "clusteringMinDocuments": settings.CLUSTERING_MIN_DOCUMENTS,
+            "sources": get_search_source_options(),
+        },
     }
 
 
-class PublicFrontendView(TemplateView):
-    """Serve the minimal Django shell used by the React public app."""
+class FrontendView(TemplateView):
+    """Serve the minimal Django shell used by the React frontend app."""
 
     template_name = "generic.html"
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        context["context"] = build_public_frontend_context(self.request)
+        context["context"] = build_frontend_context(self.request)
         context["frontend_bundle_available"] = frontend_bundle_available()
         return context
 
 
+class PublicFrontendView(FrontendView):
+    """Serve the generic frontend shell for public routes."""
+
+
+class AuthenticatedFrontendView(LoginRequiredMixin, FrontendView):
+    """Serve the generic frontend shell for authenticated routes."""
+
+    login_url = "/accounts/login/"
+
+
 public_frontend_app = PublicFrontendView.as_view()
+authenticated_frontend_app = AuthenticatedFrontendView.as_view()

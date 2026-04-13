@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from django.db.models import Case, When
+from django.db.models import Case, Q, When
 from django.db.models.query import QuerySet
 
 from literev.models import (
@@ -8,6 +8,7 @@ from literev.models import (
     Project,
     User,
 )
+from literev.tasks import get_shared_projects_ids
 
 
 def get_projects_list(project_id_list: list[int]) -> QuerySet[Project]:
@@ -60,19 +61,25 @@ def filter_and_sort_projects(
         A sorted QuerySet that has Project objects
 
     """
-    for keyword in keywords:
-        key_regex = r".*" + keyword + r".*"
-        projects_queryset = Project.objects.filter(
-            user=user,
-            query__iregex=key_regex,
-            is_finish=True,
-        )
-        project_id_count = {}
+    projects_queryset = Project.objects.filter(
+        (Q(user=user) & Q(is_finish=True))
+        | Q(id__in=get_shared_projects_ids())
+    )
 
-        for project in projects_queryset:
-            project_id_count[project.id] = ClusterElement.objects.filter(
-                cluster__project=project
-            ).count()
+    for keyword in keywords:
+        normalized_keyword = keyword.strip()
+        if normalized_keyword:
+            key_regex = r".*" + normalized_keyword + r".*"
+            projects_queryset = projects_queryset.filter(
+                query__iregex=key_regex
+            )
+
+    project_id_count = {}
+
+    for project in projects_queryset:
+        project_id_count[project.id] = ClusterElement.objects.filter(
+            cluster__project=project
+        ).count()
 
     if sort_type == "more_documents_first":
         sorted_id_list = list(
@@ -110,7 +117,10 @@ def sort_all_projects(user: User, sort_type: str) -> QuerySet[Project]:
         A sorted QuerySet that has Project objects
 
     """
-    projects_query_set = Project.objects.filter(user=user, is_finish=True)
+    projects_query_set = Project.objects.filter(
+        (Q(user=user) & Q(is_finish=True))
+        | Q(id__in=get_shared_projects_ids())
+    )
 
     project_id_count = {}
     for project in projects_query_set:

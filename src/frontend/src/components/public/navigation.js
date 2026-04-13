@@ -62,12 +62,22 @@ function Navigation({ context }) {
                 </NavLink>
               </li>
               <li className="nav-item">
-                <a className="nav-link fs-5" href={urls.search}>
+                <NavLink className={navClassName} to={urls.search}>
                   Search
-                </a>
+                </NavLink>
               </li>
               {user.isAuthenticated ? (
                 <>
+                  <li className="nav-item">
+                    <NavLink className={navClassName} to={urls.running}>
+                      Running
+                    </NavLink>
+                  </li>
+                  <li className="nav-item">
+                    <NavLink className={navClassName} to={urls.historicalpage}>
+                      History
+                    </NavLink>
+                  </li>
                   <li className="nav-item">
                     <span className="nav-link active fs-6 react-shell__user-email">
                       <i className="fa-regular fa-user me-2" />

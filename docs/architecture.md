@@ -3,7 +3,7 @@
 ## What The System Does
 
 `literev-legal` helps users search, normalize, cluster, refine, and question French legal decisions.
-The repository now has a split application layout: `src/backend/` contains the Django application, while `src/frontend/` contains the React frontend used for the gradual hybrid migration away from Django templates. Public marketing routes already render through a minimal Django generic template and are routed inside React, the authenticated workflow is still Django-first, and the core reusable algorithms live in standalone libraries under repo-root `libs/` so they can be tested without importing Django.
+The repository now has a split application layout: `src/backend/` contains the Django application, while `src/frontend/` contains the React frontend used for the gradual hybrid migration away from Django templates. Public marketing routes plus the authenticated `/search/`, `/running/`, `/historicalpage/`, `/project/<id>/`, `/tableselect/...`, `/contentdocument/<id>`, `/contentdocument_highlighted/<rag_id>/`, and `/rag/<project_id>/` workflows already render through a minimal Django generic template and are routed inside React, the remaining authenticated workflow pages are still Django-first, and the core reusable algorithms live in standalone libraries under repo-root `libs/` so they can be tested without importing Django.
 
 ## Source Roots
 
@@ -88,7 +88,7 @@ The import-boundary check in `tests/import_boundaries/` enforces this rule in CI
 ```text
 Browser / API client
         |
-        +--> generic Django template mounting React
+        +--> generic Django template mounting React for `/`, `/team/`, `/product/`, `/company/`, `/blog/`, `/search/`, `/running/`, `/historicalpage/`, `/project/<id>/`, `/tableselect/...`, `/contentdocument/<id>`, `/contentdocument_highlighted/<rag_id>/`, and `/rag/<project_id>/`
         |
         v
 Django views + DRF endpoints
@@ -112,9 +112,24 @@ Pure libraries under libs/lr-*
 
 ```text
 User query
-  -> lr_query parses/validates Boolean syntax
+  -> React `/search/` page calls `/api/project/search/validate`, `/preview`, `/projects`, and `/convert-query/`
+  -> `literev.libs.search` parses/validates Boolean syntax and counts Elasticsearch hits
   -> lr_search builds Elasticsearch requests and extracts metadata
   -> Django app helpers persist Document rows
+
+Project monitoring
+  -> React `/running/` and `/historicalpage/` pages call `/api/project/running/`, `/api/project/historical/`, and project lifecycle action endpoints
+  -> `literev.libs.project_listing` shapes progress, filtering, sorting, and lifecycle actions for project lists
+
+Project overview and refinement
+  -> React `/project/<id>/` calls `/api/project/projects/<id>/overview/`, `/filters/preview/`, `/refinements/`, `/clusters/<cluster_id>/summary/`, and `/ask-top-docs/`
+  -> `literev.libs.project_overview` shapes project details, filter configuration, refinement lifecycle actions, and cluster summary generation
+
+Table selection workspace
+  -> React `/tableselect/...` calls `/api/project/tableselect/<project_id>/<refinement_id>/state/`, `/selection/`, `/iterations/<iteration_id>/activate/`, `/iterate/`, `/reset/`, `/check-all/`, `/export/`, and `/ask-selected/`
+  -> React `/contentdocument/<id>` calls `/api/project/documents/<id>/`
+  -> React `/contentdocument_highlighted/<rag_id>/` calls `/api/project/documents/rag/<rag_id>/highlighted/`
+  -> `literev.libs.table_selection` shapes iteration resolution, pagination, sorting, rendered filter metadata, and action URLs while `literev.libs.table_choice` keeps the low-level refinement state transitions
 ```
 
 ### 2. Preprocessing

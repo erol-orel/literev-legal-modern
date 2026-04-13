@@ -68,10 +68,14 @@ src/
       wsgi.py / asgi.py
     literev/               Main Django application
       models.py            All 10 Django models
-      views.py             Legacy/template-heavy workflow views
-      views_public.py      Minimal generic frontend entry view for public pages
+      views.py             Remaining Django-template workflow views
+      views_public.py      Generic frontend entry views for public and React-owned authenticated pages
       api/
-        views.py           DRF API endpoints (viewsets + APIView)
+        views.py           DRF API endpoints for RAG domains
+        search.py          DRF endpoints for search validation, preview, and project creation
+        project_lists.py   DRF endpoints for running/historical project lists and lifecycle actions
+        project_overview.py DRF endpoints for project overview, refinements, and cluster summary actions
+        table_selection.py DRF endpoints for table-selection state, iteration actions, export, and RAG hand-off
         serializers.py     DRF serializers
         permissions.py     Custom permission classes
       libs/                App-local helper modules and core business logic
@@ -79,6 +83,10 @@ src/
         extract_minor_major.py  French legal text classification
                                (Majeure / Mineure-Faits / Mineure-Subsommation / Conclusion)
         document_content.py  Text highlighting helpers
+        search.py          Search validation, preview, and project-launch helpers
+        project_listing.py Project list serialization, progress, sorting, and lifecycle helpers
+        project_overview.py Project overview, refinements, filters, and cluster summary helpers
+        table_selection.py Table-selection state shaping, iteration actions, pagination, and rendered filter metadata
         nlp.py             NLP processing, topic descriptions
         rag_pdf.py         RAG answer generation (~1,945 lines)
         rag_classes.py     RAG wrapper classes
@@ -202,6 +210,23 @@ All models live in
 - Custom permissions: `is_owner`, `is_in_shared_projects` — see
   [src/backend/literev/api/permissions.py](src/backend/literev/api/permissions.py)
 - Endpoints namespaced under `/api/project/`
+- Search workflow endpoints live under `/api/project/search/` for validation,
+  preview, NL→boolean conversion, and project creation
+- Running/historical workflow endpoints live under `/api/project/running/`,
+  `/api/project/historical/`, and `/api/project/projects/<id>/`
+- Project overview/refinement endpoints live under
+  `/api/project/projects/<id>/overview/`, `/filters/preview/`, `/refinements/`,
+  `/clusters/<cluster_id>/summary/`, and `/ask-top-docs/`
+- Table-selection workspace endpoints live under
+  `/api/project/tableselect/<project_id>/<refinement_id>/` for state loading,
+  selection persistence, iteration activation/removal, iterate/reset actions,
+  bulk selection, export, and RAG hand-off
+- Document content endpoints live under `/api/project/documents/<id>/` and
+  `/api/project/documents/rag/<rag_id>/highlighted/` for raw and highlighted
+  document rendering
+- RAG workspace endpoints live under `/api/project/rag/<project_id>/context/`
+  plus `/api/project-rags-by-project/<project_id>/` (create/status) and
+  `/api/project-documents-rag/?project_rag=<id>` for answer lists
 - Serializers: `ProjectRAGSerializer`, `ProjectDocumentRAGSerializer` — see
   [src/backend/literev/api/serializers.py](src/backend/literev/api/serializers.py)
 
@@ -495,30 +520,36 @@ component. **When you change code, update the corresponding doc file.**
 
 ## 10. Key File Reference
 
-| File                                                                                               | Purpose                                     |
-| -------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| [src/backend/literev/models.py](src/backend/literev/models.py)                                     | All Django models                           |
-| [src/backend/literev/api/views.py](src/backend/literev/api/views.py)                               | DRF API endpoints                           |
-| [src/backend/literev/views_public.py](src/backend/literev/views_public.py)                         | Minimal generic frontend entry view         |
-| [src/backend/literev/templatetags/frontend.py](src/backend/literev/templatetags/frontend.py)       | Frontend asset lookup template tags         |
-| [src/backend/literev/templates/generic.html](src/backend/literev/templates/generic.html)           | Generic Django template that mounts React   |
-| [src/backend/literev/api/serializers.py](src/backend/literev/api/serializers.py)                   | DRF serializers                             |
-| [src/backend/literev/api/permissions.py](src/backend/literev/api/permissions.py)                   | Custom permission classes                   |
-| [src/backend/literev/libs/collectors.py](src/backend/literev/libs/collectors.py)                   | Elasticsearch query and document collection |
-| [src/backend/literev/libs/document_content.py](src/backend/literev/libs/document_content.py)       | Text highlighting helpers                   |
-| [src/backend/literev/libs/nlp.py](src/backend/literev/libs/nlp.py)                                 | NLP processing, topic label generation      |
-| [src/backend/literev/libs/rag_pdf.py](src/backend/literev/libs/rag_pdf.py)                         | RAG answer generation (core, ~1,945 lines)  |
-| [src/backend/literev/libs/rag_classes.py](src/backend/literev/libs/rag_classes.py)                 | RAG wrapper and config classes              |
-| [src/backend/literev/libs/parsing.py](src/backend/literev/libs/parsing.py)                         | Document parsing (~1,331 lines)             |
-| [src/backend/literev/libs/pipeline.py](src/backend/literev/libs/pipeline.py)                       | End-to-end pipeline orchestration           |
-| [src/backend/literev/libs/table_choice.py](src/backend/literev/libs/table_choice.py)               | Interactive selection/refinement logic      |
-| [src/backend/literev/libs/scoring.py](src/backend/literev/libs/scoring.py)                         | Document ranking and scoring                |
-| [src/backend/literev/libs/extract_minor_major.py](src/backend/literev/libs/extract_minor_major.py) | French legal text section classification    |
-| [src/backend/literev_core/preprocessing.py](src/backend/literev_core/preprocessing.py)             | Shared text normalization pipeline          |
-| [src/backend/literev_core/clustering.py](src/backend/literev_core/clustering.py)                   | PaCMAP + HDBSCAN implementation             |
-| [src/backend/config/settings/](src/backend/config/settings/)                                       | All Django settings modules                 |
-| [src/backend/config/celery.py](src/backend/config/celery.py)                                       | Celery app and task configuration           |
-| [.makim.yaml](.makim.yaml)                                                                         | All development and ops tasks               |
-| [scripts/render_frontend_coverage_summary.py](scripts/render_frontend_coverage_summary.py)         | Formats frontend Jest coverage for CI       |
-| [pyproject.toml](pyproject.toml)                                                                   | Dependencies and tool configuration         |
-| [docs/contributing.md](docs/contributing.md)                                                       | Full developer setup guide                  |
+| File                                                                                               | Purpose                                                           |
+| -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| [src/backend/literev/models.py](src/backend/literev/models.py)                                     | All Django models                                                 |
+| [src/backend/literev/api/views.py](src/backend/literev/api/views.py)                               | DRF API endpoints for non-search domains                          |
+| [src/backend/literev/api/search.py](src/backend/literev/api/search.py)                             | Search validation, preview, conversion, and project-creation APIs |
+| [src/backend/literev/api/project_lists.py](src/backend/literev/api/project_lists.py)               | Running/historical project list and lifecycle APIs                |
+| [src/backend/literev/api/project_overview.py](src/backend/literev/api/project_overview.py)         | Project overview, refinements, and cluster summary APIs           |
+| [src/backend/literev/views_public.py](src/backend/literev/views_public.py)                         | Generic frontend entry views and bootstrap context                |
+| [src/backend/literev/templatetags/frontend.py](src/backend/literev/templatetags/frontend.py)       | Frontend asset lookup template tags                               |
+| [src/backend/literev/templates/generic.html](src/backend/literev/templates/generic.html)           | Generic Django template that mounts React                         |
+| [src/backend/literev/api/serializers.py](src/backend/literev/api/serializers.py)                   | DRF serializers                                                   |
+| [src/backend/literev/api/permissions.py](src/backend/literev/api/permissions.py)                   | Custom permission classes                                         |
+| [src/backend/literev/libs/collectors.py](src/backend/literev/libs/collectors.py)                   | Elasticsearch query and document collection                       |
+| [src/backend/literev/libs/document_content.py](src/backend/literev/libs/document_content.py)       | Text highlighting helpers                                         |
+| [src/backend/literev/libs/search.py](src/backend/literev/libs/search.py)                           | Search validation, preview, and project-launch helpers            |
+| [src/backend/literev/libs/project_listing.py](src/backend/literev/libs/project_listing.py)         | Running/historical project list and lifecycle helpers             |
+| [src/backend/literev/libs/project_overview.py](src/backend/literev/libs/project_overview.py)       | Project overview, refinements, filters, and cluster summaries     |
+| [src/backend/literev/libs/nlp.py](src/backend/literev/libs/nlp.py)                                 | NLP processing, topic label generation                            |
+| [src/backend/literev/libs/rag_pdf.py](src/backend/literev/libs/rag_pdf.py)                         | RAG answer generation (core, ~1,945 lines)                        |
+| [src/backend/literev/libs/rag_classes.py](src/backend/literev/libs/rag_classes.py)                 | RAG wrapper and config classes                                    |
+| [src/backend/literev/libs/parsing.py](src/backend/literev/libs/parsing.py)                         | Document parsing (~1,331 lines)                                   |
+| [src/backend/literev/libs/pipeline.py](src/backend/literev/libs/pipeline.py)                       | End-to-end pipeline orchestration                                 |
+| [src/backend/literev/libs/table_choice.py](src/backend/literev/libs/table_choice.py)               | Interactive selection/refinement logic                            |
+| [src/backend/literev/libs/scoring.py](src/backend/literev/libs/scoring.py)                         | Document ranking and scoring                                      |
+| [src/backend/literev/libs/extract_minor_major.py](src/backend/literev/libs/extract_minor_major.py) | French legal text section classification                          |
+| [src/backend/literev_core/preprocessing.py](src/backend/literev_core/preprocessing.py)             | Shared text normalization pipeline                                |
+| [src/backend/literev_core/clustering.py](src/backend/literev_core/clustering.py)                   | PaCMAP + HDBSCAN implementation                                   |
+| [src/backend/config/settings/](src/backend/config/settings/)                                       | All Django settings modules                                       |
+| [src/backend/config/celery.py](src/backend/config/celery.py)                                       | Celery app and task configuration                                 |
+| [.makim.yaml](.makim.yaml)                                                                         | All development and ops tasks                                     |
+| [scripts/render_frontend_coverage_summary.py](scripts/render_frontend_coverage_summary.py)         | Formats frontend Jest coverage for CI                             |
+| [pyproject.toml](pyproject.toml)                                                                   | Dependencies and tool configuration                               |
+| [docs/contributing.md](docs/contributing.md)                                                       | Full developer setup guide                                        |

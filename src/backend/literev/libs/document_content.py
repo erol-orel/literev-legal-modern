@@ -3,9 +3,27 @@ from __future__ import annotations
 import re
 
 from collections.abc import Iterable
+from typing import Any, TypedDict, cast
 
 from django.utils.safestring import SafeString, mark_safe
 from rapidfuzz import fuzz
+
+from literev.libs.project_workflows import validate_project_access
+from literev.models import Document, ProjectDocumentRAG, User
+
+
+class DocumentSummary(TypedDict):
+    id: int
+    procedure_type: str
+    decision_type: str
+    decision_date: str | None
+    result: str
+    standards: str
+
+
+class DocumentContentPayload(TypedDict):
+    document: DocumentSummary
+    content: dict[str, Any]
 
 
 def split_into_sentences(text: str) -> list[str]:
@@ -72,4 +90,95 @@ def highlight_sentences_fuzzy(
     return mark_safe(" ".join(highlighted_sentences))
 
 
-__all__ = ["highlight_sentences_fuzzy", "split_into_sentences"]
+def _build_document_summary(document: Document) -> DocumentSummary:
+    return {
+        "id": document.id,
+        "procedure_type": document.procedure_type,
+        "decision_type": document.decision_type or "",
+        "decision_date": document.decision_date.isoformat()
+        if document.decision_date
+        else None,
+        "result": document.result or "",
+        "standards": document.standards or "",
+    }
+
+
+def build_document_content_payload(
+    user: User,
+    document_id: int,
+) -> DocumentContentPayload | None:
+    document = (
+        Document.objects.select_related("project")
+        .filter(id=document_id)
+        .first()
+    )
+    if not document:
+        return None
+
+    if not validate_project_access(user, document.project_id):
+        return None
+
+    return {
+        "document": _build_document_summary(document),
+        "content": {
+            "html_text": document.document_html_text or "",
+            "raw_text": document.raw_document_text or "",
+        },
+    }
+
+
+def build_highlighted_document_content_payload(
+    user: User,
+    document_rag_id: int,
+) -> DocumentContentPayload | None:
+    document_rag = (
+        ProjectDocumentRAG.objects.select_related(
+            "document", "project_rag__project"
+        )
+        .filter(id=document_rag_id)
+        .first()
+    )
+    if not document_rag:
+        return None
+
+    if not validate_project_access(user, document_rag.project_rag.project_id):
+        return None
+
+    citation_context = document_rag.citation_context or {}
+    highlight_sents: list[str] = []
+    if isinstance(citation_context, dict):
+        highlight_sents = list(citation_context.get("Mineure-Faits", []))
+        highlight_sents += list(
+            citation_context.get("Mineure-Subsommation", [])
+        )
+
+    raw_document_text = document_rag.document.raw_document_text or ""
+    html_text = document_rag.document.document_html_text or ""
+
+    if highlight_sents:
+        highlighted_text = cast(
+            str,
+            highlight_sentences_fuzzy(
+                raw_document_text.replace("\n", "<br>"),
+                highlight_sents,
+            ),
+        )
+    else:
+        highlighted_text = raw_document_text
+
+    return {
+        "document": _build_document_summary(document_rag.document),
+        "content": {
+            "html_text": html_text,
+            "raw_text": raw_document_text,
+            "highlighted_text": highlighted_text.replace("\n", "<br>"),
+        },
+    }
+
+
+__all__ = [
+    "build_document_content_payload",
+    "build_highlighted_document_content_payload",
+    "highlight_sentences_fuzzy",
+    "split_into_sentences",
+]

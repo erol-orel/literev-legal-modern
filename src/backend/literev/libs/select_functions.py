@@ -630,7 +630,7 @@ def create_refinement(
     project: Project,
     refinement_name: str,
     number_documents: int,
-    filters: str,
+    filters: str | dict[str, Any],
     origin: ProjectRefinement | None = None,
 ) -> int:
     """Save the actual state of all TableChoices objects.
@@ -656,7 +656,7 @@ def create_refinement(
         owner=user,
         name=f"{refinement_name} ({number_documents} documents)",
         origin=origin,
-        filters=json.dumps(filters),
+        filters=filters,
     )
 
     return refinement.id
