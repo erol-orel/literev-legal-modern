@@ -3,7 +3,7 @@
 ## What The System Does
 
 `literev-legal` helps users search, normalize, cluster, refine, and question French legal decisions.
-The repository now has a split application layout: `src/backend/` contains the Django application, while `src/frontend/` contains the React frontend used for the gradual hybrid migration away from Django templates. Public marketing routes plus the authenticated `/search/`, `/running/`, `/historicalpage/`, `/project/<id>/`, `/tableselect/...`, `/contentdocument/<id>`, `/contentdocument_highlighted/<rag_id>/`, and `/rag/<project_id>/` workflows already render through a minimal Django generic template and are routed inside React, the remaining authenticated workflow pages are still Django-first, and the core reusable algorithms live in standalone libraries under repo-root `libs/` so they can be tested without importing Django.
+The repository now has a split application layout: `src/backend/` contains the Django application, while `src/frontend/` contains the React frontend used for the gradual hybrid migration away from Django templates. Public marketing routes plus the authenticated `/search/`, `/running/`, `/historicalpage/`, `/project/<id>/`, `/tableselect/...`, `/contentdocument/<id>`, `/contentdocument_highlighted/<rag_id>/`, and `/rag/<project_id>/` workflows already render through a minimal Django generic template and are routed inside React. The migrated routes now share a React-owned navbar, shell, and client-side auth guard that mirrors Django login boundaries, the remaining authenticated workflow pages are still Django-first, and the core reusable algorithms live in standalone libraries under repo-root `libs/` so they can be tested without importing Django.
 
 ## Source Roots
 
@@ -89,6 +89,7 @@ The import-boundary check in `tests/import_boundaries/` enforces this rule in CI
 Browser / API client
         |
         +--> generic Django template mounting React for `/`, `/team/`, `/product/`, `/company/`, `/blog/`, `/search/`, `/running/`, `/historicalpage/`, `/project/<id>/`, `/tableselect/...`, `/contentdocument/<id>`, `/contentdocument_highlighted/<rag_id>/`, and `/rag/<project_id>/`
+        +--> React-owned shared shell handles migrated-route navigation collapse, layout chrome, and client-side login redirects for authenticated route groups
         |
         v
 Django views + DRF endpoints

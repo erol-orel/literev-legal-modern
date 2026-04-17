@@ -166,6 +166,29 @@ class AuthenticatedFrontendRouteTests(TestCase):
             "chambre_administrative",
         )
 
+    def test_generic_frontend_template_skips_legacy_jquery_assets(
+        self,
+    ) -> None:
+        self.client.force_login(self.user)
+
+        with override_settings(
+            FRONTEND_ASSET_MANIFEST_PATH=self.manifest_path
+        ):
+            response = self.client.get(reverse("search"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(
+            response,
+            "ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js",
+        )
+        self.assertNotContains(
+            response,
+            "cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js",
+        )
+        self.assertNotContains(
+            response, "cdn.jsdelivr.net/npm/axios/dist/axios.min.js"
+        )
+
     def test_running_route_exposes_running_and_delete_apis(self) -> None:
         self.client.force_login(self.user)
 

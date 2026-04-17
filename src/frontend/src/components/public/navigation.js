@@ -1,15 +1,42 @@
-import { useState } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, NavLink, useLocation } from "react-router-dom";
 
+import {
+  AUTHENTICATED_NAVIGATION_ITEMS,
+  PUBLIC_NAVIGATION_ITEMS,
+} from "../../libs/routes";
 import { staticAsset } from "../../libs/static";
 
 function navClassName({ isActive }) {
   return `nav-link fs-5 ${isActive ? "active" : ""}`.trim();
 }
 
+function NavigationLink({ item, onNavigate, urls }) {
+  return (
+    <li className="nav-item">
+      <NavLink className={navClassName} onClick={onNavigate} to={urls[item.to]}>
+        {item.label}
+      </NavLink>
+    </li>
+  );
+}
+
 function Navigation({ context }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const location = useLocation();
   const { urls, user } = context;
+
+  const navigationItems = useMemo(() => {
+    if (user.isAuthenticated) {
+      return [...PUBLIC_NAVIGATION_ITEMS, ...AUTHENTICATED_NAVIGATION_ITEMS];
+    }
+
+    return PUBLIC_NAVIGATION_ITEMS;
+  }, [user.isAuthenticated]);
+
+  useEffect(() => {
+    setIsExpanded(false);
+  }, [location.pathname]);
 
   return (
     <header className="bg-dark fixed-top shadow-sm">
@@ -41,43 +68,16 @@ function Navigation({ context }) {
             id="react-shell-navigation"
           >
             <ul className="navbar-nav ms-auto align-items-lg-center">
-              <li className="nav-item">
-                <NavLink className={navClassName} to={urls.product}>
-                  Product
-                </NavLink>
-              </li>
-              <li className="nav-item">
-                <NavLink className={navClassName} to={urls.company}>
-                  Company
-                </NavLink>
-              </li>
-              <li className="nav-item">
-                <NavLink className={navClassName} to={urls.blog}>
-                  Blog
-                </NavLink>
-              </li>
-              <li className="nav-item">
-                <NavLink className={navClassName} to={urls.team}>
-                  Team
-                </NavLink>
-              </li>
-              <li className="nav-item">
-                <NavLink className={navClassName} to={urls.search}>
-                  Search
-                </NavLink>
-              </li>
+              {navigationItems.map((item) => (
+                <NavigationLink
+                  item={item}
+                  key={item.to}
+                  onNavigate={() => setIsExpanded(false)}
+                  urls={urls}
+                />
+              ))}
               {user.isAuthenticated ? (
                 <>
-                  <li className="nav-item">
-                    <NavLink className={navClassName} to={urls.running}>
-                      Running
-                    </NavLink>
-                  </li>
-                  <li className="nav-item">
-                    <NavLink className={navClassName} to={urls.historicalpage}>
-                      History
-                    </NavLink>
-                  </li>
                   <li className="nav-item">
                     <span className="nav-link active fs-6 react-shell__user-email">
                       <i className="fa-regular fa-user me-2" />

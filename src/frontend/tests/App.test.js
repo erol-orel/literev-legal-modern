@@ -103,6 +103,23 @@ describe("App", () => {
     );
   });
 
+  it("redirects unauthenticated users from React-owned authenticated routes", async () => {
+    const assignSpy = jest
+      .spyOn(window.location, "assign")
+      .mockImplementation(() => {});
+
+    renderAppAt("/running/");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /redirecting to login/i
+    );
+    await waitFor(() => {
+      expect(assignSpy).toHaveBeenCalledWith(
+        "/accounts/login/?next=%2Frunning%2F"
+      );
+    });
+  });
+
   it("renders the migrated search page from router state", () => {
     renderAppAt("/search/", authenticatedContext);
 

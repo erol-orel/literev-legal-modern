@@ -8,8 +8,10 @@ import {
 } from "react-router-dom";
 
 import "./App.css";
+import RequireAuth from "./components/auth/require_auth";
 import PublicLayout from "./components/public/layout";
 import getContext from "./libs/context";
+import { resolvePageTitle } from "./libs/routes";
 import Blog from "./pages/blog/blog";
 import Company from "./pages/company/company";
 import ContentDocument from "./pages/contentdocument/contentdocument";
@@ -24,85 +26,95 @@ import Search from "./pages/search/search";
 import Team from "./pages/team/team";
 import TableSelection from "./pages/tableselect/tableselect";
 
-const PAGE_TITLES = {
-  "/": "LiteRev Legal",
-  "/search/": "LiteRev Legal | Search",
-  "/running/": "LiteRev Legal | Running Projects",
-  "/historicalpage/": "LiteRev Legal | Historical Search",
-  "/project/": "LiteRev Legal | Project",
-  "/rag/": "LiteRev Legal | RAG",
-  "/contentdocument/": "LiteRev Legal | Document Content",
-  "/contentdocument_highlighted/": "LiteRev Legal | Document Content",
-  "/tableselect/": "LiteRev Legal | Results Table",
-  "/team/": "LiteRev Legal | Team",
-  "/product/": "LiteRev Legal | Product",
-  "/company/": "LiteRev Legal | Company",
-  "/blog/": "LiteRev Legal | Blog",
-};
-
-function normalizePath(pathname) {
-  if (!pathname) {
-    return "/";
-  }
-
-  return pathname.endsWith("/") ? pathname : `${pathname}/`;
-}
-
 function RouteDocumentTitle({ appName }) {
   const location = useLocation();
 
   useEffect(() => {
-    const normalizedPath = normalizePath(location.pathname);
-    if (normalizedPath.startsWith("/project/")) {
-      document.title = PAGE_TITLES["/project/"];
-      return;
-    }
-    if (normalizedPath.startsWith("/tableselect/")) {
-      document.title = PAGE_TITLES["/tableselect/"];
-      return;
-    }
-    if (normalizedPath.startsWith("/rag/")) {
-      document.title = PAGE_TITLES["/rag/"];
-      return;
-    }
-    if (normalizedPath.startsWith("/contentdocument/")) {
-      document.title = PAGE_TITLES["/contentdocument/"];
-      return;
-    }
-    if (normalizedPath.startsWith("/contentdocument_highlighted/")) {
-      document.title = PAGE_TITLES["/contentdocument_highlighted/"];
-      return;
-    }
-    document.title = PAGE_TITLES[normalizedPath] ?? appName;
+    document.title = resolvePageTitle(location.pathname, appName);
   }, [appName, location.pathname]);
 
   return null;
+}
+
+function AuthenticatedRoute({ children, context }) {
+  return <RequireAuth context={context}>{children}</RequireAuth>;
 }
 
 function PublicRoutes({ context }) {
   return (
     <Routes>
       <Route path="/" element={<Home urls={context.urls} />} />
-      <Route path="/search/*" element={<Search context={context} />} />
-      <Route path="/running/*" element={<Running context={context} />} />
-      <Route path="/project/:projectId/*" element={<Project context={context} />} />
-      <Route path="/rag/:projectId/*" element={<RagPage context={context} />} />
-      <Route path="/rag/:projectId/:ragId/*" element={<RagPage context={context} />} />
+      <Route
+        path="/search/*"
+        element={
+          <AuthenticatedRoute context={context}>
+            <Search context={context} />
+          </AuthenticatedRoute>
+        }
+      />
+      <Route
+        path="/running/*"
+        element={
+          <AuthenticatedRoute context={context}>
+            <Running context={context} />
+          </AuthenticatedRoute>
+        }
+      />
+      <Route
+        path="/project/:projectId/*"
+        element={
+          <AuthenticatedRoute context={context}>
+            <Project context={context} />
+          </AuthenticatedRoute>
+        }
+      />
+      <Route
+        path="/rag/:projectId/*"
+        element={
+          <AuthenticatedRoute context={context}>
+            <RagPage context={context} />
+          </AuthenticatedRoute>
+        }
+      />
+      <Route
+        path="/rag/:projectId/:ragId/*"
+        element={
+          <AuthenticatedRoute context={context}>
+            <RagPage context={context} />
+          </AuthenticatedRoute>
+        }
+      />
       <Route
         path="/contentdocument/:documentId/*"
-        element={<ContentDocument context={context} />}
+        element={
+          <AuthenticatedRoute context={context}>
+            <ContentDocument context={context} />
+          </AuthenticatedRoute>
+        }
       />
       <Route
         path="/contentdocument_highlighted/:documentRagId/*"
-        element={<HighlightedDocument context={context} />}
+        element={
+          <AuthenticatedRoute context={context}>
+            <HighlightedDocument context={context} />
+          </AuthenticatedRoute>
+        }
       />
       <Route
         path="/tableselect/*"
-        element={<TableSelection context={context} />}
+        element={
+          <AuthenticatedRoute context={context}>
+            <TableSelection context={context} />
+          </AuthenticatedRoute>
+        }
       />
       <Route
         path="/historicalpage/*"
-        element={<HistoricalPage context={context} />}
+        element={
+          <AuthenticatedRoute context={context}>
+            <HistoricalPage context={context} />
+          </AuthenticatedRoute>
+        }
       />
       <Route path="/team/*" element={<Team />} />
       <Route path="/product/*" element={<Product urls={context.urls} />} />

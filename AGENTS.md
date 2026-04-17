@@ -70,6 +70,7 @@ src/
       models.py            All 10 Django models
       views.py             Remaining Django-template workflow views
       views_public.py      Generic frontend entry views for public and React-owned authenticated pages
+      templates/generic.html Minimal Django template that mounts the shared React shell
       api/
         views.py           DRF API endpoints for RAG domains
         search.py          DRF endpoints for search validation, preview, and project creation
@@ -206,6 +207,9 @@ All models live in
 - ViewSets (`ModelViewSet`) and class-based `APIView`
 - Public React routes are served by Django as thin shell adapters; keep page
   data/build wiring outside the view functions
+- Migrated React routes share a React-owned layout and navbar; keep
+  route-specific navigation behavior in React components/hooks instead of inline
+  template JS
 - All endpoints require `IsAuthenticated`
 - Custom permissions: `is_owner`, `is_in_shared_projects` — see
   [src/backend/literev/api/permissions.py](src/backend/literev/api/permissions.py)
@@ -234,6 +238,9 @@ All models live in
 
 - Django built-in `User` + `django-allauth` (social auth ready)
 - Session-based authentication with CSRF protection
+- Django/allauth pages remain server-rendered; the React router mirrors login
+  redirects for migrated authenticated routes, but Django remains the source of
+  truth for access control
 - Per-object ownership enforced at permission layer (not just queryset)
 
 ### Celery Tasks
