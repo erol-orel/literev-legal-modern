@@ -68,9 +68,8 @@ src/
       wsgi.py / asgi.py
     literev/               Main Django application
       models.py            All 10 Django models
-      views.py             Remaining Django-template workflow views
       views_public.py      Generic frontend entry views for public and React-owned authenticated pages
-      templates/generic.html Minimal Django template that mounts the shared React shell
+      templates/generic.html Minimal Django template that mounts the shared React shell; migrated workflow templates have been retired
       api/
         views.py           DRF API endpoints for RAG domains
         search.py          DRF endpoints for search validation, preview, and project creation

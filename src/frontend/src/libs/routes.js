@@ -14,16 +14,6 @@ const PAGE_TITLES = {
   "/blog/": "LiteRev Legal | Blog",
 };
 
-const AUTHENTICATED_ROUTE_PREFIXES = [
-  "/search/",
-  "/running/",
-  "/historicalpage/",
-  "/project/",
-  "/rag/",
-  "/contentdocument/",
-  "/contentdocument_highlighted/",
-  "/tableselect/",
-];
 
 export function normalizePath(pathname) {
   if (!pathname) {
@@ -55,12 +45,6 @@ export function resolvePageTitle(pathname, appName) {
   return PAGE_TITLES[normalizedPath] ?? appName;
 }
 
-export function isAuthenticatedRoute(pathname) {
-  const normalizedPath = normalizePath(pathname);
-  return AUTHENTICATED_ROUTE_PREFIXES.some((prefix) =>
-    normalizedPath.startsWith(prefix)
-  );
-}
 
 export function buildLoginRedirect(urls, pathname, search = "", hash = "") {
   const loginUrl = urls?.login || "/accounts/login/";

@@ -12,6 +12,27 @@ from literev.views_public import PublicFrontendView, public_frontend_app
 
 
 class PublicReactPageRouteTests(SimpleTestCase):
+    def test_only_generic_and_auth_templates_remain_for_backend_pages(
+        self,
+    ) -> None:
+        """Migrated workflow templates should be retired from the Django app."""
+        template_names = sorted(
+            str(path.relative_to(Path("src/backend/literev/templates")))
+            for path in Path("src/backend/literev/templates").rglob("*.html")
+        )
+
+        self.assertEqual(
+            template_names,
+            [
+                "account/base.html",
+                "account/login.html",
+                "account/signup.html",
+                "generic.html",
+                "registration/base.html",
+                "registration/login.html",
+            ],
+        )
+
     @classmethod
     def setUpClass(cls) -> None:
         """Create a temporary frontend manifest for route tests."""

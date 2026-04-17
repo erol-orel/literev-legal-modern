@@ -12,7 +12,7 @@ Keep these concerns in `src/backend/`:
 - Settings access and environment-backed configuration.
 - App-only adapters that translate between Django models and framework-free contracts.
 
-The `src/frontend/` folder now powers the React-owned public routes plus the authenticated `/search/`, `/running/`, `/historicalpage/`, `/project/<id>/`, `/tableselect/...`, `/contentdocument/<id>`, `/contentdocument_highlighted/<rag_id>/`, and `/rag/<project_id>/` pages through a minimal Django generic template (`generic.html`) and React Router. Shared layout chrome and navbar behavior for those migrated routes now live in React, while Django/allauth pages remain server-rendered. The remaining authenticated workflow pages still live under `src/backend/` until later migration stages land.
+The `src/frontend/` folder now powers the React-owned public routes plus the authenticated `/search/`, `/running/`, `/historicalpage/`, `/project/<id>/`, `/tableselect/...`, `/contentdocument/<id>`, `/contentdocument_highlighted/<rag_id>/`, and `/rag/<project_id>/` pages through a minimal Django generic template (`generic.html`) and React Router. Shared layout chrome and navbar behavior for those migrated routes now live in React, while Django/allauth pages remain server-rendered. The old workflow templates have been retired from `src/backend/literev/templates/`.
 
 ## App-Layer Structure
 
@@ -21,7 +21,6 @@ src/backend/literev/
   libs/          app-local Django-aware helper modules (for example `libs/search.py`, `libs/project_listing.py`, `libs/project_overview.py`, `libs/table_selection.py`)
   api/           DRF endpoints and serializers (for example `api/search.py`, `api/project_lists.py`, `api/project_overview.py`, `api/table_selection.py`)
   templatetags/  Django template tags for frontend asset resolution
-  views.py       remaining Django-template workflow views
   views_public.py generic frontend shell entry views
   tasks.py       Celery tasks
 ```
