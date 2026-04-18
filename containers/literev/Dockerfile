@@ -77,6 +77,7 @@ COPY --chown=literev:literev scripts/install-prod.sh /tmp/scripts/install-prod.s
 COPY --chown=literev:literev scripts/install-dev.sh /tmp/scripts/install-dev.sh
 COPY --chown=literev:literev pyproject.toml /tmp/pyproject.toml
 COPY --chown=literev:literev README.md /tmp/README.md
+COPY --chown=literev:literev libs/ /tmp/libs/
 
 # create minimum structure for the installation
 RUN mkdir -p /tmp/src/backend
