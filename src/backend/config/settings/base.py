@@ -15,7 +15,6 @@ from __future__ import annotations
 import logging
 import multiprocessing as mp
 import os
-import secrets
 
 from pathlib import Path
 from urllib.parse import quote
@@ -319,18 +318,7 @@ LOGIN_REDIRECT_URL = "/search/"
 LOGOUT_REDIRECT_URL = "/"
 
 # Allauth configuration
-SIGNUP_SECRET_CODE = os.environ.get(
-    "SIGNUP_SECRET_CODE", secrets.token_urlsafe(32)
-)
-
-if "SIGNUP_SECRET_CODE" not in os.environ:
-    print("#" * 80)
-    print(
-        "WARNING: SIGNUP_SECRET_CODE is not set in the environment variables."
-    )
-    print(f"Generated a temporary secret code: {SIGNUP_SECRET_CODE}")
-    print("Please define SIGNUP_SECRET_CODE in the .env file for persistence.")
-    print("#" * 80)
+SIGNUP_SECRET_CODE = os.environ.get("SIGNUP_SECRET_CODE", "gXCxdo1")
 
 ACCOUNT_AUTHENTICATION_METHOD = "email"
 ACCOUNT_EMAIL_REQUIRED = True

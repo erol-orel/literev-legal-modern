@@ -55,14 +55,14 @@ export function buildLoginRedirect(urls, pathname, search = "", hash = "") {
 }
 
 export const PUBLIC_NAVIGATION_ITEMS = [
-  { label: "Product", to: "product" },
-  { label: "Company", to: "company" },
-  { label: "Blog", to: "blog" },
-  { label: "Team", to: "team" },
-  { label: "Search", to: "search" },
+  // { label: "Product", to: "product" },
+  // { label: "Company", to: "company" },
+  // { label: "Blog", to: "blog" },
+  // { label: "Team", to: "team" },
+  // { label: "Search", to: "search" },
 ];
 
 export const AUTHENTICATED_NAVIGATION_ITEMS = [
-  { label: "Running", to: "running" },
-  { label: "History", to: "historicalpage" },
+  // { label: "Running", to: "running" },
+  // { label: "History", to: "historicalpage" },
 ];
