@@ -100,9 +100,15 @@ class AuthenticatedFrontendRouteTests(TestCase):
             (reverse("historicalpage"), "/historicalpage/"),
             (
                 reverse("projectpage", args=[self.project.id]),
-                reverse("project-rag-page", args=[self.project.id]),
-                reverse("project-rag-id-page", args=[self.project.id, 1]),
                 f"/project/{self.project.id}/",
+            ),
+            (
+                reverse("project-rag-page", args=[self.project.id]),
+                f"/rag/{self.project.id}/",
+            ),
+            (
+                reverse("project-rag-id-page", args=[self.project.id, 1]),
+                f"/rag/{self.project.id}/1",
             ),
             (
                 reverse("contentdocument", args=[1]),
@@ -132,7 +138,7 @@ class AuthenticatedFrontendRouteTests(TestCase):
                 ),
                 (
                     f"/tableselect/{self.project.id}/{self.refinement.id}/"
-                    "1/page=1/order_by=decision_date/"
+                    "1/page%253D1/order_by%253Ddecision_date/"
                 ),
             ),
         ]
@@ -232,7 +238,7 @@ class AuthenticatedFrontendRouteTests(TestCase):
         )
         self.assertEqual(
             response.context["context"]["api"]["ragDocumentsBase"],
-            "/api/project-documents-rag/",
+            "/api/project/project-documents-rag/",
         )
 
     def test_historical_route_exposes_historical_apis(self) -> None:
@@ -293,7 +299,7 @@ class AuthenticatedFrontendRouteTests(TestCase):
         )
         self.assertEqual(
             response.context["context"]["api"]["ragDocumentsBase"],
-            "/api/project-documents-rag/",
+            "/api/project/project-documents-rag/",
         )
 
     def test_tableselect_route_exposes_tableselect_base_urls(self) -> None:

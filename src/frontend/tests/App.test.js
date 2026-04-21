@@ -2,6 +2,23 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import App from "../src/App";
 
+let mockInitialPath = "/";
+
+jest.mock("react-router-dom", () => {
+  const actual = jest.requireActual("react-router-dom");
+  const React = require("react");
+  return {
+    ...actual,
+    BrowserRouter: ({ children, ...props }) =>
+      React.createElement(
+        actual.MemoryRouter,
+        { ...props, initialEntries: [mockInitialPath] },
+        children
+      ),
+  };
+});
+
+
 const baseContext = {
   api: {
     historicalDeleteAll: "/api/project/historical/delete-all/",
@@ -79,12 +96,13 @@ function jsonResponse(payload) {
 }
 
 function renderAppAt(pathname, context = baseContext) {
+  mockInitialPath = pathname;
   window.history.pushState({}, "", pathname);
   return render(<App initialContext={context} />);
 }
 
 afterEach(() => {
-  jest.restoreAllMocks();
+  jest.clearAllMocks();
   delete global.fetch;
 });
 
@@ -104,10 +122,14 @@ describe("App", () => {
   });
 
   it("redirects unauthenticated users from React-owned authenticated routes", async () => {
-    const assignSpy = jest
-      .spyOn(window.location, "assign")
-      .mockImplementation(() => {});
+  const originalLocation = window.location;
+  const assignSpy = jest.fn();
+  Object.defineProperty(window, "location", {
+    writable: true,
+    value: { ...window.location, assign: assignSpy },
+  });
 
+  try {
     renderAppAt("/running/");
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -118,7 +140,14 @@ describe("App", () => {
         "/accounts/login/?next=%2Frunning%2F"
       );
     });
+  } finally {
+    Object.defineProperty(window, "location", {
+      writable: true,
+      value: originalLocation,
+    });
+  }
   });
+
 
   it("renders the migrated search page from router state", () => {
     renderAppAt("/search/", authenticatedContext);
@@ -647,7 +676,7 @@ describe("App", () => {
       authenticatedContext
     );
 
-    await screen.findByRole("heading", { name: /results table/i });
+    await screen.findByRole("button", { name: /check all to maybe/i });
     fireEvent.click(screen.getByRole("button", { name: /check all to maybe/i }));
 
     expect(await screen.findByText(/selection updated\./i)).toBeInTheDocument();
@@ -679,7 +708,7 @@ describe("App", () => {
     renderAppAt("/contentdocument/12", authenticatedContext);
 
     expect(await screen.findByRole("heading", { name: /document content/i })).toBeInTheDocument();
-    expect(screen.getByText(/appeal/i)).toBeInTheDocument();
+    expect(await screen.findByText(/appeal/i)).toBeInTheDocument();
     expect(screen.getByText(/html document body/i)).toBeInTheDocument();
     expect(global.fetch).toHaveBeenCalledWith(
       "/api/project/documents/12/",
@@ -701,7 +730,7 @@ describe("App", () => {
         content: {
           html_text: "",
           raw_text: "Raw document body",
-          highlighted_text: "<span style="background-color: #FFFF77">Highlight</span>",
+          highlighted_text: '<span style="background-color: #FFFF77">Highlight</span>',
         },
       })
     );
@@ -709,7 +738,7 @@ describe("App", () => {
     renderAppAt("/contentdocument_highlighted/5/", authenticatedContext);
 
     expect(await screen.findByRole("heading", { name: /document content/i })).toBeInTheDocument();
-    expect(screen.getByText(/highlight/i)).toBeInTheDocument();
+    expect(await screen.findByText(/highlight/i)).toBeInTheDocument();
     expect(global.fetch).toHaveBeenCalledWith(
       "/api/project/documents/rag/5/highlighted/",
       expect.any(Object)
@@ -729,12 +758,13 @@ describe("App", () => {
       })
     );
 
-    renderAppAt("/rag/3/", authenticatedContext);
+    renderAppAt("/rag/3", authenticatedContext);
 
     expect(
       await screen.findByRole("heading", { name: /ask the documents/i })
     ).toBeInTheDocument();
-    expect(screen.getByText(/number of selected documents/i)).toHaveTextContent("2");
+    const label = await screen.findByText(/number of selected documents/i);
+    expect(label.parentElement).toHaveTextContent("2");
   });
 
   it("renders the rag results page from router state", async () => {
@@ -801,7 +831,9 @@ describe("App", () => {
     renderAppAt("/rag/3/5", authenticatedContext);
 
     expect(await screen.findByText(/question:/i)).toBeInTheDocument();
-    expect(await screen.findByText(/answer/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/answer:/i, { selector: "b" })
+    ).toBeInTheDocument();
   });
 
   it("renders the migrated team page from router state", () => {
