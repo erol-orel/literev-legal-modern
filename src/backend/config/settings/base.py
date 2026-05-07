@@ -320,9 +320,8 @@ LOGOUT_REDIRECT_URL = "/"
 # Allauth configuration
 SIGNUP_SECRET_CODE = os.environ.get("SIGNUP_SECRET_CODE", "gXCxdo1")
 
-ACCOUNT_AUTHENTICATION_METHOD = "email"
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_LOGIN_METHODS = {"username", "email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
 ACCOUNT_EMAIL_VERIFICATION = env(
     "ACCOUNT_EMAIL_VERIFICATION", default="optional"
 )

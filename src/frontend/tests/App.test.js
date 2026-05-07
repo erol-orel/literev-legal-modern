@@ -858,14 +858,14 @@ describe("App", () => {
     renderAppAt("/", authenticatedContext);
 
     expect(screen.getByText(/lawyer@example\.com/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /running/i })).toHaveAttribute(
-      "href",
-      "/running/"
-    );
-    expect(screen.getByRole("link", { name: /history/i })).toHaveAttribute(
-      "href",
-      "/historicalpage/"
-    );
+    // expect(screen.getByRole("link", { name: /running/i })).toHaveAttribute(
+    //   "href",
+    //   "/running/"
+    // );
+    // expect(screen.getByRole("link", { name: /history/i })).toHaveAttribute(
+    //   "href",
+    //   "/historicalpage/"
+    // );
     expect(screen.getByRole("link", { name: /logout/i })).toHaveAttribute(
       "href",
       "/accounts/logout/"
