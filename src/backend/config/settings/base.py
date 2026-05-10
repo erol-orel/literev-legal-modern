@@ -63,10 +63,9 @@ HACTAR_BASE_URL = os.environ.get("HACTAR_BASE_URL", "https://hactar.unige.ch")
 
 HACTAR_VERIFY_SSL = env.bool("HACTAR_VERIFY_SSL", default=False)
 
-OLLAMA_BASE_URL = (
-    os.environ.get("OLLAMA_BASE_URL") or "http://literev-ollama:11434"
+HACTAR_BOOLEAN_QUERY_MODEL = os.environ.get(
+    "HACTAR_BOOLEAN_QUERY_MODEL", "mistral-small3.1:24b"
 )
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL") or "mistral:7b"
 
 APP_NAME = "literev"
 ALLOWED_HOSTS = [

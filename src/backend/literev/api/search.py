@@ -80,8 +80,9 @@ class ConvertToBooleanQueryAPIView(APIView):
         try:
             boolean_query = convert_nl_to_boolean(
                 natural_language_query,
-                model_name="ollama/" + settings.OLLAMA_MODEL,
-                base_url=settings.OLLAMA_BASE_URL,
+                model_name=f"openai/{settings.HACTAR_BOOLEAN_QUERY_MODEL}",
+                base_url=f"{settings.HACTAR_BASE_URL}/api",
+                api_key=settings.HACTAR_API_KEY,
             )
         except Exception as exc:  # pragma: no cover - defensive logging path
             logger.error("Error generating boolean query: %s", exc)

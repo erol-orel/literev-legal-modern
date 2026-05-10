@@ -17,17 +17,17 @@ class TestPromptTemplate:
 
     def test_prompt_contains_context_placeholder(self):
         """The template must contain the system prompt for LLM instructions."""
-        assert "Boolean" in PROMPT_TEMPLATE or "boolean" in PROMPT_TEMPLATE
+        assert "booléenne" in PROMPT_TEMPLATE
 
     def test_prompt_mentions_french(self):
         """The prompt must instruct the LLM to work in French."""
-        assert "French" in PROMPT_TEMPLATE
+        assert "français" in PROMPT_TEMPLATE
 
     def test_prompt_mentions_boolean_operators(self):
-        """The prompt must reference AND, OR, NOT operators."""
+        """The prompt must reference AND and OR operators (NOT is forbidden)."""
         assert "AND" in PROMPT_TEMPLATE
         assert "OR" in PROMPT_TEMPLATE
-        assert "NOT" in PROMPT_TEMPLATE
+        assert "JAMAIS `NOT`" in PROMPT_TEMPLATE
 
 
 class TestConvertNlToBoolean:
@@ -41,13 +41,16 @@ class TestConvertNlToBoolean:
         mock_response.choices[0].message.content = " some boolean query "
         mock_litellm.completion.return_value = mock_response
 
-        result = convert_nl_to_boolean("Mon texte juridique")
+        result = convert_nl_to_boolean(
+            "Mon texte juridique",
+            model_name="openai/mistral-small3.1:24b",
+        )
 
         assert result == "some boolean query"
 
     @patch("lr_query.boolean_query.litellm")
-    def test_passes_correct_params_to_ollama(self, mock_litellm):
-        """Verify the function configures OllamaOpenAIGen correctly."""
+    def test_passes_correct_params_to_hactar(self, mock_litellm):
+        """Verify the function configures HactarLLM correctly."""
 
         # Create a fake litellm response object
         mock_response = MagicMock()
@@ -56,30 +59,34 @@ class TestConvertNlToBoolean:
 
         convert_nl_to_boolean(
             "test input",
-            model_name="mistral:7b",
-            base_url="http://my-ollama:11434",
+            model_name="openai/mistral-small3.1:24b",
+            base_url="http://legal-literev.unige.ch/hactar/api",
+            api_key="test-key",
         )
 
         # check that mock_litellm was created with the right arguments
         mock_litellm.completion.assert_called_once_with(
-            model="mistral:7b",
+            model="openai/mistral-small3.1:24b",
             messages=[
                 {"role": "system", "content": PROMPT_TEMPLATE},
                 {"role": "user", "content": "test input"},
             ],
-            api_base="http://my-ollama:11434",
             temperature=0,
             max_tokens=2048,
+            api_base="http://legal-literev.unige.ch/hactar/api",
+            api_key="test-key",
         )
 
     @patch("lr_query.boolean_query.litellm")
     def test_raises_runtime_error_on_failure(self, mock_litellm):
         """If the generator crashes, we should get a RuntimeError."""
 
-        mock_litellm.completion.side_effect = ConnectionError("Ollama is down")
+        mock_litellm.completion.side_effect = ConnectionError("hactar is down")
 
         with pytest.raises(RuntimeError, match="Failed to convert"):
-            convert_nl_to_boolean("test")
+            convert_nl_to_boolean(
+                "test", model_name="openai/mistral-small3.1:24b"
+            )
 
     @patch("lr_query.boolean_query.litellm")
     def test_passes_text_to_generate(self, mock_litellm):
@@ -89,7 +96,10 @@ class TestConvertNlToBoolean:
         mock_response.choices[0].message.content = "result"
         mock_litellm.completion.return_value = mock_response
 
-        convert_nl_to_boolean("Quels sont les droits du locataire?")
+        convert_nl_to_boolean(
+            "Quels sont les droits du locataire?",
+            model_name="openai/mistral-small3.1:24b",
+        )
 
         call_kwargs = mock_litellm.completion.call_args[1]
         user_messages = [

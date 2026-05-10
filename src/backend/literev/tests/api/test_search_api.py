@@ -130,8 +130,9 @@ class SearchApiTests(APITestCase):
         mocked_get_number_documents.assert_called_once()
 
     @override_settings(
-        OLLAMA_MODEL="test-model",
-        OLLAMA_BASE_URL="http://ollama.local",
+        HACTAR_BOOLEAN_QUERY_MODEL="test-model",
+        HACTAR_BASE_URL="http://hactar.local",
+        HACTAR_API_KEY="test-key",
     )
     @patch(
         "literev.api.search.convert_nl_to_boolean",
@@ -154,6 +155,7 @@ class SearchApiTests(APITestCase):
         )
         mocked_convert_nl_to_boolean.assert_called_once_with(
             "Quels sont les droits du locataire ?",
-            model_name="ollama/test-model",
-            base_url="http://ollama.local",
+            model_name="openai/test-model",
+            base_url="http://hactar.local/api",
+            api_key="test-key",
         )

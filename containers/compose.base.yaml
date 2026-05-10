@@ -39,7 +39,6 @@ services:
       - ${FRONTEND_HOST_PORT}:8000
     depends_on:
       - literev-postgres
-      - literev-ollama
     volumes:
       - container_data_dir:${CONTAINER_VOLUME_DATA_DIR}
       - static_root:${STATIC_ROOT:-/tmp/literev/static}
@@ -90,8 +89,6 @@ services:
         condition: service_healthy
       literev-postgres:
         condition: service_started
-      literev-ollama:
-        condition: service_healthy
     volumes:
       - container_data_dir:${CONTAINER_VOLUME_DATA_DIR}
       - static_root:${STATIC_ROOT:-/tmp/literev/static}
@@ -133,36 +130,6 @@ services:
       timeout: 2s
       retries: 20
 
-  literev-ollama:
-    image: ollama/ollama:0.4.2
-    hostname: literev-ollama
-    restart: unless-stopped
-    env_file:
-      - ../.env
-    ports:
-      - 127.0.0.1:${OLLAMA_HOST_PORT:-11434}:11434
-    volumes:
-      - ollama_models:/root/.ollama
-    networks: [literev]
-    deploy:
-      resources:
-        limits:
-          memory: 20480M
-        reservations:
-          memory: 16384M
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
-      interval: 30s
-      timeout: 10s
-      retries: 10
-      start_period: 300s
-    entrypoint:
-      [
-        "/bin/sh",
-        "-c",
-        "ollama serve & OLLAMA_PID=$! && sleep 5 && ollama pull ${OLLAMA_MODEL:-mistral:7b} && wait $OLLAMA_PID",
-      ]
-
   literev-jupyter:
     extends: literev-base
     volumes:
@@ -175,7 +142,6 @@ volumes:
   media_root:
   llm_cache:
   redis_data:
-  ollama_models:
 
 networks:
   literev:
