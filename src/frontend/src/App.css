@@ -72,3 +72,33 @@
     max-width: 18rem;
   }
 }
+
+.react-shell__body {
+  display: flex;
+  padding-top: 88px;          /* push below the fixed top navbar */
+}
+
+.react-shell__sidebar {
+  width: 240px;
+  min-height: calc(100vh - 88px);
+  position: sticky;
+  top: 88px;
+  align-self: flex-start;
+}
+
+.react-shell__content {
+  flex: 1;
+  min-height: calc(100vh - 88px);
+  padding-top: 0;             /* was 88px — now handled by .react-shell__body */
+}
+
+@media (max-width: 768px) {
+  .react-shell__body {
+    flex-direction: column;   /* on small screens, stack instead of side-by-side */
+  }
+  .react-shell__sidebar {
+    width: 100%;
+    min-height: auto;
+    position: static;
+  }
+}
