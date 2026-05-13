@@ -15,8 +15,8 @@ from literev.api.serializers import (
     ProjectDocumentRAGSerializer,
     ProjectRAGSerializer,
 )
+from literev.libs.utils import get_shared_projects_ids
 from literev.models import Project, ProjectDocumentRAG, ProjectRAG
-from literev.tasks import get_shared_projects_ids, task_rag_result_table
 
 
 class ProjectRAGbyProjectIdAPIView(APIView):
@@ -81,6 +81,8 @@ class ProjectRAGbyProjectIdAPIView(APIView):
             project=project,
             status="in-progress",
         )
+
+        from literev.tasks import task_rag_result_table
 
         task_rag_result_table.s(project_rag.id, document_ids).apply_async()
 

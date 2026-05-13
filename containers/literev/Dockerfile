@@ -106,13 +106,18 @@ ENV MEDIA_ROOT ${MEDIA_ROOT}
 ENV LITEREV_CACHE_DIR ${LITEREV_CACHE_DIR}
 ENV CONTAINER_VOLUME_DATA_DIR ${CONTAINER_VOLUME_DATA_DIR}
 
+USER root
+
 RUN mkdir -p ${CONTAINER_VOLUME_DATA_DIR}/articles \
   && mkdir -p ${CONTAINER_VOLUME_DATA_DIR}/plot \
   && mkdir -p ${CONTAINER_VOLUME_DATA_DIR}/pkl \
   && mkdir -p ${CONTAINER_VOLUME_DATA_DIR}/static \
   && mkdir -p ${STATIC_ROOT}/.well-known/acme-challenge \
   && mkdir -p ${MEDIA_ROOT} \
-  && mkdir -p ${LITEREV_CACHE_DIR}
+  && mkdir -p ${LITEREV_CACHE_DIR} \
+  && chown -R literev:literev ${CONTAINER_VOLUME_DATA_DIR} ${STATIC_ROOT} ${MEDIA_ROOT} ${LITEREV_CACHE_DIR}
+
+USER literev
 
 WORKDIR /opt/services/literev/src/backend
 

@@ -10,7 +10,6 @@ from django.utils import timezone
 from literev.libs.parsing import process_search_query
 from literev.libs.utils import get_number_documents
 from literev.models import Project
-from literev.tasks import launch_process
 
 SEARCH_SOURCE_OPTIONS: tuple[tuple[str, str], ...] = (
     ("chambre_administrative", "Chambre Administrative"),
@@ -187,6 +186,8 @@ def create_and_launch_search_project(
         total_documents = count_search_documents(payload)
 
     project = create_search_project(user, payload, total_documents)
+    from literev.tasks import launch_process
+
     process_started = launch_process(project)
 
     if not process_started:

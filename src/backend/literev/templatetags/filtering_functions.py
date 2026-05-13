@@ -8,14 +8,13 @@ from django import template
 from django.conf import settings
 from django.db.models import Avg, Count, ExpressionWrapper, F, FloatField, Func
 
-from literev.libs.utils import count_trials
+from literev.libs.utils import count_trials, get_shared_projects_ids
 from literev.models import (
     Cluster,
     ClusterElement,
     Document,
     Project,
 )
-from literev.tasks import get_shared_projects_ids
 
 register = template.Library()
 

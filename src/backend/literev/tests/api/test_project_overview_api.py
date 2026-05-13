@@ -142,7 +142,7 @@ class ProjectOverviewApiTests(APITestCase):
             ProjectRefinement.objects.filter(id=self.refinement.id).exists()
         )
 
-    @patch("literev.libs.project_overview.nlp_topic_description")
+    @patch("literev.libs.nlp.nlp_topic_description")
     def test_project_cluster_summary_endpoint_generates_summary(
         self,
         mocked_nlp_topic_description,

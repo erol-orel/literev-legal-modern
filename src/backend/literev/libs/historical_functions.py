@@ -3,12 +3,12 @@ from __future__ import annotations
 from django.db.models import Case, Q, When
 from django.db.models.query import QuerySet
 
+from literev.libs.utils import get_shared_projects_ids
 from literev.models import (
     ClusterElement,
     Project,
     User,
 )
-from literev.tasks import get_shared_projects_ids
 
 
 def get_projects_list(project_id_list: list[int]) -> QuerySet[Project]:

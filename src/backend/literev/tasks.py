@@ -20,11 +20,8 @@ from literev.libs.data_files import get_es_scores
 from literev.libs.pipeline import (
     update_pp_document,
 )
-from literev.libs.rag_pdf import CustomRagAnswersGenerator, RagAnswersManager
-from literev.libs.scoring import (
-    sort_documents_by_es_score,
-)
 from literev.libs.utils import (
+    get_shared_projects_ids,
     save_documents_to_db,
     update_es_scores_file,
     update_task_code,
@@ -50,15 +47,6 @@ from literev_core.preprocessing import (
 logger = logging.getLogger(__name__)
 
 CLUSTERING_MIN_DOCUMENTS = settings.CLUSTERING_MIN_DOCUMENTS
-
-
-def get_shared_projects_ids() -> list[int]:
-    return [
-        project.id
-        for project in Project.objects.filter(
-            query="#PROCESS-ALL-CORPUS-LITEREV-00"
-        )
-    ]
 
 
 def running_delete(project_id: str | int) -> None:
@@ -238,6 +226,8 @@ def get_top_docs_by_es(
     scores = get_es_scores(project)
 
     if scores:
+        from literev.libs.scoring import sort_documents_by_es_score
+
         sorted_tablechoice = sort_documents_by_es_score(project, documents)
         top10_docs = sorted_tablechoice[:n]
         return top10_docs
@@ -279,6 +269,8 @@ def get_nl_rag_ans(self, project_id: int) -> None:
         or "chambre_civile" in project.selected_indices
         or "chambre_administrative" in project.selected_indices
     ):
+        from literev.libs.rag_pdf import CustomRagAnswersGenerator
+
         rag_op = CustomRagAnswersGenerator(
             project_rag_id=project_rag.id,
             documents_ids=docs_ids,
@@ -286,6 +278,8 @@ def get_nl_rag_ans(self, project_id: int) -> None:
         )
         rag_op.get_and_save_answers_from_documents(max_doc_ans=max_doc_ans)
     else:
+        from literev.libs.rag_pdf import RagAnswersManager
+
         rag = RagAnswersManager(
             project_rag_id=project_rag.id,
             documents_ids=docs_ids,
@@ -471,6 +465,8 @@ def task_rag_result_table(
             or "chambre_civile" in project_rag.project.selected_indices
             or "chambre_administrative" in project_rag.project.selected_indices
         ):
+            from literev.libs.rag_pdf import CustomRagAnswersGenerator
+
             rag = CustomRagAnswersGenerator(
                 project_rag_id,
                 document_ids,
@@ -478,6 +474,8 @@ def task_rag_result_table(
             )
             rag.get_and_save_answers_from_documents()
         else:
+            from literev.libs.rag_pdf import RagAnswersManager
+
             rag = RagAnswersManager(  # type: ignore
                 project_rag_id=project_rag.id,
                 documents_ids=document_ids,

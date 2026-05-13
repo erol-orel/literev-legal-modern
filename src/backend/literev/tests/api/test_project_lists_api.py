@@ -172,7 +172,7 @@ class ProjectListsApiTests(APITestCase):
             payload["projects"][1]["name"], "Historical Water Small"
         )
 
-    @patch("literev.libs.project_listing.running_delete")
+    @patch("literev.tasks.running_delete")
     def test_project_delete_endpoint_deletes_owned_project(
         self,
         mocked_running_delete,
@@ -186,7 +186,7 @@ class ProjectListsApiTests(APITestCase):
             self.historical_project.id
         )
 
-    @patch("literev.libs.project_listing.remove_all_finished_projects")
+    @patch("literev.tasks.remove_all_finished_projects")
     def test_historical_delete_all_endpoint_deletes_owned_finished_projects(
         self,
         mocked_remove_all_finished_projects,

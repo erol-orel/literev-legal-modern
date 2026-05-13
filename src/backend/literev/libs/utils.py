@@ -14,6 +14,15 @@ from literev.libs.pipeline import create_document_db
 from literev.models import Project
 
 
+def get_shared_projects_ids() -> list[int]:
+    return [
+        project.id
+        for project in Project.objects.filter(
+            query="#PROCESS-ALL-CORPUS-LITEREV-00"
+        )
+    ]
+
+
 def update_task_code(project: Project, task_code) -> None:
     project.actual_task_code = task_code
     project.save()

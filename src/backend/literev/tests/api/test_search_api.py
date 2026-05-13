@@ -66,7 +66,7 @@ class SearchApiTests(APITestCase):
         self.assertTrue(response.json()["can_continue"])
         self.assertEqual(mocked_get_number_documents.call_count, 2)
 
-    @patch("literev.libs.search.launch_process", return_value=True)
+    @patch("literev.tasks.launch_process", return_value=True)
     @patch("literev.libs.search.get_number_documents", return_value=13)
     def test_project_creation_endpoint_creates_and_launches_project(
         self,
@@ -130,6 +130,7 @@ class SearchApiTests(APITestCase):
         mocked_get_number_documents.assert_called_once()
 
     @override_settings(
+        USE_HACTAR_LLM_FOR_BOOLEAN_QUERY=True,
         HACTAR_BOOLEAN_QUERY_MODEL="test-model",
         HACTAR_BASE_URL="http://hactar.local",
         HACTAR_API_KEY="test-key",

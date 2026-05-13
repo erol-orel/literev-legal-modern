@@ -1,10 +1,9 @@
 from datetime import datetime
-from typing import cast
+from pathlib import Path
+from typing import Any, cast
 from zoneinfo import ZoneInfo
 
-from chromadb import PersistentClient
 from django.conf import settings
-from openai import OpenAI
 
 EMBEDDING_MODEL = "text-embedding-3-large"
 CHAT_MODEL = "gpt-4.1-mini"
@@ -16,10 +15,54 @@ CHROMA_DIR = CACHE_DIR / "chroma_db"
 CHROMA_DIR_PENAL = CACHE_DIR / "chroma_db_penal"
 CHROMA_DIR_ADM = CACHE_DIR / "chroma_db_adm"
 
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
-chroma_client = PersistentClient(CHROMA_DIR)
-chroma_client_penal = PersistentClient(CHROMA_DIR_PENAL)
-# chroma_client_adm = PersistentClient(CHROMA_DIR_ADM)
+
+class LazyOpenAIClient:
+    """Proxy that delays OpenAI credential validation until first use."""
+
+    def __init__(self) -> None:
+        self._client: Any | None = None
+
+    def _get_client(self) -> Any:
+        if self._client is None:
+            from openai import OpenAI
+
+            self._client = OpenAI(api_key=OPENAI_API_KEY)
+        return self._client
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._get_client(), name)
+
+
+class LazyChromaClient:
+    """Proxy that delays ChromaDB imports and storage access until first use."""
+
+    def __init__(self, path: Path) -> None:
+        self._path = path
+        self._client: Any | None = None
+
+    def _get_client(self) -> Any:
+        if self._client is None:
+            from chromadb import PersistentClient
+            from chromadb.config import Settings
+
+            # Use SegmentAPI to bypass Rust bindings bugs in some environments.
+            chroma_settings = Settings(
+                chroma_api_impl="chromadb.api.segment.SegmentAPI"
+            )
+            self._client = PersistentClient(
+                path=str(self._path),
+                settings=chroma_settings,
+            )
+        return self._client
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._get_client(), name)
+
+
+openai_client = LazyOpenAIClient()
+chroma_client = LazyChromaClient(CHROMA_DIR)
+chroma_client_penal = LazyChromaClient(CHROMA_DIR_PENAL)
+# chroma_client_adm = LazyChromaClient(CHROMA_DIR_ADM)
 
 DOCUMENT_SECTIONS = [
     "Majeure",
@@ -195,7 +238,7 @@ def llm_answer(question: str, blocks: dict[str, list[str]]) -> str:
     }
 
     # Call the OpenAI ChatCompletion endpoint
-    response = openai_client.chat.completions.create(  # type: ignore
+    response = openai_client.chat.completions.create(
         model=CHAT_MODEL,
         messages=[system_message, user_message],
         response_format={"type": "json_object"},

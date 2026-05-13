@@ -1,6 +1,6 @@
 from rest_framework.permissions import BasePermission
 
-from literev.tasks import get_shared_projects_ids
+from literev.libs.utils import get_shared_projects_ids
 
 
 class IsProjectRAGOwner(BasePermission):

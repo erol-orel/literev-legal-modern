@@ -264,7 +264,7 @@ def call_chatgpt(prompt: str, api_key: str = settings.OPENAI_API_KEY) -> str:
         logger.info("Sending request to OpenAI ChatGPT API")
         response = openai_client.chat.completions.create(
             model=GPT_MODEL,
-            messages=messages,  # type: ignore
+            messages=messages,
             max_tokens=MAX_TOKENS_RESPONSE,
             temperature=0,
         )

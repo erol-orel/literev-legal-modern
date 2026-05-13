@@ -36,6 +36,15 @@ env = environ.Env()
 
 SERVICE_NAME = "literev"
 
+# PaCMAP imports Numba-compiled functions with caching enabled. Some container
+# and editable-install environments do not provide a usable package-local cache
+# locator, so make the cache explicit before PaCMAP can be imported.
+os.environ["NUMBA_CACHE_DIR"] = (
+    os.environ.get("NUMBA_CACHE_DIR") or "/tmp/literev/numba-cache"
+)
+NUMBA_CACHE_DIR = Path(os.environ["NUMBA_CACHE_DIR"])
+NUMBA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
 # HTTP redirect is issued to the same URL
 APPEND_SLASH = True
 
@@ -59,6 +68,10 @@ HACTAR_API_KEY = os.environ.get("HACTAR_API_KEY", "")
 
 USE_HACTAR_LLM = env.bool("USE_HACTAR_LLM", default=False)
 
+USE_HACTAR_LLM_FOR_BOOLEAN_QUERY = env.bool(
+    "USE_HACTAR_LLM_FOR_BOOLEAN_QUERY", default=False
+)
+
 HACTAR_BASE_URL = os.environ.get("HACTAR_BASE_URL", "https://hactar.unige.ch")
 
 HACTAR_VERIFY_SSL = env.bool("HACTAR_VERIFY_SSL", default=False)
@@ -66,6 +79,8 @@ HACTAR_VERIFY_SSL = env.bool("HACTAR_VERIFY_SSL", default=False)
 HACTAR_BOOLEAN_QUERY_MODEL = os.environ.get(
     "HACTAR_BOOLEAN_QUERY_MODEL", "mistral-small3.1:24b"
 )
+
+CHAT_MODEL = os.environ.get("CHAT_MODEL", "gpt-4.1-mini")
 
 APP_NAME = "literev"
 ALLOWED_HOSTS = [

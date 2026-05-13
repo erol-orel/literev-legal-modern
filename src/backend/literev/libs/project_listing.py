@@ -10,13 +10,8 @@ from literev.libs.historical_functions import (
     sort_all_projects,
 )
 from literev.libs.pipeline import running_restart
-from literev.libs.utils import count_trials
+from literev.libs.utils import count_trials, get_shared_projects_ids
 from literev.models import ClusterElement, Document, Project, User
-from literev.tasks import (
-    get_shared_projects_ids,
-    remove_all_finished_projects,
-    running_delete,
-)
 
 
 class ProjectProgress(TypedDict, total=False):
@@ -242,6 +237,8 @@ def delete_project(user: User, project_id: int) -> bool:
     if not project or is_shared_project(project) or project.user != user:
         return False
 
+    from literev.tasks import running_delete
+
     running_delete(project.id)
     return True
 
@@ -268,5 +265,7 @@ def delete_all_finished_projects_for_user(user: User) -> int:
             "id", flat=True
         )
     )
+    from literev.tasks import remove_all_finished_projects
+
     remove_all_finished_projects(user)
     return len(project_ids)

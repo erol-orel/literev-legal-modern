@@ -82,6 +82,7 @@ DJANGO_SETTINGS_MODULE=config.settings.dev
 | `NUMBER_THREADS_ALLOWED` | multiprocessing and worker parallelism |
 | `NUMBER_TRIALS` | Optuna trials for clustering optimization |
 | `NUMBER_OPTUNA_JOBS` | parallel Optuna workers |
+| `NUMBA_CACHE_DIR` | writable cache directory for Numba/PacMAP compiled functions; defaults to `/tmp/literev/numba-cache` |
 
 ## Tooling Configuration
 

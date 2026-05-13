@@ -295,6 +295,7 @@ Select via `DJANGO_SETTINGS_MODULE`:
 | `LITEREV_CACHE_DIR`                                   | RAG file cache directory          |
 | `NUMBER_THREADS_ALLOWED`                              | Parallelism for NLP/clustering    |
 | `NUMBER_TRIALS` / `NUMBER_OPTUNA_JOBS`                | Hyperparameter optimization       |
+| `NUMBA_CACHE_DIR`                                     | Writable Numba/PacMAP cache dir   |
 | `SENTRY_DSN`                                          | Sentry error tracking (prod only) |
 | `CERTBOT_DOMAIN` / `CERTBOT_EMAIL`                    | SSL certificate (prod only)       |
 | `LOGGING_LEVEL`                                       | `INFO` or `DEBUG`                 |

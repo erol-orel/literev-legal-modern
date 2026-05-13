@@ -8,9 +8,9 @@ from django.db.models import Count
 from django.db.models.query import QuerySet
 from django_stubs_ext import WithAnnotations
 
+from literev.libs.utils import get_shared_projects_ids
 from literev.models import Cluster, Document, Project, ProjectRAG
 from literev.task_plotting import get_color_map
-from literev.tasks import get_shared_projects_ids
 
 __all__ = [
     "extract_refined_list",

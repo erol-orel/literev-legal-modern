@@ -78,12 +78,20 @@ class ConvertToBooleanQueryAPIView(APIView):
         )
 
         try:
-            boolean_query = convert_nl_to_boolean(
-                natural_language_query,
-                model_name=f"openai/{settings.HACTAR_BOOLEAN_QUERY_MODEL}",
-                base_url=f"{settings.HACTAR_BASE_URL}/api",
-                api_key=settings.HACTAR_API_KEY,
-            )
+            if getattr(settings, "USE_HACTAR_LLM_FOR_BOOLEAN_QUERY", False):
+                boolean_query = convert_nl_to_boolean(
+                    natural_language_query,
+                    model_name=f"openai/{settings.HACTAR_BOOLEAN_QUERY_MODEL}",
+                    base_url=f"{settings.HACTAR_BASE_URL}/api",
+                    api_key=settings.HACTAR_API_KEY,
+                )
+            else:
+                boolean_query = convert_nl_to_boolean(
+                    natural_language_query,
+                    model_name=f"openai/{getattr(settings, 'CHAT_MODEL', 'gpt-4.1-mini')}",
+                    api_key=settings.OPENAI_API_KEY,
+                )
+
         except Exception as exc:  # pragma: no cover - defensive logging path
             logger.error("Error generating boolean query: %s", exc)
             return Response(

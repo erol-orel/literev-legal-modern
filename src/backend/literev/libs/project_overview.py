@@ -8,7 +8,6 @@ from django.conf import settings
 from django.db.models import Avg, Count, ExpressionWrapper, F, FloatField, Func
 from django.urls import reverse
 
-from literev.libs.nlp import nlp_topic_description
 from literev.libs.project_listing import (
     build_project_progress,
     count_processed_documents,
@@ -550,6 +549,8 @@ def generate_cluster_summary(
     cluster = Cluster.objects.filter(project=project, id=cluster_id).first()
     if not cluster:
         raise ValueError("Cluster not found.")
+
+    from literev.libs.nlp import nlp_topic_description
 
     summary_text = nlp_topic_description(cluster)
     if not summary_text:
