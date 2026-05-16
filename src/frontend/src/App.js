@@ -40,10 +40,18 @@ function AuthenticatedRoute({ children, context }) {
   return <RequireAuth context={context}>{children}</RequireAuth>;
 }
 
+function HomeRoute({ context }) {
+  if (context.user.isAuthenticated) {
+    return <Navigate replace to={context.urls.search} />;
+  }
+
+  return <Home urls={context.urls} />;
+}
+
 function PublicRoutes({ context }) {
   return (
     <Routes>
-      <Route path="/" element={<Home urls={context.urls} />} />
+      <Route path="/" element={<HomeRoute context={context} />} />
       <Route
         path="/search/*"
         element={

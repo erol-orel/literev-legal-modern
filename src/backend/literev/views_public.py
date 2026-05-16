@@ -4,7 +4,9 @@ from typing import Any
 
 from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.messages import get_messages
 from django.http import HttpRequest
+from django.shortcuts import redirect
 from django.urls import reverse
 from django.views.generic import TemplateView
 
@@ -18,6 +20,15 @@ def build_frontend_context(request: HttpRequest) -> dict[str, Any]:
     return {
         "appName": "LiteRev Legal",
         "appVersion": __version__,
+        "messages": [
+            {
+                "level": message.level,
+                "levelTag": message.level_tag,
+                "message": str(message),
+                "tags": message.tags,
+            }
+            for message in get_messages(request)
+        ],
         "user": {
             "isAuthenticated": bool(request.user.is_authenticated),
             "email": getattr(request.user, "email", ""),
@@ -107,6 +118,17 @@ class PublicFrontendView(FrontendView):
     """Serve the generic frontend shell for public routes."""
 
 
+class HomeFrontendView(FrontendView):
+    """Serve the public home, or send authenticated users to search."""
+
+    def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> Any:
+        """Redirect authenticated users away from the public landing page."""
+        if request.user.is_authenticated:
+            return redirect("search")
+
+        return super().dispatch(request, *args, **kwargs)
+
+
 class AuthenticatedFrontendView(LoginRequiredMixin, FrontendView):
     """Serve the generic frontend shell for authenticated routes."""
 
@@ -114,4 +136,5 @@ class AuthenticatedFrontendView(LoginRequiredMixin, FrontendView):
 
 
 public_frontend_app = PublicFrontendView.as_view()
+home_frontend_app = HomeFrontendView.as_view()
 authenticated_frontend_app = AuthenticatedFrontendView.as_view()

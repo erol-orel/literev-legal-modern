@@ -122,6 +122,38 @@ describe("App", () => {
     );
   });
 
+  it("redirects authenticated root visits to search", () => {
+    renderAppAt("/", authenticatedContext);
+
+    expect(
+      screen.getByRole("heading", { name: /project search/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", {
+        name: /smarter research\. better insights\./i,
+      })
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders Django messages from the bootstrap context", () => {
+    renderAppAt("/", {
+      ...baseContext,
+      messages: [
+        {
+          level: 25,
+          levelTag: "success",
+          message: "Successfully signed out.",
+          tags: "success",
+        },
+      ],
+    });
+
+    expect(screen.getByRole("alert")).toHaveClass("alert-success");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Successfully signed out."
+    );
+  });
+
   it("redirects unauthenticated users from React-owned authenticated routes", async () => {
   const originalLocation = window.location;
   const assignSpy = jest.fn();

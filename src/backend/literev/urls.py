@@ -11,6 +11,7 @@ from literev.api import table_selection as table_selection_api
 from literev.api import views as views_api
 from literev.views_public import (
     authenticated_frontend_app,
+    home_frontend_app,
     public_frontend_app,
 )
 
@@ -182,7 +183,7 @@ urlpatterns: list[URL] = [
         lambda request: HttpResponse("OK", status=200),
         name="status-view",
     ),
-    path("", public_frontend_app, name="home"),
+    path("", home_frontend_app, name="home"),
     path("search/", authenticated_frontend_app, name="search"),
     path("running/", authenticated_frontend_app, name="running"),
     path("historicalpage/", authenticated_frontend_app, name="historicalpage"),

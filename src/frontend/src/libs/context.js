@@ -1,6 +1,7 @@
 const DEFAULT_CONTEXT = {
   appName: "LiteRev Legal",
   appVersion: "",
+  messages: [],
   urls: {
     home: "/",
     search: "/search/",
@@ -63,6 +64,9 @@ function normalizeContext(context = {}) {
       ...DEFAULT_CONTEXT.search,
       ...(context?.search ?? {}),
     },
+    messages: Array.isArray(context?.messages)
+      ? context.messages
+      : DEFAULT_CONTEXT.messages,
     user: {
       ...DEFAULT_CONTEXT.user,
       ...(context?.user ?? {}),
