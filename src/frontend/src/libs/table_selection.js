@@ -27,13 +27,13 @@ function toErrorMessages(data) {
 
 async function request(url, options = {}) {
   const response = await fetch(url, {
+    ...options,
     credentials: "same-origin",
     headers: {
       Accept: "application/json",
       "X-CSRFToken": getCSRFToken(),
       ...(options.headers ?? {}),
     },
-    ...options,
   });
 
   return response;
