@@ -40,6 +40,7 @@ const baseContext = {
     searchValidate: "/api/project/search/validate/",
   },
   appName: "LiteRev Legal",
+  appVersion: "0.12.0", // semantic-release
   search: {
     clusteringMinDocuments: 12,
     sources: [
@@ -155,6 +156,7 @@ describe("App", () => {
     expect(
       screen.getByRole("heading", { name: /project search/i })
     ).toBeInTheDocument();
+    expect(screen.getByText(/literev version 0\.12\.0/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/project name/i)).toBeInTheDocument();
     expect(
       screen.getByText(/minimum number of documents for clustering/i)

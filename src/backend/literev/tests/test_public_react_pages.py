@@ -8,6 +8,7 @@ from pathlib import Path
 from django.test import SimpleTestCase, override_settings
 from django.urls import resolve, reverse
 
+from config import __version__
 from literev.views_public import PublicFrontendView, public_frontend_app
 
 
@@ -73,6 +74,9 @@ class PublicReactPageRouteTests(SimpleTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "generic.html")
         self.assertEqual(response.context["context"]["urls"]["home"], "/")
+        self.assertEqual(
+            response.context["context"]["appVersion"], __version__
+        )
         self.assertContains(response, 'id="root"')
         self.assertContains(response, 'id="context-data"')
         self.assertContains(response, "/static/css/main.test.css")

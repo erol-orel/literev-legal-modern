@@ -17,11 +17,11 @@ function Sidebar({ context }) {
     return null;
   }
 
-  const { urls } = context;
+  const { appVersion, urls } = context;
 
   return (
-    <aside className="react-shell__sidebar bg-dark text-white p-3">
-      <ul className="nav nav-pills flex-column fs-5">
+    <aside className="react-shell__sidebar bg-dark text-white p-3 d-flex flex-column">
+      <ul className="nav nav-pills flex-column fs-5 mb-auto">
         {SIDEBAR_ITEMS.map((item) => (
           <li className="nav-item mb-2" key={item.to}>
             <NavLink className={sidebarLinkClass} to={urls[item.to]}>
@@ -31,6 +31,13 @@ function Sidebar({ context }) {
           </li>
         ))}
       </ul>
+      {appVersion ? (
+        <div
+          className="react-shell__sidebar-version border-top pt-3 mt-3 small text-white-50"
+        >
+          LiteRev Version {appVersion}
+        </div>
+      ) : null}
     </aside>
   );
 }

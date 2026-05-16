@@ -8,6 +8,7 @@ from django.http import HttpRequest
 from django.urls import reverse
 from django.views.generic import TemplateView
 
+from config import __version__
 from literev.libs.search import get_search_source_options
 from literev.templatetags.frontend import frontend_bundle_available
 
@@ -16,6 +17,7 @@ def build_frontend_context(request: HttpRequest) -> dict[str, Any]:
     """Build the minimal bootstrap context passed from Django to React."""
     return {
         "appName": "LiteRev Legal",
+        "appVersion": __version__,
         "user": {
             "isAuthenticated": bool(request.user.is_authenticated),
             "email": getattr(request.user, "email", ""),

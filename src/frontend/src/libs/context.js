@@ -1,5 +1,6 @@
 const DEFAULT_CONTEXT = {
   appName: "LiteRev Legal",
+  appVersion: "",
   urls: {
     home: "/",
     search: "/search/",

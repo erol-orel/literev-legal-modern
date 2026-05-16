@@ -27,12 +27,26 @@
             "countMatches": true
           },
           {
-            "files": ["src/config/__init__.py"],
+            "files": ["src/backend/config/__init__.py"],
             "from": "__version__ = \".*\"  # semantic-release",
             "to": "__version__ = \"${nextRelease.version}\"  # semantic-release",
             "results": [
               {
-                "file": "src/config/__init__.py",
+                "file": "src/backend/config/__init__.py",
+                "hasChanged": true,
+                "numMatches": 1,
+                "numReplacements": 1
+              }
+            ],
+            "countMatches": true
+          },
+          {
+            "files": ["src/frontend/tests/App.test.js"],
+            "from": "appVersion: \".*\", // semantic-release",
+            "to": "appVersion: \"${nextRelease.version}\", // semantic-release",
+            "results": [
+              {
+                "file": "src/frontend/tests/App.test.js",
                 "hasChanged": true,
                 "numMatches": 1,
                 "numReplacements": 1
@@ -63,7 +77,8 @@
         "assets": [
           "pyproject.toml",
           "docs/changelog.md",
-          "src/config/__init__.py"
+          "src/backend/config/__init__.py",
+          "src/frontend/tests/App.test.js"
         ],
         "message": "chore(release): ${nextRelease.version}"
       }
