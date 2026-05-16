@@ -19,6 +19,9 @@ class ElasticSearchCollectorTestCase(
     def test_filter_duplicated_articles_from_es_response(self) -> None:
         pass
 
+    @unittest.skip(
+        "administrative_court index not available on new ES cluster."
+    )
     def test_collect_administrative_court_documents(self) -> None:
         start_date = datetime(2000, 1, 1)
         end_date = datetime(2024, 12, 31)
@@ -82,6 +85,9 @@ class ElasticSearchCollectorTestCase(
         )
         assert len(documents) == 158
 
+    @unittest.skip(
+        "administrative_court index not available on new ES cluster."
+    )
     def test_count_all_documents(self) -> None:
         """
         Test case for counting documents in an Elasticsearch index.

@@ -20,8 +20,8 @@ env:
   DJANGO_SETTINGS_MODULE: config.settings.dev
   DJANGO_SECRET_KEY: "django-insecure-96*q09uh20(^i4sdxqh3n_v#d-o:**7zrri&k-j3@f10hm88)"
   DJANGO_ENV: dev
-  ES_HOST_URL: "http://staging.literev.com:9200"
-  ES_PASSWORD: "I39hAE_bvikcbRHNhyvf"
+  ES_HOST_URL: "http://es.literev.com:9201"
+  ES_PASSWORD: ${{ secrets.ES_PASSWORD }}
   ES_USERNAME: "elastic"
   FRONTEND_HOST_PORT: 8000
   POSTGRES_PORT: 35432
