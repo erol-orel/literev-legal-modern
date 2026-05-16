@@ -20,6 +20,7 @@ from literev.libs.chroma_utils import (
     chroma_client,
     # chroma_client_adm,
     chroma_client_penal,
+    get_chamber_collection,
     openai_client,
 )
 from literev.libs.rag_classes import HactarAug
@@ -529,11 +530,11 @@ def get_cluster_summary(
         record_keys.append(doc.record_key)
 
     if chamber_name == "chambre_penale":
-        collection = chroma_client_penal.get_collection(chamber_name)
+        collection = get_chamber_collection(chroma_client_penal, chamber_name)
     # elif chamber_name == "chambre_administrative":
-    #     collection = chroma_client_adm.get_collection(chamber_name)
+    #     collection = get_chamber_collection(chroma_client_adm, chamber_name)
     else:
-        collection = chroma_client.get_collection(chamber_name)
+        collection = get_chamber_collection(chroma_client, chamber_name)
 
     embedded_query = (
         openai_client.embeddings.create(

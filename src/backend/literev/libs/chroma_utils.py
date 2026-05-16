@@ -64,6 +64,29 @@ chroma_client = LazyChromaClient(CHROMA_DIR)
 chroma_client_penal = LazyChromaClient(CHROMA_DIR_PENAL)
 # chroma_client_adm = LazyChromaClient(CHROMA_DIR_ADM)
 
+
+# Some Chroma deployments still hold the legacy English collection names
+# (`civil_court`, `penal_court`, `administrative_court`) while the application
+# now identifies chambers by the French names used in `Project.selected_indices`.
+CHAMBER_COLLECTION_FALLBACKS = {
+    "chambre_civile": "civil_court",
+    "chambre_penale": "penal_court",
+    "chambre_administrative": "administrative_court",
+}
+
+
+def get_chamber_collection(client: Any, chamber_name: str) -> Any:
+    from chromadb.errors import NotFoundError
+
+    try:
+        return client.get_collection(name=chamber_name)
+    except NotFoundError:
+        fallback = CHAMBER_COLLECTION_FALLBACKS.get(chamber_name)
+        if not fallback:
+            raise
+        return client.get_collection(name=fallback)
+
+
 DOCUMENT_SECTIONS = [
     "Majeure",
     "Mineure-Faits",

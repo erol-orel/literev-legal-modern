@@ -38,6 +38,7 @@ from literev.libs.chroma_utils import (
     # chroma_client_adm,
     chroma_client_penal,
     get_best_section_chunks_new,
+    get_chamber_collection,
     llm_answer,
     openai_client,
 )
@@ -1737,15 +1738,17 @@ class CustomRagAnswersGenerator:
         )
 
         if self.chambre_name == "chambre_penale":
-            collection = chroma_client_penal.get_collection(
-                name=self.chambre_name
+            collection = get_chamber_collection(
+                chroma_client_penal, self.chambre_name
             )
         # elif self.chambre_name == "chambre_administrative":
-        #     collection = chroma_client_adm.get_collection(
-        #         name=self.chambre_name
+        #     collection = get_chamber_collection(
+        #         chroma_client_adm, self.chambre_name
         #     )
         else:
-            collection = chroma_client.get_collection(name=self.chambre_name)
+            collection = get_chamber_collection(
+                chroma_client, self.chambre_name
+            )
 
         with joblib.parallel_backend("threading", n_jobs=MAX_WORKERS_RAG):
             results = Parallel()(
