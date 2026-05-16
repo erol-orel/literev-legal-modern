@@ -18,8 +18,6 @@ from rago.retrieval import StringRet
 
 from literev.libs.chroma_utils import (
     chroma_client,
-    # chroma_client_adm,
-    chroma_client_penal,
     get_chamber_collection,
     openai_client,
 )
@@ -265,7 +263,7 @@ def call_chatgpt(prompt: str, api_key: str = settings.OPENAI_API_KEY) -> str:
         logger.info("Sending request to OpenAI ChatGPT API")
         response = openai_client.chat.completions.create(
             model=GPT_MODEL,
-            messages=messages,
+            messages=messages,  # type: ignore[arg-type]
             max_tokens=MAX_TOKENS_RESPONSE,
             temperature=0,
         )
@@ -529,12 +527,7 @@ def get_cluster_summary(
     for doc in top_docs:
         record_keys.append(doc.record_key)
 
-    if chamber_name == "chambre_penale":
-        collection = get_chamber_collection(chroma_client_penal, chamber_name)
-    # elif chamber_name == "chambre_administrative":
-    #     collection = get_chamber_collection(chroma_client_adm, chamber_name)
-    else:
-        collection = get_chamber_collection(chroma_client, chamber_name)
+    collection = get_chamber_collection(chroma_client, chamber_name)
 
     embedded_query = (
         openai_client.embeddings.create(

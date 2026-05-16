@@ -35,8 +35,6 @@ from rago.retrieval import StringRet
 
 from literev.libs.chroma_utils import (
     chroma_client,
-    # chroma_client_adm,
-    chroma_client_penal,
     get_best_section_chunks_new,
     get_chamber_collection,
     llm_answer,
@@ -1737,18 +1735,7 @@ class CustomRagAnswersGenerator:
             .embedding
         )
 
-        if self.chambre_name == "chambre_penale":
-            collection = get_chamber_collection(
-                chroma_client_penal, self.chambre_name
-            )
-        # elif self.chambre_name == "chambre_administrative":
-        #     collection = get_chamber_collection(
-        #         chroma_client_adm, self.chambre_name
-        #     )
-        else:
-            collection = get_chamber_collection(
-                chroma_client, self.chambre_name
-            )
+        collection = get_chamber_collection(chroma_client, self.chambre_name)
 
         with joblib.parallel_backend("threading", n_jobs=MAX_WORKERS_RAG):
             results = Parallel()(

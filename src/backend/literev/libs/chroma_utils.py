@@ -1,9 +1,11 @@
 from datetime import datetime
-from pathlib import Path
 from typing import Any, cast
 from zoneinfo import ZoneInfo
 
+from chromadb import PersistentClient
+from chromadb.errors import NotFoundError
 from django.conf import settings
+from openai import OpenAI
 
 EMBEDDING_MODEL = "text-embedding-3-large"
 CHAT_MODEL = "gpt-4.1-mini"
@@ -12,57 +14,9 @@ OPENAI_API_KEY = settings.OPENAI_API_KEY
 N_TOP_CHUNKS = 8
 CACHE_DIR = settings.LITEREV_CACHE_DIR
 CHROMA_DIR = CACHE_DIR / "chroma_db"
-CHROMA_DIR_PENAL = CACHE_DIR / "chroma_db_penal"
-CHROMA_DIR_ADM = CACHE_DIR / "chroma_db_adm"
 
-
-class LazyOpenAIClient:
-    """Proxy that delays OpenAI credential validation until first use."""
-
-    def __init__(self) -> None:
-        self._client: Any | None = None
-
-    def _get_client(self) -> Any:
-        if self._client is None:
-            from openai import OpenAI
-
-            self._client = OpenAI(api_key=OPENAI_API_KEY)
-        return self._client
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self._get_client(), name)
-
-
-class LazyChromaClient:
-    """Proxy that delays ChromaDB imports and storage access until first use."""
-
-    def __init__(self, path: Path) -> None:
-        self._path = path
-        self._client: Any | None = None
-
-    def _get_client(self) -> Any:
-        if self._client is None:
-            from chromadb import PersistentClient
-            from chromadb.config import Settings
-
-            # Use SegmentAPI to bypass Rust bindings bugs in some environments.
-            chroma_settings = Settings(
-                chroma_api_impl="chromadb.api.segment.SegmentAPI"
-            )
-            self._client = PersistentClient(
-                path=str(self._path),
-                settings=chroma_settings,
-            )
-        return self._client
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self._get_client(), name)
-
-
-openai_client = LazyOpenAIClient()
-chroma_client = LazyChromaClient(CHROMA_DIR)
-chroma_client_penal = LazyChromaClient(CHROMA_DIR_PENAL)
-# chroma_client_adm = LazyChromaClient(CHROMA_DIR_ADM)
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
+chroma_client = PersistentClient(path=str(CHROMA_DIR))
 
 
 # Some Chroma deployments still hold the legacy English collection names
@@ -76,8 +30,6 @@ CHAMBER_COLLECTION_FALLBACKS = {
 
 
 def get_chamber_collection(client: Any, chamber_name: str) -> Any:
-    from chromadb.errors import NotFoundError
-
     try:
         return client.get_collection(name=chamber_name)
     except NotFoundError:
@@ -247,7 +199,6 @@ def llm_answer(question: str, blocks: dict[str, list[str]]) -> str:
 
     # getting the ans
     prompt = PROMPTS[0]
-    # max_tokens = cast(int, prompt["max_tokens"]) # Commenting this line to avoid having trunkated answers
     temperature = cast(float, prompt["temperature"])
 
     # Prepare messages for the API
@@ -261,42 +212,16 @@ def llm_answer(question: str, blocks: dict[str, list[str]]) -> str:
     }
 
     # Call the OpenAI ChatCompletion endpoint
-    response = openai_client.chat.completions.create(
+    response = openai_client.chat.completions.create(  # type: ignore[call-overload]
         model=CHAT_MODEL,
         messages=[system_message, user_message],
         response_format={"type": "json_object"},
-        # max_completion_tokens=max_tokens, # Commenting this line to avoid having trunkated answers
         temperature=temperature,
     )
 
     answer = response.choices[0].message.content
 
     return answer if answer else ""
-
-
-def get_best_section_chunks(
-    record_key, question, embedded_question, collection
-):
-    blocks = {}
-    # sections = route_question(question)
-    for section in DOCUMENT_SECTIONS:
-        results = collection.query(
-            query_embeddings=embedded_question,
-            where={
-                "$and": [
-                    {"record_key": record_key},
-                    {"section": section},
-                ]
-            },
-            n_results=N_TOP_CHUNKS,
-            include=["documents"],
-        )
-
-        sentences = results.get("documents", [])
-
-        blocks[section] = sentences[0] if sentences else []
-
-    return blocks
 
 
 def get_best_section_chunks_new(
@@ -308,6 +233,7 @@ def get_best_section_chunks_new(
         where={
             "record_key": record_key,
         },
+        n_results=N_TOP_CHUNKS * len(DOCUMENT_SECTIONS),
         include=["documents", "metadatas"],
     )
 
@@ -318,6 +244,9 @@ def get_best_section_chunks_new(
 
     documents = results.get("documents", [])
     metadatas = results.get("metadatas", [])
+
+    if not documents or not documents[0]:
+        return blocks
 
     # Group documents by section (using metadata["section"])
     for doc, meta in zip(documents[0], metadatas[0]):
