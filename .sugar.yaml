@@ -4,6 +4,23 @@ defaults:
   profile: ${{ env.SUGAR_ENV or env.ENV or "dev" }}
   project-name: literev-legal${{ env.DOCKER_PROJECT_NAME }}
 
+hooks:
+  pre-run:
+    - name: collectstatic
+      targets:
+        compose:
+          - build
+          - start
+          - restart
+          - up
+        compose-ext:
+          - build
+          - start
+          - restart
+          - up
+      run: |
+        makim django.collectstatic
+
 profiles:
   prod:
     config-path:
