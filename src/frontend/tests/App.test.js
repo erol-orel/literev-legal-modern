@@ -40,7 +40,7 @@ const baseContext = {
     searchValidate: "/api/project/search/validate/",
   },
   appName: "LiteRev Legal",
-  appVersion: "0.12.0", // semantic-release
+  appVersion: "0.13.0", // semantic-release
   search: {
     clusteringMinDocuments: 12,
     sources: [

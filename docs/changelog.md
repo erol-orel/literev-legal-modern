@@ -2,6 +2,91 @@ Release Notes
 ---
 
 
+## [0.13.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.12.0...0.13.0) (2026-05-16)
+
+### Features
+
+* add a django command to extract mineur and majeur chunks from documents ([#365](https://github.com/thegraphnetwork-literev/literev-legal/issues/365)) ([4c99064](https://github.com/thegraphnetwork-literev/literev-legal/commit/4c99064bdc583f4163067762cd9904de015d0ae1))
+* add cache embedding workflow ([#323](https://github.com/thegraphnetwork-literev/literev-legal/issues/323)) ([fcfb521](https://github.com/thegraphnetwork-literev/literev-legal/commit/fcfb5214047dc75c47fb979a41dc1a8871330fb1))
+* add chambre civile ([#437](https://github.com/thegraphnetwork-literev/literev-legal/issues/437)) ([95a05e8](https://github.com/thegraphnetwork-literev/literev-legal/commit/95a05e8ff732db89fea58ece796f7ebfabea33b3))
+* add chromadb django command ([#404](https://github.com/thegraphnetwork-literev/literev-legal/issues/404)) ([0f6673c](https://github.com/thegraphnetwork-literev/literev-legal/commit/0f6673c19ca56bf329fa6b8ad1f8e1d859cc0de5))
+* add django command to extract mineur majeur ([#407](https://github.com/thegraphnetwork-literev/literev-legal/issues/407)) ([f376030](https://github.com/thegraphnetwork-literev/literev-legal/commit/f3760305af5e322d7c683f2306e80d9ffddedf9c))
+* add docstrings to new functions ([#444](https://github.com/thegraphnetwork-literev/literev-legal/issues/444)) ([4bf8937](https://github.com/thegraphnetwork-literev/literev-legal/commit/4bf8937c09636cc1efc265a5aae8edf6da6f1e5b))
+* add document highlight ([#447](https://github.com/thegraphnetwork-literev/literev-legal/issues/447)) ([bfd59af](https://github.com/thegraphnetwork-literev/literev-legal/commit/bfd59af89cc7ae4cb56fff53b8caf192c147cbc1))
+* add embeddings workflow ([#419](https://github.com/thegraphnetwork-literev/literev-legal/issues/419)) ([2fae4bf](https://github.com/thegraphnetwork-literev/literev-legal/commit/2fae4bf926704c056b231469cfda008f38c4cee0))
+* add prepare input django command ([#449](https://github.com/thegraphnetwork-literev/literev-legal/issues/449)) ([00f8c70](https://github.com/thegraphnetwork-literev/literev-legal/commit/00f8c709bee18de54b5be502da9e6834ce871e68))
+* add test for nlp workflow ([#383](https://github.com/thegraphnetwork-literev/literev-legal/issues/383)) ([fa7c9e2](https://github.com/thegraphnetwork-literev/literev-legal/commit/fa7c9e2c8ac6f8c05c3a3e11ca64d013a14a0381))
+* **cache-embeddings:** add OpenAI backend and improve ES streaming ([#388](https://github.com/thegraphnetwork-literev/literev-legal/issues/388)) ([7c30218](https://github.com/thegraphnetwork-literev/literev-legal/commit/7c3021858809ffe81f83b896fa93159fa8ba43c6))
+* **cache:** cache faithfulness scores ([#353](https://github.com/thegraphnetwork-literev/literev-legal/issues/353)) ([a0422ae](https://github.com/thegraphnetwork-literev/literev-legal/commit/a0422aec5928810d70da0619427953d9c2845cbd))
+* create chunks after endroit section ([#322](https://github.com/thegraphnetwork-literev/literev-legal/issues/322)) ([fc30e0f](https://github.com/thegraphnetwork-literev/literev-legal/commit/fc30e0fd1ebb03b589819f1a97829f1b58fa6935))
+* **docker:** add Jupyter Lab service with NGINX routing support ([#308](https://github.com/thegraphnetwork-literev/literev-legal/issues/308)) ([684278d](https://github.com/thegraphnetwork-literev/literev-legal/commit/684278df51abf74b625743a3a224b0ba35f1b537))
+* enable nlq workflow ([#429](https://github.com/thegraphnetwork-literev/literev-legal/issues/429)) ([2d49522](https://github.com/thegraphnetwork-literev/literev-legal/commit/2d4952286bff89ab90f0494b16b8ab411bdba85a))
+* **hactar:** isolate connection test logic and add SSL verify from settings ([#302](https://github.com/thegraphnetwork-literev/literev-legal/issues/302)) ([b9eb389](https://github.com/thegraphnetwork-literev/literev-legal/commit/b9eb3893d7c84fd56b9834081179efc9151f245f))
+* Implement shared layout, js cleanup and auth boundary hardening ([#487](https://github.com/thegraphnetwork-literev/literev-legal/issues/487)) ([ae62dbc](https://github.com/thegraphnetwork-literev/literev-legal/commit/ae62dbc788b05e50f9d25d9aa8e4de95de651f1d))
+* **infra:** Add a proxy endpoint to create a bridge to hactar ([#473](https://github.com/thegraphnetwork-literev/literev-legal/issues/473)) ([1e79ad1](https://github.com/thegraphnetwork-literev/literev-legal/commit/1e79ad1fab808bad08f8f0b94dd7290ddb63e60f))
+* **jupyter:** add compose.jupyter with external volume ([#387](https://github.com/thegraphnetwork-literev/literev-legal/issues/387)) ([b7c3339](https://github.com/thegraphnetwork-literev/literev-legal/commit/b7c3339bab6eac0e05ce62078f6152d7cb0f5774))
+* make citation context persistent with invalid responses ([#356](https://github.com/thegraphnetwork-literev/literev-legal/issues/356)) ([44198d2](https://github.com/thegraphnetwork-literev/literev-legal/commit/44198d278fbc34b34a3a1600113bcffb2ba25134))
+* **monitor:** add es-restore container for auto snapshot recovery ([#300](https://github.com/thegraphnetwork-literev/literev-legal/issues/300)) ([b1f062a](https://github.com/thegraphnetwork-literev/literev-legal/commit/b1f062a22e3fd7bd7700a44885b8ce53cc3bf7c3))
+* **prompt:** update Hactar prompt template to support Ollama requirements structure ([#316](https://github.com/thegraphnetwork-literev/literev-legal/issues/316)) ([b183845](https://github.com/thegraphnetwork-literev/literev-legal/commit/b18384529b2d6e69c882a4eb906ac82e709e03ab))
+* **RAG:** classify “EN DROIT” into Majeure/Mineure and cache results ([#369](https://github.com/thegraphnetwork-literev/literev-legal/issues/369)) ([05cf451](https://github.com/thegraphnetwork-literev/literev-legal/commit/05cf451ec4b484948666d7aa2790750b0a4eeef5))
+* **redis:** Fix bridge iptables; sync .env with Redis ACL (production) ([#400](https://github.com/thegraphnetwork-literev/literev-legal/issues/400)) ([7f77807](https://github.com/thegraphnetwork-literev/literev-legal/commit/7f778079aa4cbb9f3f5446a7a5553a72376b949f))
+* replace Ollama with Hactar for NL → boolean query translation ([#499](https://github.com/thegraphnetwork-literev/literev-legal/issues/499)) ([84aa8e5](https://github.com/thegraphnetwork-literev/literev-legal/commit/84aa8e52772b24879e9e1f6f00a1154b1ffce7ad))
+* Replace OpenAI with self-hosted Ollama for NL-to-Boolean query conversion ([#470](https://github.com/thegraphnetwork-literev/literev-legal/issues/470)) ([133e7fe](https://github.com/thegraphnetwork-literev/literev-legal/commit/133e7fec0cd4eb81e308aff4604e6d963598f7a1))
+* Signup page with unique key authentication. ([#468](https://github.com/thegraphnetwork-literev/literev-legal/issues/468)) ([3ab00da](https://github.com/thegraphnetwork-literev/literev-legal/commit/3ab00dad7cf2efcb6260ab05e6d1f4fc7665348c))
+* **sugar:** Align with latest Sugar CLI: version bump, Makim flag updates, docs refresh ([#389](https://github.com/thegraphnetwork-literev/literev-legal/issues/389)) ([d74d647](https://github.com/thegraphnetwork-literev/literev-legal/commit/d74d6477f2a6fab2bfe6974aa85f0c28d13c94db))
+* **tableselect:** add button back to filter ([#446](https://github.com/thegraphnetwork-literev/literev-legal/issues/446)) ([3bdf031](https://github.com/thegraphnetwork-literev/literev-legal/commit/3bdf031438a7238125339fc13b4301b01eed89f5))
+* update cluster summary ([#448](https://github.com/thegraphnetwork-literev/literev-legal/issues/448)) ([ce2ad24](https://github.com/thegraphnetwork-literev/literev-legal/commit/ce2ad246a44a94107b6db3a7258891a49170671c))
+* update django command for embeddings ([#434](https://github.com/thegraphnetwork-literev/literev-legal/issues/434)) ([99e53dd](https://github.com/thegraphnetwork-literev/literev-legal/commit/99e53dd5bf2e3dfea898236935ccb52e8db9cc2a))
+* update general summary ans prompt ([#439](https://github.com/thegraphnetwork-literev/literev-legal/issues/439)) ([4845f7c](https://github.com/thegraphnetwork-literev/literev-legal/commit/4845f7caf541c7b36cc6bd32fab0e964a06d9f1a))
+* Update prod deploy flow: start Jupyter (dev profile) before core prod stack via Makim ([#418](https://github.com/thegraphnetwork-literev/literev-legal/issues/418)) ([59dee59](https://github.com/thegraphnetwork-literev/literev-legal/commit/59dee59f01bae3b59d3cd704cb24a42c93c24f55))
+* update rag classes ([#321](https://github.com/thegraphnetwork-literev/literev-legal/issues/321)) ([d13ffe8](https://github.com/thegraphnetwork-literev/literev-legal/commit/d13ffe885757023916a2b894972c3c1fbdf137dc))
+* update rag document answer prompt ([#433](https://github.com/thegraphnetwork-literev/literev-legal/issues/433)) ([33b80e1](https://github.com/thegraphnetwork-literev/literev-legal/commit/33b80e1eb00886ebb383bb9ff3cfc1fd91d076fa))
+* update summary rag answers ([#438](https://github.com/thegraphnetwork-literev/literev-legal/issues/438)) ([a06b98d](https://github.com/thegraphnetwork-literev/literev-legal/commit/a06b98dbea0240b7fc6122ce472c0bc047df4af8))
+
+### Bug Fixes
+
+* add navbar ([#500](https://github.com/thegraphnetwork-literev/literev-legal/issues/500)) ([a1d5490](https://github.com/thegraphnetwork-literev/literev-legal/commit/a1d549091343d5246bff1fbf5a9d3ea0477dcad2))
+* copy libs/ into docker image before runign uv pip install ([#492](https://github.com/thegraphnetwork-literev/literev-legal/issues/492)) ([65cf5a8](https://github.com/thegraphnetwork-literev/literev-legal/commit/65cf5a8c21beb5d978d8dcd046ed00c7d6e19380))
+* CSRF token dropped by options spread overwriting headers ([#506](https://github.com/thegraphnetwork-literev/literev-legal/issues/506)) ([c0a9099](https://github.com/thegraphnetwork-literev/literev-legal/commit/c0a9099053802c5644aa0d985f8dc6d3b84cad75))
+* fall back to English chamber collection names in ChromaDB lookup ([#509](https://github.com/thegraphnetwork-literev/literev-legal/issues/509)) ([e8468b8](https://github.com/thegraphnetwork-literev/literev-legal/commit/e8468b835786930f4240b3a4cd21af207864a4d0))
+* Fix cluster key error ([#461](https://github.com/thegraphnetwork-literev/literev-legal/issues/461)) ([91bea0e](https://github.com/thegraphnetwork-literev/literev-legal/commit/91bea0eb80bb75fed7825e2a76b452f7402511fe))
+* Fix frontend building ([#510](https://github.com/thegraphnetwork-literev/literev-legal/issues/510)) ([b4bb8d0](https://github.com/thegraphnetwork-literev/literev-legal/commit/b4bb8d0e9b6e5acc2dded5d19425e17dc5ad2eb4))
+* Fix hactar endpoint on nginx + add test script for hactar ([#477](https://github.com/thegraphnetwork-literev/literev-legal/issues/477)) ([d02c8de](https://github.com/thegraphnetwork-literev/literev-legal/commit/d02c8de1140847fccf0de89d9a7d00f7137c4c45))
+* Fix type annotation issues part 1 ([#357](https://github.com/thegraphnetwork-literev/literev-legal/issues/357)) ([0510950](https://github.com/thegraphnetwork-literev/literev-legal/commit/0510950e5e152decae206a87d518536e2e8f98e3))
+* Fix type annotations and fix gensim compatibility layer ([#360](https://github.com/thegraphnetwork-literev/literev-legal/issues/360)) ([c06a33d](https://github.com/thegraphnetwork-literev/literev-legal/commit/c06a33d5edd3219a58a8ce040c924bc7b206f5b9))
+* Fix typing annotations part 3 ([#361](https://github.com/thegraphnetwork-literev/literev-legal/issues/361)) ([c643f43](https://github.com/thegraphnetwork-literev/literev-legal/commit/c643f43003d32fc95148aaf2245989ef6f8fe453))
+* Fix typing in tasks.py and nlp.py ([#364](https://github.com/thegraphnetwork-literev/literev-legal/issues/364)) ([c0eb600](https://github.com/thegraphnetwork-literev/literev-legal/commit/c0eb60077f7ee973336f310f3b789649a752cc38))
+* **frontend:** secret key noisy logs removed and cleaned navbar having only `login` ([#495](https://github.com/thegraphnetwork-literev/literev-legal/issues/495)) ([d3f03b0](https://github.com/thegraphnetwork-literev/literev-legal/commit/d3f03b03202a89d1983e5450eaf73477d9a84a2d))
+* **hactar:** use correct 'verify' param instead of 'verify_ssl' in requests call ([#303](https://github.com/thegraphnetwork-literev/literev-legal/issues/303)) ([3627145](https://github.com/thegraphnetwork-literev/literev-legal/commit/3627145ef7f467523a8e04f10b9d79138d0bae29))
+* infrastructure stability and dependency resolution improvements ([#501](https://github.com/thegraphnetwork-literev/literev-legal/issues/501)) ([41640ae](https://github.com/thegraphnetwork-literev/literev-legal/commit/41640ae6aa71bae5d12a0584b6432729bacfefb4))
+* **lint:** address RUF059 by prefixing unused unpacked vars with _ (commands, tests, clustering) ([#402](https://github.com/thegraphnetwork-literev/literev-legal/issues/402)) ([b69bf60](https://github.com/thegraphnetwork-literev/literev-legal/commit/b69bf60733641b82df19f7826e33e46e3e7ef6bc))
+* **login:** Moved to username or email based login ([#496](https://github.com/thegraphnetwork-literev/literev-legal/issues/496)) ([a37ef7c](https://github.com/thegraphnetwork-literev/literev-legal/commit/a37ef7cad8763342016f077f12ecd8d286070ea7))
+* **nginx:** Fix hactar endpoint ([#475](https://github.com/thegraphnetwork-literev/literev-legal/issues/475)) ([6563034](https://github.com/thegraphnetwork-literev/literev-legal/commit/6563034053e7ba41758353611e2accbdf2f1a7fe))
+* **nginx:** Fix hactar sub filtering with nginx ([#476](https://github.com/thegraphnetwork-literev/literev-legal/issues/476)) ([7d7618d](https://github.com/thegraphnetwork-literev/literev-legal/commit/7d7618d88c790e1e3d898c722e7c5b68f0ef15c0))
+* **rag:** increase closed answer generation max output length to 256 ([#349](https://github.com/thegraphnetwork-literev/literev-legal/issues/349)) ([09e3b99](https://github.com/thegraphnetwork-literev/literev-legal/commit/09e3b99a90ab29704a42e2b75ea380ffb9b5c787))
+* **rag:** standardize tmp cache path based on selected LLM backend ([#307](https://github.com/thegraphnetwork-literev/literev-legal/issues/307)) ([e3536b5](https://github.com/thegraphnetwork-literev/literev-legal/commit/e3536b5af5768a8f00f806825ef085b1311c0be9))
+* **redis:** Replace IP-pinned ACCEPT rule with bridge-local allow on tcp/6379 ([#421](https://github.com/thegraphnetwork-literev/literev-legal/issues/421)) ([c547607](https://github.com/thegraphnetwork-literev/literev-legal/commit/c547607e85cceb031f9bc8dc31e3e508aaad3aa3))
+* **release:** update semantic-release version file path ([#511](https://github.com/thegraphnetwork-literev/literev-legal/issues/511)) ([19b9758](https://github.com/thegraphnetwork-literev/literev-legal/commit/19b975870366a016020db25e2e74c3caa60c89e3))
+* remove typo in makim file ([#435](https://github.com/thegraphnetwork-literev/literev-legal/issues/435)) ([3565098](https://github.com/thegraphnetwork-literev/literev-legal/commit/3565098e80261121ab67a2cfd5cb16ddc0472041))
+* **score:** prevent false faithfulness scores for empty or invalid answers ([#311](https://github.com/thegraphnetwork-literev/literev-legal/issues/311)) ([5460ee0](https://github.com/thegraphnetwork-literev/literev-legal/commit/5460ee05fa2dc493980a39c53a0424326974673d))
+* **security:** enforce Redis ACL auth and secure Celery broker ([#395](https://github.com/thegraphnetwork-literev/literev-legal/issues/395)) ([33da73b](https://github.com/thegraphnetwork-literev/literev-legal/commit/33da73b5bdc102965a8495922238ecc9c58e22b1))
+* solve elactic search score bug ([#427](https://github.com/thegraphnetwork-literev/literev-legal/issues/427)) ([53c5791](https://github.com/thegraphnetwork-literev/literev-legal/commit/53c5791add742ff649265cd93ab325bce11e7c6e))
+* solve json large decod ([#441](https://github.com/thegraphnetwork-literev/literev-legal/issues/441)) ([afca8c1](https://github.com/thegraphnetwork-literev/literev-legal/commit/afca8c1143bbb4ca4770552e183fecda035d9155))
+* solve rag workflow bug ([#318](https://github.com/thegraphnetwork-literev/literev-legal/issues/318)) ([490533d](https://github.com/thegraphnetwork-literev/literev-legal/commit/490533df47b669b58b67629f7074f86f1b327b1f))
+* solve showing answers bug in rag page ([#432](https://github.com/thegraphnetwork-literev/literev-legal/issues/432)) ([85a147e](https://github.com/thegraphnetwork-literev/literev-legal/commit/85a147e9203f1f44b3d964dbff1e114e56bba4a5))
+* solve valid answers counting in rag page ([#392](https://github.com/thegraphnetwork-literev/literev-legal/issues/392)) ([59e539a](https://github.com/thegraphnetwork-literev/literev-legal/commit/59e539a7637ee8a9e9a0b654499a805aedb7a422))
+* **sugar-nginx:** align certbot flow and SSL config updates ([#385](https://github.com/thegraphnetwork-literev/literev-legal/issues/385)) ([b05306a](https://github.com/thegraphnetwork-literev/literev-legal/commit/b05306a92077ac37186c77899de9d0f525beb9cc))
+* **ui:** stop rendering citation_context; show only citation highlight ([#377](https://github.com/thegraphnetwork-literev/literev-legal/issues/377)) ([6b2d2c7](https://github.com/thegraphnetwork-literev/literev-legal/commit/6b2d2c7943d5cdda1940e91f7ec4445df095f194))
+* update Elasticsearch endpoint for CI ([#507](https://github.com/thegraphnetwork-literev/literev-legal/issues/507)) ([d2a877e](https://github.com/thegraphnetwork-literev/literev-legal/commit/d2a877e8642f7f56a5533e5be51777d8da6431d5))
+
+### Performance Improvements
+
+* **rag-classification:** whole EN DROIT first, line-aware slice fallback ([#380](https://github.com/thegraphnetwork-literev/literev-legal/issues/380)) ([22ec8c0](https://github.com/thegraphnetwork-literev/literev-legal/commit/22ec8c056cc7378e43cca43f976a314497570811))
+
+### Reverts
+
+* Revert "update elastic search query function retrieving ([#463](https://github.com/thegraphnetwork-literev/literev-legal/issues/463))" ([#466](https://github.com/thegraphnetwork-literev/literev-legal/issues/466)) ([8bc857c](https://github.com/thegraphnetwork-literev/literev-legal/commit/8bc857ca357005461172840d5a7bb88f748b120f))
+
 ## [0.12.0](https://github.com/thegraphnetwork-literev/literev-legal/compare/0.11.0...0.12.0) (2025-05-21)
 
 ### Features
