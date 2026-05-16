@@ -40,7 +40,7 @@ function Navigation({ context }) {
 
   return (
     <header className="bg-dark fixed-top shadow-sm">
-      <nav className="container navbar navbar-expand-lg navbar-dark bg-dark py-3">
+      <nav className="react-shell__navbar navbar navbar-expand-lg navbar-dark bg-dark py-3">
         <div className="container-fluid px-0">
           <Link className="navbar-brand d-flex align-items-center" to={urls.home}>
             <img

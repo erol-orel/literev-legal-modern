@@ -1,10 +1,14 @@
 .react-shell {
+  --react-shell-navbar-height: 88px;
+
   font-family: system-ui, sans-serif;
 }
 
-.react-shell__content {
-  min-height: calc(100vh - 88px);
-  padding-top: 88px;
+.react-shell__navbar {
+  min-height: var(--react-shell-navbar-height);
+  padding-left: 1rem;
+  padding-right: 1rem;
+  width: 100%;
 }
 
 .react-shell__hero {
@@ -63,10 +67,6 @@
 }
 
 @media (max-width: 991.98px) {
-  .react-shell__content {
-    padding-top: 76px;
-  }
-
   .react-shell__team-image {
     height: auto;
     max-width: 18rem;
@@ -75,20 +75,29 @@
 
 .react-shell__body {
   display: flex;
-  padding-top: 88px;          /* push below the fixed top navbar */
+  padding-top: var(--react-shell-navbar-height);
 }
 
 .react-shell__sidebar {
   width: 240px;
-  min-height: calc(100vh - 88px);
+  min-height: calc(100vh - var(--react-shell-navbar-height));
   position: sticky;
-  top: 88px;
+  top: var(--react-shell-navbar-height);
   align-self: flex-start;
+}
+
+.react-shell__main-column {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: calc(100vh - var(--react-shell-navbar-height));
+  min-width: 0;
 }
 
 .react-shell__content {
   flex: 1;
-  min-height: calc(100vh - 88px);
+  min-height: 0;
+  min-width: 0;
   padding-top: 0;             /* was 88px — now handled by .react-shell__body */
 }
 
@@ -100,5 +109,8 @@
     width: 100%;
     min-height: auto;
     position: static;
+  }
+  .react-shell__main-column {
+    width: 100%;
   }
 }

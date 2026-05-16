@@ -156,7 +156,9 @@ describe("App", () => {
     expect(
       screen.getByRole("heading", { name: /project search/i })
     ).toBeInTheDocument();
-    expect(screen.getByText(/literev version 0\.12\.0/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(`LiteRev Version ${authenticatedContext.appVersion}`)
+    ).toBeInTheDocument();
     expect(screen.getByLabelText(/project name/i)).toBeInTheDocument();
     expect(
       screen.getByText(/minimum number of documents for clustering/i)
@@ -859,6 +861,9 @@ describe("App", () => {
   it("renders authenticated navigation state", () => {
     renderAppAt("/", authenticatedContext);
 
+    const navigation = screen.getByRole("navigation");
+    expect(navigation).toHaveClass("react-shell__navbar");
+    expect(navigation).not.toHaveClass("container");
     expect(screen.getByText(/lawyer@example\.com/i)).toBeInTheDocument();
     // expect(screen.getByRole("link", { name: /running/i })).toHaveAttribute(
     //   "href",
@@ -872,5 +877,11 @@ describe("App", () => {
       "href",
       "/accounts/logout/"
     );
+    const footer = screen
+      .getByText(/© 2026 literev legal\./i)
+      .closest("footer");
+    expect(footer).toBeInTheDocument();
+    expect(footer.parentElement).toHaveClass("react-shell__main-column");
+    expect(footer.closest("aside")).toBeNull();
   });
 });

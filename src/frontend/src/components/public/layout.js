@@ -8,9 +8,11 @@ function PublicLayout({ children, context }) {
       <Navigation context={context} />
       <div className="react-shell__body">
         <Sidebar context={context} />
-        <main className="react-shell__content">{children}</main>
+        <div className="react-shell__main-column">
+          <main className="react-shell__content">{children}</main>
+          <Footer />
+        </div>
       </div>
-      <Footer />
     </div>
   );
 }
