@@ -117,7 +117,7 @@ function SearchConfirmationModal({ isSubmitting, preview, onCancel, onContinue }
 
 function SearchAlerts({ errors, preview, success }) {
   return (
-    <>
+    <div className="mt-4">
       {success ? (
         <div className="alert alert-success" role="alert">
           {success.detail}{" "}
@@ -127,8 +127,21 @@ function SearchAlerts({ errors, preview, success }) {
         </div>
       ) : null}
       {preview ? (
-        <div className="alert alert-primary" role="status">
-          {preview.total_documents} documents.
+        <div
+          className={`alert ${
+            preview.total_documents === 0
+              ? "alert-danger"
+              : preview.can_cluster
+              ? "alert-primary"
+              : "alert-warning"
+          }`}
+          role="status"
+        >
+          {preview.total_documents} document
+          {preview.total_documents !== 1 ? "s" : ""} evaluated
+          {!preview.can_cluster && preview.total_documents > 0
+            ? ` - fewer than the ${preview.clustering_min_documents} required for clustering.`
+            : "."}
         </div>
       ) : null}
       {errors.map((errorMessage) => (
@@ -136,7 +149,7 @@ function SearchAlerts({ errors, preview, success }) {
           {errorMessage}
         </div>
       ))}
-    </>
+    </div>
   );
 }
 
@@ -254,6 +267,7 @@ function Search({ context }) {
     try {
       const response = await createSearchProject(context.api, buildPayload());
       setSuccess(response);
+      setPreview(null);
       setConfirmation(null);
     } catch (error) {
       handleRequestError(error);
@@ -281,8 +295,6 @@ function Search({ context }) {
             <i className="fa-solid fa-magnifying-glass me-3" />
             Project Search
           </h1>
-
-          <SearchAlerts errors={errors} preview={preview} success={success} />
 
           <div className="card shadow-sm border-0">
             <div className="card-body p-4 p-lg-5">
@@ -472,10 +484,7 @@ function Search({ context }) {
                 </div>
               </div>
 
-              <p className="text-muted text-center mt-4 mb-0">
-                Minimum number of documents for clustering:{" "}
-                {searchConfig.clusteringMinDocuments}
-              </p>
+              <SearchAlerts errors={errors} preview={preview} success={success} />
             </div>
           </div>
         </div>

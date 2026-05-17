@@ -192,9 +192,6 @@ describe("App", () => {
       screen.getByText(`LiteRev Version ${authenticatedContext.appVersion}`)
     ).toBeInTheDocument();
     expect(screen.getByLabelText(/project name/i)).toBeInTheDocument();
-    expect(
-      screen.getByText(/minimum number of documents for clustering/i)
-    ).toHaveTextContent("12");
   });
 
   it("evaluates searches from the React search page", async () => {
@@ -229,7 +226,7 @@ describe("App", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /evaluate/i }));
 
-    expect(await screen.findByText(/42 documents\./i)).toBeInTheDocument();
+    expect(await screen.findByText(/42 documents evaluated\./i)).toBeInTheDocument();
     expect(global.fetch).toHaveBeenCalledWith(
       "/api/project/search/preview/",
       expect.objectContaining({
