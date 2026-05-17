@@ -35,7 +35,7 @@ from rago.retrieval import StringRet
 
 from literev.libs.chroma_utils import (
     chroma_client,
-    get_best_section_chunks_new,
+    get_best_section_chunks,
     get_chamber_collection,
     llm_answer,
     openai_client,
@@ -1449,8 +1449,8 @@ def get_answer_document_worker(
         logging.info(
             f"Getting best chunks from chroma db, record key:{record_key}"
         )
-        block_section = get_best_section_chunks_new(
-            record_key, question, embedded_question, collection
+        block_section = get_best_section_chunks(
+            record_key, embedded_question, collection
         )
         logging.info(
             f"DONE Getting best chunks from chroma db , record key:{record_key}"

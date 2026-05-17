@@ -224,40 +224,24 @@ def llm_answer(question: str, blocks: dict[str, list[str]]) -> str:
     return answer if answer else ""
 
 
-def get_best_section_chunks_new(
-    record_key, question, embedded_question, collection
-):
-    # Perform one query for all sections for this record_key
-    results = collection.query(
-        query_embeddings=embedded_question,
-        where={
-            "record_key": record_key,
-        },
-        n_results=N_TOP_CHUNKS * len(DOCUMENT_SECTIONS),
-        include=["documents", "metadatas"],
-    )
+def get_best_section_chunks(record_key, embedded_question, collection):
+    blocks: dict[str, list[str]] = {}
+    for section in DOCUMENT_SECTIONS:
+        results = collection.query(
+            query_embeddings=embedded_question,
+            where={
+                "$and": [
+                    {"record_key": record_key},
+                    {"section": section},
+                ]
+            },
+            n_results=N_TOP_CHUNKS,
+            include=["documents"],
+        )
 
-    # Initialize a dict for chunks per section
-    blocks: dict[str, list[str]] = {
-        section: [] for section in DOCUMENT_SECTIONS
-    }
+        sentences = results.get("documents", [])
 
-    documents = results.get("documents", [])
-    metadatas = results.get("metadatas", [])
-
-    if not documents or not documents[0]:
-        return blocks
-
-    # Group documents by section (using metadata["section"])
-    for doc, meta in zip(documents[0], metadatas[0]):
-        section = meta.get("section")
-
-        if section in blocks:
-            blocks[section].append(doc)
-
-    # Trim each section to N_TOP_CHUNKS
-    for section in blocks:
-        blocks[section] = blocks[section][:N_TOP_CHUNKS]
+        blocks[section] = sentences[0] if sentences else []
 
     return blocks
 
