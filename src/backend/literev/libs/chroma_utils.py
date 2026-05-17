@@ -225,23 +225,32 @@ def llm_answer(question: str, blocks: dict[str, list[str]]) -> str:
 
 
 def get_best_section_chunks(record_key, embedded_question, collection):
-    blocks: dict[str, list[str]] = {}
-    for section in DOCUMENT_SECTIONS:
-        results = collection.query(
-            query_embeddings=embedded_question,
-            where={
-                "$and": [
-                    {"record_key": record_key},
-                    {"section": section},
-                ]
-            },
-            n_results=N_TOP_CHUNKS,
-            include=["documents"],
-        )
+    # Single query for all sections of this record_key; group by section in
+    # Python afterward. Avoids the compound `$and` filter, which returns empty
+    # results at scale (e.g. chambre_administrative at ~2.2M chunks) and was
+    # also 4x slower than necessary (one query per section).
+    results = collection.query(
+        query_embeddings=embedded_question,
+        where={"record_key": record_key},
+        include=["documents", "metadatas"],
+    )
 
-        sentences = results.get("documents", [])
+    blocks: dict[str, list[str]] = {
+        section: [] for section in DOCUMENT_SECTIONS
+    }
 
-        blocks[section] = sentences[0] if sentences else []
+    documents = results.get("documents") or []
+    metadatas = results.get("metadatas") or []
+    if not documents or not metadatas:
+        return blocks
+
+    for doc, meta in zip(documents[0], metadatas[0]):
+        section = meta.get("section")
+        if section in blocks:
+            blocks[section].append(doc)
+
+    for section in blocks:
+        blocks[section] = blocks[section][:N_TOP_CHUNKS]
 
     return blocks
 
