@@ -14,8 +14,11 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Anchored to the repo root: these are Python packaging dirs that live next to
+# setup.py. Without the leading slash, the bare `lib/` also matched the modern
+# frontend's own source tree (src/frontend/src/lib/) and kept it out of git.
+/lib/
+/lib64/
 parts/
 sdist/
 var/
