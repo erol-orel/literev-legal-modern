@@ -15,6 +15,10 @@ SEARCH_SOURCE_OPTIONS: tuple[tuple[str, str], ...] = (
     ("chambre_administrative", "Chambre Administrative"),
     ("chambre_penale", "Chambre Penale"),
     ("chambre_civile", "Chambre Civile"),
+    # Swiss federal courts, populated via `manage.py import_entscheidsuche`.
+    ("bundesgericht", "Tribunal fédéral (Bundesgericht)"),
+    ("bundesverwaltungsgericht", "Tribunal administratif fédéral"),
+    ("bundesstrafgericht", "Tribunal pénal fédéral"),
 )
 SEARCH_SOURCE_VALUES = {value for value, _label in SEARCH_SOURCE_OPTIONS}
 
