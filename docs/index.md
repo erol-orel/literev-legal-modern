@@ -18,6 +18,7 @@ Use `src/backend/` for anything that touches Django, settings, persistence, or H
 |---|---|
 | [architecture.md](architecture.md) | Current system layout, dependency boundaries, and end-to-end data flow |
 | [contributing.md](contributing.md) | Local setup, coding workflow, source-root conventions, and contribution checklist |
+| [federal-court-integration.md](federal-court-integration.md) | Adding Swiss Federal Court decisions (DE/FR/IT): sources, ES schema, multilingual steps, and prerequisites |
 | [services/configuration.md](services/configuration.md) | Environment variables, settings modules, and dependency-based library installation |
 | [services/django.md](services/django.md) | Django service responsibilities, app-layer conventions, and test commands |
 
