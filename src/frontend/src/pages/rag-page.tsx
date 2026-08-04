@@ -491,7 +491,8 @@ function RagFactsTable({
   rows: RagKeyElement[];
 }) {
   if (rows.length === 0) return null;
-  const columns = Object.keys(rows[0]);
+  // `article_url` is metadata for linking the `article` cell, not its own column.
+  const columns = Object.keys(rows[0]).filter((col) => col !== "article_url");
 
   return (
     <div className="space-y-2">
@@ -533,6 +534,18 @@ function RagFactsTable({
                           </Button>
                         ))}
                       </div>
+                    ) : col === "article" &&
+                      typeof row.article_url === "string" ? (
+                      <a
+                        href={row.article_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 font-medium text-primary underline-offset-2 hover:underline"
+                        title="Ouvrir le texte de loi sur Fedlex"
+                      >
+                        {formatCell(row[col])}
+                        <ExternalLink className="size-3 shrink-0" />
+                      </a>
                     ) : (
                       formatCell(row[col])
                     )}
