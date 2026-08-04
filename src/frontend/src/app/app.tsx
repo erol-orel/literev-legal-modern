@@ -13,6 +13,7 @@ import { RagPage } from "@/pages/rag-page";
 import { RunningPage } from "@/pages/running-page";
 import { SearchPage } from "@/pages/search-page";
 import { TableSelectPage } from "@/pages/tableselect-page";
+import { TeamPage } from "@/pages/team-page";
 
 /**
  * Client-side routes. Paths mirror the Django URL structure so the app works
@@ -55,7 +56,7 @@ export function App() {
       </Route>
 
       {/* Public marketing routes */}
-      <Route path="/team" element={<LandingPage />} />
+      <Route path="/team" element={<TeamPage />} />
       <Route path="/product" element={<LandingPage />} />
       <Route path="/company" element={<LandingPage />} />
       <Route path="/blog" element={<LandingPage />} />
