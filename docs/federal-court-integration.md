@@ -102,24 +102,28 @@ abbreviations are handled (`ZGB`→CC, `OR`→CO, `StGB`→CP, `BV`→Cst, …).
 
 ## 5. Making it multilingual
 
-The embedding model is already multilingual; the work is in preprocessing and
-persistence:
+The embedding model is already multilingual; the remaining work is in the
+preprocessing runtime and (optionally) persistence:
 
-- **`Document.language`** — add the field + migration (`models.py`) and populate
-  it through `lr_contracts.SearchDocumentMetadata` →
-  `lr_search.collectors.extract_document_metadata` → `pipeline.create_document_db`.
-- **Preprocessing** (`libs/lr-preprocessing/src/lr_preprocessing/`) — today
-  `utils.define_languages` is a **French-only gate that silently discards every
-  DE/IT document**. It must detect and *return* the language, and
-  `utils.lemmatize` / `pipeline.clean_corpus` must select the per-language spaCy
-  model + stop-word list instead of the hard-coded French ones.
-- **Prompts** — RAG/summary/boolean-query prompts are hard-coded to answer in
-  French (`rag_pdf.py`, `chroma_utils.py`, `nlp.py`). Thread the document/answer
-  language through to answer in the decision's language.
-
-> ⚠️ **Partial-change trap:** until preprocessing is language-aware, ingesting
-> DE/IT decisions *appears* to work but drops them at the preprocessing step.
-> Do the language-detection change before loading a multilingual corpus.
+- **Preprocessing** (`libs/lr-preprocessing/src/lr_preprocessing/`) — **done.**
+  `utils.detect_language` now returns `fr`/`de`/`it` (or `None` for unsupported
+  text), and `utils.lemmatize` / `pipeline.clean_corpus` select the per-language
+  spaCy model and stopwords. German/Italian decisions are no longer discarded.
+  **The only remaining step is installing the optional spaCy models** —
+  `de_core_news_sm` and `it_core_news_sm` — in the runtime; without them the
+  pipeline still ingests DE/IT text but skips lemmatization (lower cluster
+  quality, no data loss).
+- **Prompts** — RAG/summary/boolean-query prompts are still hard-coded to answer
+  in French (`rag_pdf.py`, `chroma_utils.py`, `nlp.py`). Threading the
+  document/answer language through to answer in the decision's language is the
+  remaining optional enhancement.
+- **`Document.language`** *(optional)* — the preprocessing pipeline detects
+  language per document at clean-time, so a persisted column is only needed if
+  you want to filter/display by language in the UI. Add the field + migration
+  and populate it through `lr_contracts.SearchDocumentMetadata` →
+  `lr_search.collectors.extract_document_metadata` →
+  `pipeline.create_document_db` (the entscheidsuche importer already emits a
+  `language` field on each ES document).
 
 ---
 
@@ -132,17 +136,24 @@ persistence:
   text.
 - **Multi-source plumbing** — `selected_indices` is a list; ingestion loops over
   it; the query builder and collectors are per-index.
+- **entscheidsuche.ch importer** — `manage.py import_entscheidsuche` pulls
+  Federal Court decisions (DE/FR/IT) into an ES index (see §2–§4).
+- **Language-aware preprocessing** — DE/FR/IT are detected and preprocessed;
+  non-supported languages are discarded, DE/IT are kept (§5).
 
 ---
 
 ## 7. End-to-end checklist
 
-1. Obtain the federal decisions and index them into ES with the §3 schema
-   (include `language`).
-2. Register the source(s) (§4).
-3. Add `Document.language` + migration and thread it through (§5).
-4. Make preprocessing language-aware and install the DE/IT spaCy models +
-   stop-word lists (§5).
-5. Run RAG/embedding ingestion (`manage.py run_chromadb_embeddings`) with
+1. Import the federal decisions into an ES index —
+   `manage.py import_entscheidsuche --spider CH_BGer --index bundesgericht`
+   (§2–§4). The source is already registered.
+2. Install the optional DE/IT spaCy models (`de_core_news_sm`,
+   `it_core_news_sm`) for best clustering quality on German/Italian (§5).
+   Without them, ingestion still works (lemmatization is skipped).
+3. Run RAG/embedding ingestion (`manage.py run_chromadb_embeddings`) with
    `OPENAI_API_KEY` set, per source collection.
-6. (Optional) Parameterise prompts by language for native-language answers.
+4. (Optional) Add a `Document.language` column if you want to filter/display by
+   language in the UI (§5).
+5. (Optional) Parameterise the RAG prompts by language for native-language
+   answers (§5).

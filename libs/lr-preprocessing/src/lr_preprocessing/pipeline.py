@@ -5,8 +5,8 @@ import logging
 
 from .utils import (
     create_ngrams,
-    create_stopwords,
-    define_languages,
+    detect_language,
+    get_stopwords,
     lemmatize,
     pre_processing,
     remove_common_and_unique,
@@ -14,22 +14,21 @@ from .utils import (
     sentences_to_words,
 )
 
-stopwords_list = create_stopwords()
 
-
-def clean_corpus(corpus: str) -> str:
+def clean_corpus(corpus: str, lang: str = "fr") -> str:
     cleaned_article_corpus = pre_processing(corpus)
     corpus_to_tokens = sentences_to_words(cleaned_article_corpus)
-    lemmatized = lemmatize(corpus_to_tokens)
-    return remove_words(lemmatized, stopwords_list)
+    lemmatized = lemmatize(corpus_to_tokens, lang=lang)
+    return remove_words(lemmatized, get_stopwords(lang))
 
 
 def clean_corpus_mp(corpus: str, pk: int) -> tuple[str, int]:
     logging.info(f"preprocessing: {pk}")
-    if not define_languages(corpus):
-        logging.info(f"discarding, not french: {pk}")
+    lang = detect_language(corpus)
+    if lang is None:
+        logging.info(f"discarding, unsupported language: {pk}")
         return "", pk
-    cleaned_corpus = clean_corpus(corpus)
+    cleaned_corpus = clean_corpus(corpus, lang)
     if not cleaned_corpus:
         logging.info(f"discarding, empty after removing stopwords: {pk}")
         return "", pk
@@ -42,15 +41,18 @@ def prepare_document(
     document_pk: int | None = None,
 ) -> str | None:
     corpus = raw_document_text or ""
-    if not define_languages(corpus):
+    lang = detect_language(corpus)
+    if lang is None:
         logging.info(
-            f"discarding, not french: {raw_document_id} pk: {document_pk}"
+            "discarding, unsupported language: "
+            f"{raw_document_id} pk: {document_pk}"
         )
         return None
-    cleaned_corpus = clean_corpus(corpus)
+    cleaned_corpus = clean_corpus(corpus, lang)
     if not cleaned_corpus:
         logging.info(
-            f"discarding, empty after removing stopwords: {raw_document_id} pk: {document_pk}"
+            "discarding, empty after removing stopwords: "
+            f"{raw_document_id} pk: {document_pk}"
         )
         return None
     logging.info(
