@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from lr_legal import NormRef, fedlex_url, resolve, resolve_citation, resolve_norm_token
+from lr_legal import (
+    NormRef,
+    fedlex_url,
+    resolve,
+    resolve_citation,
+    resolve_norm_token,
+)
 
 
 def test_fedlex_url_federal_code_with_article() -> None:
@@ -23,7 +29,10 @@ def test_fedlex_url_unknown_code_is_none() -> None:
 
 
 def test_fedlex_url_code_only_links_to_act() -> None:
-    assert fedlex_url("CP", None, "fr") == "https://www.fedlex.admin.ch/eli/cc/54/757_781_799/fr"
+    assert (
+        fedlex_url("CP", None, "fr")
+        == "https://www.fedlex.admin.ch/eli/cc/54/757_781_799/fr"
+    )
 
 
 def test_resolve_norm_token_full() -> None:
@@ -32,7 +41,10 @@ def test_resolve_norm_token_full() -> None:
     assert ref.code == "CO"
     assert ref.article == "336c"
     assert ref.subrefs == ("al. 1", "let. b")
-    assert ref.url == "https://www.fedlex.admin.ch/eli/cc/27/317_321_377/fr#art_336c"
+    assert (
+        ref.url
+        == "https://www.fedlex.admin.ch/eli/cc/27/317_321_377/fr#art_336c"
+    )
     assert ref.label == "CO art. 336c al. 1 let. b"
 
 
@@ -71,14 +83,20 @@ def test_resolve_citation_french() -> None:
     assert ref.code == "CO"
     assert ref.article == "336c"
     assert ref.subrefs == ("al. 1", "let. b")
-    assert ref.url == "https://www.fedlex.admin.ch/eli/cc/27/317_321_377/fr#art_336c"
+    assert (
+        ref.url
+        == "https://www.fedlex.admin.ch/eli/cc/27/317_321_377/fr#art_336c"
+    )
 
 
 def test_resolve_citation_german() -> None:
     ref = resolve_citation("Art. 336c OR", "de")
     assert ref is not None
     assert ref.code == "OR"
-    assert ref.url == "https://www.fedlex.admin.ch/eli/cc/27/317_321_377/de#art_336c"
+    assert (
+        ref.url
+        == "https://www.fedlex.admin.ch/eli/cc/27/317_321_377/de#art_336c"
+    )
 
 
 def test_resolve_citation_no_match() -> None:
@@ -92,4 +110,7 @@ def test_resolve_prefers_citation_then_token() -> None:
     # Compact token form
     ref = resolve("CP.111", "fr")
     assert ref is not None
-    assert ref.url == "https://www.fedlex.admin.ch/eli/cc/54/757_781_799/fr#art_111"
+    assert (
+        ref.url
+        == "https://www.fedlex.admin.ch/eli/cc/54/757_781_799/fr#art_111"
+    )

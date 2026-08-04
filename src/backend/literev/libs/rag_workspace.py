@@ -7,8 +7,6 @@ from typing import Any, TypedDict
 
 from django.urls import reverse
 
-from lr_legal.legal_refs import resolve as resolve_legal_ref
-
 from literev.libs.project_workflows import validate_project_access
 from literev.models import (
     Document,
@@ -20,6 +18,7 @@ from literev.models import (
     TableChoice,
     User,
 )
+from lr_legal.legal_refs import resolve as resolve_legal_ref
 
 
 class RagHistoryEntry(TypedDict):

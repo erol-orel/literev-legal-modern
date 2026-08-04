@@ -21,8 +21,8 @@ from .legal_refs import (
 )
 
 __all__ = [
-    "Classification",
     "FEDLEX_CODES",
+    "Classification",
     "NormRef",
     "build_user_prompt",
     "classify_chunks_llm",

@@ -21,15 +21,16 @@ isolation and safe to import from both the backend and the RAG pipeline.
 from __future__ import annotations
 
 import re
+
 from dataclasses import dataclass
 
 __all__ = [
-    "NormRef",
-    "resolve",
-    "resolve_norm_token",
-    "resolve_citation",
-    "fedlex_url",
     "FEDLEX_CODES",
+    "NormRef",
+    "fedlex_url",
+    "resolve",
+    "resolve_citation",
+    "resolve_norm_token",
 ]
 
 # Fedlex ELI base segments, verified against fedlex.admin.ch (SR numbers noted).
@@ -120,7 +121,9 @@ class NormRef:
         return " ".join(parts)
 
 
-def fedlex_url(code: str, article: str | None, lang: str = _DEFAULT_LANG) -> str | None:
+def fedlex_url(
+    code: str, article: str | None, lang: str = _DEFAULT_LANG
+) -> str | None:
     """Build a Fedlex URL for a federal ``code`` (+ optional ``article``).
 
     Returns ``None`` when ``code`` is not one of the mapped federal codes.
@@ -145,7 +148,9 @@ def _format_subref(segment: str) -> str | None:
     return f"{label} {value}"
 
 
-def resolve_norm_token(token: str, lang: str = _DEFAULT_LANG) -> NormRef | None:
+def resolve_norm_token(
+    token: str, lang: str = _DEFAULT_LANG
+) -> NormRef | None:
     """Resolve a compact corpus token like ``CO.336c.al1.letb``.
 
     Returns ``None`` only when the token is empty/unparseable; an unmapped code

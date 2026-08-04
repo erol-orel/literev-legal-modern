@@ -39,7 +39,10 @@ def test_build_standards_refs_empty() -> None:
 
 def test_enrich_law_articles_adds_url_for_federal_citation() -> None:
     rows = [
-        {"article": "art. 336c CO", "content": "résiliation en temps inopportun"},
+        {
+            "article": "art. 336c CO",
+            "content": "résiliation en temps inopportun",
+        },
         {"article": "art. 20 LPAC", "content": "droit cantonal genevois"},
         {"content": "row without an article key"},
     ]

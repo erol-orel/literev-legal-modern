@@ -8,10 +8,9 @@ from typing import Any, TypedDict, cast
 from django.utils.safestring import SafeString, mark_safe
 from rapidfuzz import fuzz
 
-from lr_legal.legal_refs import resolve_norm_token
-
 from literev.libs.project_workflows import validate_project_access
 from literev.models import Document, ProjectDocumentRAG, User
+from lr_legal.legal_refs import resolve_norm_token
 
 
 class NormRefEntry(TypedDict):
