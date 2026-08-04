@@ -208,7 +208,8 @@ export function TableSelectPage() {
   });
 
   const checkAll = useMutation({
-    mutationFn: (mode: Verdict) =>
+    // check-all only supports bulk "yes"/"maybe" (no bulk "no").
+    mutationFn: (mode: Exclude<Verdict, "no">) =>
       setAllTableSelection(apiUrls, {
         projectId: projectId as string,
         refinementId: refinementId as string,
@@ -561,7 +562,7 @@ function SelectionSummary({
   counts: { initial?: number; neighbour?: number; chosen?: number };
   filters?: TableSelectionFilters;
   busy: boolean;
-  onCheckAll: (mode: Verdict) => void;
+  onCheckAll: (mode: Exclude<Verdict, "no">) => void;
 }) {
   return (
     <Card>

@@ -201,7 +201,9 @@ export function setAllTableSelection(
     projectId: string | number;
     refinementId: string | number;
     iterationId: number | null;
-    mode: Verdict;
+    // The check-all endpoint only accepts "yes"/"maybe" (there is no bulk
+    // "mark all as no"); narrower than Verdict on purpose.
+    mode: Exclude<Verdict, "no">;
   },
 ): Promise<{ detail?: string }> {
   return api.post(

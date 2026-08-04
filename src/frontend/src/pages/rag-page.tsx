@@ -52,6 +52,7 @@ import {
   type RagContext,
   type RagDocumentAnswer,
   type RagHistoryEntry,
+  type RagKeyElement,
 } from "@/api/rag";
 import { ApiError } from "@/lib/api-client";
 import { cn, formatDate } from "@/lib/utils";
@@ -447,8 +448,102 @@ function SummaryCard({ context }: { context: RagContext }) {
             <p className="mt-1 text-sm text-foreground/90">{current.regle_droit}</p>
           </div>
         )}
+
+        {current.has_section_ans &&
+          current.summary_text &&
+          current.key_elements.length > 0 && (
+            <RagFactsTable
+              title="Éléments clés"
+              rows={current.key_elements}
+            />
+          )}
+
+        {current.law_articles.length > 0 && (
+          <RagFactsTable title="Articles de loi" rows={current.law_articles} />
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+/** Prettify an arbitrary payload key into a table header ("law_article" → "Law article"). */
+function prettyColumn(key: string): string {
+  return key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+}
+
+function formatCell(value: unknown): string {
+  if (Array.isArray(value)) return value.map(String).join(", ");
+  if (value == null) return "";
+  return String(value);
+}
+
+/**
+ * Renders the RAG "éléments clés" / "articles de loi" tables. Rows are
+ * arbitrary column maps (columns taken from the first row) with an optional
+ * `references` list rendered as links into the source documents — mirroring the
+ * legacy KeyElementsTable / LawArticlesTable.
+ */
+function RagFactsTable({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: RagKeyElement[];
+}) {
+  if (rows.length === 0) return null;
+  const columns = Object.keys(rows[0]);
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </p>
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50">
+            <tr>
+              {columns.map((col) => (
+                <th
+                  key={col}
+                  className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                >
+                  {col === "references" ? "Références" : prettyColumn(col)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, index) => (
+              <tr key={index} className="border-t align-top">
+                {columns.map((col) => (
+                  <td key={col} className="px-3 py-2 text-foreground/90">
+                    {col === "references" ? (
+                      <div className="flex flex-wrap gap-1">
+                        {(row.references ?? []).map((ref) => (
+                          <Button
+                            key={`${ref.id}-${ref.procedure_type}`}
+                            asChild
+                            variant="secondary"
+                            size="sm"
+                            className="h-6 px-2 text-xs"
+                          >
+                            <Link to={`/contentdocument/${ref.id}/`}>
+                              {ref.procedure_type}
+                            </Link>
+                          </Button>
+                        ))}
+                      </div>
+                    ) : (
+                      formatCell(row[col])
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
