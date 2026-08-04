@@ -8,7 +8,19 @@ logger = logging.getLogger("minuer majeur classify")
 logger.setLevel(logging.DEBUG)
 
 CHAT_MODEL = "gpt-4.1-mini"
-_openai_client = OpenAI(api_key=getattr(settings, "OPENAI_API_KEY", ""))
+
+# Built lazily: the openai SDK raises when constructed without an API key, so
+# eager construction made importing this module require OPENAI_API_KEY.
+_openai_client: OpenAI | None = None
+
+
+def _get_openai_client() -> OpenAI:
+    global _openai_client
+    if _openai_client is None:
+        _openai_client = OpenAI(
+            api_key=getattr(settings, "OPENAI_API_KEY", "")
+        )
+    return _openai_client
 
 
 def get_filename(doc_id: str, decision_code: str, index_name: str) -> str:
@@ -33,7 +45,7 @@ def classify_decision(decision_text: str):
     {decision_text}
     """
 
-    seg_response = _openai_client.chat.completions.create(
+    seg_response = _get_openai_client().chat.completions.create(
         model=CHAT_MODEL,
         messages=[{"role": "user", "content": segmentation_prompt}],
         temperature=0,
@@ -62,7 +74,7 @@ def classify_decision(decision_text: str):
     {seg}
     """
 
-    classified = _openai_client.chat.completions.create(
+    classified = _get_openai_client().chat.completions.create(
         model=CHAT_MODEL,
         messages=[{"role": "user", "content": classification_prompt}],
         temperature=0,

@@ -29,7 +29,19 @@ from lr_legal.extract_minor_major import (
     openai_llm_call as base_openai_llm_call,
 )
 
-_openai_client = OpenAI(api_key=getattr(settings, "OPENAI_API_KEY", ""))
+# Built lazily on first use. The openai SDK raises when constructed without an
+# API key, so eager construction broke test collection where OPENAI_API_KEY is
+# unset (e.g. CI). Tests still monkeypatch this attribute with a fake client.
+_openai_client: OpenAI | None = None
+
+
+def _get_openai_client() -> OpenAI:
+    global _openai_client
+    if _openai_client is None:
+        _openai_client = OpenAI(
+            api_key=getattr(settings, "OPENAI_API_KEY", "")
+        )
+    return _openai_client
 
 
 def openai_llm_call(
@@ -46,7 +58,7 @@ def openai_llm_call(
     return base_openai_llm_call(
         system_prompt,
         user_prompt,
-        client=_openai_client,
+        client=_get_openai_client(),
         model=model,
         temperature=temperature,
         max_tokens=max_tokens,

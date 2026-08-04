@@ -1,7 +1,8 @@
 import json
+import os
 
 from pathlib import Path
-from unittest import skip
+from unittest import skip, skipUnless
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -211,6 +212,10 @@ class ProjectRAGTests(TestCase):
             ["Point 1", "Point 2", "Point 3"],
         )
 
+    @skipUnless(
+        os.getenv("OPENAI_API_KEY"),
+        "Live OpenAI integration test; set OPENAI_API_KEY to run.",
+    )
     def test_pdf_rag_run_method(self):
         pdf_rag = RagAnswersManager(
             project_rag_id=self.project_rag.id,
