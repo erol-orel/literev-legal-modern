@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { FileText } from "lucide-react";
+import { ExternalLink, FileText } from "lucide-react";
 import { useParams } from "react-router-dom";
 
 import { PageHeader } from "@/components/common/page-header";
@@ -134,7 +134,31 @@ function DocumentMetadata({ document }: { document: DocumentMeta }) {
       </p>
       <p className="text-sm">
         <span className="font-semibold text-muted-foreground">Normes:</span>{" "}
-        {document.standards || "—"}
+        {document.standards_refs && document.standards_refs.length > 0 ? (
+          document.standards_refs.map((ref, index) => (
+            <span key={`${ref.token}-${index}`}>
+              {index > 0 && (
+                <span className="text-muted-foreground"> · </span>
+              )}
+              {ref.url ? (
+                <a
+                  href={ref.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-0.5 text-primary underline-offset-2 hover:underline"
+                  title="Ouvrir le texte de loi sur Fedlex"
+                >
+                  {ref.label}
+                  <ExternalLink className="size-3 shrink-0" />
+                </a>
+              ) : (
+                <span className="text-foreground/90">{ref.label}</span>
+              )}
+            </span>
+          ))
+        ) : (
+          <>{document.standards || "—"}</>
+        )}
       </p>
     </div>
   );

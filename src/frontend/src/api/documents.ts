@@ -1,6 +1,13 @@
 import { api } from "@/lib/api-client";
 import type { ApiUrls } from "@/lib/context";
 
+/** A parsed legal-norm citation with its canonical statute URL, if any. */
+export interface NormRefEntry {
+  token: string;
+  label: string;
+  url: string | null;
+}
+
 /** Metadata header shown above every document body. */
 export interface DocumentMeta {
   procedure_type: string;
@@ -8,6 +15,7 @@ export interface DocumentMeta {
   decision_date: string | null;
   result: string;
   standards: string;
+  standards_refs?: NormRefEntry[];
 }
 
 /**

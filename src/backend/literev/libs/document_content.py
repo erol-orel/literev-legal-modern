@@ -10,6 +10,13 @@ from rapidfuzz import fuzz
 
 from literev.libs.project_workflows import validate_project_access
 from literev.models import Document, ProjectDocumentRAG, User
+from lr_legal.legal_refs import resolve_norm_token
+
+
+class NormRefEntry(TypedDict):
+    token: str
+    label: str
+    url: str | None
 
 
 class DocumentSummary(TypedDict):
@@ -19,6 +26,26 @@ class DocumentSummary(TypedDict):
     decision_date: str | None
     result: str
     standards: str
+    standards_refs: list[NormRefEntry]
+
+
+def _build_standards_refs(standards: str) -> list[NormRefEntry]:
+    """Split the ``;``-separated ``standards`` field into linkable references.
+
+    Each token (e.g. ``CO.336c.al1.letb``) becomes ``{token, label, url}``;
+    ``url`` is ``None`` for cantonal/unmapped codes so the UI shows plain text.
+    """
+    refs: list[NormRefEntry] = []
+    for raw in (standards or "").split(";"):
+        token = raw.strip()
+        if not token:
+            continue
+        ref = resolve_norm_token(token)
+        if ref is not None:
+            refs.append({"token": token, "label": ref.label, "url": ref.url})
+        else:
+            refs.append({"token": token, "label": token, "url": None})
+    return refs
 
 
 class DocumentContentPayload(TypedDict):
@@ -100,6 +127,7 @@ def _build_document_summary(document: Document) -> DocumentSummary:
         else None,
         "result": document.result or "",
         "standards": document.standards or "",
+        "standards_refs": _build_standards_refs(document.standards or ""),
     }
 
 

@@ -25,6 +25,8 @@ export interface RagReference {
 /** key_elements / law_articles rows have arbitrary columns + optional refs. */
 export interface RagKeyElement {
   references?: RagReference[];
+  /** Canonical statute URL for a law-article row (Fedlex), when resolvable. */
+  article_url?: string;
   [key: string]: unknown;
 }
 

@@ -18,6 +18,7 @@ from literev.models import (
     TableChoice,
     User,
 )
+from lr_legal.legal_refs import resolve as resolve_legal_ref
 
 
 class RagHistoryEntry(TypedDict):
@@ -116,6 +117,23 @@ def _normalize_reference_table(rows: Any) -> list[dict[str, Any]]:
     return normalized
 
 
+def _enrich_law_articles(rows: Any, lang: str = "fr") -> list[dict[str, Any]]:
+    """Normalize the law-article rows and attach a canonical statute URL.
+
+    Each row's free-text ``article`` (e.g. ``art. 336c CO``) is resolved to a
+    Fedlex deep link when it cites a mapped federal code; unmapped citations
+    keep the plain text (no ``article_url`` key).
+    """
+    normalized = _normalize_reference_table(rows)
+    for row in normalized:
+        article_text = row.get("article")
+        if isinstance(article_text, str) and article_text.strip():
+            ref = resolve_legal_ref(article_text, lang)
+            if ref is not None and ref.url:
+                row["article_url"] = ref.url
+    return normalized
+
+
 def _build_current_rag(
     project: Project,
     project_rag: ProjectRAG,
@@ -175,7 +193,7 @@ def _build_current_rag(
         "key_elements": _normalize_reference_table(
             summary_data.get("key_elements", [])
         ),
-        "law_articles": _normalize_reference_table(
+        "law_articles": _enrich_law_articles(
             summary_data.get("law_articles", [])
         ),
         "show_closed_stats": show_closed_stats,

@@ -11,17 +11,31 @@ from .extract_minor_major import (
     split_sentences_fr_legal,
     validate_classification,
 )
+from .legal_refs import (
+    FEDLEX_CODES,
+    NormRef,
+    fedlex_url,
+    resolve,
+    resolve_citation,
+    resolve_norm_token,
+)
 
 __all__ = [
+    "FEDLEX_CODES",
     "Classification",
+    "NormRef",
     "build_user_prompt",
     "classify_chunks_llm",
     "expected_ids",
+    "fedlex_url",
     "get_sentences",
     "materialize_classification",
     "normalize_text",
     "openai_llm_call",
     "pack_chunks",
+    "resolve",
+    "resolve_citation",
+    "resolve_norm_token",
     "split_sentences_fr_legal",
     "validate_classification",
 ]
