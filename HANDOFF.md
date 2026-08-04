@@ -70,20 +70,40 @@ Last verified state on `claude/modern-frontend`: **build ✓ · lint ✓ (0 warn
     closed-question stats, previous-questions history
 - A single reusable `ConfirmDialog` replaces the three duplicated delete modals
   from the legacy app.
+- **Document selection** (`/tableselect/*`) — rebuilt. Per-iteration triage of
+  every retrieved decision: tri-state Yes/Maybe/No verdicts, check-all, the
+  iteration trail (activate / delete), server-driven sort + pagination,
+  refinement/exclusion filter summaries, processing-state polling, CSV export,
+  iterate, reset, and ask-selected. (`src/api/table-selection.ts`,
+  `src/pages/tableselect-page.tsx`.) Rendered as review-friendly document cards
+  in the app's design system rather than a dense grid — the extracts need to be
+  readable — while preserving the exact legacy DRF contract and URL scheme.
+- **Document viewers** (`/contentdocument/:id`,
+  `/contentdocument_highlighted/:ragId`) — rebuilt. Metadata header plus the
+  full decision text, with RAG-cited passages highlighted inline on the
+  highlighted view (`.legal-prose` styling). (`src/api/documents.ts`,
+  `src/pages/document-page.tsx`.)
+
+### Toolchain note (fixed)
+
+The repo-root `.gitignore` carried the stock Python packaging section, whose
+unanchored `lib/` matched at **any** depth — so `src/frontend/src/lib/` was
+silently never committed and the bundle shipped a branch that could not build.
+The four modules (`api-client`, `context`, `query`, `utils`) have been
+reconstructed and the ignore rule anchored to the repo root (`/lib/`).
 
 ## What's left (next steps)
 
-1. **Document selection** (`/tableselect/*`) — currently a `PlaceholderPage`.
-   Rebuild the per-iteration document triage table (TanStack Table).
-2. **Document viewers** (`/contentdocument/:id`, `/contentdocument_highlighted/:ragId`)
-   — currently `PlaceholderPage`s. Rebuild the document content + highlighted
-   (RAG-cited) views.
-3. **Native cluster map (recommended backend follow-up):** the cluster map is
+1. **Native cluster map (recommended backend follow-up):** the cluster map is
    still the legacy Bokeh embed. Exposing raw `ClusterElement` coordinates from
    the backend would let it become a native, themeable, interactive React
    scatter. This is a small, isolated backend change — the only backend work
    worth considering; everything else stays backend-free.
-4. Parity sweep vs `src/frontend-legacy/`, then delete the legacy folder.
+2. Final parity sweep vs `src/frontend-legacy/` across all pages, then delete
+   the legacy folder. The two newly rebuilt pages have been checked against
+   their legacy counterparts; the folder is kept for now so a human can confirm
+   whole-app parity before it's removed (it stays recoverable from git either
+   way).
 
 ## Conventions
 

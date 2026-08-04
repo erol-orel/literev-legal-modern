@@ -51,4 +51,17 @@ describe("App routing", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText(/project name/i)).toBeInTheDocument();
   });
+
+  it("guards the document-selection route against malformed links", () => {
+    __setAppContextForTests({
+      user: { isAuthenticated: true, email: "lawyer@example.com" },
+    });
+    // A `/tableselect/` path without project + refinement ids is invalid; the
+    // page reports it without hitting the network (the state query stays off).
+    renderApp("/tableselect/");
+    expect(
+      screen.getByRole("heading", { name: /results table/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/invalid link/i)).toBeInTheDocument();
+  });
 });

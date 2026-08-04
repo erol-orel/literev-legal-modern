@@ -2,13 +2,17 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { useAppContext } from "@/hooks/use-app-context";
+import {
+  DocumentPage,
+  HighlightedDocumentPage,
+} from "@/pages/document-page";
 import { HistoryPage } from "@/pages/history-page";
 import { LandingPage } from "@/pages/landing-page";
-import { PlaceholderPage } from "@/pages/placeholder-page";
 import { ProjectPage } from "@/pages/project-page";
 import { RagPage } from "@/pages/rag-page";
 import { RunningPage } from "@/pages/running-page";
 import { SearchPage } from "@/pages/search-page";
+import { TableSelectPage } from "@/pages/tableselect-page";
 
 /**
  * Client-side routes. Paths mirror the Django URL structure so the app works
@@ -37,22 +41,14 @@ export function App() {
         <Route path="/running" element={<RunningPage />} />
         <Route path="/historicalpage" element={<HistoryPage />} />
         <Route path="/project/:projectId" element={<ProjectPage />} />
-        <Route
-          path="/tableselect/*"
-          element={
-            <PlaceholderPage
-              title="Document selection"
-              description="Triage documents across iterations before asking questions."
-            />
-          }
-        />
+        <Route path="/tableselect/*" element={<TableSelectPage />} />
         <Route
           path="/contentdocument/:documentId"
-          element={<PlaceholderPage title="Document" />}
+          element={<DocumentPage />}
         />
         <Route
           path="/contentdocument_highlighted/:documentRagId"
-          element={<PlaceholderPage title="Document" />}
+          element={<HighlightedDocumentPage />}
         />
         <Route path="/rag/:projectId" element={<RagPage />} />
         <Route path="/rag/:projectId/:ragId" element={<RagPage />} />
