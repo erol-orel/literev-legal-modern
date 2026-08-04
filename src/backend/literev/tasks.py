@@ -235,6 +235,24 @@ def get_top_docs_by_es(
     return []
 
 
+def _section_source_for(selected_indices: list[str]) -> str | None:
+    """Return the source that should drive the section-based RAG pipeline.
+
+    A source qualifies only when it is section-capable *and* its section-embedded
+    Chroma collection actually exists and is non-empty. This lets the federal
+    sources join the section pipeline transparently once their section
+    embeddings are built, while falling back to the generic ``RagAnswersManager``
+    (returning ``None``) until then — so a federal project always yields answers.
+    """
+    from literev.libs.chroma_utils import has_section_collection
+    from literev.libs.search import SECTION_SOURCES
+
+    for source in selected_indices:
+        if source in SECTION_SOURCES and has_section_collection(source):
+            return source
+    return None
+
+
 @app.task(bind=True)
 def get_nl_rag_ans(self, project_id: int) -> None:
     logging.info("Starting NL RAG ANS")
@@ -264,17 +282,14 @@ def get_nl_rag_ans(self, project_id: int) -> None:
     docs_ids = [doc.id for doc in top_docs]
     max_doc_ans = min(10, number_documents)
 
-    if (
-        "chambre_penale" in project.selected_indices
-        or "chambre_civile" in project.selected_indices
-        or "chambre_administrative" in project.selected_indices
-    ):
+    section_source = _section_source_for(project.selected_indices)
+    if section_source:
         from literev.libs.rag_pdf import CustomRagAnswersGenerator
 
         rag_op = CustomRagAnswersGenerator(
             project_rag_id=project_rag.id,
             documents_ids=docs_ids,
-            chambre_name=project.selected_indices[0],
+            chambre_name=section_source,
         )
         rag_op.get_and_save_answers_from_documents(max_doc_ans=max_doc_ans)
     else:
@@ -460,17 +475,16 @@ def task_rag_result_table(
     """Run RAG for the data from result table."""
     try:
         project_rag = ProjectRAG.objects.get(id=project_rag_id)
-        if (
-            "chambre_penale" in project_rag.project.selected_indices
-            or "chambre_civile" in project_rag.project.selected_indices
-            or "chambre_administrative" in project_rag.project.selected_indices
-        ):
+        section_source = _section_source_for(
+            project_rag.project.selected_indices
+        )
+        if section_source:
             from literev.libs.rag_pdf import CustomRagAnswersGenerator
 
             rag = CustomRagAnswersGenerator(
                 project_rag_id,
                 document_ids,
-                project_rag.project.selected_indices[0],
+                section_source,
             )
             rag.get_and_save_answers_from_documents()
         else:
