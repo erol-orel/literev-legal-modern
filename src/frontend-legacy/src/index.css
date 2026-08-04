@@ -1,0 +1,13 @@
+body {
+  margin: 0;
+  background: #f8f9fa;
+  color: #111827;
+}
+
+a {
+  text-decoration: none;
+}
+
+* {
+  box-sizing: border-box;
+}

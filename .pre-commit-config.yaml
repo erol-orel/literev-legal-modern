@@ -33,7 +33,9 @@ repos:
         # it is necessary to exclude src/backend/literev/templates/tags because of the
         # following issue:
         #   - https://github.com/Riverside-Healthcare/djLint/issues/703
-        exclude: "src/backend/workflow/tests|.git|docs|.eggs|src/backend/literev/templates/tags"
+        # src/frontend is excluded because index.html is a Vite template, not a
+        # Django template — djlint reformats it in ways Vite/prettier disagree with.
+        exclude: "src/backend/workflow/tests|.git|docs|.eggs|src/backend/literev/templates/tags|src/frontend"
       - id: djlint-django
         files: "\\.html"
         types_or: ["html"]
