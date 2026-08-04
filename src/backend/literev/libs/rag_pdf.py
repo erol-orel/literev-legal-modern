@@ -192,6 +192,57 @@ def get_rag_generator(
         )
 
 
+_ANSWER_LANGUAGE_NAMES = {"fr": "French", "de": "German", "it": "Italian"}
+
+
+def _detect_answer_language(text: str) -> str:
+    """Best-effort language of the retrieved context ('fr'/'de'/'it').
+
+    Falls back to French when detection is unavailable or inconclusive, so the
+    existing French behaviour is preserved.
+    """
+    sample = (text or "")[:2000]
+    if not sample.strip():
+        return "fr"
+    try:
+        from lr_preprocessing import detect_language
+
+        return detect_language(sample) or "fr"
+    except Exception:
+        return "fr"
+
+
+def _document_answer_system_prompt(language: str) -> str:
+    name = _ANSWER_LANGUAGE_NAMES.get(language, "French")
+    return (
+        "You are a factual legal assistant. "
+        f"Always answer in {name} based solely on the provided context. "
+        "If you are absolutely certain the context has no relevant information, "
+        'return exactly the string "Réponse non disponible".'
+    )
+
+
+def _summary_prompt_template(language: str) -> str:
+    name = _ANSWER_LANGUAGE_NAMES.get(language, "French")
+    return (
+        "Based on ALL of the given answers extracted from the documents, "
+        f"write a concise and coherent summary as a single sentence, in {name}. "
+        "Summarize only the legal perspectives that are directly mentioned or clearly supported by the answers. "
+        "Do not invent or infer arguments that are not explicitly stated. "
+        "Avoid vague or emotional expressions. Focus on legal arguments and facts. "
+        "If there is absolutely no relevant information, return exactly: `Résumé non disponible`. "
+        "\n\n"
+        "**Instructions:**\n"
+        "1. Do NOT mention specific names or individual cases.\n"
+        "2. If all answers agree on one idea, return a single-sentence summary.\n"
+        "3. If there are multiple legal arguments or points of view:\n"
+        "   - Provide a short summary sentence.\n"
+        "The original question is: `{query}`\n\n"
+        "Given Answers:\n"
+        "{context}"
+    )
+
+
 class OpenAIAnswerClient:
     def __init__(self, api_key):
         self.api_key = api_key
@@ -220,6 +271,13 @@ class OpenAIAnswerClient:
         augmented: HactarAug | OpenAIAug
         generation: HactarGen | OpenAIGen
 
+        context_sample = (
+            " ".join(chunks) if isinstance(chunks, list) else str(chunks or "")
+        )
+        system_prompt = _document_answer_system_prompt(
+            _detect_answer_language(context_sample)
+        )
+
         if settings.USE_HACTAR_LLM:
             augmented = HactarAug(
                 api_key=settings.HACTAR_API_KEY,
@@ -230,7 +288,7 @@ class OpenAIAnswerClient:
             generation = HactarGen(
                 api_key=settings.HACTAR_API_KEY,
                 model_name="mistral-small3.1:24b",
-                system_message=self.document_answering_system_prompt,
+                system_message=system_prompt,
                 prompt_template=self.document_answering_user_prompt,
                 temperature=0.0,
                 output_max_length=16384,
@@ -253,7 +311,7 @@ class OpenAIAnswerClient:
             generation = OpenAIGen(
                 api_key=self.api_key,
                 model_name="gpt-4.1-mini",
-                system_message=self.document_answering_system_prompt,
+                system_message=system_prompt,
                 prompt_template=self.document_answering_user_prompt,
                 temperature=0.0,
                 output_max_length=16384,
@@ -328,7 +386,9 @@ class OpenAISummaryGenerator:
             }
 
         summary_gen = get_rag_generator(
-            prompt_template=self.summary_template_prompt,
+            prompt_template=_summary_prompt_template(
+                _detect_answer_language(" ".join(answers))
+            ),
             structured_output=SummaryGeneralAnswer,
         )
 
