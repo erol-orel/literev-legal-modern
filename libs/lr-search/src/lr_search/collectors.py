@@ -84,6 +84,7 @@ class ElasticSearchCollector:
                 "result",
                 "record_key",
                 "document",
+                "language",
             ],
         )
         base_body = {
@@ -167,6 +168,7 @@ class ElasticSearchCollector:
             result=str(document.get("result", "")),
             es_score=float(document.get("es_score", 0) or 0),
             record_key=str(document.get("record_key", "no record key")),
+            language=str(document.get("language", "")),
         )
 
     def get_max_documents(

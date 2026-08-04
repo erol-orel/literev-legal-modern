@@ -67,6 +67,7 @@ def create_document_db(project: Project, document: MetaData) -> int:
         standards=convert_to_target_type(document.standards),
         result=convert_to_target_type(document.result),
         record_key=document.record_key,
+        language=convert_to_target_type(document.language),
     )
 
     return new_document.id

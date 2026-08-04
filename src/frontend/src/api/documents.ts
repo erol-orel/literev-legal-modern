@@ -16,6 +16,8 @@ export interface DocumentMeta {
   result: string;
   standards: string;
   standards_refs?: NormRefEntry[];
+  /** Decision language: "de" / "fr" / "it" (empty when unknown). */
+  language?: string;
 }
 
 /**

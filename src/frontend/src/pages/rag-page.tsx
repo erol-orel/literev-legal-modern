@@ -576,6 +576,7 @@ function AnswersSection({
   const [sort, setSort] = useState<SortKey>("date_desc");
   const [search, setSearch] = useState("");
   const [procedure, setProcedure] = useState("all");
+  const [language, setLanguage] = useState("all");
 
   const valid = useMemo(
     () => answers.filter((a) => !isInvalidAnswer(a.answer)),
@@ -590,10 +591,21 @@ function AnswersSection({
     return [...set].sort((a, b) => a.localeCompare(b));
   }, [valid]);
 
+  const languages = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of valid) {
+      if (a.document.language) set.add(a.document.language);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [valid]);
+
   const visible = useMemo(() => {
     const needle = search.trim().toLowerCase();
     const filtered = valid.filter((a) => {
       if (procedure !== "all" && a.document.procedure_type !== procedure) {
+        return false;
+      }
+      if (language !== "all" && a.document.language !== language) {
         return false;
       }
       if (needle) {
@@ -619,7 +631,7 @@ function AnswersSection({
       return sort === "date_asc" ? da.localeCompare(db) : db.localeCompare(da);
     });
     return filtered;
-  }, [valid, sort, search, procedure]);
+  }, [valid, sort, search, procedure, language]);
 
   if (loading) {
     return (
@@ -671,6 +683,21 @@ function AnswersSection({
                 {procedureTypes.map((type) => (
                   <SelectItem key={type} value={type}>
                     {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {languages.length > 1 && (
+            <Select value={language} onValueChange={setLanguage}>
+              <SelectTrigger className="h-9 w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All languages</SelectItem>
+                {languages.map((lang) => (
+                  <SelectItem key={lang} value={lang}>
+                    {lang.toUpperCase()}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -756,6 +783,11 @@ function AnswerCard({ answer }: { answer: RagDocumentAnswer }) {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Badge variant="secondary">{document.procedure_type || "Decision"}</Badge>
+            {document.language && (
+              <Badge variant="outline" className="uppercase">
+                {document.language}
+              </Badge>
+            )}
             {document.decision_date && (
               <span className="text-xs text-muted-foreground">
                 {formatDate(document.decision_date)}

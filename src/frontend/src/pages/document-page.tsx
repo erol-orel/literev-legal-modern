@@ -122,9 +122,16 @@ function DocumentView({
 function DocumentMetadata({ document }: { document: DocumentMeta }) {
   return (
     <div className="space-y-2">
-      {document.procedure_type && (
-        <Badge variant="secondary">{document.procedure_type}</Badge>
-      )}
+      <div className="flex flex-wrap items-center gap-2">
+        {document.procedure_type && (
+          <Badge variant="secondary">{document.procedure_type}</Badge>
+        )}
+        {document.language && (
+          <Badge variant="outline" className="uppercase">
+            {document.language}
+          </Badge>
+        )}
+      </div>
       <p className="text-sm text-foreground">
         <span className="font-semibold">{document.decision_type || "—"}</span>
         {document.decision_date ? `, ${formatDate(document.decision_date)}` : ""}

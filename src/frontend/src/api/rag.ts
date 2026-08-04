@@ -100,6 +100,7 @@ export interface RagDocumentAnswer {
     decision_date: string | null;
     result: string;
     standards: string;
+    language?: string;
     procedure_year: string | null;
     url_document: string;
   };

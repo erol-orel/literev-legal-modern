@@ -43,6 +43,7 @@ class SearchDocumentMetadata:
     result: str
     es_score: float
     record_key: str
+    language: str = ""
 
 
 class ClusteringRunResult(NamedTuple):

@@ -63,6 +63,9 @@ class Document(models.Model):
     procedure_year = models.DateField(
         default=datetime.date(1900, 1, 1), null=True, blank=True
     )
+    language = models.CharField(
+        max_length=8, default="", null=True, blank=True
+    )  # de / fr / it (from the source feed), empty when unknown
 
 
 class Cluster(models.Model):

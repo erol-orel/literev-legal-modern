@@ -27,6 +27,7 @@ class DocumentSummary(TypedDict):
     result: str
     standards: str
     standards_refs: list[NormRefEntry]
+    language: str
 
 
 def _build_standards_refs(standards: str) -> list[NormRefEntry]:
@@ -128,6 +129,7 @@ def _build_document_summary(document: Document) -> DocumentSummary:
         "result": document.result or "",
         "standards": document.standards or "",
         "standards_refs": _build_standards_refs(document.standards or ""),
+        "language": document.language or "",
     }
 
 

@@ -56,6 +56,7 @@ class ProjectDocumentRAGSerializer(serializers.ModelSerializer):
             "decision_date": instance.document.decision_date,
             "result": instance.document.result,
             "standards": instance.document.standards,
+            "language": instance.document.language or "",
             "procedure_year": instance.document.procedure_year,
             "url_document": reverse(
                 "contentdocument_highlighted",
