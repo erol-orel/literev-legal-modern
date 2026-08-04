@@ -5,11 +5,14 @@ import {
 } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  Check,
+  Copy,
   ExternalLink,
   Loader2,
   MessagesSquare,
   Pencil,
   RotateCcw,
+  Search,
   Send,
   Trash2,
 } from "lucide-react";
@@ -28,6 +31,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
@@ -570,11 +574,43 @@ function AnswersSection({
   hasConfidence: boolean;
 }) {
   const [sort, setSort] = useState<SortKey>("date_desc");
+  const [search, setSearch] = useState("");
+  const [procedure, setProcedure] = useState("all");
+
+  const valid = useMemo(
+    () => answers.filter((a) => !isInvalidAnswer(a.answer)),
+    [answers],
+  );
+
+  const procedureTypes = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of valid) {
+      if (a.document.procedure_type) set.add(a.document.procedure_type);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [valid]);
 
   const visible = useMemo(() => {
-    const filtered = answers.filter((a) => !isInvalidAnswer(a.answer));
-    const sorted = [...filtered];
-    sorted.sort((a, b) => {
+    const needle = search.trim().toLowerCase();
+    const filtered = valid.filter((a) => {
+      if (procedure !== "all" && a.document.procedure_type !== procedure) {
+        return false;
+      }
+      if (needle) {
+        const haystack = [
+          a.answer,
+          a.citation,
+          a.document.procedure_type,
+          a.document.decision_type,
+          a.document.result,
+        ]
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(needle)) return false;
+      }
+      return true;
+    });
+    filtered.sort((a, b) => {
       if (sort === "confidence") {
         return (b.confidence_score ?? 0) - (a.confidence_score ?? 0);
       }
@@ -582,8 +618,8 @@ function AnswersSection({
       const db = b.document.decision_date ?? "";
       return sort === "date_asc" ? da.localeCompare(db) : db.localeCompare(da);
     });
-    return sorted;
-  }, [answers, sort]);
+    return filtered;
+  }, [valid, sort, search, procedure]);
 
   if (loading) {
     return (
@@ -595,7 +631,7 @@ function AnswersSection({
     );
   }
 
-  if (visible.length === 0) {
+  if (valid.length === 0) {
     return (
       <EmptyState
         icon={MessagesSquare}
@@ -607,37 +643,112 @@ function AnswersSection({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold text-foreground">
-          Answers <span className="text-muted-foreground">({visible.length})</span>
+          Answers{" "}
+          <span className="text-muted-foreground">
+            ({visible.length}
+            {visible.length !== valid.length ? ` / ${valid.length}` : ""})
+          </span>
         </h2>
-        <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="date_desc">Newest first</SelectItem>
-            <SelectItem value="date_asc">Oldest first</SelectItem>
-            {hasConfidence && (
-              <SelectItem value="confidence">Highest confidence</SelectItem>
-            )}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Filter answers…"
+              className="h-9 w-44 pl-8"
+            />
+          </div>
+          {procedureTypes.length > 1 && (
+            <Select value={procedure} onValueChange={setProcedure}>
+              <SelectTrigger className="h-9 w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All procedure types</SelectItem>
+                {procedureTypes.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+            <SelectTrigger className="h-9 w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="date_desc">Newest first</SelectItem>
+              <SelectItem value="date_asc">Oldest first</SelectItem>
+              {hasConfidence && (
+                <SelectItem value="confidence">Highest confidence</SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
-      {visible.map((answer) => (
-        <AnswerCard key={answer.id} answer={answer} />
-      ))}
+      {visible.length === 0 ? (
+        <Card>
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
+            No answers match your filters.
+          </CardContent>
+        </Card>
+      ) : (
+        visible.map((answer) => <AnswerCard key={answer.id} answer={answer} />)
+      )}
     </div>
   );
 }
 
 function AnswerCard({ answer }: { answer: RagDocumentAnswer }) {
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
   const section = parseSectionAnswers(answer.answer);
   const { document } = answer;
 
   const meta = [document.procedure_type, document.decision_type, document.result]
     .filter(Boolean)
     .join(" · ");
+
+  const copyCitation = async () => {
+    const header = [
+      meta,
+      document.decision_date ? formatDate(document.decision_date) : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    const rows: string[][] = section
+      ? [
+          ["En fait", section.facts],
+          ["Subsomption", section.subsumption],
+          ["Conclusion", section.conclusion],
+        ]
+      : [];
+    const body = section
+      ? rows
+          .filter((row) => row[1])
+          .map((row) => `${row[0]} : ${row[1]}`)
+          .join("\n")
+      : answer.answer;
+    const text = [header, body, answer.citation ? `« ${answer.citation} »` : ""]
+      .filter(Boolean)
+      .join("\n\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+      toast({ variant: "success", title: "Citation copied" });
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "Copy failed",
+        description: "Clipboard is unavailable in this browser.",
+      });
+    }
+  };
 
   return (
     <Card>
@@ -665,6 +776,19 @@ function AnswerCard({ answer }: { answer: RagDocumentAnswer }) {
                 {Math.round(answer.confidence_score * 100)}% confidence
               </Badge>
             )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={copyCitation}
+              title="Copy this answer and citation"
+            >
+              {copied ? (
+                <Check className="size-3.5 text-success" />
+              ) : (
+                <Copy className="size-3.5" />
+              )}
+              Copy
+            </Button>
             {document.url_document && (
               <Button asChild variant="ghost" size="sm">
                 <a
