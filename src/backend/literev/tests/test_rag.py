@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
@@ -24,6 +26,17 @@ from literev.models import (
     Document,
     ProjectDocumentRAG,
     ProjectRAG,
+)
+
+# These tests exercise the real OpenAI backend (live completions / embeddings)
+# and assert on the model's actual output, so they can't be faithfully mocked.
+# Skip them when no key is configured — mirroring how the ollama tests
+# (tests/api/test_api.py) and Elasticsearch tests (test_collectors.py) are
+# skipped when their backend is unavailable. They still run whenever
+# OPENAI_API_KEY is set (locally or in a keyed CI).
+requires_openai = pytest.mark.skipif(
+    not os.getenv("OPENAI_API_KEY"),
+    reason="Live OpenAI integration test; set OPENAI_API_KEY to run.",
 )
 
 
@@ -58,6 +71,7 @@ def doc2_txt_chunks(doc2_txt) -> list[str]:
     return text_splitter.split_text(doc2_txt)
 
 
+@requires_openai
 @pytest.mark.flaky(reruns=3, rerun_except="AssertionError")
 def test_rag(project_rag: ProjectRAG, document_real: Document) -> None:
     docs_rag = RagAnswersManager(project_rag.id, [document_real.id])
@@ -65,6 +79,7 @@ def test_rag(project_rag: ProjectRAG, document_real: Document) -> None:
     assert docs_rag.project_rag.documents.first().answer
 
 
+@requires_openai
 @pytest.mark.flaky(reruns=3, rerun_except="AssertionError")
 def test_rago_text(doc2_txt) -> None:
     template_prompt = (
@@ -95,6 +110,7 @@ def test_rago_text(doc2_txt) -> None:
     assert "réponse non disponible" not in result.answer.lower()
 
 
+@requires_openai
 @pytest.mark.flaky(reruns=3, rerun_except="AssertionError")
 def test_rago_chunks(doc2_txt_chunks) -> None:
     query = (
@@ -146,6 +162,7 @@ def test_rago_chunks(doc2_txt_chunks) -> None:
     assert result.highlight
 
 
+@requires_openai
 @pytest.mark.flaky(reruns=3, rerun_except="AssertionError")
 def test_rag_aug_variation(doc2_txt_chunks) -> None:
     results = {}
@@ -224,6 +241,7 @@ def test_rag_aug_variation(doc2_txt_chunks) -> None:
         assert result.highlight
 
 
+@requires_openai
 @pytest.mark.django_db
 def test_generate_general_summary_with_valid_answers(project_rag):
     doc1 = Document.objects.create(
@@ -351,6 +369,7 @@ def test_generate_general_summary_no_valid_answers(project_rag):
     }
 
 
+@requires_openai
 @pytest.mark.django_db
 def test_generate_general_summary_strips_whitespace(project_rag):
     doc = Document.objects.create(
@@ -489,6 +508,7 @@ def test_build_consideration_model_validation_wrong_type():
         EvaluationModel(argument_1="not a bool", argument_2=True)
 
 
+@requires_openai
 @pytest.mark.django_db
 def test_check_question_type_open_and_closed(project_rag):
     project_rag.query = "Est-ce que la garde partagée est accordée ?"
