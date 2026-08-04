@@ -132,8 +132,9 @@ preprocessing runtime and (optionally) persistence:
 - **Legal-article deep-linking** — cited articles in RAG answers and on the
   document page link to the official **Fedlex** text (`lr_legal.legal_refs`),
   covering the core federal codes (CC/ZGB, CO/OR, CP/StGB, Cst/BV/Cost, CPC/ZPO,
-  CPP/StPO, LTF/BGG) across all three languages. Cantonal codes degrade to plain
-  text.
+  CPP/StPO, LTF/BGG) across all three languages, plus the common **Geneva
+  cantonal** codes (Cst-GE, LPA, LOJ, LPAC/RPAC, LIPAD, LaLP …) linking to their
+  rsGE act page on silgeneve.ch. Unmapped codes degrade to plain text.
 - **Multi-source plumbing** — `selected_indices` is a list; ingestion loops over
   it; the query builder and collectors are per-index.
 - **entscheidsuche.ch importer** — `manage.py import_entscheidsuche` pulls

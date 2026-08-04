@@ -13,15 +13,18 @@ from .extract_minor_major import (
 )
 from .legal_refs import (
     FEDLEX_CODES,
+    RSGE_CODES,
     NormRef,
     fedlex_url,
     resolve,
     resolve_citation,
     resolve_norm_token,
+    rsge_url,
 )
 
 __all__ = [
     "FEDLEX_CODES",
+    "RSGE_CODES",
     "Classification",
     "NormRef",
     "build_user_prompt",
@@ -36,6 +39,7 @@ __all__ = [
     "resolve",
     "resolve_citation",
     "resolve_norm_token",
+    "rsge_url",
     "split_sentences_fr_legal",
     "validate_classification",
 ]

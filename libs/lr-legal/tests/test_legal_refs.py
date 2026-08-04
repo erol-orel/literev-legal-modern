@@ -6,6 +6,7 @@ from lr_legal import (
     resolve,
     resolve_citation,
     resolve_norm_token,
+    rsge_url,
 )
 
 
@@ -56,12 +57,13 @@ def test_resolve_norm_token_constitution() -> None:
     assert ref.url == "https://www.fedlex.admin.ch/eli/cc/1999/404/fr#art_29"
 
 
-def test_resolve_norm_token_cantonal_unmapped_keeps_label_no_url() -> None:
+def test_resolve_norm_token_geneva_cantonal_links_to_rsge() -> None:
     ref = resolve_norm_token("LIPAD.36.al1.leta", "fr")
     assert ref is not None
     assert ref.code == "LIPAD"
     assert ref.article == "36"
-    assert ref.url is None
+    # Geneva codes resolve to the rsGE act page (no per-article anchor).
+    assert ref.url == "https://silgeneve.ch/legis/data/rsg_a2_08.htm"
     assert ref.label == "LIPAD art. 36 al. 1 let. a"
 
 
@@ -69,7 +71,16 @@ def test_resolve_norm_token_article_with_letter_suffix() -> None:
     ref = resolve_norm_token("RPAC.44A", "fr")
     assert ref is not None
     assert ref.article == "44A"
-    assert ref.url is None  # RPAC is cantonal, unmapped
+    # RPAC is a mapped Geneva code -> rsGE act page.
+    assert ref.url == "https://silgeneve.ch/legis/data/rsg_b5_05p01.htm"
+
+
+def test_resolve_norm_token_truly_unmapped_has_no_url() -> None:
+    ref = resolve_norm_token("XYZ.5", "fr")
+    assert ref is not None
+    assert ref.code == "XYZ"
+    assert ref.url is None
+    assert ref.label == "XYZ art. 5"
 
 
 def test_resolve_norm_token_empty() -> None:
@@ -114,3 +125,31 @@ def test_resolve_prefers_citation_then_token() -> None:
         ref.url
         == "https://www.fedlex.admin.ch/eli/cc/54/757_781_799/fr#art_111"
     )
+
+
+def test_rsge_url_maps_geneva_codes() -> None:
+    assert rsge_url("LPA") == "https://silgeneve.ch/legis/data/rsg_e5_10.htm"
+    assert (
+        rsge_url("Cst-GE") == "https://silgeneve.ch/legis/data/rsg_a2_00.htm"
+    )
+    assert rsge_url("LOJ") == "https://silgeneve.ch/legis/data/rsg_e2_05.htm"
+
+
+def test_rsge_url_unknown_is_none() -> None:
+    assert rsge_url("CO") is None  # federal, not a Geneva code
+    assert rsge_url("XYZ") is None
+
+
+def test_resolve_citation_geneva_cantonal() -> None:
+    ref = resolve_citation("art. 65 LPA", "fr")
+    assert ref is not None
+    assert ref.code == "LPA"
+    assert ref.url == "https://silgeneve.ch/legis/data/rsg_e5_10.htm"
+
+
+def test_fedlex_takes_precedence_over_rsge() -> None:
+    # A code present only in the federal map still resolves to Fedlex.
+    ref = resolve_norm_token("CC.8", "fr")
+    assert ref is not None
+    assert ref.url is not None
+    assert "fedlex.admin.ch" in ref.url

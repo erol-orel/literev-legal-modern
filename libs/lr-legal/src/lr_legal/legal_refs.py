@@ -9,10 +9,11 @@ Two input forms are supported:
   ``art. 336c CO`` (it).
 
 Federal codes resolve to deep links on the official Fedlex portal
-(https://www.fedlex.admin.ch), anchored to the article (``#art_<n>``). Codes we
-do not have a *verified* mapping for resolve to ``url=None`` so callers render
-plain text: in a legal tool a wrong citation link is worse than no link, so the
-mapping is deliberately conservative and only covers the core federal codes.
+(https://www.fedlex.admin.ch), anchored to the article (``#art_<n>``); the
+common Geneva cantonal codes resolve to their rsGE act page on silgeneve.ch.
+Codes we do not have a *verified* mapping for resolve to ``url=None`` so callers
+render plain text: in a legal tool a wrong citation link is worse than no link,
+so the mappings are deliberately conservative and verified against the source.
 
 The module is pure Python (no Django, no network) so it is unit-testable in
 isolation and safe to import from both the backend and the RAG pipeline.
@@ -26,11 +27,13 @@ from dataclasses import dataclass
 
 __all__ = [
     "FEDLEX_CODES",
+    "RSGE_CODES",
     "NormRef",
     "fedlex_url",
     "resolve",
     "resolve_citation",
     "resolve_norm_token",
+    "rsge_url",
 ]
 
 # Fedlex ELI base segments, verified against fedlex.admin.ch (SR numbers noted).
@@ -59,6 +62,22 @@ FEDLEX_CODES: dict[str, str] = {
     # Federal Supreme Court Act — LTF (fr/it) / BGG (de), SR 173.110
     "ltf": "2006/218",
     "bgg": "2006/218",
+}
+
+# Geneva cantonal codes (rsGE), verified against silgeneve.ch. Keys are
+# lower-cased abbreviations; values are the systematic-register slugs. These
+# resolve to the act page (silgeneve does not expose stable per-article
+# anchors), which still takes the lawyer straight to the cited law.
+RSGE_CODES: dict[str, str] = {
+    "cst-ge": "a2_00",  # Constitution de la République et canton de Genève
+    "lipad": "a2_08",  # Information du public / accès aux documents
+    "lrgc": "b1_01",  # Règlement du Grand Conseil
+    "lpac": "b5_05",  # Personnel de l'administration cantonale
+    "rpac": "b5_05p01",  # Règlement d'application de la LPAC
+    "lac": "b6_05",  # Administration des communes
+    "loj": "e2_05",  # Organisation judiciaire
+    "lalp": "e3_60",  # Application de la LP
+    "lpa": "e5_10",  # Procédure administrative
 }
 
 _LANGS = {"fr", "de", "it", "rm", "en"}
@@ -138,6 +157,23 @@ def fedlex_url(
     return base
 
 
+def rsge_url(code: str) -> str | None:
+    """Build a Geneva rsGE act URL for a cantonal ``code``, or ``None``.
+
+    Geneva's systematic register (silgeneve.ch) has no stable per-article
+    anchors, so this links to the act page for the mapped Geneva codes.
+    """
+    slug = RSGE_CODES.get(code.strip().rstrip(".").lower())
+    if not slug:
+        return None
+    return f"https://silgeneve.ch/legis/data/rsg_{slug}.htm"
+
+
+def _resolve_url(code: str, article: str | None, lang: str) -> str | None:
+    """Federal Fedlex link first, then Geneva cantonal rsGE, else ``None``."""
+    return fedlex_url(code, article, lang) or rsge_url(code)
+
+
 def _format_subref(segment: str) -> str | None:
     match = _SUBREF_RE.match(segment)
     if not match:
@@ -185,7 +221,7 @@ def resolve_norm_token(
         code=code,
         article=article,
         subrefs=subrefs,
-        url=fedlex_url(code, article, lang),
+        url=_resolve_url(code, article, lang),
     )
 
 
@@ -214,7 +250,7 @@ def resolve_citation(text: str, lang: str = _DEFAULT_LANG) -> NormRef | None:
         code=code,
         article=article,
         subrefs=subrefs,
-        url=fedlex_url(code, article, lang),
+        url=_resolve_url(code, article, lang),
     )
 
 
