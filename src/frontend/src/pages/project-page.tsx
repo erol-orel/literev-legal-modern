@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   FileText,
+  Files,
   Layers,
   MessagesSquare,
   Sparkles,
@@ -36,6 +37,7 @@ import { useAppContext } from "@/hooks/use-app-context";
 import { useToast } from "@/hooks/use-toast";
 import {
   askTopDocuments,
+  createProjectRefinement,
   fetchProjectOverview,
   generateProjectClusterSummary,
   isOverviewRedirect,
@@ -109,6 +111,7 @@ export function ProjectPage() {
             <Badge variant={project.is_finish ? "success" : "secondary"}>
               {project.step_label}
             </Badge>
+            <SeeAllDocumentsButton />
             <AskTopDocsButton projectId={projectId} />
           </div>
         }
@@ -196,6 +199,57 @@ export function ProjectPage() {
       </div>
     </>
   );
+
+  function SeeAllDocumentsButton() {
+    // A refinement with no filters is the full-corpus view. Reuse one if it
+    // already exists so repeated clicks don't spend the refinement budget.
+    const existing = data.refinements.find(
+      (r) => r.filters && Object.keys(r.filters).length === 0,
+    );
+    const atLimit =
+      data.filters.refinement_count >= data.filters.refinement_limit;
+
+    const open = useMutation({
+      mutationFn: () =>
+        createProjectRefinement(apiUrls, projectId, "All documents", {}),
+      onSuccess: (result) => navigate(result.url),
+      onError: (error) =>
+        toast({
+          variant: "destructive",
+          title: "Could not open documents",
+          description:
+            error instanceof ApiError ? error.messages.join(" ") : "Error.",
+        }),
+    });
+
+    if (!project.is_finish) return null;
+
+    if (existing) {
+      return (
+        <Button asChild variant="outline">
+          <Link to={existing.open_url}>
+            <Files className="size-4" /> See all documents
+          </Link>
+        </Button>
+      );
+    }
+
+    return (
+      <Button
+        variant="outline"
+        onClick={() => open.mutate()}
+        disabled={open.isPending || atLimit}
+        title={atLimit ? "Refinement limit reached" : undefined}
+      >
+        {open.isPending ? (
+          <Spinner className="size-4" />
+        ) : (
+          <Files className="size-4" />
+        )}
+        See all documents
+      </Button>
+    );
+  }
 
   function AskTopDocsButton({ projectId }: { projectId: string }) {
     const ask = useMutation({
