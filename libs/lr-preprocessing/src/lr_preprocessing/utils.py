@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import logging
 import re
 import unicodedata
 
 from pathlib import Path
+from typing import Any
 
 import spacy
 
@@ -15,12 +17,40 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 from . import phrases_compat as phrases
 
-SUPPORTED_LANGUAGES = [Language.ENGLISH, Language.FRENCH]
+logger = logging.getLogger(__name__)
+
+# Swiss federal decisions are published in German, French and Italian; English
+# is kept so the detector can still recognise it (and the pipeline discard it).
+SUPPORTED_LANGUAGES = [
+    Language.ENGLISH,
+    Language.FRENCH,
+    Language.GERMAN,
+    Language.ITALIAN,
+]
 detector = LanguageDetectorBuilder.from_languages(*SUPPORTED_LANGUAGES).build()
 DATA_PATH = Path(__file__).parent / "data"
 
+# Detected lingua languages we actually preprocess, mapped to short codes.
+_LANGUAGE_CODES = {
+    Language.FRENCH: "fr",
+    Language.GERMAN: "de",
+    Language.ITALIAN: "it",
+}
+# Per-language spaCy model names. Only French ships by default; the German and
+# Italian models are optional and loaded lazily with a graceful fallback.
+_SPACY_MODELS = {
+    "fr": "fr_core_news_sm",
+    "de": "de_core_news_sm",
+    "it": "it_core_news_sm",
+}
+
 NLP = spacy.load("fr_core_news_sm", disable=["parser", "ner"])
 NLP.max_length = 10000000
+
+# Caches keyed by language code. French is primed with the eagerly-loaded model
+# above so its behaviour is unchanged; other languages populate on first use.
+_NLP_CACHE: dict[str, Any] = {"fr": NLP}
+_STOPWORDS_CACHE: dict[str, set[str]] = {}
 
 _WORD_RE = re.compile(r"(?u)\b\w+\b")
 
@@ -57,26 +87,76 @@ def create_stopwords() -> set[str]:
     return set(reader.splitlines())
 
 
-def define_languages(corpus: str) -> bool:
-    """Given an article corpus, determine if the article belongs to
-    the list of valid languages
+def _get_nlp(lang: str) -> Any:
+    """Return a cached spaCy pipeline for ``lang`` or ``None`` if unavailable.
+
+    French is always present; German/Italian load lazily. A missing model is
+    cached as ``None`` so callers skip lemmatization rather than raising.
+    """
+    if lang in _NLP_CACHE:
+        return _NLP_CACHE[lang]
+    model_name = _SPACY_MODELS.get(lang)
+    nlp: Any = None
+    if model_name:
+        try:
+            nlp = spacy.load(model_name, disable=["parser", "ner"])
+            nlp.max_length = 10000000
+        except (OSError, ImportError):
+            logger.warning(
+                "spaCy model '%s' is not installed; lemmatization is "
+                "skipped for language '%s'.",
+                model_name,
+                lang,
+            )
+            nlp = None
+    _NLP_CACHE[lang] = nlp
+    return nlp
+
+
+def get_stopwords(lang: str = "fr") -> set[str]:
+    """Return the stopword set for ``lang`` (cached).
+
+    French uses the curated list shipped with the package; German and Italian
+    reuse their spaCy model's default stopwords when the model is available,
+    and an empty set otherwise.
+    """
+    if lang in _STOPWORDS_CACHE:
+        return _STOPWORDS_CACHE[lang]
+    words: set[str]
+    if lang == "fr":
+        words = create_stopwords()
+    else:
+        nlp = _get_nlp(lang)
+        words = set(nlp.Defaults.stop_words) if nlp is not None else set()
+    _STOPWORDS_CACHE[lang] = words
+    return words
+
+
+def detect_language(corpus: str) -> str | None:
+    """Detect the corpus language as ``fr``/``de``/``it``, else ``None``.
+
+    ``None`` means the text is not one of the supported preprocessing
+    languages (e.g. English) and should be discarded upstream.
 
     Parameters
     ----------
-    article_corpus : str
-                    Corpus to be preprocessed
+    corpus : str
+        Corpus to inspect.
 
     Returns
     -------
-    boolean : bool
-            Returns True if the corpus is in English, False otherwise
-
+    str | None
+        The two-letter language code, or ``None`` when unsupported.
     """
-    # Detect the language of the given corpus
     detected_language = detector.detect_language_of(corpus)
+    if detected_language is None:
+        return None
+    return _LANGUAGE_CODES.get(detected_language)
 
-    # Check if the detected language is English
-    return detected_language == Language.FRENCH
+
+def define_languages(corpus: str) -> bool:
+    """Backward-compatible check: ``True`` only when the corpus is French."""
+    return detect_language(corpus) == "fr"
 
 
 def pre_processing(corpus: str) -> str:
@@ -137,9 +217,10 @@ def sentences_to_words(corpus: str) -> list[str]:
 def lemmatize(
     list_words: list[str],
     allowed_postags: list[str] = ["NOUN", "ADJ", "VERB", "ADV"],
+    lang: str = "fr",
 ) -> str:
     """
-    Lemmatize a list of words.
+    Lemmatize a list of words in the given language.
 
     Parameters
     ----------
@@ -147,14 +228,21 @@ def lemmatize(
               A list of words of an article corpus.
     allowed_postags : list[str]
               A list of allowed POS tags.
+    lang : str
+              Language code (``fr``/``de``/``it``). When no spaCy model is
+              available for it, the raw tokens are returned unchanged so
+              downstream TF-IDF still has content.
 
     Returns
     -------
-    list_lemmatized : list[str]
-              A list of lemmatized words.
+    list_lemmatized : str
+              The lemmatized, POS-filtered words joined by spaces.
     """
+    nlp = _get_nlp(lang)
+    if nlp is None:
+        return " ".join(list_words)
 
-    doc = NLP(" ".join(list_words))
+    doc = nlp(" ".join(list_words))
     list_lemmatized = " ".join(
         token.lemma_ for token in doc if token.pos_ in allowed_postags
     )
