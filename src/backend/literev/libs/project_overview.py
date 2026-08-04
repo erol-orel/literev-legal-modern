@@ -325,10 +325,12 @@ def serialize_cluster_summaries(project: Project) -> list[ClusterSummaryItem]:
     unclassified_cluster: ClusterSummaryItem | None = None
 
     for cluster in grouped_clusters:
-        topic = cast(str, cluster["topic"])
-        cluster_id = cast(int, cluster["id"])
-        cluster_order = cast(int, cluster["order"])
-        summary_text = cast(str, cluster["summary"])
+        topic = cluster["topic"]
+        cluster_id = cluster["id"]
+        cluster_order = cluster["order"]
+        summary_text = cluster["summary"]
+        # total_documents is a Count() annotation, so its type is unknown to
+        # the type checker and the cast is not redundant here.
         total_documents = cast(int, cluster["total_documents"])
 
         if topic == UNCLASSIFIED_PAPERS_TOPIC:

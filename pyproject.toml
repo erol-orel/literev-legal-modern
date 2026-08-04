@@ -102,7 +102,7 @@ dev = [
   "mypy >=1.11.2",
   "notebook >=6.5.4",
   "pdbpp >=0.10.3",
-  "ruff >=0.1.5",
+  "ruff ==0.16.1",
   "vulture >=2.7",
   "django-coverage-plugin >=3.1",
   "djangorestframework-stubs ==3.14.2",

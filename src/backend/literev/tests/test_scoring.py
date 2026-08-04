@@ -1,9 +1,10 @@
 import asyncio
+import os
 
 from functools import wraps
 from pathlib import Path
 from unittest import TestCase as UnitTestCase
-from unittest import skip
+from unittest import skip, skipUnless
 
 import joblib
 import openai
@@ -325,6 +326,10 @@ class ScoringFaithfulnessRAGAnwersTest(TransactionTestCase):
             answer=rag_answers[5],
         )
 
+    @skipUnless(
+        os.getenv("OPENAI_API_KEY"),
+        "Live OpenAI integration test; set OPENAI_API_KEY to run.",
+    )
     @skip_on(openai.RateLimitError, reason="API returns quota exceeded")
     def test_assign_faithfulness_scores(self):
         expected_score_0 = 1.00

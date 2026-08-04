@@ -39,7 +39,18 @@ EMBED_BATCH = 128  # number of texts per embedding request
 UPSERT_BATCH = 200  # number of docs per upsert to Chroma
 
 
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
+# Built lazily: the openai SDK raises when constructed without an API key, so
+# eager construction made importing this module require OPENAI_API_KEY.
+_openai_client: OpenAI | None = None
+
+
+def _get_openai_client() -> OpenAI:
+    global _openai_client
+    if _openai_client is None:
+        _openai_client = OpenAI(api_key=OPENAI_API_KEY)
+    return _openai_client
+
+
 chroma = PersistentClient(
     path=CHROMA_DIR,
 )
@@ -115,7 +126,7 @@ def embed_batch_request(texts_batch: list[str]):
     Run inside worker threads (create client per thread).
     """
     try:
-        resp = openai_client.embeddings.create(
+        resp = _get_openai_client().embeddings.create(
             model=EMBEDDING_MODEL, input=texts_batch
         )
         return [d.embedding for d in resp.data]
