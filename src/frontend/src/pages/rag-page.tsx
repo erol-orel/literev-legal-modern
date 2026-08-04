@@ -8,6 +8,8 @@ import {
   ExternalLink,
   Loader2,
   MessagesSquare,
+  Pencil,
+  RotateCcw,
   Send,
   Trash2,
 } from "lucide-react";
@@ -64,6 +66,7 @@ export function RagPage() {
   const queryClient = useQueryClient();
 
   const [query, setQuery] = useState("");
+  const [composerOpen, setComposerOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<RagHistoryEntry | null>(null);
 
   const context = useQuery({
@@ -107,7 +110,10 @@ export function RagPage() {
         query: query.trim().toLowerCase(),
         documents_ids: documentsIds,
       }),
-    onSuccess: (rag) => navigate(`/rag/${projectId}/${rag.id}/`),
+    onSuccess: (rag) => {
+      setComposerOpen(false);
+      navigate(`/rag/${projectId}/${rag.id}/`);
+    },
     onError: notifyError,
   });
 
@@ -141,6 +147,42 @@ export function RagPage() {
   const current = status.data ?? data.current;
   const processing = isProcessing(current?.status);
   const failed = current?.status === "failed";
+  const completed = current?.status === "completed";
+  const viewingResult = Boolean(ragId && current);
+
+  const canAsk =
+    !ask.isPending && Boolean(query.trim()) && data.number_documents > 0;
+  const submit = () => canAsk && ask.mutate(data.documents_ids);
+
+  const composer = (
+    <div className="space-y-3">
+      <Textarea
+        rows={viewingResult ? 2 : 3}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key === "Enter") submit();
+        }}
+        placeholder="e.g. Le bailleur peut-il résilier le bail de manière anticipée ?"
+        autoFocus={viewingResult}
+      />
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground">
+          {data.number_documents === 0
+            ? "No documents selected — select documents first."
+            : `Runs across ${data.number_documents} document${data.number_documents === 1 ? "" : "s"}. ⌘/Ctrl + Enter to ask.`}
+        </p>
+        <Button onClick={submit} disabled={!canAsk}>
+          {ask.isPending ? (
+            <Spinner className="size-4" />
+          ) : (
+            <Send className="size-4" />
+          )}
+          Ask
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -158,55 +200,87 @@ export function RagPage() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
         <div className="space-y-6">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Your question</CardTitle>
-              <CardDescription>
-                Ask an open or closed-ended question. Answers cite the source
-                decisions.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Textarea
-                rows={3}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="e.g. Le bailleur peut-il résilier le bail de manière anticipée ?"
-              />
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {data.number_documents === 0
-                    ? "No documents selected — select documents first."
-                    : `Runs across ${data.number_documents} documents.`}
-                </p>
-                <Button
-                  onClick={() => ask.mutate(data.documents_ids)}
-                  disabled={
-                    ask.isPending ||
-                    !query.trim() ||
-                    data.number_documents === 0
-                  }
-                >
-                  {ask.isPending ? (
-                    <Spinner className="size-4" />
-                  ) : (
-                    <Send className="size-4" />
-                  )}
-                  Ask
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          {/*
+            Results-first layout: once a question exists we collapse the
+            composer into a compact bar showing the current question, so the
+            summary and per-document answers are the focal point. The full
+            composer only leads on the fresh (no-question) view.
+          */}
+          {viewingResult ? (
+            <Card>
+              <CardContent className="py-4">
+                {composerOpen ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-foreground">
+                        Ask a new question
+                      </p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7"
+                        onClick={() => setComposerOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                    {composer}
+                  </div>
+                ) : (
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Question
+                      </p>
+                      <p className="mt-0.5 text-sm font-medium text-foreground">
+                        {current?.query || "—"}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => {
+                        setQuery("");
+                        setComposerOpen(true);
+                      }}
+                    >
+                      <Pencil className="size-3.5" /> New question
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Your question</CardTitle>
+                <CardDescription>
+                  Ask an open or closed-ended question. Answers cite the source
+                  decisions.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>{composer}</CardContent>
+            </Card>
+          )}
 
-          {ragId && current && (
-            <StatusBanner
-              statusDisplay={current.status_display}
-              processing={processing}
-              failed={failed}
+          {viewingResult && processing && (
+            <AnalyzingState
+              statusDisplay={current!.status_display}
+              numDocuments={data.number_documents}
             />
           )}
 
-          {ragId && current?.status === "completed" && (
+          {viewingResult && failed && (
+            <FailedState
+              onRetry={() => {
+                setQuery(current!.query);
+                setComposerOpen(true);
+              }}
+            />
+          )}
+
+          {viewingResult && completed && (
             <>
               <SummaryCard context={data} />
               <AnswersSection
@@ -221,7 +295,7 @@ export function RagPage() {
             <EmptyState
               icon={MessagesSquare}
               title="Ask your first question"
-              description="Results and previous questions will appear here."
+              description="The general summary and per-document answers will appear here as soon as your question is analyzed."
             />
           )}
         </div>
@@ -250,38 +324,56 @@ export function RagPage() {
   );
 }
 
-function StatusBanner({
+function AnalyzingState({
   statusDisplay,
-  processing,
-  failed,
+  numDocuments,
 }: {
   statusDisplay: string;
-  processing: boolean;
-  failed: boolean;
+  numDocuments: number;
 }) {
   return (
-    <Card>
-      <CardContent className="flex items-center gap-3 py-4">
-        {processing ? (
-          <Loader2 className="size-5 animate-spin text-primary" />
-        ) : failed ? (
-          <span className="size-2.5 rounded-full bg-destructive" />
-        ) : (
-          <span className="size-2.5 rounded-full bg-success" />
-        )}
-        <div>
-          <p className="text-sm font-medium text-foreground">{statusDisplay}</p>
-          {processing && (
+    <div className="space-y-3">
+      <Card className="border-primary/30 bg-primary/5">
+        <CardContent className="flex items-center gap-3 py-4">
+          <Loader2 className="size-5 shrink-0 animate-spin text-primary" />
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              Analyzing {numDocuments} document{numDocuments === 1 ? "" : "s"}…
+            </p>
             <p className="text-xs text-muted-foreground">
-              Generating answers — this can take a little while.
+              {statusDisplay} — the general summary and per-document answers
+              will appear here automatically.
             </p>
-          )}
-          {failed && (
+          </div>
+        </CardContent>
+      </Card>
+      {/* Placeholders that foreshadow the summary + answers to come. */}
+      <Skeleton className="h-40 w-full" />
+      {[0, 1, 2].map((i) => (
+        <Skeleton key={i} className="h-32 w-full" />
+      ))}
+    </div>
+  );
+}
+
+function FailedState({ onRetry }: { onRetry: () => void }) {
+  return (
+    <Card className="border-destructive/40">
+      <CardContent className="flex items-center justify-between gap-3 py-4">
+        <div className="flex items-center gap-3">
+          <span className="size-2.5 shrink-0 rounded-full bg-destructive" />
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              This run failed
+            </p>
             <p className="text-xs text-destructive">
-              This run failed. Try asking again.
+              No answers were generated. Try asking again.
             </p>
-          )}
+          </div>
         </div>
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          <RotateCcw className="size-3.5" /> Retry
+        </Button>
       </CardContent>
     </Card>
   );
