@@ -1,19 +1,77 @@
-# Frontend
+# LiteRev Legal — Frontend
 
-This folder is the new React frontend root.
+A modern, lawyer-facing single-page application for LiteRev Legal, built to be a
+**drop-in replacement** for the previous Create React App frontend: Django still
+serves it through the same `generic.html` shell, and the **backend and
+authentication are unchanged**.
 
-For now it is only a minimal scaffold so the repository is split into `src/frontend` and `src/backend` like the main LiteRev repository. The current user-facing pages are still served by Django templates from `src/backend` until the SPA migration is completed.
+## Stack
+
+| Concern         | Choice                                             |
+| --------------- | -------------------------------------------------- |
+| Build tool      | Vite 5                                             |
+| Language        | TypeScript (strict)                                |
+| UI runtime      | React 18 + React Router 6                          |
+| Styling         | Tailwind CSS 3 + CSS-variable design tokens        |
+| Components      | shadcn/ui-style primitives on Radix UI             |
+| Data fetching   | TanStack Query 5                                    |
+| Tables          | TanStack Table 8                                    |
+| Icons           | lucide-react                                        |
+| Tests           | Vitest + Testing Library                            |
+
+## How it integrates with Django
+
+The build is configured to reproduce the exact layout the Django template tag
+(`literev.templatetags.frontend.frontend_static`) expects — **no backend change
+is required**:
+
+- Output goes to `src/frontend/build/`.
+- Assets are emitted under `build/static/js/` and `build/static/css/` with
+  hashed filenames.
+- A Create-React-App-compatible `build/asset-manifest.json` is written by a
+  small Vite plugin (see `vite.config.ts`), mapping `main.js` / `main.css` to
+  `/static/...` paths.
+- `collectstatic` flattens `build/static/*` into Django's static root exactly as
+  before.
+
+The server → client handoff is unchanged: Django injects the bootstrap context
+into `#context-data` and the CSRF token into `<meta name="csrf-token">`. These
+are read by `src/lib/context.ts` and `src/lib/csrf.ts`.
 
 ## Commands
 
 ```bash
-makim reactjs.install
-makim tests.reactjs
-makim reactjs.build
-makim django.collectstatic
+npm install        # install dependencies
+npm run dev        # Vite dev server (proxies /api and /accounts to :8000)
+npm run build      # typecheck + production build into build/
+npm run lint       # ESLint
+npm test           # Vitest
+npm run test:coverage
 ```
 
-`makim tests.reactjs` now pre-runs `reactjs.install` plus `reactjs.build`, then runs the frontend unit suite with coverage output. Coverage artifacts are written under `src/frontend/coverage/`, and GitHub Actions formats the frontend coverage section with `scripts/render_frontend_coverage_summary.py`. `makim django.collectstatic` follows the same approach before collecting Django static assets.
+`makim reactjs.install`, `makim reactjs.build`, and `makim django.collectstatic`
+continue to work unchanged — they call `npm install` / `npm run build` here.
 
+## Structure
 
-Frontend test files live under `src/frontend/tests/`. A small bootstrap file remains under `src/frontend/src/tests.entry.test.js` so `react-scripts test` can discover and run them.
+```
+src/
+  app/            App root, router, and global providers
+  api/            Typed API modules (one per backend domain)
+  components/
+    ui/           Design-system primitives (button, card, dialog, ...)
+    layout/       App shell: sidebar, topbar, theme toggle, user menu
+    auth/         Client-side auth guard mirroring Django login
+    common/       Shared building blocks (page header, ...)
+  hooks/          Theme, toast, and app-context hooks
+  lib/            api-client, context, csrf, query client, utils
+  pages/          Route pages
+  test/           Vitest setup and tests
+```
+
+## Development against a running backend
+
+Run Django on `:8000`, then `npm run dev`. The Vite dev server proxies `/api`,
+`/accounts`, and `/status` to the backend. When no Django-injected context is
+present, `getAppContext()` falls back to sensible defaults so the app still
+renders.
