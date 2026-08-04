@@ -188,7 +188,7 @@ class Command(BaseCommand):
                     self.stdout.write(
                         json.dumps(document, ensure_ascii=False, indent=2)
                     )
-            else:
+            elif client is not None:
                 client.index(
                     index=index,
                     id=document["record_key"],
