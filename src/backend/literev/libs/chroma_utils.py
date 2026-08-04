@@ -15,7 +15,33 @@ N_TOP_CHUNKS = 8
 CACHE_DIR = settings.LITEREV_CACHE_DIR
 CHROMA_DIR = CACHE_DIR / "chroma_db"
 
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
+
+class _LazyOpenAIClient:
+    """Construct the OpenAI client on first use rather than at import.
+
+    The openai SDK raises when instantiated without an API key, so building
+    the client at module load broke imports — and therefore test collection —
+    in environments without ``OPENAI_API_KEY`` (e.g. CI). Deferring the
+    construction keeps imports side-effect free while behaving identically
+    once an attribute (``chat``, ``embeddings``, …) is actually used. The
+    module-level ``openai_client`` name is preserved so existing
+    ``from ... import openai_client`` call sites keep working unchanged.
+    """
+
+    __slots__ = ("_client",)
+
+    def __init__(self) -> None:
+        self._client: OpenAI | None = None
+
+    def __getattr__(self, name: str) -> Any:
+        if self._client is None:
+            self._client = OpenAI(api_key=OPENAI_API_KEY)
+        return getattr(self._client, name)
+
+
+# Typed as OpenAI so existing call sites keep their exact typing; at runtime it
+# is the lazy proxy above, which builds the real client on first attribute use.
+openai_client: OpenAI = cast(OpenAI, _LazyOpenAIClient())
 chroma_client = PersistentClient(path=str(CHROMA_DIR))
 
 
