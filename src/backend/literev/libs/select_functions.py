@@ -54,7 +54,7 @@ def create_final_file(project: Project) -> str:
     )
 
     # create the csv file from a dictionary
-    metadata: dict[str, list[int | str | None | datetime.date]] = {}
+    metadata: dict[str, list[int | str | datetime.date | None]] = {}
 
     if exist_clusters:
         metadata["number_cluster"] = []
