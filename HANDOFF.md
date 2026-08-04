@@ -7,15 +7,17 @@ here plus the commit messages on the `claude/modern-frontend` branch.
 ## Goal
 
 Rebuild the LiteRev legal frontend as a modern SPA **without touching the Django
-backend**. The new app is a drop-in replacement for the previous Create-React-App
-frontend: same URLs, same DRF endpoints, same Django static-serving contract.
+backend**. The new app is a drop-in replacement for the previous
+Create-React-App frontend: same URLs, same DRF endpoints, same Django
+static-serving contract.
 
 ## Stack
 
 - **Vite 5 + React 18 + TypeScript** (strict)
 - **Tailwind CSS** design system with light/dark themes
 - **TanStack Query** for server state; **TanStack Table** for grids
-- **Radix UI** primitives + **lucide-react** icons + **class-variance-authority**
+- **Radix UI** primitives + **lucide-react** icons +
+  **class-variance-authority**
 - **Vitest** for tests, **ESLint** (`--max-warnings 0`) for lint
 
 ## Repo layout
@@ -33,22 +35,24 @@ CRA-compatible `asset-manifest.json`, so the existing Django template tag
 - `npm run build` writes to `src/frontend/build/`
 - Assets go under `build/static/`; `collectstatic` flattens them to `/static/`
 - The manifest exposes `files["main.js"]` / `files["main.css"]` as `/static/...`
-- Client routes mirror Django's slash-terminated URLs (`/search/`, `/rag/:id`, …)
+- Client routes mirror Django's slash-terminated URLs (`/search/`, `/rag/:id`,
+  …)
 
 Result: **zero backend changes**. The Django views/templates render the shell;
 this SPA hydrates it.
 
 ## Commands (run in `src/frontend/`)
 
-| Task | Command |
-|---|---|
-| Dev server | `npm run dev` |
-| Production build | `npm run build` |
-| Type-check only | `npm run typecheck` |
-| Lint (0 warnings) | `npm run lint` |
-| Tests | `npm test` |
+| Task              | Command             |
+| ----------------- | ------------------- |
+| Dev server        | `npm run dev`       |
+| Production build  | `npm run build`     |
+| Type-check only   | `npm run typecheck` |
+| Lint (0 warnings) | `npm run lint`      |
+| Tests             | `npm test`          |
 
-Last verified state on `claude/modern-frontend`: **build ✓ · lint ✓ (0 warnings) · tests ✓**.
+Last verified state on `claude/modern-frontend`: **build ✓ · lint ✓ (0 warnings)
+· tests ✓**.
 
 ## What's done
 
@@ -61,11 +65,11 @@ Last verified state on `claude/modern-frontend`: **build ✓ · lint ✓ (0 warn
   - **Running** (`/running`) — live-polling project cards, restart, delete
   - **History** (`/historicalpage`) — search, sort, open, delete, delete-all
   - **Project overview** (`/project/:id`) — stats, cluster summary cards with
-    on-demand LLM summaries, the themed Bokeh cluster map (preserved as-is),
-    an interactive refinement/filter builder (union/exclude with live preview),
+    on-demand LLM summaries, the themed Bokeh cluster map (preserved as-is), an
+    interactive refinement/filter builder (union/exclude with live preview),
     refinement list, ask-top-documents hand-off
-  - **RAG workspace** (`/rag/:projectId[/:ragId]`) — open/closed questions,
-    live status polling, cited per-document answers with Faits/Subsomption/
+  - **RAG workspace** (`/rag/:projectId[/:ragId]`) — open/closed questions, live
+    status polling, cited per-document answers with Faits/Subsomption/
     Conclusion parsing + confidence scores, cross-document summary with
     closed-question stats, previous-questions history
 - A single reusable `ConfirmDialog` replaces the three duplicated delete modals
@@ -109,13 +113,14 @@ reconstructed and the ignore rule anchored to the repo root (`/lib/`).
 
 - Path alias `@/` → `src/frontend/src/`
 - Match the surrounding code's comment density and naming; comments explain
-  *why*, not *what*
+  _why_, not _what_
 - Keep `npm run lint` at zero warnings and `npm test` green before every commit
 - Preserve the Django asset-manifest contract above in any build-config change
 
 ## Continuing in a new session
 
 This chat does not transfer, but nothing important is lost:
+
 - The full code history is on branch `claude/modern-frontend`
 - Commit messages document each milestone's rationale
 - This file is the map — start at "What's left"

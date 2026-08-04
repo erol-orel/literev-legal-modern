@@ -141,7 +141,10 @@ groups:
             - task: reactjs.install
             - task: reactjs.build
         dir: src/frontend
-        run: CI=true npm test -- --watchAll=false --coverage --coverageReporters=text-summary --coverageReporters=json-summary --coverageReporters=lcov
+        # Vitest (not CRA/Jest): `test:coverage` runs `vitest run --coverage`.
+        # Coverage reporters (text-summary, json-summary, lcov) are configured in
+        # vite.config.ts, which feeds scripts/render_frontend_coverage_summary.py.
+        run: CI=true npm run test:coverage
 
   reactjs:
     tasks:
