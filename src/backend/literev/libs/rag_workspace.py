@@ -46,13 +46,6 @@ class RagContext(TypedDict, total=False):
     urls: dict[str, str]
 
 
-SECTION_INDICES = {
-    "chambre_penale",
-    "chambre_civile",
-    "chambre_administrative",
-}
-
-
 def _parse_summary_answer(summary_answer: Any) -> dict[str, Any]:
     if isinstance(summary_answer, str):
         try:
@@ -135,12 +128,8 @@ def _enrich_law_articles(rows: Any, lang: str = "fr") -> list[dict[str, Any]]:
 
 
 def _build_current_rag(
-    project: Project,
     project_rag: ProjectRAG,
 ) -> dict[str, Any]:
-    has_section_ans = bool(
-        SECTION_INDICES.intersection(project.selected_indices)
-    )
     summary_data = _parse_summary_answer(project_rag.summary_answer)
 
     considerations: list[dict[str, Any]] = []
@@ -176,11 +165,19 @@ def _build_current_rag(
             )
 
     has_confidence_score = False
+    # The section-based pipeline (CustomRagAnswersGenerator) stores per-section
+    # blocks as a dict in ``citation_context``; the generic pipeline stores a
+    # list. Deriving ``has_section_ans`` from what was actually produced keeps
+    # the section UI consistent with the pipeline that ran — including federal
+    # sources that fall back to the generic manager when section embeddings are
+    # absent.
+    has_section_ans = False
     first_document_rag = ProjectDocumentRAG.objects.filter(
         project_rag=project_rag
     ).first()
     if first_document_rag:
         has_confidence_score = first_document_rag.confidence_score is not None
+        has_section_ans = isinstance(first_document_rag.citation_context, dict)
 
     return {
         "id": project_rag.id,
@@ -259,7 +256,7 @@ def build_rag_context(
             project=project, id=rag_id
         ).first()
         if project_rag:
-            current_rag = _build_current_rag(project, project_rag)
+            current_rag = _build_current_rag(project_rag)
 
     context: RagContext = {
         "project": {

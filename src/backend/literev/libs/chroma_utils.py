@@ -65,6 +65,22 @@ def get_chamber_collection(client: Any, chamber_name: str) -> Any:
         return client.get_collection(name=fallback)
 
 
+def has_section_collection(source: str) -> bool:
+    """Whether a non-empty section-embedded Chroma collection exists.
+
+    The section-based ``CustomRagAnswersGenerator`` needs a per-source Chroma
+    collection whose chunks carry ``section`` metadata. Geneva chambers always
+    ship one; federal sources only once their section embeddings are built. When
+    the collection is missing or empty, callers fall back to the generic
+    ``RagAnswersManager`` so a federal project still yields answers.
+    """
+    try:
+        collection = get_chamber_collection(chroma_client, source)
+        return collection.count() > 0
+    except Exception:
+        return False
+
+
 DOCUMENT_SECTIONS = [
     "Majeure",
     "Mineure-Faits",

@@ -22,6 +22,21 @@ SEARCH_SOURCE_OPTIONS: tuple[tuple[str, str], ...] = (
 )
 SEARCH_SOURCE_VALUES = {value for value, _label in SEARCH_SOURCE_OPTIONS}
 
+# Sources eligible for the section-based ``CustomRagAnswersGenerator``, whose
+# per-source Chroma collection carries ``section`` metadata (Majeure /
+# Mineure-Faits / Mineure-Subsommation / Conclusion). The Geneva chambers
+# always ship section embeddings; the federal sources join transparently once
+# their section embeddings are built and otherwise fall back to the generic RAG
+# manager (see ``literev.libs.chroma_utils.has_section_collection``).
+SECTION_SOURCES = {
+    "chambre_administrative",
+    "chambre_penale",
+    "chambre_civile",
+    "bundesgericht",
+    "bundesverwaltungsgericht",
+    "bundesstrafgericht",
+}
+
 
 class SearchPayload(TypedDict):
     project_name: str

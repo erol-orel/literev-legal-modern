@@ -90,13 +90,21 @@ abbreviations are handled (`ZGB`→CC, `OR`→CO, `StGB`→CP, `BV`→Cst, …).
    in the search UI and pass validation.
 2. **`src/backend/config/settings/base.py`** — add the same key(s) to
    `LITEREV_CHAMBER_NAMES` if code paths that read it need them.
-3. **RAG dispatch** — `literev.tasks` (`get_nl_rag_ans`, `task_rag_result_table`)
-   selects `CustomRagAnswersGenerator` only for the three Geneva chambers; a new
-   source falls through to the generic `RagAnswersManager`. Add the key there if
-   you want the section-based (facts / subsumption / conclusion) chamber
-   pipeline for federal decisions.
+3. **RAG dispatch** — **done for the federal sources.** `literev.tasks`
+   (`get_nl_rag_ans`, `task_rag_result_table`) now dispatches via
+   `_section_source_for(selected_indices)`, which picks the section-based
+   `CustomRagAnswersGenerator` for any source in
+   `search.SECTION_SOURCES` (the three Geneva chambers **plus**
+   `bundesgericht` / `bundesverwaltungsgericht` / `bundesstrafgericht`) — but
+   only when that source's section-embedded Chroma collection actually exists
+   (`chroma_utils.has_section_collection`). Until federal section embeddings are
+   built, federal projects fall back automatically to the generic
+   `RagAnswersManager`, so they always yield answers. To make a further source
+   eligible, add its key to `search.SECTION_SOURCES`.
 4. **ChromaDB** — add a collection mapping in
-   `chroma_utils.CHAMBER_COLLECTION_FALLBACKS` if using per-source vector RAG.
+   `chroma_utils.CHAMBER_COLLECTION_FALLBACKS` only if a source's collection is
+   stored under a legacy/alias name; a collection named after the source key is
+   found directly.
 
 ---
 
@@ -113,10 +121,10 @@ preprocessing runtime and (optionally) persistence:
   `de_core_news_sm` and `it_core_news_sm` — in the runtime; without them the
   pipeline still ingests DE/IT text but skips lemmatization (lower cluster
   quality, no data loss).
-- **Prompts** — RAG/summary/boolean-query prompts are still hard-coded to answer
-  in French (`rag_pdf.py`, `chroma_utils.py`, `nlp.py`). Threading the
-  document/answer language through to answer in the decision's language is the
-  remaining optional enhancement.
+- **Prompts** — **done for per-document RAG.** `rag_pdf.py` detects the
+  decision's language and answers/summarises in DE/FR/IT accordingly. The
+  section-based summary prompts in `chroma_utils.py` and the boolean-query
+  helper in `nlp.py` remain French-oriented (optional follow-up).
 - **`Document.language`** *(optional)* — the preprocessing pipeline detects
   language per document at clean-time, so a persisted column is only needed if
   you want to filter/display by language in the UI. Add the field + migration
@@ -141,6 +149,11 @@ preprocessing runtime and (optionally) persistence:
   Federal Court decisions (DE/FR/IT) into an ES index (see §2–§4).
 - **Language-aware preprocessing** — DE/FR/IT are detected and preprocessed;
   non-supported languages are discarded, DE/IT are kept (§5).
+- **Section-based RAG for federal sources** — the federal sources are wired into
+  the chamber (facts / subsumption / conclusion) pipeline and use it as soon as
+  their section embeddings exist, falling back to the generic manager until then
+  (§4). No code change is needed to switch a federal source over — only the
+  section embeddings.
 
 ---
 
@@ -153,8 +166,11 @@ preprocessing runtime and (optionally) persistence:
    `it_core_news_sm`) for best clustering quality on German/Italian (§5).
    Without them, ingestion still works (lemmatization is skipped).
 3. Run RAG/embedding ingestion (`manage.py run_chromadb_embeddings`) with
-   `OPENAI_API_KEY` set, per source collection.
-4. (Optional) Add a `Document.language` column if you want to filter/display by
-   language in the UI (§5).
-5. (Optional) Parameterise the RAG prompts by language for native-language
-   answers (§5).
+   `OPENAI_API_KEY` set, per source collection. Once a federal source's
+   collection carries per-section (`Majeure` / `Mineure-Faits` /
+   `Mineure-Subsommation` / `Conclusion`) chunks, it automatically uses the
+   section-based chamber RAG pipeline (§4); until then it uses the generic one.
+4. `Document.language` is persisted and surfaced in the UI (done).
+5. Per-document RAG answers are already returned in the decision's language
+   (done); the section-summary/boolean-query prompts remain an optional
+   follow-up (§5).
