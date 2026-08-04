@@ -137,6 +137,13 @@ export function ProjectPage() {
           label="Clusters"
           value={data.no_clusters ? "—" : formatNumber(data.cluster_summaries.length)}
           icon={Layers}
+          hint={
+            !data.no_clusters &&
+            Number.isFinite(project.best_dbcv) &&
+            project.best_dbcv !== 0
+              ? `Best DBCV ${project.best_dbcv.toFixed(3)}`
+              : undefined
+          }
         />
         <Stat
           label="Date range"
@@ -315,10 +322,14 @@ function ClusterCard({
                 className="flex items-center gap-2 rounded-md border bg-muted/40 p-2 text-xs text-muted-foreground transition-colors hover:bg-accent"
               >
                 <FileText className="size-3.5 shrink-0" />
+                {rep.procedure_type && (
+                  <Badge variant="outline" className="shrink-0 font-normal">
+                    {rep.procedure_type}
+                  </Badge>
+                )}
                 <span className="truncate">
-                  {[rep.procedure_type, rep.decision_type, rep.result]
-                    .filter(Boolean)
-                    .join(" · ") || "Representative document"}
+                  {[rep.decision_type, rep.result].filter(Boolean).join(" · ") ||
+                    (rep.procedure_type ? "" : "Representative document")}
                 </span>
               </Link>
             </TooltipTrigger>

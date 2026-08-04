@@ -157,6 +157,10 @@ export function HistoryPage() {
                   <p className="text-xs text-muted-foreground">
                     {formatNumber(project.total_documents)} documents ·{" "}
                     {formatDate(project.creation_date)}
+                    {Number.isFinite(project.best_dbcv) &&
+                      project.best_dbcv !== 0 && (
+                        <> · Best DBCV {project.best_dbcv.toFixed(3)}</>
+                      )}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
