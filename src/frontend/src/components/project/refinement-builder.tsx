@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { Plus, Wand2, X } from "lucide-react";
+import { Layers, Plus, Wand2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -22,28 +22,14 @@ import {
   createProjectRefinement,
   previewProjectFilters,
   type FilterTypeDefinition,
-  type ProjectFilters,
 } from "@/api/project-overview";
 import { ApiError } from "@/lib/api-client";
 import { formatNumber } from "@/lib/utils";
-
-type Mode = "filter-union" | "filter-exclude";
-
-interface AppliedFilter {
-  mode: Mode;
-  field: string;
-  fieldLabel: string;
-  value: string;
-}
-
-function buildFiltersPayload(filters: AppliedFilter[]): ProjectFilters {
-  const payload: ProjectFilters = {};
-  for (const filter of filters) {
-    const bucket = (payload[filter.mode] ??= {});
-    (bucket[filter.field] ??= []).push(filter.value);
-  }
-  return payload;
-}
+import {
+  buildFiltersPayload,
+  type AppliedFilter,
+  type Mode,
+} from "@/components/project/refinement-filters";
 
 export function RefinementBuilder({
   projectId,
@@ -65,6 +51,7 @@ export function RefinementBuilder({
   const [field, setField] = useState(filterTypes[0]?.value ?? "");
   const [mode, setMode] = useState<Mode>("filter-union");
   const [value, setValue] = useState("");
+  const [currentGroup, setCurrentGroup] = useState(0);
   const [previewCount, setPreviewCount] = useState<number | null>(null);
 
   const atLimit = count >= limit;
@@ -74,20 +61,57 @@ export function RefinementBuilder({
     [filterTypes, field],
   );
 
+  /** Union filters grouped for display, renumbered contiguously. */
+  const unionGroups = useMemo(() => {
+    const ids = [
+      ...new Set(
+        applied.filter((f) => f.mode === "filter-union").map((f) => f.group),
+      ),
+    ].sort((a, b) => a - b);
+    return ids.map((id) => ({
+      id,
+      filters: applied.filter(
+        (f) => f.mode === "filter-union" && f.group === id,
+      ),
+    }));
+  }, [applied]);
+
+  const excludeFilters = useMemo(
+    () => applied.filter((f) => f.mode === "filter-exclude"),
+    [applied],
+  );
+
+  const currentGroupHasFilters = applied.some(
+    (f) => f.mode === "filter-union" && f.group === currentGroup,
+  );
+
   const resetPreview = () => setPreviewCount(null);
 
   const addFilter = () => {
     if (!activeType || !value.trim()) return;
     setApplied((prev) => [
       ...prev,
-      { mode, field, fieldLabel: activeType.label, value: value.trim() },
+      {
+        mode,
+        field,
+        fieldLabel: activeType.label,
+        value: value.trim(),
+        group: currentGroup,
+      },
     ]);
     setValue("");
     resetPreview();
   };
 
-  const removeFilter = (index: number) => {
-    setApplied((prev) => prev.filter((_, i) => i !== index));
+  const startNewGroup = () => {
+    if (!currentGroupHasFilters) return;
+    setCurrentGroup((g) => g + 1);
+    setMode("filter-union");
+    resetPreview();
+  };
+
+  const removeFilter = (target: AppliedFilter) => {
+    setApplied((prev) => prev.filter((f) => f !== target));
     resetPreview();
   };
 
@@ -210,30 +234,89 @@ export function RefinementBuilder({
             onClick={addFilter}
             disabled={!value.trim()}
           >
-            <Plus className="size-4" /> Add filter
+            <Plus className="size-4" />{" "}
+            {mode === "filter-exclude" ? "Exclude" : "Add to group"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full"
+            onClick={startNewGroup}
+            disabled={!currentGroupHasFilters}
+            title="Start a new OR group: documents matching this group OR the previous ones"
+          >
+            <Layers className="size-4" /> New OR group
           </Button>
         </div>
 
-        {applied.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {applied.map((filter, index) => (
-              <Badge
-                key={`${filter.field}-${filter.value}-${index}`}
-                variant={filter.mode === "filter-exclude" ? "destructive" : "default"}
-                className="gap-1"
-              >
-                {filter.mode === "filter-exclude" ? "−" : "+"} {filter.fieldLabel}:{" "}
-                {filter.value}
-                <button
-                  type="button"
-                  onClick={() => removeFilter(index)}
-                  aria-label={`Remove ${filter.fieldLabel} ${filter.value}`}
-                  className="ml-0.5 rounded-full hover:text-foreground"
+        {(unionGroups.length > 0 || excludeFilters.length > 0) && (
+          <div className="space-y-3">
+            {unionGroups.map((group, index) => (
+              <div key={group.id}>
+                {index > 0 && (
+                  <div className="flex items-center gap-2 py-1 text-xs font-semibold uppercase text-muted-foreground">
+                    <span className="h-px flex-1 bg-border" /> or{" "}
+                    <span className="h-px flex-1 bg-border" />
+                  </div>
+                )}
+                <div
+                  className={`flex flex-wrap items-center gap-1.5 rounded-lg border p-2 ${
+                    group.id === currentGroup
+                      ? "border-primary/50 bg-primary/5"
+                      : "bg-muted/20"
+                  }`}
                 >
-                  <X className="size-3" />
-                </button>
-              </Badge>
+                  {group.filters.map((filter, fIndex) => (
+                    <span
+                      key={`${filter.field}-${filter.value}-${fIndex}`}
+                      className="flex items-center gap-1.5"
+                    >
+                      {fIndex > 0 && (
+                        <span className="text-[10px] font-semibold uppercase text-muted-foreground">
+                          and
+                        </span>
+                      )}
+                      <Badge variant="default" className="gap-1">
+                        {filter.fieldLabel}: {filter.value}
+                        <button
+                          type="button"
+                          onClick={() => removeFilter(filter)}
+                          aria-label={`Remove ${filter.fieldLabel} ${filter.value}`}
+                          className="ml-0.5 rounded-full hover:text-foreground"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </Badge>
+                    </span>
+                  ))}
+                </div>
+              </div>
             ))}
+
+            {excludeFilters.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-semibold uppercase text-muted-foreground">
+                  and not
+                </span>
+                {excludeFilters.map((filter, index) => (
+                  <Badge
+                    key={`${filter.field}-${filter.value}-${index}`}
+                    variant="destructive"
+                    className="gap-1"
+                  >
+                    {filter.fieldLabel}: {filter.value}
+                    <button
+                      type="button"
+                      onClick={() => removeFilter(filter)}
+                      aria-label={`Remove ${filter.fieldLabel} ${filter.value}`}
+                      className="ml-0.5 rounded-full hover:text-foreground"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -266,7 +349,7 @@ export function RefinementBuilder({
           <Button
             className="flex-1"
             onClick={() => create.mutate()}
-            disabled={create.isPending || atLimit || !name.trim()}
+            disabled={create.isPending || atLimit || !name.trim() || applied.length === 0}
           >
             {create.isPending && <Spinner className="size-4" />}
             Create
