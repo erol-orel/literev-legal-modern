@@ -117,7 +117,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install gettext-base
 
-      - uses: mamba-org/setup-micromamba@v2
+      - uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: conda/base.yaml
           condarc-file: .github/workflows/.condarc
@@ -198,7 +198,7 @@ jobs:
           sudo apt-get install gettext-base
 
       - if: ${{ github.event_name == 'push' || steps.filter.outputs.should_run == 'true' }}
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: conda/base.yaml
           condarc-file: .github/workflows/.condarc
@@ -275,7 +275,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install gettext-base
 
-      - uses: mamba-org/setup-micromamba@v2
+      - uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: conda/base.yaml
           condarc-file: .github/workflows/.condarc
@@ -366,7 +366,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install gettext-base
 
-      - uses: mamba-org/setup-micromamba@v2
+      - uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: conda/base.yaml
           condarc-file: .github/workflows/.condarc
