@@ -327,7 +327,7 @@ jobs:
 
       - name: Upload coverage summary
         if: ${{ always() && !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-lib-${{ matrix.lib }}
           path: coverage-reports/coverage-lib-${{ matrix.lib }}.md
@@ -472,7 +472,7 @@ jobs:
 
       - name: Upload coverage summary
         if: ${{ always() && !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-app
           path: coverage-reports/coverage-app.md
