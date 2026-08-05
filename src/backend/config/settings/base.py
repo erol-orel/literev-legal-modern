@@ -163,9 +163,9 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql_psycopg2",
         "NAME": os.environ.get("POSTGRES_DB_LITEREV", "literev"),
         "USER": os.environ.get("POSTGRES_USER_LITEREV", "literev"),
-        "PASSWORD": os.environ.get(
-            "POSTGRES_PASSWORD_LITEREV", "literevqsx3409po"
-        ),
+        # No secret default: the password must come from the environment
+        # (local .env or a CI/deploy secret). Never ship a credential in source.
+        "PASSWORD": os.environ.get("POSTGRES_PASSWORD_LITEREV", ""),
         "HOST": os.environ.get("POSTGRES_HOST", "literev-postgres"),
         "PORT": os.environ.get("POSTGRES_PORT", "35432"),
     }
