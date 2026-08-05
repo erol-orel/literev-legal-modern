@@ -39,13 +39,14 @@ shared algorithms in `libs/` free of Django imports.
 
 ## Services & Operations
 
-| Document                                               | Description                                                                              |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| [services/containers.md](services/containers.md)       | Docker Compose, Sugar, and container lifecycle                                           |
-| [services/celery.md](services/celery.md)               | Celery workers, async task execution, and Redis wiring                                   |
-| [services/deployment.md](services/deployment.md)       | Production deployment and operational concerns                                           |
-| [services/elasticsearch.md](services/elasticsearch.md) | Elasticsearch indexing and search infrastructure                                         |
-| [infrastructure.md](infrastructure.md)                 | Where the current deployment runs (hosts, topology) and a read-only inspection checklist |
+| Document                                               | Description                                                                                            |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| [services/containers.md](services/containers.md)       | Docker Compose, Sugar, and container lifecycle                                                         |
+| [services/celery.md](services/celery.md)               | Celery workers, async task execution, and Redis wiring                                                 |
+| [services/deployment.md](services/deployment.md)       | Production deployment and operational concerns                                                         |
+| [services/elasticsearch.md](services/elasticsearch.md) | Elasticsearch indexing and search infrastructure                                                       |
+| [infrastructure.md](infrastructure.md)                 | Where the current deployment runs (hosts, topology) and a read-only inspection checklist               |
+| [deployment-hetzner.md](deployment-hetzner.md)         | Stand up a standalone instance on a Hetzner VM: own ES seeded from prod (read-only) + Tribunal fédéral |
 
 ## Test Commands
 

@@ -672,6 +672,88 @@ groups:
 
           echo "Classifying documents done"
 
+  federal:
+    tasks:
+      import:
+        help: |
+          Import Swiss Federal Court decisions from entscheidsuche.ch into an
+          Elasticsearch index (default: French Federal Court -> bundesgericht).
+          e.g. makim federal.import --language fr --limit 200
+        env-file: .env
+        args:
+          spider:
+            help: entscheidsuche spider (e.g. CH_BGer, CH_BVGer, CH_BStGer).
+            type: string
+            default: "CH_BGer"
+            required: false
+          index:
+            help: Target ES index / source key to write into.
+            type: string
+            default: "bundesgericht"
+            required: false
+          language:
+            help: Language to import (fr/de/it or all).
+            type: string
+            default: "fr"
+            required: false
+          limit:
+            help: Stop after N mapped documents (0 = no limit).
+            type: string
+            default: "0"
+            required: false
+        run: |
+          CMD="python manage.py import_entscheidsuche --spider ${{ args.spider }} --index ${{ args.index }} --language ${{ args.language }} --limit ${{ args.limit }}"
+
+          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
+            sugar compose run --service literev --cmd "$CMD" -- --rm
+          else
+            cd ./src/backend/
+            export POSTGRES_HOST=localhost
+            $CMD
+          fi
+          echo "[II] Federal import done for index '${{ args.index }}'."
+
+      embed:
+        help: |
+          Build section-classified ChromaDB embeddings for a source using the
+          same pipeline and prompt as the Geneva chambers (prepare-input ->
+          classify -> prepare-structured -> run-embeddings). The source must
+          already be imported (see federal.import).
+          e.g. makim federal.embed --index bundesgericht
+        env-file: .env
+        args:
+          index:
+            help: ES index / source key to embed (must already be imported).
+            type: string
+            default: "bundesgericht"
+            required: false
+          max-workers:
+            help: How many threads should work in parallel.
+            type: string
+            default: "4"
+            required: false
+        run: |
+          sugar compose-ext start \
+            --services literev-postgres -- -d
+
+          IDX="${{ args.index }}"
+          MW="${{ args.max_workers }}"
+
+          run_cmd () {
+            if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
+              sugar compose run --service literev --cmd "$1" -- --rm
+            else
+              ( cd ./src/backend/ && export POSTGRES_HOST=localhost && eval "$1" )
+            fi
+          }
+
+          run_cmd "python manage.py prepare_input --index-name ${IDX} --max-workers ${MW}"
+          run_cmd "python manage.py classify_document_sentences --index-name ${IDX} --max-workers ${MW}"
+          run_cmd "python manage.py prepare_classified_documents --index-name ${IDX} --max-workers ${MW}"
+          run_cmd "python manage.py run_chromadb_embeddings --index-name ${IDX} --max-workers ${MW}"
+
+          echo "[II] Federal embeddings done for index '${IDX}'."
+
   containers:
     tasks:
       wait:
