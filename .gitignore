@@ -110,12 +110,25 @@ redis.conf
 
 # Environments
 .env
+.env.*
+!.env.tpl
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Secrets / credentials — never commit these
+*.key
+*.pem
+*.p12
+*.pfx
+*.keystore
+*credentials*.json
+service-account*.json
+secrets.*
+!secrets.example.*
 
 # Spyder project settings
 .spyderproject

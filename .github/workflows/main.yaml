@@ -31,7 +31,10 @@ env:
   POSTGRES_PASSWORD: postgres
   POSTGRES_DB_LITEREV: literev
   POSTGRES_USER_LITEREV: literev
-  POSTGRES_PASSWORD_LITEREV: literevqsx3409po
+  # Ephemeral throwaway password for the CI-only database (dropped with the
+  # container at job end). Not a real credential; real passwords come from
+  # deploy-time secrets, never from this file.
+  POSTGRES_PASSWORD_LITEREV: ci_ephemeral_pg_pw
   POSTGRES_DATA: /tmp/literev/postgres
   POSTGRES_HOST_BACKUP: /tmp/literev/backup
   CONTAINER_VOLUME_DATA_DIR: /tmp/literev

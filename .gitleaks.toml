@@ -1,0 +1,25 @@
+# gitleaks configuration — secret-leak prevention.
+# Extends the upstream default ruleset and adds an allowlist for the
+# non-secret placeholders this repo legitimately contains.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Non-secret placeholders, templates and test fixtures"
+paths = [
+  '''\.env\.tpl$''',
+  '''\.gitleaks\.toml$''',
+  '''(^|/)tests?/''',
+  '''(^|/)docs/''',
+  # Vendored / minified third-party assets (high-entropy false positives).
+  '''\.min\.js$''',
+  '''(^|/)src/backend/static/''',
+]
+regexes = [
+  # Django's own convention: keys prefixed `django-insecure-` are explicitly
+  # non-production and are only ever used for local/CI runs.
+  '''django-insecure-[^\s"']+''',
+  # Obvious throwaway/local values used in compose and CI.
+  '''ci_ephemeral_pg_pw''',
+  '''\bmockhost\b''',
+]

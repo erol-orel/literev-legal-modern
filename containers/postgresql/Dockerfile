@@ -2,4 +2,5 @@
 # Reference: https://github.com/thegraphnetwork/epigraphhub_py/blob/main/docker/postgresql/Dockerfile
 FROM postgres:14-bullseye
 
-COPY ./containers/postgresql/scripts/init-database.sql /docker-entrypoint-initdb.d/init-database.sql
+COPY ./containers/postgresql/scripts/init-database.sh /docker-entrypoint-initdb.d/init-database.sh
+RUN chmod +x /docker-entrypoint-initdb.d/init-database.sh
