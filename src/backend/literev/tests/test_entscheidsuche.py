@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from literev.libs.entscheidsuche import detect_language, map_hit
+from literev.management.commands.import_entscheidsuche import bulk_actions
 
 # Shape mirrors a live CH_BGer hit's ``_source`` (2026 schema).
 SAMPLE = {
@@ -96,3 +97,29 @@ def test_detect_language() -> None:
     assert detect_language({"language": "fr"}) == "fr"  # legacy fallback
     assert detect_language({"attachment": {"language": "rm"}}) == ""
     assert detect_language({}) == ""
+
+
+def test_bulk_actions_shapes_index_requests() -> None:
+    docs = [
+        {"record_key": "CH_BGer_1", "document_text": "un", "language": "fr"},
+        {"record_key": "CH_BGer_2", "document_text": "deux", "language": "fr"},
+    ]
+    actions = list(bulk_actions("bundesgericht", docs))
+    assert len(actions) == 2
+    assert actions[0] == {
+        "_index": "bundesgericht",
+        "_id": "CH_BGer_1",
+        "_source": docs[0],
+    }
+    # the id is the record_key, so re-imports overwrite rather than duplicate
+    assert actions[1]["_id"] == "CH_BGer_2"
+    assert actions[1]["_index"] == "bundesgericht"
+
+
+def test_bulk_actions_is_lazy() -> None:
+    # Generator: nothing is consumed from the source until iterated.
+    def _explode() -> object:
+        raise AssertionError("bulk_actions must not eagerly consume input")
+        yield  # pragma: no cover
+
+    bulk_actions("bundesgericht", _explode())  # no iteration -> no error
