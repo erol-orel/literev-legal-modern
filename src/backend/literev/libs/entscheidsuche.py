@@ -43,9 +43,10 @@ from typing import Any
 # (all have canton == "CH").
 FEDERAL_SPIDERS: dict[str, str] = {
     "CH_BGer": "Tribunal fédéral (Bundesgericht)",
-    "CH_BVGer": "Tribunal administratif fédéral",
-    "CH_BStGer": "Tribunal pénal fédéral",
-    "CH_BPatGer": "Tribunal fédéral des brevets",
+    "CH_BGE": "Tribunal fédéral — arrêts principaux (ATF)",
+    "CH_BVGE": "Tribunal administratif fédéral",
+    "CH_BSTG": "Tribunal pénal fédéral",
+    "CH_PATG": "Tribunal fédéral des brevets",
 }
 
 SUPPORTED_LANGUAGES: tuple[str, ...] = ("de", "fr", "it")

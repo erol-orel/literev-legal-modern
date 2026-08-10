@@ -84,7 +84,7 @@ def test_map_hit_skips_without_signature() -> None:
 def test_map_hit_labels_court_from_hierarchy() -> None:
     source = {
         **SAMPLE,
-        "hierarchy": ["CH", "CH_BVGer", "CH_BVGer_001"],
+        "hierarchy": ["CH", "CH_BVGE", "CH_BVGE_001"],
     }
     doc = map_hit(source, collector_name="bundesverwaltungsgericht")
     assert doc is not None
