@@ -1,10 +1,13 @@
 """Import Swiss court decisions from entscheidsuche.ch into an ES index.
 
-Scrolls the public entscheidsuche Elasticsearch backend for a given spider
+Scrolls the public entscheidsuche Elasticsearch backend for a given court
 (default the Federal Court, ``CH_BGer``), maps each hit into the app's document
 schema (see ``literev.libs.entscheidsuche.map_hit``) and indexes it into the
 target index this app searches — making federal decisions available to the
 normal search / cluster / RAG pipeline.
+
+Courts are selected by their ``hierarchy`` code and the decision language by
+``attachment.language`` (the current entscheidsuche schema).
 
 Examples
 --------
@@ -12,13 +15,18 @@ Preview 5 French Federal Court decisions without writing anything::
 
     python manage.py import_entscheidsuche --language fr --limit 5 --dry-run
 
-Import all German Federal Court decisions into the ``bundesgericht`` index::
+Import all French Federal Court decisions into the ``bundesgericht`` index::
 
     python manage.py import_entscheidsuche --spider CH_BGer \
-        --index bundesgericht --language de
+        --index bundesgericht --language fr
 
 The target index name must match a source registered in
 ``literev.libs.search.SEARCH_SOURCE_OPTIONS`` for it to appear in the UI.
+
+``--insecure`` skips TLS verification for the source connection; the public
+entscheidsuche endpoint currently serves a certificate without its intermediate,
+which ``requests`` cannot verify. The data is public, so skipping verification
+for the read-only pull is acceptable.
 """
 
 from __future__ import annotations
@@ -41,9 +49,7 @@ from literev.libs.entscheidsuche import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_SOURCE_URL = (
-    "https://entscheidsuche.pansoft.de:9200/entscheidsuche.v2-*"
-)
+DEFAULT_SOURCE_URL = "https://entscheidsuche.pansoft.de:9200"
 DEFAULT_SPIDER = "CH_BGer"
 _SCROLL_TTL = "2m"
 
@@ -58,7 +64,7 @@ class Command(BaseCommand):
             "--spider",
             default=DEFAULT_SPIDER,
             help=(
-                "entscheidsuche spider to import "
+                "entscheidsuche court code (hierarchy[1]) to import "
                 f"(default {DEFAULT_SPIDER}; federal: "
                 f"{', '.join(FEDERAL_SPIDERS)})."
             ),
@@ -94,6 +100,11 @@ class Command(BaseCommand):
             help="entscheidsuche Elasticsearch base URL.",
         )
         parser.add_argument(
+            "--insecure",
+            action="store_true",
+            help="Skip TLS verification for the source (public data).",
+        )
+        parser.add_argument(
             "--dry-run",
             action="store_true",
             help="Map and print documents without indexing them.",
@@ -104,28 +115,32 @@ class Command(BaseCommand):
     def _build_query(
         self, spider: str, language: str, from_date: str | None
     ) -> dict[str, Any]:
-        filters: list[dict[str, Any]] = [{"term": {"Spider.keyword": spider}}]
+        filters: list[dict[str, Any]] = [{"term": {"hierarchy": spider}}]
         if language != "all":
-            filters.append({"term": {"Sprache": language}})
+            filters.append({"term": {"attachment.language": language}})
         if from_date:
-            filters.append({"range": {"Datum": {"gte": from_date}}})
+            filters.append({"range": {"date": {"gte": from_date}}})
         return {"query": {"bool": {"filter": filters}}}
 
     def _iter_source_hits(
-        self, source_url: str, query: dict[str, Any], batch_size: int
+        self,
+        source_url: str,
+        query: dict[str, Any],
+        batch_size: int,
+        verify: bool,
     ) -> Any:
         """Yield ``_source`` dicts from the entscheidsuche scroll API."""
         base = source_url.rstrip("/")
         body = {"size": batch_size, **query}
         response = requests.post(
-            f"{base}/_search?scroll={_SCROLL_TTL}",
+            f"{base}/_all/_search?scroll={_SCROLL_TTL}",
             json=body,
-            timeout=60,
+            timeout=120,
+            verify=verify,
         )
         response.raise_for_status()
         payload = response.json()
         scroll_id = payload.get("_scroll_id")
-        scroll_base = base.split("/entscheidsuche")[0]
 
         while True:
             hits = payload.get("hits", {}).get("hits", [])
@@ -138,9 +153,10 @@ class Command(BaseCommand):
             if not scroll_id:
                 break
             response = requests.post(
-                f"{scroll_base}/_search/scroll",
+                f"{base}/_search/scroll",
                 json={"scroll": _SCROLL_TTL, "scroll_id": scroll_id},
-                timeout=60,
+                timeout=120,
+                verify=verify,
             )
             response.raise_for_status()
             payload = response.json()
@@ -170,6 +186,7 @@ class Command(BaseCommand):
         batch_size: int = options["batch_size"]
         limit: int = options["limit"]
         source_url: str = options["source_url"]
+        verify: bool = not options["insecure"]
         dry_run: bool = options["dry_run"]
 
         query = self._build_query(spider, language, from_date)
@@ -177,7 +194,9 @@ class Command(BaseCommand):
 
         mapped = 0
         skipped = 0
-        for source in self._iter_source_hits(source_url, query, batch_size):
+        for source in self._iter_source_hits(
+            source_url, query, batch_size, verify
+        ):
             document = map_hit(source, collector_name=index)
             if document is None:
                 skipped += 1
