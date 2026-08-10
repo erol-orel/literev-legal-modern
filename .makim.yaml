@@ -682,7 +682,7 @@ groups:
         env-file: .env
         args:
           spider:
-            help: entscheidsuche spider (e.g. CH_BGer, CH_BVGer, CH_BStGer).
+            help: entscheidsuche spider (e.g. CH_BGer, CH_BVGE, CH_BSTG).
             type: string
             default: "CH_BGer"
             required: false
