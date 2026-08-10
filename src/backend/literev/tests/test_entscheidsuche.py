@@ -4,37 +4,67 @@ from __future__ import annotations
 
 from literev.libs.entscheidsuche import detect_language, map_hit
 
+# Shape mirrors a live CH_BGer hit's ``_source`` (2026 schema).
 SAMPLE = {
-    "Signatur": "CH_BGer_001_6B-1234-2024_2024-06-07",
-    "Spider": "CH_BGer",
-    "Sprache": "fr",
-    "Datum": "2024-06-07",
-    "Kanton": "CH",
-    "Gericht": "Tribunal fédéral",
-    "Num": ["6B_1234/2024"],
-    "Rechtsgebiet": "Droit pénal",
-    "Abstract": "Résumé de la décision.",
-    "attachment": {"content": "Texte complet de l'arrêt du Tribunal fédéral."},
+    "id": "CH_BGer_002_9C-130-2023_2023-03-01",
+    "date": "2023-03-01",
+    "canton": "CH",
+    "hierarchy": ["CH", "CH_BGer", "CH_BGer_002"],
+    "reference": ["9C 130/2023", "9C_130/2023"],
+    "abstract": {
+        "de": "Regeste (de).",
+        "fr": "Regeste de la décision.",
+        "it": "Regesto (it).",
+    },
+    "title": {
+        "de": "Bundesgericht ...",
+        "fr": "Tribunal fédéral, IIe Cour de droit public ...",
+        "it": "Tribunale federale ...",
+    },
+    "meta": {
+        "de": "II. ...",
+        "fr": "IIe Cour de droit public",
+        "it": "II ...",
+    },
+    "attachment": {
+        "language": "fr",
+        "content_type": "text/html; charset=UTF-8",
+        "content_url": "https://entscheidsuche.ch/docs/CH_BGer/x.html",
+        "content": "Texte complet de l'arrêt du Tribunal fédéral.",
+    },
 }
 
 
 def test_map_hit_maps_core_fields() -> None:
     doc = map_hit(SAMPLE, collector_name="bundesgericht")
     assert doc is not None
-    assert doc["record_key"] == SAMPLE["Signatur"]
+    assert doc["record_key"] == SAMPLE["id"]
     assert doc["document_text"].startswith("Texte complet")
-    assert doc["document"] == doc["document_text"]
     assert doc["collector_name"] == "bundesgericht"
-    assert doc["decision_date"] == "2024-06-07"
-    assert doc["decision_type"] == "6B_1234/2024"
+    assert doc["decision_date"] == "2023-03-01"
+    assert doc["decision_type"] == "9C 130/2023"
     assert doc["procedure_type"] == "Tribunal fédéral (Bundesgericht)"
-    assert doc["descriptors"] == "Droit pénal"
-    assert doc["summary"] == "Résumé de la décision."
+    assert doc["summary"] == "Regeste de la décision."
     assert doc["language"] == "fr"
 
 
+def test_map_hit_uses_attachment_language() -> None:
+    source = {
+        **SAMPLE,
+        "attachment": {**SAMPLE["attachment"], "language": "de"},
+    }
+    doc = map_hit(source, collector_name="bundesgericht")
+    assert doc is not None
+    assert doc["language"] == "de"
+    # localized fields follow the detected language
+    assert doc["summary"] == "Regeste (de)."
+
+
 def test_map_hit_accepts_attachment_list() -> None:
-    source = {**SAMPLE, "attachment": [{"content": "Full text here."}]}
+    source = {
+        **SAMPLE,
+        "attachment": [{"language": "fr", "content": "Full text here."}],
+    }
     doc = map_hit(source, collector_name="bundesgericht")
     assert doc is not None
     assert doc["document_text"] == "Full text here."
@@ -46,20 +76,23 @@ def test_map_hit_skips_without_text() -> None:
 
 
 def test_map_hit_skips_without_signature() -> None:
-    source = {k: v for k, v in SAMPLE.items() if k != "Signatur"}
+    source = {k: v for k, v in SAMPLE.items() if k != "id"}
     assert map_hit(source, collector_name="bundesgericht") is None
 
 
-def test_map_hit_falls_back_to_spider_label_for_unknown_court() -> None:
-    source = {**SAMPLE, "Gericht": "", "Spider": "CH_BVGer"}
+def test_map_hit_labels_court_from_hierarchy() -> None:
+    source = {
+        **SAMPLE,
+        "hierarchy": ["CH", "CH_BVGer", "CH_BVGer_001"],
+    }
     doc = map_hit(source, collector_name="bundesverwaltungsgericht")
     assert doc is not None
     assert doc["procedure_type"] == "Tribunal administratif fédéral"
 
 
 def test_detect_language() -> None:
-    assert detect_language({"Sprache": "de"}) == "de"
-    assert detect_language({"Sprache": "IT"}) == "it"
-    assert detect_language({"language": "fr"}) == "fr"
-    assert detect_language({"Sprache": "rm"}) == ""  # Romansh unsupported here
+    assert detect_language({"attachment": {"language": "de"}}) == "de"
+    assert detect_language({"attachment": {"language": "IT"}}) == "it"
+    assert detect_language({"language": "fr"}) == "fr"  # legacy fallback
+    assert detect_language({"attachment": {"language": "rm"}}) == ""
     assert detect_language({}) == ""
