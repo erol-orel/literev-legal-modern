@@ -309,6 +309,33 @@ REDIS_URL = f"redis://{REDIS_USERNAME}:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", REDIS_URL)
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", REDIS_URL)
 
+# Response caching (opt-in, default off)
+# ------------------------------------------------------------------------------
+# A dedicated "documents" cache alias for the immutable, expensive-to-build
+# document-content payloads. Default-off: when RESPONSE_CACHE_ENABLED is unset
+# the alias is a DummyCache (a no-op), so behaviour is identical to no caching
+# until an operator turns it on and points it at Redis. Keys are per-user, so
+# caching never bypasses the payload builders' own access checks.
+RESPONSE_CACHE_ENABLED = os.environ.get(
+    "RESPONSE_CACHE_ENABLED", ""
+).strip().lower() in ("1", "true", "yes", "on")
+RESPONSE_CACHE_TTL = _env_int("RESPONSE_CACHE_TTL", 300)
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    },
+    "documents": (
+        {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+            "TIMEOUT": RESPONSE_CACHE_TTL,
+        }
+        if RESPONSE_CACHE_ENABLED
+        else {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}
+    ),
+}
+
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_TASK_SERIALIZER = "pickle"
 CELERY_RESULT_SERIALIZER = "pickle"

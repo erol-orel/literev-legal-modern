@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import cast
 
+from django.conf import settings
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -14,6 +15,7 @@ from literev.libs.document_content import (
     build_document_content_payload,
     build_highlighted_document_content_payload,
 )
+from literev.libs.response_cache import get_or_set_payload, make_key
 from literev.models import User
 
 
@@ -23,8 +25,11 @@ class DocumentContentAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request, document_id: int) -> Response:
-        payload = build_document_content_payload(
-            cast(User, request.user), document_id
+        user = cast(User, request.user)
+        payload = get_or_set_payload(
+            make_key("doc-content", user.id, document_id),
+            lambda: build_document_content_payload(user, document_id),
+            timeout=settings.RESPONSE_CACHE_TTL,
         )
         if not payload:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -37,8 +42,13 @@ class HighlightedDocumentContentAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request, document_rag_id: int) -> Response:
-        payload = build_highlighted_document_content_payload(
-            cast(User, request.user), document_rag_id
+        user = cast(User, request.user)
+        payload = get_or_set_payload(
+            make_key("doc-highlighted", user.id, document_rag_id),
+            lambda: build_highlighted_document_content_payload(
+                user, document_rag_id
+            ),
+            timeout=settings.RESPONSE_CACHE_TTL,
         )
         if not payload:
             return Response(status=status.HTTP_404_NOT_FOUND)
