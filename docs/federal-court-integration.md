@@ -195,3 +195,39 @@ preprocessing runtime and (optionally) persistence:
 5. Per-document RAG answers are already returned in the decision's language
    (done); the section-summary/boolean-query prompts remain an optional
    follow-up (§5).
+
+---
+
+## 8. Cantonal sources (Romandie)
+
+The same `import_entscheidsuche` path handles **cantonal** courts — they use
+the identical entscheidsuche schema, only with a canton-level `hierarchy[1]`
+code (canton == the two-letter prefix). The registered cantonal sources (see
+`entscheidsuche.CANTONAL_SPIDERS` and `search.SEARCH_SOURCE_OPTIONS`) use the
+lower-cased code as the source key:
+
+| Spider (`hierarchy[1]`) | Source key (`--index`) | Court | FR docs (source) |
+|---|---|---|---|
+| `VD_TC` | `vd_tc` | Vaud — Tribunal cantonal | ~152,900 |
+| `FR_TC` | `fr_tc` | Fribourg — Tribunal cantonal | ~22,000 |
+| `NE_TC` | `ne_tc` | Neuchâtel — Tribunal cantonal | ~14,150 |
+| `VS_BZG` | `vs_bzg` | Valais — Tribunaux de district | ~5,500 |
+| `GE_TAPI` | `ge_tapi` | Genève — Tribunal administratif de première instance | ~3,600 |
+| `BE_VG` | `be_vg` | Berne — Tribunal administratif | ~2,100 |
+| `JU_TC` | `ju_tc` | Jura — Tribunal cantonal | ~2,000 |
+| `VS_TC` | `vs_tc` | Valais — Tribunal cantonal | ~1,240 |
+| `GE_TP` | `ge_tp` | Genève — Tribunal pénal | ~1,020 |
+
+```
+manage.py import_entscheidsuche --spider VD_TC --index vd_tc --language fr --insecure
+```
+
+**`GE_CJ` (Genève — Cour de justice, ~156k FR) is intentionally not
+registered.** Its chambers already ship as the `chambre_administrative` /
+`chambre_penale` / `chambre_civile` sources (loaded from the internal Geneva
+corpus), so importing `GE_CJ` from entscheidsuche would duplicate them via a
+different pipeline. Registering it is a deliberate, separate decision.
+
+Registration only makes a source **searchable** (and section-RAG-eligible with
+graceful fallback). Building its section embeddings is a separate, per-source
+step (`federal.embed`) whose cost/quality should be weighed per court.

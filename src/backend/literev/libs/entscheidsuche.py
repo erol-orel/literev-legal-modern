@@ -49,6 +49,27 @@ FEDERAL_SPIDERS: dict[str, str] = {
     "CH_PATG": "Tribunal fédéral des brevets",
 }
 
+# Cantonal entscheidsuche courts, keyed by their ``hierarchy[1]`` code. Codes
+# and French-speaking volumes were verified against the live entscheidsuche
+# ``hierarchy`` aggregation (canton == the two-letter prefix). This set covers
+# the Romandie / bilingual cantons; the Geneva ``Cour de justice`` (``GE_CJ``)
+# is deliberately omitted because its chambers already ship as the
+# ``chambre_*`` Geneva sources.
+CANTONAL_SPIDERS: dict[str, str] = {
+    "VD_TC": "Vaud — Tribunal cantonal",
+    "FR_TC": "Fribourg — Tribunal cantonal",
+    "NE_TC": "Neuchâtel — Tribunal cantonal",
+    "JU_TC": "Jura — Tribunal cantonal",
+    "VS_TC": "Valais — Tribunal cantonal",
+    "VS_BZG": "Valais — Tribunaux de district",
+    "GE_TAPI": "Genève — Tribunal administratif de première instance",
+    "GE_TP": "Genève — Tribunal pénal",
+    "BE_VG": "Berne — Tribunal administratif",
+}
+
+# All entscheidsuche courts we can import + label, federal and cantonal.
+ALL_SPIDERS: dict[str, str] = {**FEDERAL_SPIDERS, **CANTONAL_SPIDERS}
+
 SUPPORTED_LANGUAGES: tuple[str, ...] = ("de", "fr", "it")
 
 
@@ -141,7 +162,7 @@ def _procedure_type(source: dict[str, Any], lang: str) -> str:
     """A human-readable court label for the decision."""
     code = _court_code(source)
     return _first_str(
-        FEDERAL_SPIDERS.get(code),
+        ALL_SPIDERS.get(code),
         _localized(source.get("meta"), lang),
         _localized(source.get("title"), lang),
         source.get("Gericht"),
