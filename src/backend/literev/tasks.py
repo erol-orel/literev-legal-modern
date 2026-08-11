@@ -295,7 +295,13 @@ def get_nl_rag_ans(self, project_id: int) -> None:
         query=project.natural_language_query,
     )
 
-    documents = Document.objects.filter(project=project)
+    # Only the primary key is needed here: ``get_top_docs_by_es`` ranks by the
+    # persisted ES score keyed on ``document.id`` and we immediately reduce to
+    # ``docs_ids`` below. Loading the full rows (which carry the large
+    # ``raw_document_text`` / ``document_html_text`` / ``preprocessed_document``
+    # TextFields) for the entire corpus just to read ``.id`` was a needless
+    # multi-megabyte fetch on every natural-language query.
+    documents = Document.objects.filter(project=project).only("id")
     number_documents = documents.count()
 
     upper_limit = number_documents
