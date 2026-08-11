@@ -679,15 +679,25 @@ groups:
           Import Swiss Federal Court decisions from entscheidsuche.ch into an
           Elasticsearch index (default: French Federal Court -> bundesgericht).
           e.g. makim federal.import --language fr --limit 200
+
+          Spider (hierarchy code) -> source key (--index) pairs:
+            CH_BGer  -> bundesgericht            (Tribunal fédéral)
+            CH_BGE   -> atf                       (TF — arrêts principaux / ATF)
+            CH_BVGE  -> bundesverwaltungsgericht  (Tribunal administratif fédéral)
+            CH_BSTG  -> bundesstrafgericht        (Tribunal pénal fédéral)
+            CH_PATG  -> bundespatentgericht       (Tribunal fédéral des brevets)
+          e.g. makim federal.import --spider CH_BGE --index atf --language fr
         env-file: .env
         args:
           spider:
-            help: entscheidsuche spider (e.g. CH_BGer, CH_BVGE, CH_BSTG).
+            help: entscheidsuche spider (CH_BGer, CH_BGE, CH_BVGE, CH_BSTG, CH_PATG).
             type: string
             default: "CH_BGer"
             required: false
           index:
-            help: Target ES index / source key to write into.
+            help: |
+              Target ES index / source key to write into (bundesgericht, atf,
+              bundesverwaltungsgericht, bundesstrafgericht, bundespatentgericht).
             type: string
             default: "bundesgericht"
             required: false
