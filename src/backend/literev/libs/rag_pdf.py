@@ -35,6 +35,7 @@ from rago.retrieval import StringRet
 
 from literev.libs.chroma_utils import (
     chroma_client,
+    embed_query,
     get_best_section_chunks,
     get_chamber_collection,
     llm_answer,
@@ -1836,13 +1837,9 @@ class CustomRagAnswersGenerator:
             {"id": d.id, "record_key": d.record_key} for d in documents
         ]
 
-        embedded_query = (
-            openai_client.embeddings.create(
-                model=EMBEDDING_MODEL, input=[question]
-            )
-            .data[0]
-            .embedding
-        )
+        # Embed the query with the same engine the source's collection was
+        # built with (OpenAI for Geneva chambers, Hactar for federal courts).
+        embedded_query = embed_query(question, self.chambre_name)
 
         collection = get_chamber_collection(chroma_client, self.chambre_name)
 

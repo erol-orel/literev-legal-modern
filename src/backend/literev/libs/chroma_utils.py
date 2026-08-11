@@ -4,6 +4,8 @@ from datetime import datetime
 from typing import Any, cast
 from zoneinfo import ZoneInfo
 
+import requests
+
 from chromadb import PersistentClient
 from chromadb.errors import NotFoundError
 from django.conf import settings
@@ -14,6 +16,9 @@ logger = logging.getLogger(__name__)
 EMBEDDING_MODEL = "text-embedding-3-large"
 CHAT_MODEL = "gpt-4.1-mini"
 OPENAI_API_KEY = settings.OPENAI_API_KEY
+
+# Timeout for Hactar embedding requests (large batches can be slow).
+HACTAR_EMBED_TIMEOUT_S = 120
 
 N_TOP_CHUNKS = 8
 CACHE_DIR = settings.LITEREV_CACHE_DIR
@@ -47,6 +52,70 @@ class _LazyOpenAIClient:
 # is the lazy proxy above, which builds the real client on first attribute use.
 openai_client: OpenAI = cast(OpenAI, _LazyOpenAIClient())
 chroma_client = PersistentClient(path=str(CHROMA_DIR))
+
+
+def hactar_embed(texts: list[str]) -> list[list[float]]:
+    """Embed ``texts`` through Hactar's Ollama gateway.
+
+    POSTs to ``{HACTAR_BASE_URL}/ollama/api/embed`` with the
+    ``HACTAR_EMBED_MODEL`` (``mxbai-embed-large`` by default, ~1024-dim). The
+    returned vectors live in a *different* space than OpenAI
+    ``text-embedding-3-large`` (3072-dim), so a collection built with this
+    engine must also be queried with it.
+    """
+    base_url = str(settings.HACTAR_BASE_URL).rstrip("/")
+    response = requests.post(
+        f"{base_url}/ollama/api/embed",
+        headers={
+            "Authorization": f"Bearer {settings.HACTAR_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": settings.HACTAR_EMBED_MODEL,
+            "input": texts,
+        },
+        verify=settings.HACTAR_VERIFY_SSL,  # nosec B501 - self-signed Hactar
+        timeout=HACTAR_EMBED_TIMEOUT_S,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    embeddings = payload.get("embeddings")
+    if embeddings is None:
+        raise ValueError(f"Unexpected Hactar embed response: {payload!r}")
+    return cast("list[list[float]]", embeddings)
+
+
+def get_section_embed_engine(source: str) -> str:
+    """Return the embedding engine ("openai" | "hactar") for ``source``.
+
+    Driven by ``settings.SECTION_EMBED_ENGINE``; anything not listed defaults
+    to OpenAI so existing (Geneva) collections keep their behaviour.
+    """
+    engines = getattr(settings, "SECTION_EMBED_ENGINE", {}) or {}
+    return engines.get(source, "openai")
+
+
+def embed_texts(texts: list[str], engine: str) -> list[list[float]]:
+    """Embed ``texts`` with the requested engine ("openai" | "hactar")."""
+    if not texts:
+        return []
+    if engine == "hactar":
+        return hactar_embed(texts)
+    response = openai_client.embeddings.create(
+        model=EMBEDDING_MODEL, input=texts
+    )
+    return [record.embedding for record in response.data]
+
+
+def embed_query(question: str, source: str) -> list[float]:
+    """Embed a single query for ``source`` using that source's engine.
+
+    Keeps query-time embedding consistent with how the source's Chroma
+    collection was built (OpenAI for the Geneva chambers, Hactar for the
+    federal courts by default).
+    """
+    engine = get_section_embed_engine(source)
+    return embed_texts([question], engine)[0]
 
 
 # Some Chroma deployments still hold the legacy English collection names
