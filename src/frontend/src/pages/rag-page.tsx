@@ -17,6 +17,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { PageHeader } from "@/components/common/page-header";
+import { FollowUpSuggestions } from "@/components/rag/follow-up-suggestions";
 import { RagResult } from "@/components/rag/rag-result";
 import { Button } from "@/components/ui/button";
 import {
@@ -213,26 +214,37 @@ export function RagPage() {
                     {composer}
                   </div>
                 ) : (
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Question
-                      </p>
-                      <p className="mt-0.5 text-sm font-medium text-foreground">
-                        {current?.query || "—"}
-                      </p>
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Question
+                        </p>
+                        <p className="mt-0.5 text-sm font-medium text-foreground">
+                          {current?.query || "—"}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => {
+                          setQuery("");
+                          setComposerOpen(true);
+                        }}
+                      >
+                        <Pencil className="size-3.5" /> New question
+                      </Button>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="shrink-0"
-                      onClick={() => {
-                        setQuery("");
-                        setComposerOpen(true);
-                      }}
-                    >
-                      <Pencil className="size-3.5" /> New question
-                    </Button>
+                    {completed && data.current && (
+                      <FollowUpSuggestions
+                        current={data.current}
+                        onPick={(question) => {
+                          setQuery(question);
+                          setComposerOpen(true);
+                        }}
+                      />
+                    )}
                   </div>
                 )}
               </CardContent>
