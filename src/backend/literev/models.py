@@ -92,6 +92,17 @@ class TableChoice(models.Model):
     is_initial = models.BooleanField(default=True)
     is_check = models.BooleanField(null=True)
 
+    class Meta:
+        # The document-triage flow filters TableChoice by (user, project) on
+        # nearly every interaction; a composite index turns those repeated
+        # per-project lookups into an index scan. Django already indexes the
+        # individual `document` / `project` / `user` FK columns.
+        indexes = [
+            models.Index(
+                fields=["project", "user"], name="literev_tc_project_user_idx"
+            ),
+        ]
+
 
 class ProjectRefinement(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
