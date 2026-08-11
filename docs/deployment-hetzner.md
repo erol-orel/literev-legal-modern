@@ -188,6 +188,53 @@ New project → select the Geneva chambers **and** "Tribunal fédéral" as sourc
 search / cluster / RAG across everything. For a public URL later, use the repo's
 `compose.prod.yaml` nginx + certbot with a domain.
 
+## Phase 10 — Redeploying after a merge ☁️ [VM]
+
+Once the instance is up, shipping the latest `main` is a one-liner. From the
+repo root, inside the activated env (`micromamba activate literev-legal`):
+
+```bash
+git fetch origin main && git merge --ff-only origin/main   # or just: ./scripts/deploy_now.sh
+./scripts/deploy_now.sh
+```
+
+`scripts/deploy_now.sh` is idempotent: it fast-forwards to `origin/main`,
+refreshes Python deps (`install-dev.sh` — picks up new packages such as
+`python-docx`), applies migrations, reinstalls + rebuilds the frontend (picks up
+new packages such as `dompurify`) and collects static assets, restarts the app
++ Celery, then polls `/status/` until healthy. Flags: `--skip-deps` and
+`--skip-build` for fast, code-only restarts; `BRANCH=<name>` to deploy a branch.
+
+### What each merged change needs on redeploy
+
+| Change | What the redeploy must do | Covered by `deploy_now.sh`? |
+| --- | --- | --- |
+| Frontend (UI, sanitize, code-split) | `reactjs.install` + `reactjs.build` + `collectstatic` | ✅ |
+| New backend dependency (e.g. `python-docx`) | `install-dev.sh` | ✅ |
+| New/changed Django model | `django.migrate` | ✅ (no new migrations in the current batch) |
+| New settings flag (e.g. `RERANK_ENABLED`, `SECTION_EMBED_ENGINE`) | edit `.env`, then restart | ⚠️ set the flag in `.env` first |
+
+### Verification checklist 🖥️ [LAPTOP]
+
+Tunnel in (`ssh -L 8000:localhost:8000 deploy@<IP>`) and confirm:
+
+- [ ] `curl -fsS http://localhost:8000/status/` → `OK` (the script already waits on this).
+- [ ] Landing page loads; **network tab** shows per-route JS chunks
+      (`rag-page.*.js`, `tableselect-page.*.js`, …) loading on navigation — the
+      code-split is live.
+- [ ] Open a document with HTML content — it renders formatted (sanitizer keeps
+      headings/lists/`<mark>`), and `<script>`-bearing content is stripped.
+- [ ] Run a RAG question → the answer-first view shows the summary/verdict hero,
+      the evidence rail, and the report panel.
+- [ ] In the report panel, **Word** downloads a `.docx` that opens in Word with
+      the question, summary, verdict, tables and cited decisions.
+- [ ] (If reranking is enabled) `RERANK_ENABLED=true` in `.env` and the
+      reranker container is reachable — a natural-language search reorders
+      sensibly. See [reranking.md](reranking.md).
+
+Rollback: `git checkout <previous-sha> && ./scripts/deploy_now.sh` (add
+`--skip-deps` if dependencies did not change).
+
 ---
 
 ## Two separate entities
