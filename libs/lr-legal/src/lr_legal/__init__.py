@@ -1,3 +1,10 @@
+from .case_citations import (
+    Citation,
+    build_citation_edges,
+    canonical_key,
+    extract_citations,
+    format_citation,
+)
 from .extract_minor_major import (
     Classification,
     build_user_prompt,
@@ -25,12 +32,17 @@ from .legal_refs import (
 __all__ = [
     "FEDLEX_CODES",
     "RSGE_CODES",
+    "Citation",
     "Classification",
     "NormRef",
+    "build_citation_edges",
     "build_user_prompt",
+    "canonical_key",
     "classify_chunks_llm",
     "expected_ids",
+    "extract_citations",
     "fedlex_url",
+    "format_citation",
     "get_sentences",
     "materialize_classification",
     "normalize_text",
