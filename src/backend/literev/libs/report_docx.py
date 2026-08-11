@@ -87,6 +87,25 @@ def parse_sections(answer_text: str) -> dict[str, str] | None:
     return result
 
 
+def _swiss_citation(answer: dict[str, Any]) -> str:
+    """Canonical Swiss citation for a decision, if one can be recognised.
+
+    Scans the decision's citation quote then its answer text for an
+    ATF/BGE/DTF or Federal Court docket reference (via ``lr_legal``) and returns
+    it in canonical form (``ATF 145 III 72``), or ``""`` when none is found.
+    """
+    try:
+        from lr_legal.case_citations import extract_citations, format_citation
+    except Exception:
+        # The memo is still worth generating without the canonical citation.
+        return ""
+    for source in (answer.get("citation"), answer.get("answer")):
+        found = extract_citations(_as_text(source))
+        if found:
+            return format_citation(found[0])
+    return ""
+
+
 def _add_meta_line(document: Any, answer: dict[str, Any]) -> str:
     parts = [
         _as_text(answer.get("procedure_type")),
@@ -203,8 +222,12 @@ def build_report_docx(payload: dict[str, Any]) -> bytes:
         document.add_heading("Décisions citées", level=1)
         for index, answer in enumerate(answers, start=1):
             meta = _add_meta_line(document, answer)
+            # Lead the heading with the canonical Swiss citation when we can
+            # recognise one, so the memo reads like a jurist's own reference.
+            cite = _swiss_citation(answer)
+            label = " — ".join(part for part in (cite, meta) if part)
             heading = document.add_heading(
-                f"[{index}] {meta}" if meta else f"[{index}]", level=2
+                f"[{index}] {label}" if label else f"[{index}]", level=2
             )
             for run in heading.runs:
                 run.font.color.rgb = _HEADING_COLOR

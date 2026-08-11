@@ -103,6 +103,12 @@ export interface RagDocumentAnswer {
     language?: string;
     procedure_year: string | null;
     url_document: string;
+    /**
+     * How later decisions treat this one, from the citation graph
+     * (overruled / criticized / distinguished / followed). Absent until the
+     * graph is built (`manage.py build_citation_graph`) and surfaced by the API.
+     */
+    treatment?: string;
   };
 }
 

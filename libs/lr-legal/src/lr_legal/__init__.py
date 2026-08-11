@@ -3,7 +3,13 @@ from .case_citations import (
     build_citation_edges,
     canonical_key,
     extract_citations,
+    extract_citations_with_context,
     format_citation,
+)
+from .case_treatment import (
+    Treatment,
+    classify_treatment,
+    is_negative_treatment,
 )
 from .extract_minor_major import (
     Classification,
@@ -35,15 +41,19 @@ __all__ = [
     "Citation",
     "Classification",
     "NormRef",
+    "Treatment",
     "build_citation_edges",
     "build_user_prompt",
     "canonical_key",
     "classify_chunks_llm",
+    "classify_treatment",
     "expected_ids",
     "extract_citations",
+    "extract_citations_with_context",
     "fedlex_url",
     "format_citation",
     "get_sentences",
+    "is_negative_treatment",
     "materialize_classification",
     "normalize_text",
     "openai_llm_call",

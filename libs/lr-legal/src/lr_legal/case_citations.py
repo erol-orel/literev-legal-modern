@@ -135,26 +135,90 @@ def format_citation(citation: Citation) -> str:
     return citation.text
 
 
+def extract_citations_with_context(
+    text: str, window: int = 220
+) -> list[tuple[Citation, str]]:
+    """Like :func:`extract_citations`, but pair each citation with its passage.
+
+    The passage is a ``±window``-character window around the first occurrence of
+    each distinct citation — enough context for treatment classification (does
+    the citing decision confirm, distinguish or overrule the cited one?).
+    Deduplicated by key, first occurrence wins, ordered by position.
+    """
+    if not text:
+        return []
+
+    spans: list[tuple[int, int, Citation]] = []
+    for match in _ATF_RE.finditer(text):
+        spans.append(
+            (
+                match.start(),
+                match.end(),
+                _atf(
+                    match.group("volume"),
+                    match.group("part"),
+                    match.group("page"),
+                ),
+            )
+        )
+    for match in _TF_RE.finditer(text):
+        spans.append(
+            (
+                match.start(),
+                match.end(),
+                _tf(
+                    match.group("chamber"),
+                    match.group("seq"),
+                    match.group("year"),
+                ),
+            )
+        )
+
+    out: list[tuple[Citation, str]] = []
+    seen: set[str] = set()
+    for start, end, citation in sorted(spans, key=lambda item: item[0]):
+        if citation.key in seen:
+            continue
+        seen.add(citation.key)
+        context = text[max(0, start - window) : end + window]
+        out.append((citation, context))
+    return out
+
+
 def build_citation_edges(
     records: Iterable[tuple[str, str]],
+    *,
+    with_treatment: bool = False,
 ) -> list[dict[str, str]]:
     """Build a citation edge list from ``(record_key, text)`` decision records.
 
     Each edge is ``{"source": <citing record_key>, "target": <cited key>,
     "kind": "ATF"|"TF"}``. Self-citations (a decision that cites its own
-    normalised key) are dropped. The result is the raw directed graph a later
-    stage annotates with treatment (affirmed / distinguished / overruled).
+    normalised key) are dropped.
+
+    With ``with_treatment=True`` each edge also carries a ``"treatment"`` label
+    (overruled / criticized / distinguished / followed / cited) classified from
+    the citing passage, so a later stage can flag decisions treated negatively.
+    Default off keeps the original 3-key shape.
     """
     edges: list[dict[str, str]] = []
     for record_key, text in records:
-        for citation in extract_citations(text):
+        if with_treatment:
+            occurrences = extract_citations_with_context(text)
+        else:
+            occurrences = [(c, "") for c in extract_citations(text)]
+        for citation, context in occurrences:
             if citation.key == record_key:
                 continue
-            edges.append(
-                {
-                    "source": record_key,
-                    "target": citation.key,
-                    "kind": citation.kind,
-                }
-            )
+            edge = {
+                "source": record_key,
+                "target": citation.key,
+                "kind": citation.kind,
+            }
+            if with_treatment:
+                # Imported lazily so the base extractor stays dependency-free.
+                from .case_treatment import classify_treatment
+
+                edge["treatment"] = classify_treatment(context).value
+            edges.append(edge)
     return edges

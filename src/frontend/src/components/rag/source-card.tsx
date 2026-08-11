@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { parseSectionAnswers, type RagDocumentAnswer } from "@/api/rag";
 import { ConfidenceBadge } from "@/components/rag/confidence";
+import { TreatmentBadge } from "@/components/rag/treatment-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -97,6 +98,7 @@ export function SourceCard({
                 {formatDate(document.decision_date)}
               </span>
             )}
+            <TreatmentBadge treatment={document.treatment} />
           </div>
           {meta && (
             <p className="mt-0.5 truncate text-xs text-muted-foreground">{meta}</p>

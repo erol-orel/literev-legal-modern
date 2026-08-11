@@ -123,3 +123,24 @@ class TestBuildReportDocx:
     def test_minimal_payload_still_renders(self) -> None:
         content = build_report_docx({"question": "Q?"})
         assert content[:2] == b"PK"
+
+    def test_leads_cited_decision_with_swiss_citation(self) -> None:
+        # An ATF reference in the citation quote is surfaced canonically in the
+        # decision heading (reusing lr_legal).
+        payload = {
+            "question": "Q",
+            "answers": [
+                {
+                    "procedure_type": "Bail",
+                    "citation": "Selon l'ATF 145 III 72, le congé est valable.",
+                    "answer": "Le tribunal confirme.",
+                }
+            ],
+        }
+        document = Document(BytesIO(build_report_docx(payload)))
+        headings = [
+            p.text
+            for p in document.paragraphs
+            if p.style.name.startswith("Heading")
+        ]
+        assert any("ATF 145 III 72" in h for h in headings), headings
