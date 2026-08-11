@@ -1,3 +1,5 @@
+import logging
+
 from datetime import datetime
 from typing import Any, cast
 from zoneinfo import ZoneInfo
@@ -6,6 +8,8 @@ from chromadb import PersistentClient
 from chromadb.errors import NotFoundError
 from django.conf import settings
 from openai import OpenAI
+
+logger = logging.getLogger(__name__)
 
 EMBEDDING_MODEL = "text-embedding-3-large"
 CHAT_MODEL = "gpt-4.1-mini"
@@ -73,11 +77,36 @@ def has_section_collection(source: str) -> bool:
     ship one; federal sources only once their section embeddings are built. When
     the collection is missing or empty, callers fall back to the generic
     ``RagAnswersManager`` so a federal project still yields answers.
+
+    A genuinely missing collection (``NotFoundError``) is an expected, quiet
+    condition. Any *other* error is logged at WARNING rather than silently
+    swallowed: a transient Chroma failure must not masquerade as "no
+    embeddings" and downgrade a chamber project to the generic pipeline without
+    a trace (see ``literev.tasks._section_source_for``).
     """
     try:
         collection = get_chamber_collection(chroma_client, source)
+    except NotFoundError:
+        logger.debug("No section Chroma collection for %r.", source)
+        return False
+    except Exception:
+        logger.warning(
+            "Error resolving section Chroma collection for %r; treating as "
+            "unavailable and using the generic RAG pipeline.",
+            source,
+            exc_info=True,
+        )
+        return False
+
+    try:
         return collection.count() > 0
     except Exception:
+        logger.warning(
+            "Error counting section Chroma collection for %r; treating as "
+            "unavailable and using the generic RAG pipeline.",
+            source,
+            exc_info=True,
+        )
         return False
 
 
