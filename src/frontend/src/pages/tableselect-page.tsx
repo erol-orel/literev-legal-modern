@@ -56,6 +56,7 @@ import {
   type Verdict,
 } from "@/api/table-selection";
 import { ApiError } from "@/lib/api-client";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { formatDate, formatNumber } from "@/lib/utils";
 
 interface RouteState {
@@ -623,10 +624,10 @@ function FilterRow({ label, html }: { label: string; html: string }) {
   return (
     <div>
       <p className="font-medium text-muted-foreground">{label}</p>
-      {/* Trusted, server-rendered fragment from same-origin Django. */}
+      {/* Server-rendered fragment, sanitized before injection. */}
       <div
         className="[&_*]:!text-foreground"
-        dangerouslySetInnerHTML={{ __html: html }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
       />
     </div>
   );
@@ -884,10 +885,12 @@ function DocumentRow({
 
           <div className="text-sm">
             <span className="font-semibold text-muted-foreground">Extraits:</span>{" "}
-            {/* Trusted, server-rendered excerpt from same-origin Django. */}
+            {/* Server-rendered excerpt, sanitized before injection. */}
             <span
               className="text-foreground/90"
-              dangerouslySetInnerHTML={{ __html: `${row.sample_document || ""} …` }}
+              dangerouslySetInnerHTML={{
+                __html: sanitizeHtml(`${row.sample_document || ""} …`),
+              }}
             />
           </div>
 

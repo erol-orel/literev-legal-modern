@@ -18,6 +18,7 @@ import {
   type DocumentPayload,
 } from "@/api/documents";
 import { ApiError } from "@/lib/api-client";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { formatDate } from "@/lib/utils";
 
 /** Full decision text for a corpus document. */
@@ -178,13 +179,14 @@ function DocumentBody({
   content: DocumentContent;
   highlighted: boolean;
 }) {
-  // All branches render trusted, server-rendered HTML/text from same-origin
-  // Django. `legal-prose` styling lives in index.css so both themes read well.
+  // Server-rendered HTML/text, sanitized before injection (the corpus includes
+  // externally scraped decisions). `legal-prose` styling lives in index.css so
+  // both themes read well.
   if (content.html_text) {
     return (
       <article
         className="legal-prose"
-        dangerouslySetInnerHTML={{ __html: content.html_text }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(content.html_text) }}
       />
     );
   }
@@ -193,7 +195,9 @@ function DocumentBody({
     return (
       <article
         className="legal-prose whitespace-pre-wrap break-words"
-        dangerouslySetInnerHTML={{ __html: content.highlighted_text }}
+        dangerouslySetInnerHTML={{
+          __html: sanitizeHtml(content.highlighted_text),
+        }}
       />
     );
   }

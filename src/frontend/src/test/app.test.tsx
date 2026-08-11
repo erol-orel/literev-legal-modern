@@ -31,28 +31,30 @@ describe("App routing", () => {
     __setAppContextForTests(null);
   });
 
-  it("shows the landing page for anonymous visitors", () => {
+  // Pages are lazy-loaded (route-level code splitting), so each route resolves
+  // its chunk asynchronously — assertions use `findBy*` to await the chunk.
+  it("shows the landing page for anonymous visitors", async () => {
     __setAppContextForTests({ user: { isAuthenticated: false, email: "" } });
     renderApp("/");
     expect(
-      screen.getByRole("heading", {
+      await screen.findByRole("heading", {
         name: /search, cluster and question french legal decisions/i,
       }),
     ).toBeInTheDocument();
   });
 
-  it("renders the search page for authenticated users", () => {
+  it("renders the search page for authenticated users", async () => {
     __setAppContextForTests({
       user: { isAuthenticated: true, email: "lawyer@example.com" },
     });
     renderApp("/search/");
     expect(
-      screen.getByRole("heading", { name: /new search/i }),
+      await screen.findByRole("heading", { name: /new search/i }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText(/project name/i)).toBeInTheDocument();
   });
 
-  it("guards the document-selection route against malformed links", () => {
+  it("guards the document-selection route against malformed links", async () => {
     __setAppContextForTests({
       user: { isAuthenticated: true, email: "lawyer@example.com" },
     });
@@ -60,7 +62,7 @@ describe("App routing", () => {
     // page reports it without hitting the network (the state query stays off).
     renderApp("/tableselect/");
     expect(
-      screen.getByRole("heading", { name: /results table/i }),
+      await screen.findByRole("heading", { name: /results table/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/invalid link/i)).toBeInTheDocument();
   });
