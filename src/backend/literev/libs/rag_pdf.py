@@ -142,6 +142,67 @@ flatten_json_values = lr_flatten_json_values
 sanitize_replace = lr_sanitize_replace
 compute_document_cache_key = lr_compute_document_cache_key
 compute_faithfulness_cache_key = lr_compute_faithfulness_cache_key
+
+
+def _faithfulness_score_for(
+    query: str, rag_document: ProjectDocumentRAG
+) -> float:
+    """Compute one document's faithfulness score (>=2 LLM calls per call).
+
+    ``get_faithfulness_score`` builds its own LLM client and scorer per
+    invocation with no shared state, so this is safe to run across threads.
+    """
+    return float(
+        asyncio.run(
+            get_faithfulness_score(
+                query,
+                rag_document.answer,
+                rag_document.citation_context,
+            )
+        )
+    )
+
+
+def compute_faithfulness_scores(
+    query: str, rag_documents: list[ProjectDocumentRAG]
+) -> dict[Any, float]:
+    """Return the faithfulness score per document, keyed by primary key.
+
+    Cache hits are resolved sequentially (cheap); the misses — each costing
+    at least two LLM calls — are computed **concurrently** in a thread pool.
+    This replaces the previous per-document sequential ``asyncio.run`` loop,
+    which was the dominant serial cost of ``RagAnswersManager.run_pipeline``.
+    Only the LLM round-trips run off-thread; the cache writes stay here and
+    the caller persists the scores to the database on the main thread.
+    """
+    scores_by_pk: dict[Any, float] = {}
+    to_compute: list[tuple[ProjectDocumentRAG, str]] = []
+    for rag_document in rag_documents:
+        cache_key = compute_faithfulness_cache_key(
+            query,
+            rag_document.document_id,
+            rag_document.answer,
+            rag_document.citation_context,
+        )
+        cached = FAITH_CACHE.load(cache_key)
+        if cached is not None:
+            scores_by_pk[rag_document.pk] = float(cached.get("score", 0.0))
+        else:
+            to_compute.append((rag_document, cache_key))
+
+    if to_compute:
+        with joblib.parallel_backend("threading", n_jobs=MAX_WORKERS_RAG):
+            computed = Parallel()(
+                delayed(_faithfulness_score_for)(query, rag_document)
+                for rag_document, _cache_key in to_compute
+            )
+        for (rag_document, cache_key), score in zip(to_compute, computed):
+            FAITH_CACHE.save(cache_key, {"score": float(score)})
+            scores_by_pk[rag_document.pk] = float(score)
+
+    return scores_by_pk
+
+
 MinorMajorPair = LtMinorMajorPair
 RAGAnswer = LtRAGAnswer
 SummaryGeneralAnswer = LtSummaryGeneralAnswer
@@ -1082,30 +1143,18 @@ class RagAnswersManager:
     def get_and_save_answers_scores(
         self, rag_documents_w_valid_answers: QuerySet[ProjectDocumentRAG]
     ) -> None:
-        for rag_document in rag_documents_w_valid_answers:
-            cache_key = compute_faithfulness_cache_key(
-                self.project_rag.query,
-                rag_document.document_id,
-                rag_document.answer,
-                rag_document.citation_context,
+        rag_documents = list(rag_documents_w_valid_answers)
+
+        # Score the documents' answers concurrently (the LLM calls dominate);
+        # cache writes happen inside, DB writes stay on this thread.
+        scores_by_pk = compute_faithfulness_scores(
+            self.project_rag.query, rag_documents
+        )
+
+        for rag_document in rag_documents:
+            rag_document.confidence_score = scores_by_pk.get(
+                rag_document.pk, 0.0
             )
-
-            cached = FAITH_CACHE.load(cache_key)
-            if cached is not None:
-                score = float(cached.get("score", 0.0))
-            else:
-                # Always compute with a fresh loop per call in workers
-                score = asyncio.run(
-                    get_faithfulness_score(
-                        self.project_rag.query,
-                        rag_document.answer,
-                        rag_document.citation_context,
-                    )
-                )
-                FAITH_CACHE.save(cache_key, {"score": float(score)})
-
-            # Persist to DB regardless of cache path
-            rag_document.confidence_score = score
             rag_document.save(update_fields=["confidence_score"])
 
     def run_pipeline(
