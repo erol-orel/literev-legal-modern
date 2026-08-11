@@ -117,6 +117,32 @@ rewrites the index:
 Ship it flag-gated and default-off, exactly like reranking, so it is safe to
 merge before the re-index has run on a given environment.
 
+## Implementation: the query builder (`lr_search.hybrid`)
+
+The framework-free core is shipped: `lr_search.hybrid` builds the Elasticsearch
+8.x `retriever`/`rrf` search body and the section-index mapping as pure dict
+transforms (no cluster, unit-tested).
+
+- `section_index_mapping(dims)` — one document carries the BM25 `text` *and* the
+  quantized (`int8_hnsw`) `section_vector`, so lexical and dense retrieval hit
+  one store.
+- `build_hybrid_search_body(lexical_query, query_vector, …)` — fuses the BM25
+  leg (the `lr_query` body) and the dense `knn` leg with RRF in a single query;
+  `filters` constrain both legs identically (selected sources, a date range).
+
+`lr_search.indexing` is the write-side companion: `section_document(…)` builds
+the `_source` (BM25 `text` + the dense `section_vector` on one document),
+`iter_section_bulk_actions(…)` turns a stream of those into ES bulk actions with
+stable, idempotent ids, and `iter_batches(…)` streams the corpus without holding
+it in memory. The `embed_sections_to_es` management command wires these together
+on the VM: it reads each source's existing section chunks from Chroma, re-embeds
+the text through Hactar into one vector space, and bulk-indexes them into a
+`<source>_sections` index — the Chroma → ES migration bridge. It is idempotent
+(re-runnable) and supports `--source`, `--recreate`, `--limit`, `--dry-run`.
+
+Wiring the section RAG *retrieval* onto the hybrid path — behind a
+`HYBRID_RETRIEVAL_ENABLED` flag — is the next slice.
+
 ## Measuring it on the VM
 
 `scripts/bench_retrieval.py` is a standalone benchmark (plain `elasticsearch`
