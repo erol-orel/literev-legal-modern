@@ -10,6 +10,7 @@ from typing import TypeAlias
 from django.db.models.query import QuerySet
 
 from literev.libs.data_files import get_es_scores, load_hdbscan_prob
+from literev.libs.reranking import rerank_documents
 from literev.libs.scoring import (
     extract_keywords,
     get_topic_and_hdbscan_score,
@@ -390,11 +391,11 @@ def create_tablechoice_rag_iteration(user: User, project: Project) -> None:
 
     max_documents_number = min(10, len(all_documents))
 
+    ranked_documents = rerank_documents(
+        project, sort_documents_by_es_score(project, all_documents)
+    )
     all_documents_ids = [
-        doc.id
-        for doc in sort_documents_by_es_score(project, all_documents)[
-            :max_documents_number
-        ]
+        doc.id for doc in ranked_documents[:max_documents_number]
     ]
 
     batch_size = 1000
