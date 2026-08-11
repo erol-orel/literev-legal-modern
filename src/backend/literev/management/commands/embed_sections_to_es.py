@@ -177,7 +177,9 @@ class Command(BaseCommand):
         from literev.libs.chroma_utils import embed_texts
 
         index = section_index_name(source)
-        client = None if dry_run else self._client()
+        # `Any` (not `Any | None`): the ES client is only touched on the
+        # non-dry-run path, but mypy can't see the dry-run short-circuit.
+        client: Any = None if dry_run else self._client()
         index_ready = False
         written = 0
 
