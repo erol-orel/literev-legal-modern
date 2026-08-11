@@ -1,4 +1,4 @@
-import { Check, Copy, Download } from "lucide-react";
+import { Check, Copy, Download, FileText } from "lucide-react";
 import { useState } from "react";
 
 import type { RagContext, RagDocumentAnswer } from "@/api/rag";
@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAppContext } from "@/hooks/use-app-context";
 import { useToast } from "@/hooks/use-toast";
 import { buildReportText } from "@/lib/citation";
 
@@ -45,9 +46,14 @@ export function ReportPanel({
   answers: RagDocumentAnswer[];
 }) {
   const { toast } = useToast();
+  const { api: apiUrls } = useAppContext();
   const [copied, setCopied] = useState(false);
   const current = context.current;
   if (!current) return null;
+
+  // Server-rendered Word memo (see `api-rag-report-docx`); session-cookie auth,
+  // so a plain download link works.
+  const docxUrl = `${apiUrls.ragReportBase}${context.project.id}/${current.id}/report.docx/`;
 
   const showKeyElements =
     current.has_section_ans &&
@@ -105,7 +111,12 @@ export function ReportPanel({
               Copy report
             </Button>
             <Button variant="outline" size="sm" onClick={downloadReport}>
-              <Download className="size-3.5" /> Download
+              <Download className="size-3.5" /> Text
+            </Button>
+            <Button asChild variant="default" size="sm">
+              <a href={docxUrl} download>
+                <FileText className="size-3.5" /> Word
+              </a>
             </Button>
           </div>
         </div>

@@ -93,6 +93,9 @@ def build_frontend_context(request: HttpRequest) -> dict[str, Any]:
             "ragCreateBase": reverse(
                 "projectrag-by-project", args=[0]
             ).removesuffix("0/"),
+            "ragReportBase": reverse(
+                "api-rag-report-docx", args=[0, 0]
+            ).removesuffix("0/0/report.docx/"),
             "ragDocumentsBase": reverse("projectdocumentsrag-list"),
         },
         "search": {
