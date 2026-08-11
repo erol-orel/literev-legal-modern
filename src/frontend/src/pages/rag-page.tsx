@@ -5,23 +5,19 @@ import {
 } from "@tanstack/react-query";
 import {
   ArrowLeft,
-  Check,
-  Copy,
-  ExternalLink,
   Loader2,
   MessagesSquare,
   Pencil,
   RotateCcw,
-  Search,
   Send,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { PageHeader } from "@/components/common/page-header";
-import { Badge } from "@/components/ui/badge";
+import { RagResult } from "@/components/rag/rag-result";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -31,17 +27,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useAppContext } from "@/hooks/use-app-context";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -50,18 +38,11 @@ import {
   fetchRagContext,
   fetchRagDocuments,
   fetchRagStatus,
-  isInvalidAnswer,
   isProcessing,
-  parseSectionAnswers,
-  type RagContext,
-  type RagDocumentAnswer,
   type RagHistoryEntry,
-  type RagKeyElement,
 } from "@/api/rag";
 import { ApiError } from "@/lib/api-client";
 import { cn, formatDate } from "@/lib/utils";
-
-type SortKey = "date_desc" | "date_asc" | "confidence";
 
 export function RagPage() {
   const { projectId = "", ragId } = useParams();
@@ -286,14 +267,11 @@ export function RagPage() {
           )}
 
           {viewingResult && completed && (
-            <>
-              <SummaryCard context={data} />
-              <AnswersSection
-                answers={answers.data ?? []}
-                loading={answers.isLoading}
-                hasConfidence={data.current?.has_confidence_score ?? false}
-              />
-            </>
+            <RagResult
+              context={data}
+              answers={answers.data ?? []}
+              answersLoading={answers.isLoading}
+            />
           )}
 
           {!ragId && (
@@ -381,492 +359,6 @@ function FailedState({ onRetry }: { onRetry: () => void }) {
         </Button>
       </CardContent>
     </Card>
-  );
-}
-
-function SummaryCard({ context }: { context: RagContext }) {
-  const current = context.current;
-  if (!current) return null;
-
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Summary</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {current.summary_text && (
-          <p className="text-sm leading-relaxed text-foreground/90">
-            {current.summary_text}
-          </p>
-        )}
-
-        {current.show_closed_stats && (
-          <div className="space-y-2">
-            {(["oui", "non", "peut_etre", "mixte"] as const).map((key) => (
-              <div key={key} className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="capitalize text-muted-foreground">
-                    {key.replace("_", " ")}
-                  </span>
-                  <span className="font-medium text-foreground">
-                    {current.counts[key]} ({current.percentages[key]}%)
-                  </span>
-                </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
-                  <div
-                    className="h-full bg-primary"
-                    style={{ width: `${current.percentages[key]}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {current.considerations.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Key considerations
-            </p>
-            <ul className="space-y-1.5">
-              {current.considerations.slice(0, 8).map((consideration, index) => (
-                <li
-                  key={index}
-                  className="flex items-start justify-between gap-3 text-sm"
-                >
-                  <span className="text-foreground/90">{consideration.text}</span>
-                  <Badge variant="muted" className="shrink-0">
-                    {Math.round(consideration.percent)}%
-                  </Badge>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {current.regle_droit && (
-          <div className="rounded-lg border bg-muted/30 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Règle de droit
-            </p>
-            <p className="mt-1 text-sm text-foreground/90">{current.regle_droit}</p>
-          </div>
-        )}
-
-        {current.has_section_ans &&
-          current.summary_text &&
-          current.key_elements.length > 0 && (
-            <RagFactsTable
-              title="Éléments clés"
-              rows={current.key_elements}
-            />
-          )}
-
-        {current.law_articles.length > 0 && (
-          <RagFactsTable title="Articles de loi" rows={current.law_articles} />
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-/** Prettify an arbitrary payload key into a table header ("law_article" → "Law article"). */
-function prettyColumn(key: string): string {
-  return key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
-}
-
-function formatCell(value: unknown): string {
-  if (Array.isArray(value)) return value.map(String).join(", ");
-  if (value == null) return "";
-  return String(value);
-}
-
-/**
- * Renders the RAG "éléments clés" / "articles de loi" tables. Rows are
- * arbitrary column maps (columns taken from the first row) with an optional
- * `references` list rendered as links into the source documents — mirroring the
- * legacy KeyElementsTable / LawArticlesTable.
- */
-function RagFactsTable({
-  title,
-  rows,
-}: {
-  title: string;
-  rows: RagKeyElement[];
-}) {
-  if (rows.length === 0) return null;
-  // `article_url` is metadata for linking the `article` cell, not its own column.
-  const columns = Object.keys(rows[0]).filter((col) => col !== "article_url");
-
-  return (
-    <div className="space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {title}
-      </p>
-      <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50">
-            <tr>
-              {columns.map((col) => (
-                <th
-                  key={col}
-                  className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                >
-                  {col === "references" ? "Références" : prettyColumn(col)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, index) => (
-              <tr key={index} className="border-t align-top">
-                {columns.map((col) => (
-                  <td key={col} className="px-3 py-2 text-foreground/90">
-                    {col === "references" ? (
-                      <div className="flex flex-wrap gap-1">
-                        {(row.references ?? []).map((ref) => (
-                          <Button
-                            key={`${ref.id}-${ref.procedure_type}`}
-                            asChild
-                            variant="secondary"
-                            size="sm"
-                            className="h-6 px-2 text-xs"
-                          >
-                            <Link to={`/contentdocument/${ref.id}/`}>
-                              {ref.procedure_type}
-                            </Link>
-                          </Button>
-                        ))}
-                      </div>
-                    ) : col === "article" &&
-                      typeof row.article_url === "string" ? (
-                      <a
-                        href={row.article_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 font-medium text-primary underline-offset-2 hover:underline"
-                        title="Ouvrir le texte de loi sur Fedlex"
-                      >
-                        {formatCell(row[col])}
-                        <ExternalLink className="size-3 shrink-0" />
-                      </a>
-                    ) : (
-                      formatCell(row[col])
-                    )}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function AnswersSection({
-  answers,
-  loading,
-  hasConfidence,
-}: {
-  answers: RagDocumentAnswer[];
-  loading: boolean;
-  hasConfidence: boolean;
-}) {
-  const [sort, setSort] = useState<SortKey>("date_desc");
-  const [search, setSearch] = useState("");
-  const [procedure, setProcedure] = useState("all");
-  const [language, setLanguage] = useState("all");
-
-  const valid = useMemo(
-    () => answers.filter((a) => !isInvalidAnswer(a.answer)),
-    [answers],
-  );
-
-  const procedureTypes = useMemo(() => {
-    const set = new Set<string>();
-    for (const a of valid) {
-      if (a.document.procedure_type) set.add(a.document.procedure_type);
-    }
-    return [...set].sort((a, b) => a.localeCompare(b));
-  }, [valid]);
-
-  const languages = useMemo(() => {
-    const set = new Set<string>();
-    for (const a of valid) {
-      if (a.document.language) set.add(a.document.language);
-    }
-    return [...set].sort((a, b) => a.localeCompare(b));
-  }, [valid]);
-
-  const visible = useMemo(() => {
-    const needle = search.trim().toLowerCase();
-    const filtered = valid.filter((a) => {
-      if (procedure !== "all" && a.document.procedure_type !== procedure) {
-        return false;
-      }
-      if (language !== "all" && a.document.language !== language) {
-        return false;
-      }
-      if (needle) {
-        const haystack = [
-          a.answer,
-          a.citation,
-          a.document.procedure_type,
-          a.document.decision_type,
-          a.document.result,
-        ]
-          .join(" ")
-          .toLowerCase();
-        if (!haystack.includes(needle)) return false;
-      }
-      return true;
-    });
-    filtered.sort((a, b) => {
-      if (sort === "confidence") {
-        return (b.confidence_score ?? 0) - (a.confidence_score ?? 0);
-      }
-      const da = a.document.decision_date ?? "";
-      const db = b.document.decision_date ?? "";
-      return sort === "date_asc" ? da.localeCompare(db) : db.localeCompare(da);
-    });
-    return filtered;
-  }, [valid, sort, search, procedure, language]);
-
-  if (loading) {
-    return (
-      <div className="space-y-3">
-        {[0, 1, 2].map((i) => (
-          <Skeleton key={i} className="h-32 w-full" />
-        ))}
-      </div>
-    );
-  }
-
-  if (valid.length === 0) {
-    return (
-      <EmptyState
-        icon={MessagesSquare}
-        title="No answers"
-        description="No valid answers were produced for the selected documents."
-      />
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-foreground">
-          Answers{" "}
-          <span className="text-muted-foreground">
-            ({visible.length}
-            {visible.length !== valid.length ? ` / ${valid.length}` : ""})
-          </span>
-        </h2>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Filter answers…"
-              className="h-9 w-44 pl-8"
-            />
-          </div>
-          {procedureTypes.length > 1 && (
-            <Select value={procedure} onValueChange={setProcedure}>
-              <SelectTrigger className="h-9 w-44">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All procedure types</SelectItem>
-                {procedureTypes.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {type}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          {languages.length > 1 && (
-            <Select value={language} onValueChange={setLanguage}>
-              <SelectTrigger className="h-9 w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All languages</SelectItem>
-                {languages.map((lang) => (
-                  <SelectItem key={lang} value={lang}>
-                    {lang.toUpperCase()}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-            <SelectTrigger className="h-9 w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="date_desc">Newest first</SelectItem>
-              <SelectItem value="date_asc">Oldest first</SelectItem>
-              {hasConfidence && (
-                <SelectItem value="confidence">Highest confidence</SelectItem>
-              )}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      {visible.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-sm text-muted-foreground">
-            No answers match your filters.
-          </CardContent>
-        </Card>
-      ) : (
-        visible.map((answer) => <AnswerCard key={answer.id} answer={answer} />)
-      )}
-    </div>
-  );
-}
-
-function AnswerCard({ answer }: { answer: RagDocumentAnswer }) {
-  const { toast } = useToast();
-  const [copied, setCopied] = useState(false);
-  const section = parseSectionAnswers(answer.answer);
-  const { document } = answer;
-
-  const meta = [document.procedure_type, document.decision_type, document.result]
-    .filter(Boolean)
-    .join(" · ");
-
-  const copyCitation = async () => {
-    const header = [
-      meta,
-      document.decision_date ? formatDate(document.decision_date) : "",
-    ]
-      .filter(Boolean)
-      .join(" · ");
-    const rows: string[][] = section
-      ? [
-          ["En fait", section.facts],
-          ["Subsomption", section.subsumption],
-          ["Conclusion", section.conclusion],
-        ]
-      : [];
-    const body = section
-      ? rows
-          .filter((row) => row[1])
-          .map((row) => `${row[0]} : ${row[1]}`)
-          .join("\n")
-      : answer.answer;
-    const text = [header, body, answer.citation ? `« ${answer.citation} »` : ""]
-      .filter(Boolean)
-      .join("\n\n");
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-      toast({ variant: "success", title: "Citation copied" });
-    } catch {
-      toast({
-        variant: "destructive",
-        title: "Copy failed",
-        description: "Clipboard is unavailable in this browser.",
-      });
-    }
-  };
-
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary">{document.procedure_type || "Decision"}</Badge>
-            {document.language && (
-              <Badge variant="outline" className="uppercase">
-                {document.language}
-              </Badge>
-            )}
-            {document.decision_date && (
-              <span className="text-xs text-muted-foreground">
-                {formatDate(document.decision_date)}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {answer.confidence_score != null && (
-              <Badge
-                variant={
-                  answer.confidence_score >= 0.7
-                    ? "success"
-                    : answer.confidence_score >= 0.4
-                      ? "warning"
-                      : "muted"
-                }
-              >
-                {Math.round(answer.confidence_score * 100)}% confidence
-              </Badge>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={copyCitation}
-              title="Copy this answer and citation"
-            >
-              {copied ? (
-                <Check className="size-3.5 text-success" />
-              ) : (
-                <Copy className="size-3.5" />
-              )}
-              Copy
-            </Button>
-            {document.url_document && (
-              <Button asChild variant="ghost" size="sm">
-                <a
-                  href={document.url_document}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Source <ExternalLink className="size-3.5" />
-                </a>
-              </Button>
-            )}
-          </div>
-        </div>
-        {meta && <CardDescription>{meta}</CardDescription>}
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {section ? (
-          <div className="space-y-3">
-            <Section label="En fait" text={section.facts} />
-            <Section label="Subsomption" text={section.subsumption} />
-            <Section label="Conclusion" text={section.conclusion} />
-          </div>
-        ) : (
-          <p className="text-sm leading-relaxed text-foreground/90">
-            {answer.answer}
-          </p>
-        )}
-        {answer.citation && (
-          <blockquote className="border-l-2 border-primary/40 pl-3 text-sm italic text-muted-foreground">
-            {answer.citation}
-          </blockquote>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function Section({ label, text }: { label: string; text: string }) {
-  if (!text) return null;
-  return (
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-        {label}
-      </p>
-      <p className="mt-0.5 text-sm leading-relaxed text-foreground/90">{text}</p>
-    </div>
   );
 }
 
