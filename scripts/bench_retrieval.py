@@ -88,7 +88,9 @@ def create_es_client() -> Elasticsearch:
     )
 
 
-def embed_query(text: str, embed_url: str, model: str, timeout: int = 30) -> list[float]:
+def embed_query(
+    text: str, embed_url: str, model: str, timeout: int = 30
+) -> list[float]:
     """Embed ``text`` via an Ollama-style ``/api/embeddings`` gateway (Hactar)."""
     url = embed_url.rstrip("/") + "/api/embeddings"
     response = requests.post(
@@ -163,7 +165,9 @@ def hybrid_body(
     }
 
 
-def run_search(es: Elasticsearch, index: str, body: dict[str, Any]) -> tuple[list[str], float]:
+def run_search(
+    es: Elasticsearch, index: str, body: dict[str, Any]
+) -> tuple[list[str], float]:
     """Run one search; return (ordered record ids, elapsed milliseconds)."""
     start = time.perf_counter()
     response = es.search(index=index, body=body)
@@ -172,7 +176,9 @@ def run_search(es: Elasticsearch, index: str, body: dict[str, Any]) -> tuple[lis
     return ids, elapsed_ms
 
 
-def recall_at_k(retrieved: Sequence[str], relevant: Sequence[str], k: int) -> float:
+def recall_at_k(
+    retrieved: Sequence[str], relevant: Sequence[str], k: int
+) -> float:
     """Fraction of the relevant set found within the top-k retrieved ids."""
     if not relevant:
         return float("nan")
@@ -186,18 +192,28 @@ def percentile(values: Sequence[float], pct: float) -> float:
     if not values:
         return float("nan")
     ordered = sorted(values)
-    rank = max(0, min(len(ordered) - 1, round(pct / 100.0 * (len(ordered) - 1))))
+    rank = max(
+        0, min(len(ordered) - 1, round(pct / 100.0 * (len(ordered) - 1)))
+    )
     return ordered[rank]
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--index", required=True, help="Elasticsearch index name")
     parser.add_argument(
-        "--queries", required=True, type=Path, help="Path to the query JSON file"
+        "--index", required=True, help="Elasticsearch index name"
     )
     parser.add_argument(
-        "--mode", choices=["bm25", "hybrid"], default="bm25", help="Retrieval mode"
+        "--queries",
+        required=True,
+        type=Path,
+        help="Path to the query JSON file",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["bm25", "hybrid"],
+        default="bm25",
+        help="Retrieval mode",
     )
     parser.add_argument(
         "--k",
@@ -234,7 +250,9 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.mode == "hybrid" and not args.embed_url:
-        parser.error("--mode hybrid requires --embed-url (or HACTAR_URL) for query embeddings")
+        parser.error(
+            "--mode hybrid requires --embed-url (or HACTAR_URL) for query embeddings"
+        )
 
     items = json.loads(args.queries.read_text(encoding="utf-8"))
     if not isinstance(items, list) or not items:
@@ -273,7 +291,9 @@ def main() -> None:
 
     print(f"\nIndex        : {args.index}")
     print(f"Mode         : {args.mode}")
-    print(f"Queries      : {len(items)} ({labelled} labelled, {args.warmup} warm-up)")
+    print(
+        f"Queries      : {len(items)} ({labelled} labelled, {args.warmup} warm-up)"
+    )
     if latencies:
         print("\nLatency (ms) — search call only, excludes reranker:")
         print(f"  mean : {statistics.mean(latencies):8.1f}")
@@ -287,7 +307,9 @@ def main() -> None:
             if scores:
                 print(f"  recall@{k:<3}: {statistics.mean(scores):.3f}")
     else:
-        print("\nNo labelled queries — add a 'relevant' list per query for recall@k.")
+        print(
+            "\nNo labelled queries — add a 'relevant' list per query for recall@k."
+        )
 
 
 if __name__ == "__main__":
