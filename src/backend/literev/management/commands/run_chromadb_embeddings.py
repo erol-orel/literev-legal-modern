@@ -12,6 +12,8 @@ from django.core.management.base import BaseCommand
 from joblib import Parallel, delayed
 from openai import OpenAI
 
+from literev.libs.chroma_utils import get_section_embed_engine, hactar_embed
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
@@ -119,13 +121,17 @@ def existing_ids_in_collection(
     return found
 
 
-def embed_batch_request(texts_batch: list[str]):
+def embed_batch_request(texts_batch: list[str], engine: str = ENGINE):
     """
-    Embed one batch of texts with retries and backoff.
+    Embed one batch of texts with the requested engine.
 
-    Run inside worker threads (create client per thread).
+    ``openai`` uses ``text-embedding-3-large`` (3072-dim); ``hactar`` uses the
+    Ollama gateway (``mxbai-embed-large``, ~1024-dim). Run inside worker
+    threads.
     """
     try:
+        if engine == "hactar":
+            return hactar_embed(texts_batch)
         resp = _get_openai_client().embeddings.create(
             model=EMBEDDING_MODEL, input=texts_batch
         )
@@ -140,6 +146,7 @@ def embed_texts_parallel(
     texts: list[str],
     max_workers: int,
     batch_size: int = EMBED_BATCH,
+    engine: str = ENGINE,
 ) -> list[list[float]]:
     """
     Embed texts in parallel.
@@ -155,7 +162,8 @@ def embed_texts_parallel(
     # Run parallel embedding for each batch
     with joblib.parallel_backend("threading", n_jobs=max_workers):
         batch_results = Parallel(prefer="threads")(
-            delayed(embed_batch_request)(texts[s:e]) for (s, e) in indices
+            delayed(embed_batch_request)(texts[s:e], engine)
+            for (s, e) in indices
         )
 
     # Flatten back to the original order
@@ -167,7 +175,9 @@ def embed_texts_parallel(
     return embs
 
 
-def upsert_document_chunks(document_path, collection, max_workers):
+def upsert_document_chunks(
+    document_path, collection, max_workers, engine=ENGINE
+):
     """
     Upsert Cocument chunks.
 
@@ -205,7 +215,9 @@ def upsert_document_chunks(document_path, collection, max_workers):
         f"Embedding {len(missing_docs)} docs for item {document['record_key']}"
     )
 
-    embs = embed_texts_parallel(texts=missing_docs, max_workers=max_workers)
+    embs = embed_texts_parallel(
+        texts=missing_docs, max_workers=max_workers, engine=engine
+    )
 
     # Upsert to Chroma (single-threaded, batched)
     for i in range(0, len(missing_ids), UPSERT_BATCH):
@@ -238,14 +250,44 @@ class Command(BaseCommand):
             help="How many threads should work in parallel.",
             default=2,
         )
+        parser.add_argument(
+            "--engine",
+            type=str,
+            required=False,
+            choices=("openai", "hactar"),
+            default=None,
+            help=(
+                "Embedding backend. Defaults to the engine configured for the "
+                "index in settings.SECTION_EMBED_ENGINE (OpenAI for Geneva "
+                "chambers, Hactar for federal courts). Build and query must "
+                "use the same engine: the vector spaces differ (OpenAI "
+                "3072-dim vs Hactar ~1024-dim)."
+            ),
+        )
 
     def handle(self, *args, **options):
         index_name = options["index_name"]
         max_workers = int(options["max_workers"])
+        engine = options["engine"] or get_section_embed_engine(index_name)
+        embed_model = (
+            settings.HACTAR_EMBED_MODEL
+            if engine == "hactar"
+            else EMBEDDING_MODEL
+        )
+
+        logging.info(
+            f"Embedding index '{index_name}' with engine '{engine}' "
+            f"(model '{embed_model}')."
+        )
 
         start_time = time.time()
 
-        collection = chroma.get_or_create_collection(name=index_name)
+        # Stamp the engine/model on the collection so operators can see how it
+        # was built (Chroma keeps this metadata only on first creation).
+        collection = chroma.get_or_create_collection(
+            name=index_name,
+            metadata={"embed_engine": engine, "embed_model": embed_model},
+        )
 
         documents_paths = list(
             CACHE_STRUCTURED_DOCUMENTS.glob(f"*{index_name}_structured.json")
@@ -255,7 +297,9 @@ class Command(BaseCommand):
 
         for document_path in documents_paths:
             try:
-                upsert_document_chunks(document_path, collection, max_workers)
+                upsert_document_chunks(
+                    document_path, collection, max_workers, engine
+                )
             except Exception as e:
                 logging.error(
                     f"An critical error occurred during the process: {e}",

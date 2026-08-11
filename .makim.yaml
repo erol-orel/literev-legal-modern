@@ -732,12 +732,26 @@ groups:
             type: string
             default: "4"
             required: false
+          engine:
+            help: |
+              Embedding backend for run_chromadb_embeddings (openai | hactar).
+              Empty uses the per-source default from
+              settings.SECTION_EMBED_ENGINE (Hactar for federal courts). Build
+              and query must use the same engine.
+            type: string
+            default: ""
+            required: false
         run: |
           sugar compose-ext start \
             --services literev-postgres -- -d
 
           IDX="${{ args.index }}"
           MW="${{ args.max_workers }}"
+          ENGINE="${{ args.engine }}"
+          ENGINE_ARG=""
+          if [[ -n "${ENGINE}" ]]; then
+            ENGINE_ARG="--engine ${ENGINE}"
+          fi
 
           run_cmd () {
             if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
@@ -750,7 +764,7 @@ groups:
           run_cmd "python manage.py prepare_input --index-name ${IDX} --max-workers ${MW}"
           run_cmd "python manage.py classify_document_sentences --index-name ${IDX} --max-workers ${MW}"
           run_cmd "python manage.py prepare_classified_documents --index-name ${IDX} --max-workers ${MW}"
-          run_cmd "python manage.py run_chromadb_embeddings --index-name ${IDX} --max-workers ${MW}"
+          run_cmd "python manage.py run_chromadb_embeddings --index-name ${IDX} --max-workers ${MW} ${ENGINE_ARG}"
 
           echo "[II] Federal embeddings done for index '${IDX}'."
 

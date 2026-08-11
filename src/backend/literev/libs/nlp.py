@@ -18,6 +18,7 @@ from rago.retrieval import StringRet
 
 from literev.libs.chroma_utils import (
     chroma_client,
+    embed_query,
     get_chamber_collection,
     openai_client,
 )
@@ -529,13 +530,9 @@ def get_cluster_summary(
 
     collection = get_chamber_collection(chroma_client, chamber_name)
 
-    embedded_query = (
-        openai_client.embeddings.create(
-            model=EMBEDDING_MODEL, input=[question]
-        )
-        .data[0]
-        .embedding
-    )
+    # Embed with the engine the source's collection was built with (OpenAI for
+    # Geneva chambers, Hactar for federal courts).
+    embedded_query = embed_query(question, chamber_name)
     documents = get_best_chunk_documents(
         collection, embedded_query, record_keys
     )

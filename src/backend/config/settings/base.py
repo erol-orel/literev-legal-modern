@@ -80,6 +80,36 @@ HACTAR_BOOLEAN_QUERY_MODEL = os.environ.get(
     "HACTAR_BOOLEAN_QUERY_MODEL", "mistral-small3.1:24b"
 )
 
+# Hactar embedding model served by the Ollama gateway
+# (``{HACTAR_BASE_URL}/ollama/api/embed``). ``mxbai-embed-large`` returns
+# ~1024-dim vectors — a different vector space than OpenAI
+# ``text-embedding-3-large`` (3072-dim), so a Chroma collection embedded with
+# Hactar must also be *queried* with Hactar (see ``SECTION_EMBED_ENGINE``).
+HACTAR_EMBED_MODEL = os.environ.get(
+    "HACTAR_EMBED_MODEL", "mxbai-embed-large:latest"
+)
+
+# Default embedding engine for the federal section collections. Defaults to
+# "openai" so the federal courts are embedded with the *exact same* pipeline as
+# the Geneva chambers (``text-embedding-3-large``, 3072-dim, one shared vector
+# space). Set ``FEDERAL_EMBED_ENGINE=hactar`` to embed them near-free with
+# Hactar (``mxbai-embed-large``, ~1024-dim) instead — build
+# (``run_chromadb_embeddings``) and query time both read ``SECTION_EMBED_ENGINE``
+# below, so switching the engine keeps them consistent.
+FEDERAL_EMBED_ENGINE = os.environ.get("FEDERAL_EMBED_ENGINE", "openai")
+
+# Per-source embedding engine ("openai" | "hactar") for section-based Chroma
+# collections. Anything not listed defaults to "openai" (see
+# ``literev.libs.chroma_utils.get_section_embed_engine``).
+SECTION_EMBED_ENGINE = {
+    "chambre_administrative": "openai",
+    "chambre_penale": "openai",
+    "chambre_civile": "openai",
+    "bundesgericht": FEDERAL_EMBED_ENGINE,
+    "bundesverwaltungsgericht": FEDERAL_EMBED_ENGINE,
+    "bundesstrafgericht": FEDERAL_EMBED_ENGINE,
+}
+
 CHAT_MODEL = os.environ.get("CHAT_MODEL", "gpt-4.1-mini")
 
 APP_NAME = "literev"
