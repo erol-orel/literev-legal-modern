@@ -34,6 +34,8 @@ shared algorithms in `libs/` free of Django imports.
 | [architecture.md](architecture.md)                           | Current system layout, dependency boundaries, and end-to-end data flow                                     |
 | [contributing.md](contributing.md)                           | Local setup, coding workflow, source-root conventions, and contribution checklist                          |
 | [federal-court-integration.md](federal-court-integration.md) | Adding Swiss Federal Court decisions (DE/FR/IT): sources, ES schema, multilingual steps, and prerequisites |
+| [reranking.md](reranking.md)                                 | Cross-encoder reranking of the BM25 candidate set: where to run it (VM vs Hactar) and how to enable it       |
+| [hybrid-retrieval.md](hybrid-retrieval.md)                   | BM25 vs hybrid (BM25+dense, RRF) → rerank: speed/recall trade-offs, Hactar-vs-VM, rollout, and a benchmark   |
 | [services/configuration.md](services/configuration.md)       | Environment variables, settings modules, and dependency-based library installation                         |
 | [services/django.md](services/django.md)                     | Django service responsibilities, app-layer conventions, and test commands                                  |
 
