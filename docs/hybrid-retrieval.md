@@ -130,10 +130,18 @@ transforms (no cluster, unit-tested).
   leg (the `lr_query` body) and the dense `knn` leg with RRF in a single query;
   `filters` constrain both legs identically (selected sources, a date range).
 
-The application layer supplies the `Elasticsearch` client, the index name, and
-the query vector (embedded via Hactar), then POSTs the returned body. Wiring the
-section RAG retrieval onto this — behind a `HYBRID_RETRIEVAL_ENABLED` flag — and
-the embed-to-ES indexing command are the next slices.
+`lr_search.indexing` is the write-side companion: `section_document(…)` builds
+the `_source` (BM25 `text` + the dense `section_vector` on one document),
+`iter_section_bulk_actions(…)` turns a stream of those into ES bulk actions with
+stable, idempotent ids, and `iter_batches(…)` streams the corpus without holding
+it in memory. The `embed_sections_to_es` management command wires these together
+on the VM: it reads each source's existing section chunks from Chroma, re-embeds
+the text through Hactar into one vector space, and bulk-indexes them into a
+`<source>_sections` index — the Chroma → ES migration bridge. It is idempotent
+(re-runnable) and supports `--source`, `--recreate`, `--limit`, `--dry-run`.
+
+Wiring the section RAG *retrieval* onto the hybrid path — behind a
+`HYBRID_RETRIEVAL_ENABLED` flag — is the next slice.
 
 ## Measuring it on the VM
 
