@@ -244,12 +244,37 @@ def _section_source_for(selected_indices: list[str]) -> str | None:
     embeddings are built, while falling back to the generic ``RagAnswersManager``
     (returning ``None``) until then — so a federal project always yields answers.
     """
-    from literev.libs.chroma_utils import has_section_collection
+    from literev.libs.chroma_utils import (
+        CHAMBER_COLLECTION_FALLBACKS,
+        has_section_collection,
+    )
     from literev.libs.search import SECTION_SOURCES
 
     for source in selected_indices:
-        if source in SECTION_SOURCES and has_section_collection(source):
+        if source not in SECTION_SOURCES:
+            continue
+        if has_section_collection(source):
             return source
+        # Section-eligible source without a usable Chroma collection: the
+        # project will fall back to the generic (lower-quality) RAG pipeline.
+        # For the Geneva chambers this should never happen in a correct
+        # deployment — the section collections ship with the app — so flag it
+        # loudly; a missing chamber collection is the usual cause of
+        # "answers/summaries look thinner than production".
+        if source in CHAMBER_COLLECTION_FALLBACKS:
+            logging.warning(
+                "Section RAG collection missing/empty for Geneva chamber %r; "
+                "falling back to the generic RAG pipeline (thinner answers and "
+                "summaries). Deploy the chamber's Chroma collection to restore "
+                "full-quality section answers.",
+                source,
+            )
+        else:
+            logging.info(
+                "Section embeddings not built for %r yet; using the generic "
+                "RAG pipeline until they are.",
+                source,
+            )
     return None
 
 
