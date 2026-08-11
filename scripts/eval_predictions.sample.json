@@ -1,0 +1,14 @@
+[
+  {
+    "id": "bail-resiliation-01",
+    "counts": { "oui": 4, "non": 1, "peut_etre": 0, "mixte": 0 },
+    "cited_ids": ["ATA_123_2023", "ATA_55_2021"],
+    "confidence_scores": [0.82, 0.71, 0.66]
+  },
+  {
+    "id": "licenciement-abusif-01",
+    "verdict": "peut_etre",
+    "cited_ids": ["CAPH_45_2021"],
+    "confidence_scores": [0.68]
+  }
+]

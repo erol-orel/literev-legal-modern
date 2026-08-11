@@ -1,0 +1,14 @@
+[
+  {
+    "id": "bail-resiliation-01",
+    "question": "Le bailleur peut-il résilier le bail de manière anticipée ?",
+    "expected_verdict": "oui",
+    "relevant_ids": ["ATA_123_2023", "ATA_98_2022"]
+  },
+  {
+    "id": "licenciement-abusif-01",
+    "question": "Quand un licenciement est-il considéré comme abusif ?",
+    "expected_verdict": "peut_etre",
+    "relevant_ids": ["CAPH_45_2021"]
+  }
+]
