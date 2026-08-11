@@ -84,6 +84,26 @@ abbreviations are handled (`ZGB`→CC, `OR`→CO, `StGB`→CP, `BV`→Cst, …).
 
 ## 4. Registering the source
 
+### Registered federal sources
+
+All five federal courts are registered in `SEARCH_SOURCE_OPTIONS` /
+`SECTION_SOURCES`. Import each with `import_entscheidsuche` using the matching
+spider → source-key pair:
+
+| Spider (`hierarchy[1]`) | Source key (`--index`) | Court |
+|---|---|---|
+| `CH_BGer` | `bundesgericht` | Tribunal fédéral (Bundesgericht) |
+| `CH_BGE` | `atf` | Tribunal fédéral — arrêts principaux (ATF, leading decisions) |
+| `CH_BVGE` | `bundesverwaltungsgericht` | Tribunal administratif fédéral |
+| `CH_BSTG` | `bundesstrafgericht` | Tribunal pénal fédéral |
+| `CH_PATG` | `bundespatentgericht` | Tribunal fédéral des brevets |
+
+`atf` (`CH_BGE`) is the officially published leading-decisions series of the
+Tribunal fédéral — a curated subset with its own record keys, registered as a
+distinct source so it can be searched on its own.
+
+### To register a *new* source
+
 1. **`src/backend/literev/libs/search.py`** — add to `SEARCH_SOURCE_OPTIONS`,
    e.g. `("bundesgericht", "Tribunal fédéral / Bundesgericht")` (or one entry
    per language: `bundesgericht_de` / `_fr` / `_it`). This alone makes it appear
@@ -94,8 +114,9 @@ abbreviations are handled (`ZGB`→CC, `OR`→CO, `StGB`→CP, `BV`→Cst, …).
    (`get_nl_rag_ans`, `task_rag_result_table`) now dispatches via
    `_section_source_for(selected_indices)`, which picks the section-based
    `CustomRagAnswersGenerator` for any source in
-   `search.SECTION_SOURCES` (the three Geneva chambers **plus**
-   `bundesgericht` / `bundesverwaltungsgericht` / `bundesstrafgericht`) — but
+   `search.SECTION_SOURCES` (the three Geneva chambers **plus** the five
+   federal courts: `bundesgericht` / `atf` / `bundesverwaltungsgericht` /
+   `bundesstrafgericht` / `bundespatentgericht`) — but
    only when that source's section-embedded Chroma collection actually exists
    (`chroma_utils.has_section_collection`). Until federal section embeddings are
    built, federal projects fall back automatically to the generic
