@@ -47,6 +47,7 @@ export interface ApiUrls {
   ragDeleteBase: string;
   ragStatusBase: string;
   ragCreateBase: string;
+  ragReportBase: string;
   ragDocumentsBase: string;
 }
 
@@ -113,6 +114,7 @@ const DEFAULT_CONTEXT: AppContext = {
     ragDeleteBase: "/api/project/rag/",
     ragStatusBase: "/api/project-rags-by-project/",
     ragCreateBase: "/api/project-rags-by-project/",
+    ragReportBase: "/api/project/rag/",
     ragDocumentsBase: "/api/project-documents-rag/",
   },
   search: {

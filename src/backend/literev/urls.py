@@ -105,6 +105,11 @@ api_urlpatterns: list[URL] = [
         name="api-rag-context-detail",
     ),
     path(
+        "rag/<int:project_id>/<int:rag_id>/report.docx/",
+        rag_workspace_api.RagReportDocxAPIView.as_view(),
+        name="api-rag-report-docx",
+    ),
+    path(
         "rag/<int:project_id>/<int:rag_id>/",
         rag_workspace_api.RagDeleteAPIView.as_view(),
         name="api-rag-delete",
