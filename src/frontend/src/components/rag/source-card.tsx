@@ -1,10 +1,15 @@
-import { Check, ChevronDown, Copy, ExternalLink } from "lucide-react";
+import { Check, ChevronDown, Copy, ScanSearch } from "lucide-react";
 import { useState } from "react";
 
 import { parseSectionAnswers, type RagDocumentAnswer } from "@/api/rag";
 import { ConfidenceBadge } from "@/components/rag/confidence";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { buildAnswerCitation } from "@/lib/citation";
 import { cn, formatDate } from "@/lib/utils";
@@ -98,7 +103,18 @@ export function SourceCard({
           )}
         </div>
         {answer.confidence_score != null && (
-          <ConfidenceBadge score={answer.confidence_score} className="shrink-0" />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="shrink-0">
+                <ConfidenceBadge score={answer.confidence_score} />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-56 text-xs">
+              Faithfulness: how well this answer is grounded in the decision's
+              own text (higher = less room for hallucination). Open the decision
+              to verify the cited passages.
+            </TooltipContent>
+          </Tooltip>
         )}
         <ChevronDown
           className={cn(
@@ -121,11 +137,27 @@ export function SourceCard({
               {answer.answer}
             </p>
           )}
-          {answer.citation && (
-            <blockquote className="border-l-2 border-primary/40 pl-3 text-sm italic text-muted-foreground">
-              {answer.citation}
-            </blockquote>
-          )}
+          {answer.citation &&
+            (document.url_document ? (
+              // The verbatim quote itself links into the decision, where the
+              // cited passages are highlighted — one click from claim to source.
+              <a
+                href={document.url_document}
+                target="_blank"
+                rel="noreferrer"
+                title="Open the decision with this passage highlighted"
+                className="group block rounded-r border-l-2 border-primary/40 pl-3 text-sm italic text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+              >
+                <span className="not-italic text-[0.7rem] font-semibold uppercase tracking-wide text-primary opacity-0 transition-opacity group-hover:opacity-100">
+                  Verify passage →
+                </span>
+                <blockquote>{answer.citation}</blockquote>
+              </a>
+            ) : (
+              <blockquote className="border-l-2 border-primary/40 pl-3 text-sm italic text-muted-foreground">
+                {answer.citation}
+              </blockquote>
+            ))}
           <div className="flex items-center gap-2 pt-1">
             <Button variant="outline" size="sm" onClick={copyCitation}>
               {copied ? (
@@ -136,9 +168,9 @@ export function SourceCard({
               Copy citation
             </Button>
             {document.url_document && (
-              <Button asChild variant="ghost" size="sm">
+              <Button asChild variant="secondary" size="sm">
                 <a href={document.url_document} target="_blank" rel="noreferrer">
-                  Source <ExternalLink className="size-3.5" />
+                  <ScanSearch className="size-3.5" /> Verify in decision
                 </a>
               </Button>
             )}

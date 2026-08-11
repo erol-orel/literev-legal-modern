@@ -135,18 +135,32 @@ export function AnswerVerdict({
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Key considerations
             </p>
-            <ul className="space-y-1.5">
+            <ul className="space-y-2">
               {current.considerations.slice(0, 8).map((consideration, index) => (
-                <li
-                  key={index}
-                  className="flex items-start justify-between gap-3 text-sm"
-                >
-                  <span className="text-foreground/90">
-                    {consideration.text}
-                  </span>
-                  <Badge variant="muted" className="shrink-0 tabular-nums">
-                    {Math.round(consideration.percent)}%
-                  </Badge>
+                <li key={index} className="space-y-1 text-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-foreground/90">
+                      {consideration.text}
+                    </span>
+                    <Badge variant="muted" className="shrink-0 tabular-nums">
+                      {Math.round(consideration.percent)}%
+                    </Badge>
+                  </div>
+                  {consideration.procedure_types.length > 0 && (
+                    // Which decision types raised this consideration — a
+                    // traceable link between the summary and the corpus.
+                    <div className="flex flex-wrap gap-1">
+                      {consideration.procedure_types.map((type) => (
+                        <Badge
+                          key={type}
+                          variant="outline"
+                          className="text-[0.7rem] font-normal"
+                        >
+                          {type}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
