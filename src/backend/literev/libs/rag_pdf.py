@@ -43,6 +43,7 @@ from literev.libs.chroma_utils import (
 )
 from literev.libs.extract_minor_major import openai_llm_call
 from literev.libs.rag_classes import HactarAug, HactarGen
+from literev.libs.reranking import rerank_documents
 from literev.libs.scoring import (
     get_faithfulness_score,
     sort_documents_by_es_score,
@@ -1189,6 +1190,7 @@ class RagAnswersManager:
             documents = sort_documents_by_es_score(
                 self.project_rag.project, documents
             )
+            documents = rerank_documents(self.project_rag.project, documents)
 
         self.project_rag.status = "questioning_documents"
         self.project_rag.save()
@@ -1825,7 +1827,10 @@ class CustomRagAnswersGenerator:
         if max_doc_ans:
             documents = sort_documents_by_es_score(
                 self.project_rag.project, documents
-            )[:max_doc_ans]
+            )
+            documents = rerank_documents(self.project_rag.project, documents)[
+                :max_doc_ans
+            ]
             self.project_rag.num_documents = max_doc_ans
         else:
             documents = list(documents)

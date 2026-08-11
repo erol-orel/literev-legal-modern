@@ -112,6 +112,27 @@ SECTION_EMBED_ENGINE = {
 
 CHAT_MODEL = os.environ.get("CHAT_MODEL", "gpt-4.1-mini")
 
+# --- Retrieval reranking -----------------------------------------------------
+# Optional cross-encoder reranking of the lexical (BM25) candidate set from
+# Elasticsearch. Disabled by default: with RERANK_ENABLED=False the BM25 order
+# is used unchanged, so this is a no-op until a reranker is configured. When
+# enabled, the top RERANK_TOP_K candidates are reordered by relevance to the
+# natural-language query; any reranker error degrades gracefully to BM25 order.
+RERANK_ENABLED = env.bool("RERANK_ENABLED", default=False)
+# "local"  = a self-hosted cross-encoder exposing a TEI-style POST /rerank
+#            (recommended: BAAI/bge-reranker-v2-m3 via HuggingFace
+#            Text Embeddings Inference, on the VM — multilingual, on-prem,
+#            no per-query cost). "cohere" = the Cohere Rerank API.
+RERANKER_PROVIDER = os.environ.get("RERANKER_PROVIDER", "local")
+RERANKER_URL = os.environ.get("RERANKER_URL", "http://literev-reranker:80")
+RERANKER_MODEL = os.environ.get("RERANKER_MODEL", "rerank-multilingual-v3.0")
+COHERE_API_KEY = os.environ.get("COHERE_API_KEY", "")
+# How many BM25 candidates to rerank, how much of each decision to send to the
+# cross-encoder (it truncates ~512 tokens anyway), and the request timeout.
+RERANK_TOP_K = env.int("RERANK_TOP_K", default=50)
+RERANK_MAX_CHARS = env.int("RERANK_MAX_CHARS", default=2000)
+RERANKER_TIMEOUT_S = env.int("RERANKER_TIMEOUT_S", default=20)
+
 APP_NAME = "literev"
 ALLOWED_HOSTS = [
     "localhost",
