@@ -32,6 +32,8 @@ shared algorithms in `libs/` free of Django imports.
 | Document                                                     | Description                                                                                                |
 | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
 | [architecture.md](architecture.md)                           | Current system layout, dependency boundaries, and end-to-end data flow                                     |
+| [adr/](adr/README.md)                                        | Architecture Decision Records — expensive-to-reverse decisions and the alternatives that were rejected      |
+| [frontend-question-first.md](frontend-question-first.md)     | The answer-first research surface: general considerations lead, evidence follows — the IA and what's shipped |
 | [contributing.md](contributing.md)                           | Local setup, coding workflow, source-root conventions, and contribution checklist                          |
 | [federal-court-integration.md](federal-court-integration.md) | Adding Swiss Federal Court decisions (DE/FR/IT): sources, ES schema, multilingual steps, and prerequisites |
 | [adverse-authority.md](adverse-authority.md)                 | Case-law citation graph: surfacing adverse/distinguishing authority and "is this still good law?" signals    |
