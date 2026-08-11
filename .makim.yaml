@@ -310,24 +310,6 @@ groups:
           fi
           echo "[II] Token counting completed for project ID ${{ args.project_id }}."
 
-      optimize-documents:
-        help: Run the optimization of the documents
-        env-file: .env
-        run: |
-          sugar compose-ext start \
-            --services literev-postgres -- -d
-
-          CMD="python manage.py optimize_documents"
-
-          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
-            sugar compose run --service literev --cmd "$CMD" -- --rm
-          else
-            cd ./src/backend/
-            export POSTGRES_HOST=localhost
-            $CMD
-          fi
-          echo "[II] The optimization of the documents is done."
-
       fetch-documents:
         help: Run the optimization of the documents
         env-file: .env
@@ -345,15 +327,6 @@ groups:
             $CMD
           fi
           echo "[II] Access to DB granted."
-
-      optimize-documents-local:
-        help: Run the optimization of the documents (temporary)
-        env-file: .env
-        run: |
-          export POSTGRES_HOST=localhost
-          cd ./src/backend/
-          python manage.py optimize_documents
-          echo "[II] The optimization of the documents is done."
 
       notebook:
         help: Run the django environment in a jupyter notebook
