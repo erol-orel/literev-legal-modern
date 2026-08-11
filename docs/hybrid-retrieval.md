@@ -117,6 +117,24 @@ rewrites the index:
 Ship it flag-gated and default-off, exactly like reranking, so it is safe to
 merge before the re-index has run on a given environment.
 
+## Implementation: the query builder (`lr_search.hybrid`)
+
+The framework-free core is shipped: `lr_search.hybrid` builds the Elasticsearch
+8.x `retriever`/`rrf` search body and the section-index mapping as pure dict
+transforms (no cluster, unit-tested).
+
+- `section_index_mapping(dims)` — one document carries the BM25 `text` *and* the
+  quantized (`int8_hnsw`) `section_vector`, so lexical and dense retrieval hit
+  one store.
+- `build_hybrid_search_body(lexical_query, query_vector, …)` — fuses the BM25
+  leg (the `lr_query` body) and the dense `knn` leg with RRF in a single query;
+  `filters` constrain both legs identically (selected sources, a date range).
+
+The application layer supplies the `Elasticsearch` client, the index name, and
+the query vector (embedded via Hactar), then POSTs the returned body. Wiring the
+section RAG retrieval onto this — behind a `HYBRID_RETRIEVAL_ENABLED` flag — and
+the embed-to-ES indexing command are the next slices.
+
 ## Measuring it on the VM
 
 `scripts/bench_retrieval.py` is a standalone benchmark (plain `elasticsearch`
