@@ -32,23 +32,32 @@ The output is a directed graph — the edge list plus each decision's **in-degre
 (the most-cited authorities in a topic) to rank or badge in search and RAG
 results. It runs on the VM, where Elasticsearch holds the decisions.
 
-## Phase 2 — classify the treatment
+## Phase 2 — classify the treatment (implemented)
 
-An edge says A cites B; it does not yet say *how*. Classify each citing passage
-as **affirming**, **distinguishing**, **criticising** or **overruling** — a
-short-context classification over the sentence around each citation (the same
-section-classification machinery the RAG pipeline already uses for
-faits/subsomption/conclusion). A decision with incoming *overruling* or
-*criticising* edges is flagged "treated negatively — verify it is still good
-law."
+An edge says A cites B; it does not say *how*. `lr_legal.classify_treatment`
+labels each citing passage — the window around the citation — as **followed**,
+**distinguished**, **criticized** or **overruled** (else neutral **cited**). It
+is a deterministic, multilingual (fr/de/it) keyword classifier, chosen over an
+LLM on purpose: a treatment label drives a professional-stakes warning, so it
+must be reproducible and its evidence (the matched cue + passage) inspectable.
+`build_citation_edges(records, with_treatment=True)` attaches the label to each
+edge, and `build_citation_graph` aggregates the **`treated_negatively`** set —
+decisions with incoming *overruled*/*criticized* edges, the "verify: still good
+law?" list. (An LLM pass can later refine the ambiguous middle; the heuristic
+is the dependable floor.)
 
 ## Phase 3 — surface it in the product
 
-- **In the RAG result**: for each cited decision, show a "still good law?"
-  badge from its incoming treatment, and a "distinguishing authority" section
-  listing decisions that went the other way on the same question.
-- **In the document view**: an "cited by / cites" panel with treatment icons.
-- **In search**: let a jurist rank by authority (in-degree) or filter out
+- **In the RAG result** *(component shipped)*: the `TreatmentBadge` renders a
+  "still good law?" badge on each cited decision from `document.treatment`
+  (overruled → destructive, criticized → warning, distinguished → outline,
+  followed → success), with an explanatory tooltip. It shows nothing until the
+  field is populated — the **remaining wiring** is: build the graph on the VM,
+  store it, and have the answer serializer set `document.treatment` from the
+  `treated_negatively` / edge data by the decision's `record_key`.
+- **In the document view** *(next)*: a "cited by / cites" panel with treatment
+  icons.
+- **In search** *(next)*: rank by authority (in-degree) or filter out
   negatively-treated decisions.
 
 ## Why a graph, not just per-answer prompting

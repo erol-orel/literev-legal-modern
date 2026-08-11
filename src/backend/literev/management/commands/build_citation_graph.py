@@ -100,13 +100,21 @@ class Command(BaseCommand):
         records = self._records(indices, limit)
         self.stdout.write(f"Read {len(records)} decisions.")
 
-        edges = build_citation_edges(records)
+        edges = build_citation_edges(records, with_treatment=True)
         in_degree = Counter(edge["target"] for edge in edges)
+        # Decisions carrying incoming overruled/criticised edges — the
+        # "verify: still good law?" set — with a count per target.
+        negative = Counter(
+            edge["target"]
+            for edge in edges
+            if edge.get("treatment") in ("overruled", "criticized")
+        )
         graph = {
             "n_decisions": len(records),
             "n_edges": len(edges),
             "edges": edges,
             "in_degree": dict(in_degree.most_common()),
+            "treated_negatively": dict(negative.most_common()),
         }
 
         with open(options["output"], "w", encoding="utf-8") as handle:
@@ -122,4 +130,12 @@ class Command(BaseCommand):
         if top:
             self.stdout.write("Most-cited decisions:")
             for key, count in top:
+                self.stdout.write(f"  {count:>4}  {key}")
+        if negative:
+            self.stdout.write(
+                self.style.WARNING(
+                    "\nTreated negatively (verify — still good law?):"
+                )
+            )
+            for key, count in negative.most_common(10):
                 self.stdout.write(f"  {count:>4}  {key}")
