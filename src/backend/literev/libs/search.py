@@ -21,6 +21,18 @@ SEARCH_SOURCE_OPTIONS: tuple[tuple[str, str], ...] = (
     ("bundesverwaltungsgericht", "Tribunal administratif fédéral"),
     ("bundesstrafgericht", "Tribunal pénal fédéral"),
     ("bundespatentgericht", "Tribunal fédéral des brevets"),
+    # Cantonal courts (Romandie / bilingual), keyed by the lower-cased
+    # entscheidsuche `hierarchy[1]` code and imported the same way. See
+    # `entscheidsuche.CANTONAL_SPIDERS` for the spider -> source-key mapping.
+    ("vd_tc", "Vaud — Tribunal cantonal"),
+    ("fr_tc", "Fribourg — Tribunal cantonal"),
+    ("ne_tc", "Neuchâtel — Tribunal cantonal"),
+    ("ju_tc", "Jura — Tribunal cantonal"),
+    ("vs_tc", "Valais — Tribunal cantonal"),
+    ("vs_bzg", "Valais — Tribunaux de district"),
+    ("ge_tapi", "Genève — Tribunal administratif de première instance"),
+    ("ge_tp", "Genève — Tribunal pénal"),
+    ("be_vg", "Berne — Tribunal administratif"),
 )
 SEARCH_SOURCE_VALUES = {value for value, _label in SEARCH_SOURCE_OPTIONS}
 
@@ -39,6 +51,18 @@ SECTION_SOURCES = {
     "bundesverwaltungsgericht",
     "bundesstrafgericht",
     "bundespatentgericht",
+    # Cantonal courts — eligible for section RAG once their section embeddings
+    # are built; until then they use the generic RAG manager (graceful
+    # fallback), so they are searchable immediately after import.
+    "vd_tc",
+    "fr_tc",
+    "ne_tc",
+    "ju_tc",
+    "vs_tc",
+    "vs_bzg",
+    "ge_tapi",
+    "ge_tp",
+    "be_vg",
 }
 
 
