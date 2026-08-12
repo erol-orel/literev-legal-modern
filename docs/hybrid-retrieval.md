@@ -152,8 +152,35 @@ used unchanged, so this is inert until a section index exists on the target and
 `HYBRID_RETRIEVAL_ENABLED=true` is set. `HYBRID_TOP_K_PER_SECTION` and
 `HYBRID_SEARCH_SIZE` tune chunks-per-section and the RRF pool.
 
-Remaining: standardize the corpus on one Hactar embedding model, retire the
-Chroma path once parity holds, and fold the one-time re-embed into deploy.
+### Enabling it on a deployment (the one command)
+
+Hybrid retrieval is one idempotent step behind a flag, done on the target after
+a normal deploy:
+
+```bash
+# 1. Build the ES section index(es) — re-embeds section chunks via Hactar.
+#    Idempotent; start small to smoke-test, then run the full corpus.
+makim django.embed-sections --source chambre_civile --limit 200   # first look
+makim django.embed-sections                                       # all sources
+
+# 2. Verify answer parity against the Chroma path (ask a few known questions,
+#    or run the offline harness — see docs/rag-evaluation.md).
+
+# 3. Flip the flag and redeploy once parity looks good:
+#    set HYBRID_RETRIEVAL_ENABLED=true in .env, then
+./scripts/deploy_now.sh --skip-deps --skip-build
+```
+
+The embed step is deliberately **not** run automatically by `deploy_now.sh` — it
+is a large one-time job, and the flag stays a manual opt-in so retrieval only
+switches to Elasticsearch after parity is confirmed. Once it is, the ChromaDB
+path can be retired.
+
+**Note on the embedding model:** the ES path already uses a single Hactar model
+(`HACTAR_EMBED_MODEL`) for the whole corpus, build- and query-time — so the
+"one vector space" goal is met here. The remaining OpenAI-vs-Hactar
+`SECTION_EMBED_ENGINE` split lives only in the Chroma path and is removed when
+Chroma is retired, not as a separate step.
 
 ## Measuring it on the VM
 
