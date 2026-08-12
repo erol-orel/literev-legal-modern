@@ -109,6 +109,37 @@ def iter_section_bulk_actions(
         )
 
 
+def group_hits_by_section(
+    hits: Iterable[dict[str, Any]],
+    sections: Sequence[str],
+    per_section_cap: int,
+    *,
+    section_field: str = "section",
+    text_field: str = "text",
+) -> dict[str, list[str]]:
+    """Group ES section-index hits into ``{section: [text, ...]}`` blocks.
+
+    The read-side mirror of the section index: it turns a flat, relevance-ordered
+    list of hit ``_source`` dicts (from a hybrid query filtered to one decision)
+    into the per-section blocks the section-RAG generator consumes — one list of
+    chunk texts per known section, in hit order, capped at ``per_section_cap``.
+    Hits whose section is unknown, or that carry no text, are dropped; every
+    section in ``sections`` is present in the result (empty if it had no hit), so
+    the shape matches the Chroma path it replaces.
+    """
+    blocks: dict[str, list[str]] = {section: [] for section in sections}
+    for hit in hits:
+        section = hit.get(section_field)
+        text = hit.get(text_field)
+        if (
+            section in blocks
+            and text
+            and len(blocks[section]) < per_section_cap
+        ):
+            blocks[section].append(str(text))
+    return blocks
+
+
 def batched(items: Sequence[T], size: int) -> Iterator[list[T]]:
     """Split a sequence into consecutive lists of at most ``size`` elements."""
     if size <= 0:

@@ -140,8 +140,20 @@ the text through Hactar into one vector space, and bulk-indexes them into a
 `<source>_sections` index — the Chroma → ES migration bridge. It is idempotent
 (re-runnable) and supports `--source`, `--recreate`, `--limit`, `--dry-run`.
 
-Wiring the section RAG *retrieval* onto the hybrid path — behind a
-`HYBRID_RETRIEVAL_ENABLED` flag — is the next slice.
+The section RAG *retrieval* is now wired onto this path, behind the
+`HYBRID_RETRIEVAL_ENABLED` flag (default off). When enabled,
+`literev.libs.es_section_retrieval.get_best_section_chunks_es` retrieves a
+decision's most relevant section chunks from `<source>_sections` with one hybrid
+RRF query (BM25 on the question, dense kNN on a Hactar query embedding, filtered
+to that decision) and groups them into the same `{section: [text, …]}` blocks
+the Chroma path returned — a drop-in inside the section-RAG worker
+(`rag_pdf.get_answer_document_worker`). With the flag off, the Chroma path is
+used unchanged, so this is inert until a section index exists on the target and
+`HYBRID_RETRIEVAL_ENABLED=true` is set. `HYBRID_TOP_K_PER_SECTION` and
+`HYBRID_SEARCH_SIZE` tune chunks-per-section and the RRF pool.
+
+Remaining: standardize the corpus on one Hactar embedding model, retire the
+Chroma path once parity holds, and fold the one-time re-embed into deploy.
 
 ## Measuring it on the VM
 

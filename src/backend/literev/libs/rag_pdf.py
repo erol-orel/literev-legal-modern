@@ -41,6 +41,10 @@ from literev.libs.chroma_utils import (
     llm_answer,
     openai_client,
 )
+from literev.libs.es_section_retrieval import (
+    embed_query_hactar,
+    get_best_section_chunks_es,
+)
 from literev.libs.extract_minor_major import openai_llm_call
 from literev.libs.rag_classes import HactarAug, HactarGen
 from literev.libs.reranking import rerank_documents
@@ -1552,21 +1556,33 @@ class RAGClassificationBuilder:
 
 
 def get_answer_document_worker(
-    payload, question, embedded_question, collection
+    payload, question, embedded_question, collection, source=None
 ):
     record_key = payload["record_key"]
     block_section: dict[str, Any] = {}
     answer = ""
+    use_hybrid = (
+        getattr(settings, "HYBRID_RETRIEVAL_ENABLED", False) and source
+    )
     try:
-        logging.info(
-            f"Getting best chunks from chroma db, record key:{record_key}"
-        )
-        block_section = get_best_section_chunks(
-            record_key, embedded_question, collection
-        )
-        logging.info(
-            f"DONE Getting best chunks from chroma db , record key:{record_key}"
-        )
+        # ``embedded_question`` carries the Hactar query vector on the hybrid
+        # path and the source's Chroma embedding on the Chroma path — the
+        # caller embeds it once for the whole batch either way.
+        if use_hybrid:
+            logging.info(
+                f"Getting best section chunks from ES, record key:{record_key}"
+            )
+            block_section = get_best_section_chunks_es(
+                record_key, question, embedded_question, source
+            )
+        else:
+            logging.info(
+                f"Getting best chunks from chroma db, record key:{record_key}"
+            )
+            block_section = get_best_section_chunks(
+                record_key, embedded_question, collection
+            )
+        logging.info(f"DONE Getting best chunks, record key:{record_key}")
         logging.info(f"Getting answers from document record key:{record_key}")
         answer = llm_answer(question, block_section)
         _ = json.loads(answer)
@@ -1842,16 +1858,25 @@ class CustomRagAnswersGenerator:
             {"id": d.id, "record_key": d.record_key} for d in documents
         ]
 
-        # Embed the query with the same engine the source's collection was
-        # built with (OpenAI for Geneva chambers, Hactar for federal courts).
-        embedded_query = embed_query(question, self.chambre_name)
-
-        collection = get_chamber_collection(chroma_client, self.chambre_name)
+        # Embed the shared question once. On the hybrid path that is a Hactar
+        # vector for the ES ``<source>_sections`` index; on the Chroma path it
+        # is embedded with the engine that source's collection was built with
+        # (OpenAI for Geneva chambers, Hactar for federal courts). The Chroma
+        # collection is only opened when the Chroma path is actually used.
+        use_hybrid = getattr(settings, "HYBRID_RETRIEVAL_ENABLED", False)
+        if use_hybrid:
+            embedded_query = embed_query_hactar(question)
+            collection = None
+        else:
+            embedded_query = embed_query(question, self.chambre_name)
+            collection = get_chamber_collection(
+                chroma_client, self.chambre_name
+            )
 
         with joblib.parallel_backend("threading", n_jobs=MAX_WORKERS_RAG):
             results = Parallel()(
                 delayed(get_answer_document_worker)(
-                    pl, question, embedded_query, collection
+                    pl, question, embedded_query, collection, self.chambre_name
                 )
                 for pl in payloads
             )

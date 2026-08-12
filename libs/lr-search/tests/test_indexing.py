@@ -12,12 +12,15 @@ from lr_search.hybrid import DEFAULT_VECTOR_FIELD
 from lr_search.indexing import (
     batched,
     bulk_index_action,
+    group_hits_by_section,
     iter_batches,
     iter_section_bulk_actions,
     section_doc_id,
     section_document,
     section_index_name,
 )
+
+SECTIONS = ("Majeure", "Mineure-Faits", "Mineure-Subsommation", "Conclusion")
 
 
 class TestSectionIndexName:
@@ -118,6 +121,41 @@ class TestBatched:
     def test_rejects_non_positive_size(self) -> None:
         with pytest.raises(ValueError):
             list(batched([1], 0))
+
+
+class TestGroupHitsBySection:
+    def test_groups_and_preserves_hit_order(self) -> None:
+        hits = [
+            {"section": "Conclusion", "text": "c1"},
+            {"section": "Mineure-Faits", "text": "f1"},
+            {"section": "Conclusion", "text": "c2"},
+        ]
+        blocks = group_hits_by_section(hits, SECTIONS, per_section_cap=8)
+        assert blocks["Conclusion"] == ["c1", "c2"]  # hit order kept
+        assert blocks["Mineure-Faits"] == ["f1"]
+        assert (
+            blocks["Majeure"] == []
+        )  # every section present, empty if no hit
+
+    def test_caps_per_section(self) -> None:
+        hits = [{"section": "Conclusion", "text": f"c{i}"} for i in range(5)]
+        blocks = group_hits_by_section(hits, SECTIONS, per_section_cap=2)
+        assert blocks["Conclusion"] == ["c0", "c1"]
+
+    def test_drops_unknown_sections_and_empty_text(self) -> None:
+        hits = [
+            {"section": "Metadata", "text": "m"},  # unknown section
+            {"section": "Conclusion", "text": ""},  # empty text
+            {"section": "Conclusion"},  # missing text
+            {"section": "Conclusion", "text": "ok"},
+        ]
+        blocks = group_hits_by_section(hits, SECTIONS, per_section_cap=8)
+        assert blocks["Conclusion"] == ["ok"]
+        assert "Metadata" not in blocks
+
+    def test_empty_hits_yield_all_empty_sections(self) -> None:
+        blocks = group_hits_by_section([], SECTIONS, per_section_cap=8)
+        assert blocks == {s: [] for s in SECTIONS}
 
 
 class TestIterBatches:
