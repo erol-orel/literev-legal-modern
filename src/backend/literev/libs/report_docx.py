@@ -18,8 +18,11 @@ from __future__ import annotations
 from io import BytesIO
 from typing import Any, Sequence
 
-from docx import Document
-from docx.shared import Pt, RGBColor
+# ``python-docx`` is imported lazily inside ``build_report_docx`` (below), not at
+# module top: it is an *optional* export dependency, and importing this module
+# is on the URLconf import path (``urls`` -> ``rag_workspace`` -> here). A hard
+# top-level import would take the whole app down if python-docx is absent from a
+# runtime, instead of degrading only the .docx export.
 
 # Section aliases, kept in sync with the frontend parser
 # (`src/frontend/src/api/rag.ts`). The per-decision ``answer`` is a JSON string
@@ -43,7 +46,7 @@ _SECTION_LABELS: tuple[tuple[str, str], ...] = (
     ("conclusion", "Conclusion"),
 )
 
-_HEADING_COLOR = RGBColor(0x1E, 0x3A, 0x8A)  # matches the app's primary blue
+_HEADING_RGB = (0x1E, 0x3A, 0x8A)  # matches the app's primary blue
 
 
 def _as_text(value: Any) -> str:
@@ -155,7 +158,16 @@ def _add_table(
 
 
 def build_report_docx(payload: dict[str, Any]) -> bytes:
-    """Render ``payload`` into a ``.docx`` memo and return its bytes."""
+    """Render ``payload`` into a ``.docx`` memo and return its bytes.
+
+    Requires ``python-docx``; it is imported here (not at module top) so a
+    runtime lacking it can still serve the rest of the app and only this export
+    fails.
+    """
+    from docx import Document
+    from docx.shared import Pt, RGBColor
+
+    heading_color = RGBColor(*_HEADING_RGB)
     document = Document()
 
     normal = document.styles["Normal"]
@@ -164,7 +176,7 @@ def build_report_docx(payload: dict[str, Any]) -> bytes:
 
     title = document.add_heading("LiteRev — Analyse juridique", level=0)
     for run in title.runs:
-        run.font.color.rgb = _HEADING_COLOR
+        run.font.color.rgb = heading_color
 
     question = _as_text(payload.get("question"))
     if question:
@@ -230,7 +242,7 @@ def build_report_docx(payload: dict[str, Any]) -> bytes:
                 f"[{index}] {label}" if label else f"[{index}]", level=2
             )
             for run in heading.runs:
-                run.font.color.rgb = _HEADING_COLOR
+                run.font.color.rgb = heading_color
 
             sections = parse_sections(_as_text(answer.get("answer")))
             if sections:
