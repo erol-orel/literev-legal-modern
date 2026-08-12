@@ -310,6 +310,50 @@ groups:
           fi
           echo "[II] Token counting completed for project ID ${{ args.project_id }}."
 
+      embed-sections:
+        help: |
+          Build the Elasticsearch section index(es) for hybrid retrieval by
+          re-embedding each source's section chunks through Hactar into
+          <source>_sections. Idempotent — safe to re-run. This is the one
+          command to enable hybrid retrieval: run it, verify answer parity
+          against the Chroma path, then set HYBRID_RETRIEVAL_ENABLED=true in
+          .env and redeploy.
+          e.g. makim django.embed-sections --source chambre_civile --recreate true
+        env-file: .env
+        args:
+          source:
+            help: Comma-separated source key(s); empty = all section sources.
+            type: string
+            default: ""
+          limit:
+            help: Max chunks per source (0 = all). Use a small value first.
+            type: string
+            default: "0"
+          recreate:
+            help: Drop and recreate each index before indexing ("true"/"false").
+            type: string
+            default: "false"
+        run: |
+          sugar compose-ext start \
+            --services literev-postgres -- -d
+
+          CMD="python manage.py embed_sections_to_es --limit ${{ args.limit }}"
+          if [[ -n "${{ args.source }}" ]]; then
+            CMD="$CMD --source ${{ args.source }}"
+          fi
+          if [[ "${{ args.recreate }}" == "true" ]]; then
+            CMD="$CMD --recreate"
+          fi
+
+          if [[ "${{ env.USE_CONTAINER }}" == "true" ]]; then
+            sugar compose run --service literev --cmd "$CMD" -- --rm
+          else
+            cd ./src/backend/
+            export POSTGRES_HOST=localhost
+            $CMD
+          fi
+          echo "[II] Section embedding done. Verify answers, then set HYBRID_RETRIEVAL_ENABLED=true in .env and redeploy."
+
       fetch-documents:
         help: Run the optimization of the documents
         env-file: .env
