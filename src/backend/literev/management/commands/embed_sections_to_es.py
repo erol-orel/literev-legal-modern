@@ -1,11 +1,13 @@
 """Embed section chunks into Elasticsearch — the Chroma → ES migration bridge.
 
-Reads each source's existing section chunks (from its Chroma collection),
-re-embeds the text through the free **Hactar** tier into a single vector space,
-and bulk-indexes ``text`` + ``section_vector`` into one Elasticsearch section
-index per source (``<source>_sections``). After this runs, the same store that
-serves BM25 also serves dense kNN, so retrieval can move onto the ES hybrid
-(RRF) path and the separate Chroma store can be retired.
+Reads each source's existing section chunks (by default straight from Chroma's
+SQLite metadata segment, which never loads the memory-heavy HNSW index),
+re-embeds the text with the configured engine (``settings.HYBRID_EMBED_ENGINE``,
+OpenAI ``text-embedding-3-large`` for the Geneva sections) into a single vector
+space, and bulk-indexes ``text`` + ``section_vector`` into one Elasticsearch
+section index per source (``<source>_sections``). After this runs, the same
+store that serves BM25 also serves dense kNN, so retrieval can move onto the ES
+hybrid (RRF) path and the separate Chroma store can be retired.
 
 It is the read-side counterpart to :mod:`lr_search.hybrid`/:mod:`lr_search.indexing`
 (the query and document builders, which are pure and unit-tested). This command
@@ -49,7 +51,7 @@ DEFAULT_BATCH = 128
 
 
 class Command(BaseCommand):
-    help = "Embed section chunks (via Hactar) into an Elasticsearch index."
+    help = "Embed section chunks into an Elasticsearch section index."
 
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
@@ -62,8 +64,23 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             "--engine",
-            default="hactar",
-            help="Embedding engine: 'hactar' (free, default) or 'openai'.",
+            default="",
+            help=(
+                "Embedding engine: 'openai' or 'hactar'. Empty (default) uses "
+                "settings.HYBRID_EMBED_ENGINE so the build matches the query "
+                "side (OpenAI for the Geneva sections)."
+            ),
+        )
+        parser.add_argument(
+            "--reader",
+            default="sqlite",
+            choices=("sqlite", "chroma"),
+            help=(
+                "How to read section chunks. 'sqlite' (default) reads Chroma's "
+                "SQLite metadata segment directly — never loads the HNSW index, "
+                "so it works on large collections in low memory. 'chroma' uses "
+                "the Chroma client (loads the index; OOMs on big collections)."
+            ),
         )
         parser.add_argument(
             "--batch-size",
@@ -154,6 +171,98 @@ class Command(BaseCommand):
                     return
             offset += len(documents)
 
+    def _iter_chunks_sqlite(
+        self, source: str, limit: int
+    ) -> Iterator[dict[str, Any]]:
+        """Yield ``{record_key, section, text, decision_date}`` per chunk read
+        straight from Chroma's SQLite metadata segment.
+
+        Bypasses the Chroma client with a read-only ``sqlite3`` connection, so
+        it never loads the HNSW vector index — the operation that exhausts
+        memory on large collections (``chambre_administrative`` is >2M chunks).
+        Streams one chunk at a time: rows come back ordered by embedding id, so
+        we accumulate an embedding's metadata keys until the id changes, emit,
+        and move on, never holding the corpus in memory.
+        """
+        import sqlite3
+
+        from literev.libs.chroma_utils import (
+            CHAMBER_COLLECTION_FALLBACKS,
+            CHROMA_DIR,
+        )
+
+        db_path = f"{CHROMA_DIR}/chroma.sqlite3"
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        try:
+
+            def _collection_id(name: str) -> str | None:
+                if not name:
+                    return None
+                row = con.execute(
+                    "SELECT id FROM collections WHERE name = ?", (name,)
+                ).fetchone()
+                return row[0] if row else None
+
+            collection_id = _collection_id(source) or _collection_id(
+                CHAMBER_COLLECTION_FALLBACKS.get(source, "")
+            )
+            if not collection_id:
+                raise ValueError(
+                    f"collection {source!r} not found in {db_path}"
+                )
+            segment = con.execute(
+                "SELECT id FROM segments "
+                "WHERE collection = ? AND scope = 'METADATA'",
+                (collection_id,),
+            ).fetchone()
+            if not segment:
+                raise ValueError(
+                    f"no METADATA segment for collection {source!r}"
+                )
+
+            cursor = con.execute(
+                "SELECT m.id, m.key, m.string_value "
+                "FROM embedding_metadata m "
+                "JOIN embeddings e ON e.id = m.id "
+                "WHERE e.segment_id = ? "
+                "ORDER BY m.id",
+                (segment[0],),
+            )
+
+            def _build(fields: dict[str, str]) -> dict[str, Any] | None:
+                text = (fields.get("chroma:document") or "").strip()
+                record_key = (fields.get("record_key") or "").strip()
+                if not text or not record_key:
+                    return None
+                return {
+                    "record_key": record_key,
+                    "section": fields.get("section") or "",
+                    "text": text,
+                    "decision_date": None,
+                }
+
+            emitted = 0
+            current_id: int | None = None
+            fields: dict[str, str] = {}
+            for row_id, key, string_value in cursor:
+                if current_id is not None and row_id != current_id:
+                    chunk = _build(fields)
+                    if chunk is not None:
+                        yield chunk
+                        emitted += 1
+                        if limit and emitted >= limit:
+                            return
+                    fields = {}
+                current_id = row_id
+                if string_value is not None:
+                    fields[key] = string_value
+            if current_id is not None:
+                chunk = _build(fields)
+                if chunk is not None:
+                    yield chunk
+        finally:
+            con.close()
+
     # -- Orchestration -----------------------------------------------------
     def _sources(self, raw: str) -> list[str]:
         from literev.libs.search import SECTION_SOURCES
@@ -167,6 +276,7 @@ class Command(BaseCommand):
         source: str,
         *,
         engine: str,
+        reader: str,
         batch_size: int,
         limit: int,
         recreate: bool,
@@ -183,9 +293,12 @@ class Command(BaseCommand):
         index_ready = False
         written = 0
 
-        for batch in iter_batches(
-            self._iter_chunks(source, limit), batch_size
-        ):
+        iter_chunks = (
+            self._iter_chunks_sqlite
+            if reader == "sqlite"
+            else self._iter_chunks
+        )
+        for batch in iter_batches(iter_chunks(source, limit), batch_size):
             if dry_run:
                 written += len(batch)
                 continue
@@ -213,7 +326,10 @@ class Command(BaseCommand):
         return written
 
     def handle(self, *args: Any, **options: Any) -> None:
-        engine = str(options["engine"])
+        engine = str(options["engine"]) or str(
+            getattr(settings, "HYBRID_EMBED_ENGINE", "openai")
+        )
+        reader = str(options["reader"])
         batch_size = int(options["batch_size"])
         limit = int(options["limit"])
         recreate = bool(options["recreate"])
@@ -221,11 +337,15 @@ class Command(BaseCommand):
 
         total = 0
         for source in self._sources(str(options["source"])):
-            self.stdout.write(f"{source} → {section_index_name(source)}")
+            self.stdout.write(
+                f"{source} → {section_index_name(source)} "
+                f"(engine={engine}, reader={reader})"
+            )
             try:
                 count = self._migrate_source(
                     source,
                     engine=engine,
+                    reader=reader,
                     batch_size=batch_size,
                     limit=limit,
                     recreate=recreate,

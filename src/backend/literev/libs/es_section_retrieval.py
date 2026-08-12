@@ -48,18 +48,29 @@ def _es_client() -> Any:
     )
 
 
-def embed_query_hactar(question: str) -> list[float]:
-    """Embed a query through Hactar — the single vector space the section index
-    is built in. The caller embeds the (shared) question once and passes the
-    vector into :func:`get_best_section_chunks_es` for every document.
+def embed_query(question: str) -> list[float]:
+    """Embed a query into the section index's vector space.
 
-    Imported lazily from ``chroma_utils`` because ``hactar_embed`` is a neutral
-    HTTP call to Hactar's gateway (not ChromaDB-specific); it moves to a
-    dedicated module when the Chroma path is retired.
+    Uses ``settings.HYBRID_EMBED_ENGINE`` — the *same* engine the index was
+    built with (``embed_sections_to_es``), so the dense leg compares vectors
+    from one space. Defaults to OpenAI (``text-embedding-3-large``, 3072-dim),
+    matching the Geneva section vectors. The caller embeds the shared question
+    once and passes the vector into :func:`get_best_section_chunks_es` for every
+    document.
+
+    ``embed_texts`` is imported lazily from ``chroma_utils`` because it is a
+    neutral engine dispatcher (OpenAI or Hactar), not ChromaDB-specific; it
+    moves to a dedicated module when the Chroma path is retired.
     """
-    from literev.libs.chroma_utils import hactar_embed
+    from literev.libs.chroma_utils import embed_texts
 
-    return hactar_embed([question])[0]
+    engine = str(getattr(settings, "HYBRID_EMBED_ENGINE", "openai"))
+    return embed_texts([question], engine)[0]
+
+
+# Backwards-compatible alias: the historical name embedded via Hactar; it now
+# routes through the configured engine like everything else.
+embed_query_hactar = embed_query
 
 
 def get_best_section_chunks_es(

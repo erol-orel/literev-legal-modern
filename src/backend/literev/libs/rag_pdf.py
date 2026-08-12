@@ -42,7 +42,7 @@ from literev.libs.chroma_utils import (
     openai_client,
 )
 from literev.libs.es_section_retrieval import (
-    embed_query_hactar,
+    embed_query,
     get_best_section_chunks_es,
 )
 from literev.libs.extract_minor_major import openai_llm_call
@@ -1865,7 +1865,7 @@ class CustomRagAnswersGenerator:
         # collection is only opened when the Chroma path is actually used.
         use_hybrid = getattr(settings, "HYBRID_RETRIEVAL_ENABLED", False)
         if use_hybrid:
-            embedded_query = embed_query_hactar(question)
+            embedded_query = embed_query(question)
             collection = None
         else:
             embedded_query = embed_query(question, self.chambre_name)
