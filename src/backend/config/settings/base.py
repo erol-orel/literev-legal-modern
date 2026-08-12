@@ -210,6 +210,12 @@ INSTALLED_APPS = LOCAL_APPS + DJANGO_APPS + THIRD_PARTY_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # WhiteNoise serves the collected static files (the built React bundle
+    # among them) straight from the app process, so ``/static/`` works with
+    # ``DEBUG=False`` even when a request reaches Django directly on :8000
+    # rather than through the nginx ``location /static`` alias. Must sit
+    # immediately after SecurityMiddleware, before everything else.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
