@@ -157,6 +157,20 @@ RERANK_TOP_K = _env_int("RERANK_TOP_K", 50)
 RERANK_MAX_CHARS = _env_int("RERANK_MAX_CHARS", 2000)
 RERANKER_TIMEOUT_S = _env_int("RERANKER_TIMEOUT_S", 20)
 
+# --- Hybrid section retrieval (ES BM25 + dense kNN, RRF) ---------------------
+# Opt-in: retrieve per-decision section chunks from the ``<source>_sections``
+# Elasticsearch index via a single hybrid RRF query (embedded through Hactar)
+# instead of the ChromaDB vector store. Default off, so the Chroma path is used
+# unchanged until a section index has been built on the target
+# (``manage.py embed_sections_to_es``). Empty-string-safe like RERANK_* above,
+# because the deployment renders ``.env`` from a template (unset -> "").
+HYBRID_RETRIEVAL_ENABLED = os.environ.get(
+    "HYBRID_RETRIEVAL_ENABLED", ""
+).strip().lower() in ("1", "true", "yes", "on")
+# Chunks kept per section, and the RRF candidate pool size per per-decision query.
+HYBRID_TOP_K_PER_SECTION = _env_int("HYBRID_TOP_K_PER_SECTION", 8)
+HYBRID_SEARCH_SIZE = _env_int("HYBRID_SEARCH_SIZE", 40)
+
 APP_NAME = "literev"
 ALLOWED_HOSTS = [
     "localhost",
