@@ -170,6 +170,13 @@ HYBRID_RETRIEVAL_ENABLED = os.environ.get(
 # Chunks kept per section, and the RRF candidate pool size per per-decision query.
 HYBRID_TOP_K_PER_SECTION = _env_int("HYBRID_TOP_K_PER_SECTION", 8)
 HYBRID_SEARCH_SIZE = _env_int("HYBRID_SEARCH_SIZE", 40)
+# Embedding engine for the section index — used for BOTH the one-time build
+# (``embed_sections_to_es``) and the query-time question embedding, which must
+# match or the dense leg compares vectors from different spaces. Defaults to
+# "openai" (``text-embedding-3-large``, 3072-dim): the Geneva section vectors
+# were built with OpenAI, so the ES index and its queries stay in that space.
+# Set to "hactar" only for an index built with Hactar (``mxbai``, ~1024-dim).
+HYBRID_EMBED_ENGINE = os.environ.get("HYBRID_EMBED_ENGINE", "openai")
 
 APP_NAME = "literev"
 ALLOWED_HOSTS = [
