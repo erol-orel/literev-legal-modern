@@ -330,7 +330,7 @@ groups:
             type: string
             default: "0"
           recreate:
-            help: Drop and recreate each index before indexing ("true"/"false").
+            help: Drop and recreate each index before indexing (true or false).
             type: string
             default: "false"
         run: |
