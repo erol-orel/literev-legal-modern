@@ -75,9 +75,17 @@ step "Restarting the app + Celery"
 sugar compose-ext restart -- -d
 
 step "Waiting for the health endpoint"
-PORT="$(grep -E '^FRONTEND_HOST_PORT=' .env 2>/dev/null | cut -d= -f2 | tr -d '[:space:]')"
-PORT="${PORT:-8000}"
-URL="http://localhost:${PORT}/status/"
+# FRONTEND_HOST_PORT may be a bare port (``8000``) or a host:port
+# (``127.0.0.1:8000``). Use it as the URL authority directly when it already
+# contains a host, otherwise default the host to localhost — building
+# ``http://localhost:127.0.0.1:8000`` (two hosts) makes the check always fail.
+HOSTPORT="$(grep -E '^FRONTEND_HOST_PORT=' .env 2>/dev/null | cut -d= -f2- | tr -d '[:space:]')"
+HOSTPORT="${HOSTPORT:-8000}"
+case "$HOSTPORT" in
+  *:*) AUTHORITY="$HOSTPORT" ;;
+  *)   AUTHORITY="localhost:${HOSTPORT}" ;;
+esac
+URL="http://${AUTHORITY}/status/"
 for attempt in $(seq 1 20); do
   if curl -fsS "$URL" >/dev/null 2>&1; then
     printf '\n\033[1;32m✓ Deployed %s — %s is healthy.\033[0m\n' "$NEW_SHA" "$URL"
