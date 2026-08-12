@@ -48,7 +48,7 @@ def _es_client() -> Any:
     )
 
 
-def embed_query(question: str) -> list[float]:
+def embed_section_query(question: str) -> list[float]:
     """Embed a query into the section index's vector space.
 
     Uses ``settings.HYBRID_EMBED_ENGINE`` — the *same* engine the index was
@@ -70,7 +70,7 @@ def embed_query(question: str) -> list[float]:
 
 # Backwards-compatible alias: the historical name embedded via Hactar; it now
 # routes through the configured engine like everything else.
-embed_query_hactar = embed_query
+embed_query_hactar = embed_section_query
 
 
 def get_best_section_chunks_es(
