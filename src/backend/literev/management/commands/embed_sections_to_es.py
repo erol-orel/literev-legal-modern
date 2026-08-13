@@ -38,8 +38,9 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandParser
 
 from lr_search import (
+    bulk_index_action,
     iter_batches,
-    iter_section_bulk_actions,
+    section_doc_id,
     section_document,
     section_index_mapping,
     section_index_name,
@@ -98,6 +99,16 @@ class Command(BaseCommand):
             "--recreate",
             action="store_true",
             help="Drop and recreate the section index before indexing.",
+        )
+        parser.add_argument(
+            "--skip-existing",
+            action="store_true",
+            help=(
+                "Resume: skip chunks already present in the index (by stable "
+                "id) and embed only the missing ones. Makes a re-run cheap and "
+                "safe after an interruption (e.g. exhausted API credits). "
+                "Never recreates the index; ignored on a not-yet-created one."
+            ),
         )
         parser.add_argument(
             "--dry-run",
@@ -271,6 +282,38 @@ class Command(BaseCommand):
             return [s.strip() for s in raw.split(",") if s.strip()]
         return sorted(SECTION_SOURCES)
 
+    @staticmethod
+    def _with_ids(
+        chunks: Iterator[dict[str, Any]],
+    ) -> Iterator[dict[str, Any]]:
+        """Annotate each chunk with its stable ``doc_id``.
+
+        The ordinal is the running position of the chunk within its
+        ``(record_key, section)`` group over the whole stream — identical to
+        ``iter_section_bulk_actions`` — so the id matches what a previous run
+        wrote. Deterministic because the SQLite reader yields chunks in a
+        fixed order (``ORDER BY embedding id``), which is what makes
+        ``--skip-existing`` correct across runs.
+        """
+        seen: dict[tuple[str, str], int] = {}
+        for chunk in chunks:
+            key = (chunk["record_key"], chunk["section"])
+            ordinal = seen.get(key, 0)
+            seen[key] = ordinal + 1
+            chunk["doc_id"] = section_doc_id(
+                chunk["record_key"], chunk["section"], ordinal
+            )
+            yield chunk
+
+    def _existing_ids(
+        self, client: Any, index: str, ids: list[str]
+    ) -> set[str]:
+        """Return which of ``ids`` already exist in ``index`` (via mget)."""
+        resp = client.mget(index=index, ids=ids, _source=False)
+        return {
+            doc["_id"] for doc in resp.get("docs", []) if doc.get("found")
+        }
+
     def _migrate_source(
         self,
         source: str,
@@ -280,8 +323,9 @@ class Command(BaseCommand):
         batch_size: int,
         limit: int,
         recreate: bool,
+        skip_existing: bool,
         dry_run: bool,
-    ) -> int:
+    ) -> tuple[int, int]:
         from elasticsearch.helpers import bulk
 
         from literev.libs.chroma_utils import embed_texts
@@ -290,40 +334,66 @@ class Command(BaseCommand):
         # `Any` (not `Any | None`): the ES client is only touched on the
         # non-dry-run path, but mypy can't see the dry-run short-circuit.
         client: Any = None if dry_run else self._client()
+
+        # --skip-existing resumes an *existing* index (never recreates); it is
+        # a no-op if the index does not exist yet, in which case we fall back to
+        # a normal fresh build.
+        if skip_existing and not dry_run:
+            if client.indices.exists(index=index):
+                recreate = False
+            else:
+                skip_existing = False
+
         index_ready = False
         written = 0
+        skipped = 0
 
         iter_chunks = (
             self._iter_chunks_sqlite
             if reader == "sqlite"
             else self._iter_chunks
         )
-        for batch in iter_batches(iter_chunks(source, limit), batch_size):
+        stream = self._with_ids(iter_chunks(source, limit))
+        for batch in iter_batches(stream, batch_size):
             if dry_run:
                 written += len(batch)
                 continue
 
-            vectors = embed_texts([c["text"] for c in batch], engine)
-            documents = [
-                section_document(
-                    record_key=chunk["record_key"],
-                    source=source,
-                    section=chunk["section"],
-                    text=chunk["text"],
-                    vector=vector,
-                    decision_date=chunk["decision_date"],
+            if skip_existing:
+                present = self._existing_ids(
+                    client, index, [c["doc_id"] for c in batch]
                 )
-                for chunk, vector in zip(batch, vectors)
-            ]
+                if present:
+                    skipped += len(present)
+                    batch = [c for c in batch if c["doc_id"] not in present]
+                if not batch:
+                    continue
+
+            vectors = embed_texts([c["text"] for c in batch], engine)
             if not index_ready:
                 self._ensure_index(client, index, len(vectors[0]), recreate)
                 index_ready = True
-            success, _ = bulk(
-                client, iter_section_bulk_actions(index, documents)
-            )
+            actions = [
+                bulk_index_action(
+                    index,
+                    chunk["doc_id"],
+                    section_document(
+                        record_key=chunk["record_key"],
+                        source=source,
+                        section=chunk["section"],
+                        text=chunk["text"],
+                        vector=vector,
+                        decision_date=chunk["decision_date"],
+                    ),
+                )
+                for chunk, vector in zip(batch, vectors)
+            ]
+            success, _ = bulk(client, actions)
             written += success
 
-        return written
+        if skipped:
+            self.stdout.write(f"  skipped {skipped} already-indexed chunks")
+        return written, skipped
 
     def handle(self, *args: Any, **options: Any) -> None:
         engine = str(options["engine"]) or str(
@@ -333,22 +403,25 @@ class Command(BaseCommand):
         batch_size = int(options["batch_size"])
         limit = int(options["limit"])
         recreate = bool(options["recreate"])
+        skip_existing = bool(options["skip_existing"])
         dry_run = bool(options["dry_run"])
 
         total = 0
         for source in self._sources(str(options["source"])):
             self.stdout.write(
                 f"{source} → {section_index_name(source)} "
-                f"(engine={engine}, reader={reader})"
+                f"(engine={engine}, reader={reader}"
+                f"{', skip-existing' if skip_existing else ''})"
             )
             try:
-                count = self._migrate_source(
+                count, _skipped = self._migrate_source(
                     source,
                     engine=engine,
                     reader=reader,
                     batch_size=batch_size,
                     limit=limit,
                     recreate=recreate,
+                    skip_existing=skip_existing,
                     dry_run=dry_run,
                 )
             except Exception as exc:
