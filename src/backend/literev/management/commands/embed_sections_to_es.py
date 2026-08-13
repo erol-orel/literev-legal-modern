@@ -393,10 +393,13 @@ class Command(BaseCommand):
             # first error for diagnosis, and carry on.
             success, errors = bulk(client, actions, raise_on_error=False)
             written += success
-            if errors:
-                failed += len(errors)
+            # With raise_on_error=False (and stats_only=False), ``errors`` is a
+            # list of failed-action dicts; narrow it for the type checker.
+            error_list = errors if isinstance(errors, list) else []
+            if error_list:
+                failed += len(error_list)
                 if first_error is None:
-                    first_error = errors[0]
+                    first_error = error_list[0]
 
         if skipped:
             self.stdout.write(f"  skipped {skipped} already-indexed chunks")
