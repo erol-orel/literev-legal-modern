@@ -1,9 +1,9 @@
 """Unit tests for the Elasticsearch section-RAG retrieval (Chroma replacement).
 
 The Elasticsearch client is mocked, so these run without a live cluster or
-Hactar. They pin the query the retrieval POSTs (hybrid RRF, filtered to one
-decision, against the ``<source>_sections`` index) and that the response is
-grouped into the same per-section block shape the Chroma path returned.
+Hactar. They pin the query the retrieval POSTs (a dense ``knn`` query, filtered
+to one decision, against the ``<source>_sections`` index) and that the response
+is grouped into the same per-section block shape the Chroma path returned.
 """
 
 from __future__ import annotations
@@ -54,13 +54,12 @@ class TestGetBestSectionChunksEs:
         _, kwargs = client.search.call_args
         assert kwargs["index"] == "bundesgericht_sections"
         body = kwargs["body"]
-        legs = body["retriever"]["rrf"]["retrievers"]
-        # both legs constrained to this decision only
-        record_filter = [{"term": {"record_key": "REC_KEY"}}]
-        assert legs[1]["knn"]["filter"] == record_filter
-        assert legs[0]["standard"]["query"]["bool"]["filter"] == record_filter
-        # dense leg carries the caller-provided query vector
-        assert legs[1]["knn"]["query_vector"] == [0.3, 0.4]
+        knn = body["knn"]
+        # dense knn over the section vectors, constrained to this decision only
+        assert knn["field"] == "section_vector"
+        assert knn["filter"] == [{"term": {"record_key": "REC_KEY"}}]
+        # the knn leg carries the caller-provided query vector
+        assert knn["query_vector"] == [0.3, 0.4]
 
     def test_empty_response_yields_all_empty_sections(self) -> None:
         client = MagicMock()
