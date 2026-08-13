@@ -310,9 +310,7 @@ class Command(BaseCommand):
     ) -> set[str]:
         """Return which of ``ids`` already exist in ``index`` (via mget)."""
         resp = client.mget(index=index, ids=ids, _source=False)
-        return {
-            doc["_id"] for doc in resp.get("docs", []) if doc.get("found")
-        }
+        return {doc["_id"] for doc in resp.get("docs", []) if doc.get("found")}
 
     def _migrate_source(
         self,
