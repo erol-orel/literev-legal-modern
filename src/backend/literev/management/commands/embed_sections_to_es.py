@@ -345,6 +345,8 @@ class Command(BaseCommand):
         index_ready = False
         written = 0
         skipped = 0
+        failed = 0
+        first_error: Any = None
 
         iter_chunks = (
             self._iter_chunks_sqlite
@@ -386,11 +388,25 @@ class Command(BaseCommand):
                 )
                 for chunk, vector in zip(batch, vectors)
             ]
-            success, _ = bulk(client, actions)
+            # ``raise_on_error=False``: a handful of malformed chunks must not
+            # abort a multi-million-chunk migration. Count failures, keep the
+            # first error for diagnosis, and carry on.
+            success, errors = bulk(client, actions, raise_on_error=False)
             written += success
+            if errors:
+                failed += len(errors)
+                if first_error is None:
+                    first_error = errors[0]
 
         if skipped:
             self.stdout.write(f"  skipped {skipped} already-indexed chunks")
+        if failed:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"  {failed} chunks failed to index; first error: "
+                    f"{first_error}"
+                )
+            )
         return written, skipped
 
     def handle(self, *args: Any, **options: Any) -> None:
