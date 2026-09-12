@@ -49,7 +49,7 @@ dependencies = [
   "matplotlib >=3.9.2", # transitive dep of distinctipy (cluster color map)
   "werkzeug >=3",
   "djangorestframework >=3.15.2",
-  "rago[base,ollama] >=0.14.3,<0.14.5", # 0.14.5 renamed generate(context=) to generate(data=)
+  "rago[base,ollama] >=0.14.3,<0.14.6", # 0.14.5 renamed generate(context=) to generate(data=)
   "litellm>=1.0.0,!=1.82.7,!=1.82.8",
   "langchain >=0.3.6,<0.4.0",
   "django-filter >=24.3",
