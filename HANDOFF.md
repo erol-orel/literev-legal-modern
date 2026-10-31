@@ -62,8 +62,7 @@ relying on them:
    a run stopped when the OpenAI credits ran out. To resume without paying again
    for chunks already indexed, run
    `python manage.py embed_sections_to_es --skip-existing` directly:
-   `makim django.embed-sections` does not pass that flag. (Its help text also
-   still says "through Hactar"; the engine now defaults to OpenAI.)
+   `makim django.embed-sections` does not pass that flag.
    `manage.py rag_section_status` shows which sources have a usable Chroma
    section collection; it does not inspect the ES indexes.
 2. **Is `HYBRID_RETRIEVAL_ENABLED=true` set on the VM, and was answer parity
@@ -76,33 +75,24 @@ relying on them:
 
 ## Open items
 
-1. **`docs/hybrid-retrieval.md` is behind the code.** It still describes section
-   retrieval as an RRF query on Hactar embeddings. Since #77 and #79 it is a
-   dense kNN query on OpenAI `text-embedding-3-large` vectors
-   (`HYBRID_EMBED_ENGINE=openai`), filtered to one decision.
-2. **RRF is not usable on the current ES license.** `lr_search.hybrid`
+1. **RRF is not usable on the current ES license.** `lr_search.hybrid`
    `build_hybrid_search_body` still builds an RRF retriever. Nothing calls it in
    production today, but the planned BM25 + dense candidate generation for the
    results table would get a 403 the same way. It needs client-side fusion or a
    licence decision before it is built.
-3. **Retire ChromaDB** once the ES path has parity: the Chroma retrieval path,
+2. **Retire ChromaDB** once the ES path has parity: the Chroma retrieval path,
    `chroma_utils`, and the `SECTION_EMBED_ENGINE` split go with it.
-4. **Native cluster map.** `/project/:id` still embeds the Bokeh plot
+3. **Native cluster map.** `/project/:id` still embeds the Bokeh plot
    (`src/frontend/src/components/common/bokeh-plot.tsx`). Exposing
    `ClusterElement` coordinates from the backend would allow a themeable React
    scatter. Carried over from the previous handoff.
-5. **Stale commands in other docs.** `docs/index.md` and
-   `docs/services/containers.md` reference `makim containers.start` and
-   `makim containers.start-celery`, which do not exist (containers are managed
-   with `sugar`). `docs/services/configuration.md` is missing the rerank, hybrid
-   and response-cache variables (they are listed in `AGENTS.md`).
-6. **`MIN_CONFIDENCE` has no effect.** `settings/base.py` reads it into
+4. **`MIN_CONFIDENCE` has no effect.** `settings/base.py` reads it into
    `settings.MIN_CONFIDENCE`, but `libs/rag_pdf.py` filters answers on
    `getattr(settings, "RAG_MIN_CONFIDENCE", 0.0)`, which is never defined, so
    the threshold is always 0.0. Decide which name wins before fixing it: turning
    it on will hide low-confidence answers that users currently see.
    (`LITEREV_CACHE_ACTIVE` is similarly read into settings and never used.)
-7. **Dependabot backlog: 20 open PRs**, several of them major bumps (vite 5 → 8,
+5. **Dependabot backlog: 20 open PRs**, several of them major bumps (vite 5 → 8,
    `@eslint/js` 10, jsdom 30, tailwind-merge 3, langchain < 1.4, setuptools <
    84, `actions/download-artifact` 8). Do **not** merge the rago bump (#32)
    as-is: `pyproject.toml` pins `rago < 0.14.5` on purpose because 0.14.5

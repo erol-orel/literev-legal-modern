@@ -313,11 +313,15 @@ groups:
       embed-sections:
         help: |
           Build the Elasticsearch section index(es) for hybrid retrieval by
-          re-embedding each source's section chunks through Hactar into
-          <source>_sections. Idempotent — safe to re-run. This is the one
-          command to enable hybrid retrieval: run it, verify answer parity
-          against the Chroma path, then set HYBRID_RETRIEVAL_ENABLED=true in
-          .env and redeploy.
+          re-embedding each source's section chunks into <source>_sections.
+          The embedding engine comes from HYBRID_EMBED_ENGINE (default OpenAI,
+          text-embedding-3-large). Idempotent — safe to re-run, but a re-run
+          re-embeds every chunk. This task does not pass --skip-existing: to
+          resume an interrupted run without re-embedding indexed chunks, run
+          `python manage.py embed_sections_to_es --skip-existing` directly.
+          This is the one command to enable hybrid retrieval: run it, verify
+          answer parity against the Chroma path, then set
+          HYBRID_RETRIEVAL_ENABLED=true in .env and redeploy.
           e.g. makim django.embed-sections --source chambre_civile --recreate true
         env-file: .env
         args:

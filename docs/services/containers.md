@@ -1,6 +1,9 @@
 # Containers
 
-LiteRev-Legal uses [sugar](https://github.com/osl-incubator/sugar) and [makim](https://github.com/osl-incubator/makim) to manage Docker Compose services. `sugar` wraps `docker compose` with profile support; `makim` provides higher-level task automation via `.makim.yaml`.
+LiteRev-Legal uses [sugar](https://github.com/osl-incubator/sugar) and
+[makim](https://github.com/osl-incubator/makim) to manage Docker Compose
+services. `sugar` wraps `docker compose` with profile support; `makim` provides
+higher-level task automation via `.makim.yaml`.
 
 ---
 
@@ -44,10 +47,10 @@ makim --help
 
 ## Compose Profiles
 
-| Profile | Purpose |
-|---------|---------|
-| `dev` | Local development (includes Jupyter) |
-| `prod` | Production stack |
+| Profile | Purpose                              |
+| ------- | ------------------------------------ |
+| `dev`   | Local development (includes Jupyter) |
+| `prod`  | Production stack                     |
 
 ```bash
 # Status of prod services
@@ -61,7 +64,8 @@ sugar --profile dev compose ps literev-jupyter
 
 ## Redis Credentials Setup
 
-Run this once to generate a strong Redis password, write the ACL config, and sync `REDIS_PASSWORD` in `.env`:
+Run this once to generate a strong Redis password, write the ACL config, and
+sync `REDIS_PASSWORD` in `.env`:
 
 ```bash
 makim containers.redis-setup
@@ -73,7 +77,8 @@ makim containers.redis-setup
 - `containers/redis/config/redis.conf` — ACL rules for the `app` user
 - Updates `./.env` with the matching `REDIS_PASSWORD`
 
-If your host drops inter-container traffic to port 6379 via `DOCKER-USER`, add an allow rule limited to the project's Docker bridge:
+If your host drops inter-container traffic to port 6379 via `DOCKER-USER`, add
+an allow rule limited to the project's Docker bridge:
 
 ```bash
 # With cached sudo (no prompt):
@@ -86,7 +91,8 @@ makim containers.redis-setup --set-iptables --sudo-password 'yourpass'
 SUDO_PASSWORD='yourpass' makim containers.redis-setup --set-iptables
 ```
 
-The iptables script uses cached sudo if available, otherwise reads `SUDO_PASSWORD`. If neither is available it skips the rule and prints a warning.
+The iptables script uses cached sudo if available, otherwise reads
+`SUDO_PASSWORD`. If neither is available it skips the rule and prints a warning.
 
 ---
 
@@ -112,8 +118,8 @@ makim django.runserver --local
 See [celery.md](celery.md) for full configuration. Quick start:
 
 ```bash
-# Development (local)
-makim containers.start-celery
+# Development (container)
+sugar compose-ext restart --services literev-celery -- -d
 
 # Or directly
 celery -A config.celery worker --loglevel=info --pool=prefork --concurrency=4
@@ -147,7 +153,8 @@ makim django.migrate
 
 ## Running Django with Jupyter
 
-[Django Extensions](https://github.com/django-extensions/django-extensions) allow running the project inside a Jupyter notebook.
+[Django Extensions](https://github.com/django-extensions/django-extensions)
+allow running the project inside a Jupyter notebook.
 
 1. Ensure `POSTGRES_HOST=localhost` is set in `.env`
 2. Load environment variables:
