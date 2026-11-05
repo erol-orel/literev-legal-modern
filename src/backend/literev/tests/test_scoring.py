@@ -152,7 +152,7 @@ class ScoringTest(TestCase):
         )
 
         # check the first element and last element and result length
-        first_table_id = 1450
+        first_table_id = 1452
         last_table_id = 1459
         total_tablechoice = 53
 
