@@ -5,8 +5,9 @@ LiteRev Legal without the earlier chat history. Read [AGENTS.md](AGENTS.md) for
 conventions and the code map; this file covers **where the work stands** and
 **what is open**.
 
-Last updated: 2026-10-30. `main` at `f0136ca` — PR #79, merged 2026-09-02. There
-is no unmerged feature work: the only open PRs are from Dependabot.
+Last updated: 2026-11-05. The last code change on `main` is `f0136ca` (PR #79,
+merged 2026-09-02); later commits only touch docs. There is no unmerged feature
+work: the only open PRs are from Dependabot.
 
 ## What the product is now
 
@@ -92,11 +93,26 @@ relying on them:
    the threshold is always 0.0. Decide which name wins before fixing it: turning
    it on will hide low-confidence answers that users currently see.
    (`LITEREV_CACHE_ACTIVE` is similarly read into settings and never used.)
-5. **Dependabot backlog: 20 open PRs**, several of them major bumps (vite 5 → 8,
+5. **Dependabot backlog: 26 open PRs**, several of them major bumps (vite 5 → 8,
    `@eslint/js` 10, jsdom 30, tailwind-merge 3, langchain < 1.4, setuptools <
    84, `actions/download-artifact` 8). Do **not** merge the rago bump (#32)
    as-is: `pyproject.toml` pins `rago < 0.14.5` on purpose because 0.14.5
    renamed `generate(context=)` to `generate(data=)`.
+6. **Code comments still describe RRF on Hactar embeddings.** The docs now
+   describe dense kNN on OpenAI vectors, but these comments were not updated:
+   the module docstring of `management/commands/embed_sections_to_es.py` (says
+   retrieval moves to "the ES hybrid (RRF) path"), the `embedded_question`
+   comments in `libs/rag_pdf.py` (call it a Hactar vector), the `HYBRID_*` block
+   comment in `config/settings/base.py` ("a single hybrid RRF query (embedded
+   through Hactar)"), and the `lr_search.hybrid` module docstring ("embedded via
+   Hactar"). Comment-only fix.
+7. **Remaining doc and template gaps.** `docs/services/celery.md` and
+   `docs/contributing.md` still use `makim containers.start-celery` and
+   `makim containers.start`, which do not exist; replace them with the `sugar`
+   commands in `docs/services/containers.md`. `.env.tpl` has no `HYBRID_*`,
+   `RESPONSE_CACHE_*`, `RERANK_MAX_CHARS` or `RERANKER_TIMEOUT_S` lines. That is
+   harmless, since unset values fall back to their defaults, but `AGENTS.md`
+   asks for every env variable to be listed there.
 
 ## Frontend contract (still applies)
 
