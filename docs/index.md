@@ -29,31 +29,31 @@ shared algorithms in `libs/` free of Django imports.
 
 ## Start Here
 
-| Document                                                     | Description                                                                                                |
-| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| [architecture.md](architecture.md)                           | Current system layout, dependency boundaries, and end-to-end data flow                                     |
-| [adr/](adr/README.md)                                        | Architecture Decision Records — expensive-to-reverse decisions and the alternatives that were rejected      |
+| Document                                                     | Description                                                                                                  |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| [architecture.md](architecture.md)                           | Current system layout, dependency boundaries, and end-to-end data flow                                       |
+| [adr/](adr/README.md)                                        | Architecture Decision Records — expensive-to-reverse decisions and the alternatives that were rejected       |
 | [frontend-question-first.md](frontend-question-first.md)     | The answer-first research surface: general considerations lead, evidence follows — the IA and what's shipped |
-| [contributing.md](contributing.md)                           | Local setup, coding workflow, source-root conventions, and contribution checklist                          |
-| [federal-court-integration.md](federal-court-integration.md) | Adding Swiss Federal Court decisions (DE/FR/IT): sources, ES schema, multilingual steps, and prerequisites |
+| [contributing.md](contributing.md)                           | Local setup, coding workflow, source-root conventions, and contribution checklist                            |
+| [federal-court-integration.md](federal-court-integration.md) | Adding Swiss Federal Court decisions (DE/FR/IT): sources, ES schema, multilingual steps, and prerequisites   |
 | [adverse-authority.md](adverse-authority.md)                 | Case-law citation graph: surfacing adverse/distinguishing authority and "is this still good law?" signals    |
 | [reranking.md](reranking.md)                                 | Cross-encoder reranking of the BM25 candidate set: where to run it (VM vs Hactar) and how to enable it       |
 | [hybrid-retrieval.md](hybrid-retrieval.md)                   | BM25 vs hybrid (BM25+dense, RRF) → rerank: speed/recall trade-offs, Hactar-vs-VM, rollout, and a benchmark   |
 | [rag-evaluation.md](rag-evaluation.md)                       | Offline RAG quality scoring: verdict accuracy, citation precision/recall, faithfulness, and the change loop  |
-| [services/configuration.md](services/configuration.md)       | Environment variables, settings modules, and dependency-based library installation                         |
-| [services/django.md](services/django.md)                     | Django service responsibilities, app-layer conventions, and test commands                                  |
+| [services/configuration.md](services/configuration.md)       | Environment variables, settings modules, and dependency-based library installation                           |
+| [services/django.md](services/django.md)                     | Django service responsibilities, app-layer conventions, and test commands                                    |
 
 ## Services & Operations
 
-| Document                                               | Description                                                                                            |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| [services/containers.md](services/containers.md)       | Docker Compose, Sugar, and container lifecycle                                                         |
-| [services/celery.md](services/celery.md)               | Celery workers, async task execution, and Redis wiring                                                 |
-| [services/deployment.md](services/deployment.md)       | Production deployment and operational concerns                                                         |
+| Document                                               | Description                                                                                             |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| [services/containers.md](services/containers.md)       | Docker Compose, Sugar, and container lifecycle                                                          |
+| [services/celery.md](services/celery.md)               | Celery workers, async task execution, and Redis wiring                                                  |
+| [services/deployment.md](services/deployment.md)       | Production deployment and operational concerns                                                          |
 | [performance.md](performance.md)                       | Speed & cost levers: opt-in document response caching (shipped), streaming answers, off-ingestion embed |
-| [services/elasticsearch.md](services/elasticsearch.md) | Elasticsearch indexing and search infrastructure                                                       |
-| [infrastructure.md](infrastructure.md)                 | Where the current deployment runs (hosts, topology) and a read-only inspection checklist               |
-| [deployment-hetzner.md](deployment-hetzner.md)         | Stand up a standalone instance on a Hetzner VM: own ES seeded from prod (read-only) + Tribunal fédéral |
+| [services/elasticsearch.md](services/elasticsearch.md) | Elasticsearch indexing and search infrastructure                                                        |
+| [infrastructure.md](infrastructure.md)                 | Where the current deployment runs (hosts, topology) and a read-only inspection checklist                |
+| [deployment-hetzner.md](deployment-hetzner.md)         | Stand up a standalone instance on a Hetzner VM: own ES seeded from prod (read-only) + Tribunal fédéral  |
 
 ## Test Commands
 
@@ -70,7 +70,7 @@ makim tests.reactjs
 ## Quick Reference
 
 ```bash
-makim containers.start
+sugar compose-ext restart -- -d
 makim django.migrate
 makim reactjs.install
 makim reactjs.build

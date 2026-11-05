@@ -142,7 +142,7 @@ def plot_clusters(
         fig = figure(
             width=fig_width,
             height=fig_height,
-            tools=["box_zoom", "reset", "tap"],  # type: ignore
+            tools=["box_zoom", "reset", "tap"],
         )
 
     config: dict[str, list[Optional[Union[float, str, dt.date]]]] = {}
